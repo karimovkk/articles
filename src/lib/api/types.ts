@@ -118,6 +118,9 @@ export interface Annotation {
   text?: string | null;
   note?: string | null;
   color?: string | null;
+  /** Belgi joyi (backend: opaque JSON, ≤ 32 KB). Highlight: `{ page, rects: [[x,y,w,h], …] }` */
+  location_data?: Record<string, unknown> | null;
+  /** @deprecated eski nom — faqat o'qishda qabul qilinadi */
   location?: Record<string, unknown> | null;
   created_at?: string;
   updated_at?: string;
@@ -181,4 +184,27 @@ export interface AuditLog {
   ip?: string | null;
   ip_address?: string | null;
   created_at: string;
+}
+
+/** GET /admin/stats (backend, 2026-09-21) — taqsimotlar `by_*` ixtiyoriy. */
+export interface AdminStats {
+  users: { total: number; by_status?: Record<string, number>; by_role?: Record<string, number> };
+  books: { total: number; by_status?: Record<string, number> };
+  articles?: { total: number; by_processing?: Record<string, number> };
+  categories: number;
+  access: { total: number; by_status?: Record<string, number> };
+  annotations: number;
+  active_sessions: number;
+}
+
+/** GET /catalog elementi — public sotuv ro'yxati (kontent himoyalangan). */
+export interface CatalogItem {
+  book_id: UUID;
+  title: string;
+  author?: string | null;
+  description?: string | null;
+  category_name?: string | null;
+  price?: number | string | null;
+  has_cover?: boolean;
+  article_count?: number | null;
 }

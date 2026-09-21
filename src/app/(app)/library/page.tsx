@@ -7,8 +7,10 @@ import { Alert, Button, EmptyState, Input, PageHeader, Pagination, Select, Spinn
 import { libraryApi, progressPercent } from "@/lib/api";
 import type { LibrarySort } from "@/lib/api/library";
 import { useAsync } from "@/lib/use-async";
+import { useT } from "@/i18n";
 
 export default function LibraryPage() {
+  const { t } = useT();
   const [search, setSearch] = useState("");
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<LibrarySort>("recent");
@@ -21,7 +23,7 @@ export default function LibraryPage() {
 
   return (
     <div>
-      <PageHeader title="Mening kutubxonam" description="Sizga ruxsat berilgan kitoblar. O'qish faqat himoyalangan reader ichida." />
+      <PageHeader title={t("library.title")} description={t("library.description")} />
 
       <form
         className="mb-6 flex flex-wrap gap-2"
@@ -31,7 +33,7 @@ export default function LibraryPage() {
           setQuery(search.trim());
         }}
       >
-        <Input placeholder="Nomi yoki muallif bo'yicha qidirish…" value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-sm" />
+        <Input placeholder={t("library.searchPlaceholder")} value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-sm" />
         <Select
           value={sort}
           onChange={(e) => {
@@ -40,12 +42,12 @@ export default function LibraryPage() {
           }}
           className="w-44"
         >
-          <option value="recent">So&apos;nggi o&apos;qilgan</option>
-          <option value="granted">Berilgan sana</option>
-          <option value="title">Nomi (A–Z)</option>
+          <option value="recent">{t("library.sort.recent")}</option>
+          <option value="granted">{t("library.sort.granted")}</option>
+          <option value="title">{t("library.sort.title")}</option>
         </Select>
         <Button type="submit" variant="secondary">
-          Qidirish
+          {t("common.search")}
         </Button>
       </form>
 
@@ -60,10 +62,7 @@ export default function LibraryPage() {
           <Spinner />
         </div>
       ) : !data || data.items.length === 0 ? (
-        <EmptyState
-          title="Kutubxonangiz bo&apos;sh"
-          description="Kitoblar administrator tomonidan ruxsat berilgandan so'ng shu yerda paydo bo'ladi."
-        />
+        <EmptyState title={t("library.emptyTitle")} description={t("library.emptyDescription")} />
       ) : (
         <div className={loading ? "opacity-60 transition-opacity" : ""}>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
@@ -79,8 +78,8 @@ export default function LibraryPage() {
                       <div className="h-full rounded-full bg-accent" style={{ width: `${pct}%` }} />
                     </div>
                     <p className="mt-1 text-[11px] text-muted">
-                      {pct > 0 ? `${pct}% o'qilgan` : "Boshlanmagan"}
-                      {item.book.page_count ? ` · ${item.book.page_count} bet` : ""}
+                      {pct > 0 ? t("library.readPercent", { n: pct }) : t("library.notStarted")}
+                      {item.book.page_count ? ` · ${t("common.pagesN", { n: item.book.page_count })}` : ""}
                     </p>
                   </div>
                 </Link>

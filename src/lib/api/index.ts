@@ -1,8 +1,10 @@
 export * from "./types";
 export * from "./client";
+export { messageForCode } from "./error-codes";
 export { tokenStore } from "./token-store";
 export { authApi, splitIdentifier } from "./auth";
 export { libraryApi, normalizeLibraryItem, progressPercent } from "./library";
+export { catalogApi, catalogCache } from "./catalog";
 export { readerApi } from "./reader";
 export { readingApi } from "./reading";
 export { sessionsApi } from "./sessions";

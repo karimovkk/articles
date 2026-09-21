@@ -6,8 +6,10 @@ import { DataTable, usePaged, type Column } from "@/components/admin/data-table"
 import { GrantModal } from "@/components/admin/user-detail";
 import { Badge, Button, PageHeader, Select, formatDate, statusTone } from "@/components/ui";
 import { adminApi, errorMessage, type BookAccess } from "@/lib/api";
+import { useT } from "@/i18n";
 
 export default function AdminAccessPage() {
+  const { t } = useT();
   const [status, setStatus] = useState("");
   const [grantOpen, setGrantOpen] = useState(false);
   const [actionErr, setActionErr] = useState<string | null>(null);
@@ -15,7 +17,7 @@ export default function AdminAccessPage() {
   const { data, loading, error, setPage, reload } = usePaged<BookAccess>((page) => adminApi.access({ page, status: status || undefined }), [status]);
 
   async function revoke(a: BookAccess) {
-    if (!confirm("Ruxsatni bekor qilasizmi? Foydalanuvchi kitobni darhol o'qiy olmaydi (tarix saqlanadi).")) return;
+    if (!confirm(t("admin.access.revokeConfirm"))) return;
     setActionErr(null);
     try {
       await adminApi.revokeAccess(a.id);
@@ -28,7 +30,7 @@ export default function AdminAccessPage() {
   const columns: Column<BookAccess>[] = [
     {
       key: "user",
-      header: "Foydalanuvchi",
+      header: t("common.user"),
       render: (a) => (
         <Link href={`/admin/users/${a.user_id}`} className="text-accent hover:underline">
           {a.user?.full_name || a.user?.email || a.user?.phone || a.user_id.slice(0, 8)}
@@ -37,16 +39,16 @@ export default function AdminAccessPage() {
     },
     {
       key: "book",
-      header: "Kitob",
+      header: t("admin.book"),
       render: (a) => (
         <Link href={`/admin/books/${a.book_id}`} className="text-accent hover:underline">
           {a.book?.title ?? a.book_id.slice(0, 8)}
         </Link>
       ),
     },
-    { key: "status", header: "Holat", render: (a) => <Badge tone={statusTone(a.status)}>{a.status}</Badge> },
-    { key: "granted", header: "Berilgan", render: (a) => <span className="text-muted">{formatDate(a.granted_at)}</span> },
-    { key: "revoked", header: "Bekor qilingan", render: (a) => <span className="text-muted">{formatDate(a.revoked_at)}</span> },
+    { key: "status", header: t("common.status"), render: (a) => <Badge tone={statusTone(a.status)}>{a.status}</Badge> },
+    { key: "granted", header: t("admin.granted"), render: (a) => <span className="text-muted">{formatDate(a.granted_at)}</span> },
+    { key: "revoked", header: t("admin.revoked"), render: (a) => <span className="text-muted">{formatDate(a.revoked_at)}</span> },
     {
       key: "actions",
       header: "",
@@ -54,7 +56,7 @@ export default function AdminAccessPage() {
       render: (a) =>
         (a.status ?? "ACTIVE").toUpperCase() === "ACTIVE" ? (
           <Button size="sm" variant="danger" onClick={() => void revoke(a)}>
-            Bekor qilish
+            {t("common.revoke")}
           </Button>
         ) : null,
     },
@@ -63,13 +65,13 @@ export default function AdminAccessPage() {
   return (
     <div>
       <PageHeader
-        title="Kitoblarga ruxsatlar"
-        description="To'lov tashqi tizimda tasdiqlangach ruxsat qo'lda beriladi (TZ §16). Bekor qilish tarixni saqlaydi."
-        actions={<Button onClick={() => setGrantOpen(true)}>+ Ruxsat berish</Button>}
+        title={t("admin.access.title")}
+        description={t("admin.access.description")}
+        actions={<Button onClick={() => setGrantOpen(true)}>{t("admin.grant")}</Button>}
       />
       <div className="mb-4 flex gap-2">
         <Select value={status} onChange={(e) => setStatus(e.target.value)} className="w-44">
-          <option value="">Barchasi</option>
+          <option value="">{t("admin.access.all")}</option>
           <option value="ACTIVE">ACTIVE</option>
           <option value="REVOKED">REVOKED</option>
         </Select>

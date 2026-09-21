@@ -6,8 +6,10 @@ import { useRouter } from "next/navigation";
 import { DataTable, usePaged, type Column } from "@/components/admin/data-table";
 import { Alert, Badge, Button, Field, Input, Modal, PageHeader, Select, Textarea, formatDate, statusTone } from "@/components/ui";
 import { adminApi, errorMessage, type Book, type Category } from "@/lib/api";
+import { useT } from "@/i18n";
 
 export default function AdminBooksPage() {
+  const { t } = useT();
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [query, setQuery] = useState("");
@@ -27,7 +29,7 @@ export default function AdminBooksPage() {
   const columns: Column<Book>[] = [
     {
       key: "title",
-      header: "Kitob",
+      header: t("admin.book"),
       render: (b) => (
         <div>
           <Link href={`/admin/books/${b.id}`} className="font-medium text-accent hover:underline">
@@ -37,24 +39,24 @@ export default function AdminBooksPage() {
         </div>
       ),
     },
-    { key: "category", header: "Kategoriya", render: (b) => <span className="text-muted">{b.category?.name ?? categories.find((c) => c.id === b.category_id)?.name ?? "—"}</span> },
-    { key: "status", header: "Holat", render: (b) => <Badge tone={statusTone(b.status)}>{b.status ?? "—"}</Badge> },
+    { key: "category", header: t("admin.books.category"), render: (b) => <span className="text-muted">{b.category?.name ?? categories.find((c) => c.id === b.category_id)?.name ?? "—"}</span> },
+    { key: "status", header: t("common.status"), render: (b) => <Badge tone={statusTone(b.status)}>{b.status ?? "—"}</Badge> },
     {
       key: "file",
-      header: "Fayl",
+      header: t("admin.books.file"),
       render: (b) => (
         <span className="text-xs text-muted">
-          {b.has_source_file ? `PDF ✓${b.page_count ? ` · ${b.page_count} bet` : ""}` : "yo'q"}
-          {b.has_cover ? " · muqova ✓" : ""}
+          {b.has_source_file ? `${t("admin.books.pdfYes")}${b.page_count ? ` · ${t("common.pagesN", { n: b.page_count })}` : ""}` : t("common.none")}
+          {b.has_cover ? ` · ${t("admin.books.coverYes")}` : ""}
         </span>
       ),
     },
-    { key: "created", header: "Yaratilgan", render: (b) => <span className="text-muted">{formatDate(b.created_at)}</span> },
+    { key: "created", header: t("common.created"), render: (b) => <span className="text-muted">{formatDate(b.created_at)}</span> },
   ];
 
   return (
     <div>
-      <PageHeader title="Kitoblar" actions={<Button onClick={() => setCreateOpen(true)}>+ Yangi kitob</Button>} />
+      <PageHeader title={t("admin.books.title")} actions={<Button onClick={() => setCreateOpen(true)}>{t("admin.books.new")}</Button>} />
       <form
         className="mb-4 flex flex-wrap gap-2"
         onSubmit={(e) => {
@@ -62,9 +64,9 @@ export default function AdminBooksPage() {
           setQuery(search.trim());
         }}
       >
-        <Input placeholder="Nomi yoki muallif…" value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-xs" />
+        <Input placeholder={t("admin.books.searchPlaceholder")} value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-xs" />
         <Select value={status} onChange={(e) => setStatus(e.target.value)} className="w-44">
-          <option value="">Barcha holatlar</option>
+          <option value="">{t("admin.allStatuses")}</option>
           {["DRAFT", "UPLOADING", "PROCESSING", "READY", "ACTIVE", "INACTIVE", "FAILED"].map((s) => (
             <option key={s} value={s}>
               {s}
@@ -72,7 +74,7 @@ export default function AdminBooksPage() {
           ))}
         </Select>
         <Button type="submit" variant="secondary">
-          Qidirish
+          {t("common.search")}
         </Button>
       </form>
       <DataTable data={data} columns={columns} loading={loading} error={error} onPage={setPage} />
@@ -83,6 +85,7 @@ export default function AdminBooksPage() {
 }
 
 function CreateBookModal({ open, onClose, categories, onCreated }: { open: boolean; onClose: () => void; categories: Category[]; onCreated: (b: Book) => void }) {
+  const { t } = useT();
   const [title, setTitle] = useState("");
   const [author, setAuthor] = useState("");
   const [description, setDescription] = useState("");
@@ -110,18 +113,18 @@ function CreateBookModal({ open, onClose, categories, onCreated }: { open: boole
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="Yangi kitob">
+    <Modal open={open} onClose={onClose} title={t("admin.books.newTitle")}>
       <form onSubmit={submit} className="space-y-4">
         {error && <Alert>{error}</Alert>}
-        <Field label="Nomi">
+        <Field label={t("admin.books.name")}>
           <Input value={title} onChange={(e) => setTitle(e.target.value)} required />
         </Field>
-        <Field label="Muallif">
+        <Field label={t("admin.books.author")}>
           <Input value={author} onChange={(e) => setAuthor(e.target.value)} />
         </Field>
-        <Field label="Kategoriya">
+        <Field label={t("admin.books.category")}>
           <Select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
-            <option value="">— yo&apos;q —</option>
+            <option value="">{t("admin.books.noCategory")}</option>
             {categories.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
@@ -129,16 +132,16 @@ function CreateBookModal({ open, onClose, categories, onCreated }: { open: boole
             ))}
           </Select>
         </Field>
-        <Field label="Qisqacha mazmun">
+        <Field label={t("admin.books.summary")}>
           <Textarea rows={3} value={description} onChange={(e) => setDescription(e.target.value)} />
         </Field>
-        <p className="text-xs text-muted">PDF fayl va muqova keyingi qadamda (kitob sahifasida) yuklanadi.</p>
+        <p className="text-xs text-muted">{t("admin.books.uploadLater")}</p>
         <div className="flex justify-end gap-2">
           <Button type="button" variant="ghost" onClick={onClose}>
-            Bekor
+            {t("common.cancel")}
           </Button>
           <Button type="submit" loading={busy}>
-            Yaratish
+            {t("admin.books.create")}
           </Button>
         </div>
       </form>

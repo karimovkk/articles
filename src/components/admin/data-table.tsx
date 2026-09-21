@@ -4,6 +4,7 @@ import { useState, type ReactNode } from "react";
 import { useAsync } from "@/lib/use-async";
 import { Alert, Pagination, Spinner } from "@/components/ui";
 import type { Paginated } from "@/lib/api";
+import { useT } from "@/i18n";
 
 export interface Column<T> {
   key: string;
@@ -18,7 +19,7 @@ export function DataTable<T extends { id: string }>({
   loading,
   error,
   onPage,
-  empty = "Ma'lumot yo'q",
+  empty,
 }: {
   data: Paginated<T> | null;
   columns: Column<T>[];
@@ -27,6 +28,8 @@ export function DataTable<T extends { id: string }>({
   onPage: (p: number) => void;
   empty?: string;
 }) {
+  const { t } = useT();
+  empty ??= t("common.noData");
   return (
     <div className="space-y-4">
       {error && <Alert>{error}</Alert>}
@@ -70,7 +73,9 @@ export function DataTable<T extends { id: string }>({
       </div>
       {data && (
         <div className="flex items-center justify-between text-xs text-muted">
-          <span>Jami: {data.total}</span>
+          <span>
+            {t("common.total")}: {data.total}
+          </span>
           <Pagination page={data.page} pages={data.pages} onChange={onPage} />
         </div>
       )}

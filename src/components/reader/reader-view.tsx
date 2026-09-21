@@ -6,6 +6,10 @@
  *   2. GET /reader/{id}/watermark  — imzolangan watermark
  *   3. GET /reader/{id}/content    — Range bilan stream (PdfViewer ichida)
  *   4. GET/PUT /books/{id}/progress, /annotations, /search, /toc
+ *
+ * Himoya (TZ §4, S-41): chop etish (Ctrl+P, @media print) va saqlash (Ctrl+S)
+ * bloklanadi; nusxalash PdfViewer'da bloklanadi. Bular klient tomonidagi
+ * to'siqlar — asosiy himoya backend (ruxsat tekshiruvi, watermark).
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
@@ -22,14 +26,35 @@ import {
   type TocEntry,
   type WatermarkPayload,
 } from "@/lib/api";
-import { PdfViewer, type PdfViewerHandle } from "./pdf-viewer";
+import { HIGHLIGHT_COLORS, normalizeColor } from "@/lib/reader/highlights";
+import { useT } from "@/i18n";
+import { PdfViewer, type PdfViewerHandle, type TextSelection, type ViewMode } from "./pdf-viewer";
 import { ReaderSidebar, type SidebarTab } from "./reader-sidebar";
 import { WatermarkOverlay } from "./watermark-overlay";
 
 const ZOOMS = [0.6, 0.75, 0.9, 1, 1.15, 1.3, 1.5, 1.75, 2];
 const NIGHT_KEY = "a365.reader.night";
+const MODE_KEY = "a365.reader.mode";
+const COLOR_KEY = "a365.reader.hlcolor";
+
+/** localStorage'dan xavfsiz o'qish (ReaderView faqat brauzerda, auth'dan so'ng render bo'ladi). */
+function readPref(key: string): string | null {
+  try {
+    return typeof window !== "undefined" ? window.localStorage.getItem(key) : null;
+  } catch {
+    return null;
+  }
+}
+function writePref(key: string, value: string) {
+  try {
+    window.localStorage.setItem(key, value);
+  } catch {
+    /* private rejim va h.k. */
+  }
+}
 
 export function ReaderView({ bookId }: { bookId: string }) {
+  const { t } = useT();
   const { user } = useAuth();
   const viewerRef = useRef<PdfViewerHandle>(null);
 
@@ -41,8 +66,9 @@ export function ReaderView({ bookId }: { bookId: string }) {
   const [pageInput, setPageInput] = useState("1");
   const [pageCount, setPageCount] = useState(0);
   const [zoomIdx, setZoomIdx] = useState(3);
-  // ReaderView faqat brauzerda (auth tekshiruvidan so'ng) render bo'ladi — lazy init xavfsiz
-  const [night, setNight] = useState(() => typeof window !== "undefined" && window.localStorage.getItem(NIGHT_KEY) === "1");
+  const [night, setNight] = useState(() => readPref(NIGHT_KEY) === "1");
+  const [mode, setMode] = useState<ViewMode>(() => (readPref(MODE_KEY) === "page" ? "page" : "scroll"));
+  const [hlColor, setHlColor] = useState(() => normalizeColor(readPref(COLOR_KEY)));
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [tab, setTab] = useState<SidebarTab>("toc");
 
@@ -52,9 +78,10 @@ export function ReaderView({ bookId }: { bookId: string }) {
   const [searching, setSearching] = useState(false);
   const [searchAvailable, setSearchAvailable] = useState(true);
   const [toast, setToast] = useState<string | null>(null);
-  const [selection, setSelection] = useState<{ page: number; text: string; x: number; y: number } | null>(null);
+  const [selection, setSelection] = useState<TextSelection | null>(null);
 
   const initialPage = useMemo(() => Math.max(1, meta?.progress?.current_page ?? 1), [meta]);
+  const highlights = useMemo(() => annotations.filter((a) => a.type === "HIGHLIGHT"), [annotations]);
 
   // ---- Metadata + watermark + annotatsiyalar
   useEffect(() => {
@@ -138,10 +165,24 @@ export function ReaderView({ bookId }: { bookId: string }) {
     };
   }, []);
 
-  // ---- Klaviatura
+  const toastTimer = useRef<number | null>(null);
+  const showToast = useCallback((t: string) => {
+    setToast(t);
+    if (toastTimer.current) window.clearTimeout(toastTimer.current);
+    toastTimer.current = window.setTimeout(() => setToast(null), 2500);
+  }, []);
+
+  // ---- Klaviatura: navigatsiya + chop etish/saqlash bloklash
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.target as HTMLElement)?.tagName === "INPUT" || (e.target as HTMLElement)?.tagName === "TEXTAREA") return;
+      const k = e.key.toLowerCase();
+      if ((e.ctrlKey || e.metaKey) && (k === "p" || k === "s")) {
+        e.preventDefault();
+        showToast(k === "p" ? t("reader.noPrint") : t("reader.noSave"));
+        return;
+      }
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA") return;
       if (e.key === "ArrowRight" || e.key === "PageDown") viewerRef.current?.goToPage(page + 1);
       if (e.key === "ArrowLeft" || e.key === "PageUp") viewerRef.current?.goToPage(page - 1);
       if (e.key === "+" || e.key === "=") setZoomIdx((z) => Math.min(ZOOMS.length - 1, z + 1));
@@ -149,17 +190,19 @@ export function ReaderView({ bookId }: { bookId: string }) {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [page]);
-
-  const showToast = (t: string) => {
-    setToast(t);
-    window.setTimeout(() => setToast(null), 2500);
-  };
+  }, [page, showToast, t]);
 
   const toggleNight = () => {
     setNight((n) => {
-      window.localStorage.setItem(NIGHT_KEY, n ? "0" : "1");
+      writePref(NIGHT_KEY, n ? "0" : "1");
       return !n;
+    });
+  };
+  const toggleMode = () => {
+    setMode((m) => {
+      const next: ViewMode = m === "scroll" ? "page" : "scroll";
+      writePref(MODE_KEY, next);
+      return next;
     });
   };
 
@@ -176,13 +219,13 @@ export function ReaderView({ bookId }: { bookId: string }) {
   };
   const onAddBookmark = () => {
     if (annotations.some((a) => a.type === "BOOKMARK" && a.page === page)) {
-      showToast("Bu sahifada xatcho'p allaqachon bor");
+      showToast(t("reader.bookmarkExists"));
       return;
     }
-    void addAnnotation({ type: "BOOKMARK", page, location: { page } }).then(() => showToast(`${page}-bet xatcho'plandi`));
+    void addAnnotation({ type: "BOOKMARK", page, location_data: { page } }).then(() => showToast(t("reader.bookmarked", { n: page })));
   };
   const onAddNote = async (p: number, text: string) => {
-    await addAnnotation({ type: "NOTE", page: p, note: text, text, location: { page: p } });
+    await addAnnotation({ type: "NOTE", page: p, note: text, text, location_data: { page: p } });
   };
   const onUpdateNote = async (a: Annotation, text: string) => {
     try {
@@ -200,13 +243,31 @@ export function ReaderView({ bookId }: { bookId: string }) {
       showToast(errorMessage(e));
     }
   };
-  const onHighlight = async () => {
+  const onHighlight = async (color: string) => {
     if (!selection) return;
     const s = selection;
     setSelection(null);
     window.getSelection()?.removeAllRanges();
-    await addAnnotation({ type: "HIGHLIGHT", page: s.page, text: s.text, color: "#fde047", location: { page: s.page } });
-    showToast("Belgilandi");
+    setHlColor(color);
+    writePref(COLOR_KEY, color);
+    // Optimistik: server javobida location_data bo'lmasa ham lokal nusxada rects saqlanadi
+    const location_data = { page: s.page, rects: s.rects };
+    try {
+      const a = await readingApi.createAnnotation(bookId, { type: "HIGHLIGHT", page: s.page, text: s.text, color, location_data });
+      setAnnotations((prev) => [{ ...a, color: a.color ?? color, location_data: a.location_data ?? location_data }, ...prev]);
+      showToast(t("reader.highlighted"));
+    } catch (e) {
+      showToast(errorMessage(e));
+    }
+  };
+  const onChangeColor = async (a: Annotation, color: string) => {
+    if (normalizeColor(a.color) === color) return;
+    try {
+      const u = await readingApi.updateAnnotation(bookId, a.id, { color });
+      setAnnotations((prev) => prev.map((x) => (x.id === a.id ? { ...x, ...u, color: u.color ?? color } : x)));
+    } catch (e) {
+      showToast(errorMessage(e));
+    }
   };
 
   const onSearch = async (q: string) => {
@@ -229,17 +290,12 @@ export function ReaderView({ bookId }: { bookId: string }) {
 
   // ---- Xatolik ekrani (403 BOOK_ACCESS_DENIED, 404 va h.k.)
   if (fatal) {
-    const friendly =
-      fatal.code === "BOOK_ACCESS_DENIED"
-        ? "Bu kitobga ruxsatingiz yo'q yoki ruxsat bekor qilingan."
-        : fatal.code.endsWith("_NOT_FOUND")
-          ? "Kitob topilmadi."
-          : fatal.message;
+    const friendly = fatal.code === "BOOK_ACCESS_DENIED" ? t("reader.accessDenied") : fatal.code.endsWith("_NOT_FOUND") ? t("reader.notFound") : fatal.message;
     return (
       <div className="flex min-h-dvh flex-col items-center justify-center gap-4 px-4 text-center">
         <Alert>{friendly}</Alert>
         <Link href="/library" className="text-sm text-accent underline">
-          Kutubxonaga qaytish
+          {t("common.backToLibrary")}
         </Link>
       </div>
     );
@@ -254,118 +310,148 @@ export function ReaderView({ bookId }: { bookId: string }) {
   }
 
   return (
-    <div className={cn("flex h-dvh flex-col", night && "dark")}>
-      {/* Toolbar */}
-      <header className="z-30 flex h-12 shrink-0 items-center gap-2 border-b border-border bg-surface px-2 text-text sm:px-3">
-        <Link href="/library" className="rounded-md px-2 py-1 text-sm text-muted hover:text-text" title="Kutubxona">
-          ←
-        </Link>
-        <button onClick={() => setSidebarOpen((s) => !s)} className="rounded-md px-2 py-1 text-sm hover:bg-bg" title="Panel">
-          ☰
-        </button>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium">{meta.title}</p>
-          {meta.author && <p className="truncate text-[11px] text-muted">{meta.author}</p>}
-        </div>
+    <>
+      {/* Faqat chop etishda ko'rinadi (globals.css @media print) */}
+      <div className="print-notice hidden p-8 text-center text-lg">{t("reader.printNotice")}</div>
 
-        <form
-          className="flex items-center gap-1 text-sm"
-          onSubmit={(e) => {
-            e.preventDefault();
-            const n = Number(pageInput);
-            if (Number.isFinite(n)) goToPage(n);
-          }}
-        >
-          <input
-            value={pageInput}
-            onChange={(e) => setPageInput(e.target.value)}
-            className="h-8 w-14 rounded-md border border-border bg-bg px-2 text-center text-sm"
-            inputMode="numeric"
-            aria-label="Sahifa"
-          />
-          <span className="text-muted">/ {pageCount || "…"}</span>
-        </form>
-
-        <div className="hidden items-center gap-1 sm:flex">
-          <button onClick={() => setZoomIdx((z) => Math.max(0, z - 1))} className="rounded-md px-2 py-1 hover:bg-bg" title="Kichraytirish">
-            −
+      <div className={cn("print-protected flex h-dvh flex-col", night && "dark")}>
+        {/* Toolbar */}
+        <header className="z-30 flex h-12 shrink-0 items-center gap-2 border-b border-border bg-surface px-2 text-text sm:px-3">
+          <Link href="/library" className="rounded-md px-2 py-1 text-sm text-muted hover:text-text" title={t("nav.library")}>
+            ←
+          </Link>
+          <button onClick={() => setSidebarOpen((s) => !s)} className="rounded-md px-2 py-1 text-sm hover:bg-bg" title={t("reader.panel")}>
+            ☰
           </button>
-          <span className="w-12 text-center text-xs text-muted">{Math.round(ZOOMS[zoomIdx] * 100)}%</span>
-          <button onClick={() => setZoomIdx((z) => Math.min(ZOOMS.length - 1, z + 1))} className="rounded-md px-2 py-1 hover:bg-bg" title="Kattalashtirish">
-            +
-          </button>
-        </div>
-        <button onClick={toggleNight} className="rounded-md px-2 py-1 hover:bg-bg" title={night ? "Kunduzgi rejim" : "Tungi rejim"}>
-          {night ? "☀️" : "🌙"}
-        </button>
-        <button
-          onClick={() => {
-            if (document.fullscreenElement) void document.exitFullscreen();
-            else void document.documentElement.requestFullscreen?.();
-          }}
-          className="hidden rounded-md px-2 py-1 hover:bg-bg sm:block"
-          title="To'liq ekran"
-        >
-          ⛶
-        </button>
-      </header>
-
-      <div className="relative flex min-h-0 flex-1">
-        {sidebarOpen && (
-          <div className="absolute inset-0 z-30 md:static md:z-auto md:w-80 md:shrink-0">
-            <ReaderSidebar
-              tab={tab}
-              onTab={setTab}
-              onClose={() => setSidebarOpen(false)}
-              goToPage={goToPage}
-              currentPage={page}
-              toc={toc}
-              tocAvailable={tocAvailable}
-              searchAvailable={searchAvailable}
-              searchHits={searchHits}
-              searching={searching}
-              onSearch={onSearch}
-              annotations={annotations}
-              onAddBookmark={onAddBookmark}
-              onAddNote={onAddNote}
-              onUpdateNote={onUpdateNote}
-              onDelete={onDelete}
-            />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-medium">{meta.title}</p>
+            {meta.author && <p className="truncate text-[11px] text-muted">{meta.author}</p>}
           </div>
-        )}
 
-        <div className="relative min-w-0 flex-1">
-          <PdfViewer
-            ref={viewerRef}
-            bookId={bookId}
-            initialPage={initialPage}
-            zoom={ZOOMS[zoomIdx]}
-            night={night}
-            onReady={({ pageCount: n }) => setPageCount((c) => c || n)}
-            onPageChange={onPageChange}
-            onError={(m) => setFatal({ code: "CONTENT_ERROR", message: m })}
-            onTextSelected={setSelection}
-          />
-          <WatermarkOverlay payload={watermark} night={night} />
+          <form
+            className="flex items-center gap-1 text-sm"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const n = Number(pageInput);
+              if (Number.isFinite(n)) goToPage(n);
+              // Fokus input'da qolsa klaviatura yorliqlari (←/→, +/−) ishlamaydi
+              (e.currentTarget.querySelector("input") as HTMLInputElement | null)?.blur();
+            }}
+          >
+            <input
+              value={pageInput}
+              onChange={(e) => setPageInput(e.target.value)}
+              className="h-8 w-14 rounded-md border border-border bg-bg px-2 text-center text-sm"
+              inputMode="numeric"
+              aria-label={t("common.page")}
+            />
+            <span className="text-muted">/ {pageCount || "…"}</span>
+          </form>
 
-          {selection && (
-            <div className="absolute left-1/2 top-2 z-40 -translate-x-1/2 rounded-lg border border-border bg-surface p-1 shadow-lg">
-              <Button size="sm" onClick={() => void onHighlight()}>
-                ✎ Belgilash ({selection.page}-bet)
-              </Button>
-              <Button size="sm" variant="ghost" onClick={() => setSelection(null)}>
-                ✕
-              </Button>
+          <div className="hidden items-center gap-1 sm:flex">
+            <button onClick={() => setZoomIdx((z) => Math.max(0, z - 1))} className="rounded-md px-2 py-1 hover:bg-bg" title={t("reader.zoomOut")}>
+              −
+            </button>
+            <span className="w-12 text-center text-xs text-muted">{Math.round(ZOOMS[zoomIdx] * 100)}%</span>
+            <button onClick={() => setZoomIdx((z) => Math.min(ZOOMS.length - 1, z + 1))} className="rounded-md px-2 py-1 hover:bg-bg" title={t("reader.zoomIn")}>
+              +
+            </button>
+          </div>
+          <button
+            onClick={toggleMode}
+            className="rounded-md px-2 py-1 text-xs hover:bg-bg"
+            title={mode === "scroll" ? t("reader.toPageMode") : t("reader.toScrollMode")}
+            aria-label={t("reader.readingMode")}
+          >
+            {mode === "scroll" ? t("reader.modeScroll") : t("reader.modePage")}
+          </button>
+          <button onClick={toggleNight} className="rounded-md px-2 py-1 hover:bg-bg" title={night ? t("theme.light") : t("theme.dark")}>
+            {night ? "☀️" : "🌙"}
+          </button>
+          <button
+            onClick={() => {
+              if (document.fullscreenElement) void document.exitFullscreen();
+              else void document.documentElement.requestFullscreen?.();
+            }}
+            className="hidden rounded-md px-2 py-1 hover:bg-bg sm:block"
+            title={t("reader.fullscreen")}
+          >
+            ⛶
+          </button>
+        </header>
+
+        <div className="relative flex min-h-0 flex-1">
+          {sidebarOpen && (
+            <div className="absolute inset-0 z-30 md:static md:z-auto md:w-80 md:shrink-0">
+              <ReaderSidebar
+                tab={tab}
+                onTab={setTab}
+                onClose={() => setSidebarOpen(false)}
+                goToPage={goToPage}
+                currentPage={page}
+                toc={toc}
+                tocAvailable={tocAvailable}
+                searchAvailable={searchAvailable}
+                searchHits={searchHits}
+                searching={searching}
+                onSearch={onSearch}
+                annotations={annotations}
+                onAddBookmark={onAddBookmark}
+                onAddNote={onAddNote}
+                onUpdateNote={onUpdateNote}
+                onDelete={onDelete}
+                onChangeColor={onChangeColor}
+              />
             </div>
           )}
 
-          {toast && (
-            <div className="pointer-events-none absolute bottom-4 left-1/2 z-40 -translate-x-1/2 rounded-lg bg-black/80 px-3 py-1.5 text-sm text-white">
-              {toast}
-            </div>
-          )}
+          <div className="relative min-w-0 flex-1">
+            <PdfViewer
+              ref={viewerRef}
+              bookId={bookId}
+              initialPage={initialPage}
+              zoom={ZOOMS[zoomIdx]}
+              night={night}
+              mode={mode}
+              highlights={highlights}
+              onReady={({ pageCount: n }) => setPageCount((c) => c || n)}
+              onPageChange={onPageChange}
+              onError={(m) => setFatal({ code: "CONTENT_ERROR", message: m })}
+              onTextSelected={setSelection}
+            />
+            <WatermarkOverlay payload={watermark} night={night} />
+
+            {selection && (
+              <div className="absolute left-1/2 top-2 z-40 flex -translate-x-1/2 items-center gap-1 rounded-lg border border-border bg-surface p-1.5 shadow-lg">
+                <span className="px-1 text-xs text-muted">{t("reader.highlightAt", { n: selection.page })}</span>
+                {HIGHLIGHT_COLORS.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => void onHighlight(c.hex)}
+                    title={t(c.labelKey)}
+                    aria-label={t("reader.highlightWith", { color: t(c.labelKey) })}
+                    className={cn(
+                      "size-6 rounded-full border-2 transition-transform hover:scale-110",
+                      c.hex === hlColor ? "border-text" : "border-transparent",
+                    )}
+                    style={{ background: c.hex }}
+                  />
+                ))}
+                <Button size="sm" variant="ghost" onClick={() => setSelection(null)} aria-label={t("common.close")}>
+                  ✕
+                </Button>
+              </div>
+            )}
+
+            {toast && (
+              <div className="pointer-events-none absolute bottom-4 left-1/2 z-40 -translate-x-1/2 rounded-lg bg-black/80 px-3 py-1.5 text-sm text-white">
+                {toast}
+              </div>
+            )}
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }

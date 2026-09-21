@@ -4,8 +4,10 @@ import { useState, type FormEvent } from "react";
 import { Alert, Badge, Button, Card, Field, Input, PageHeader, Spinner } from "@/components/ui";
 import { adminApi, errorMessage, type Category } from "@/lib/api";
 import { useAsync } from "@/lib/use-async";
+import { useT } from "@/i18n";
 
 export default function AdminCategoriesPage() {
+  const { t } = useT();
   const { data: items, error: loadError, reload } = useAsync(() => adminApi.categories(), []);
   const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState("");
@@ -37,7 +39,7 @@ export default function AdminCategoriesPage() {
 
   return (
     <div>
-      <PageHeader title="Kategoriyalar" />
+      <PageHeader title={t("admin.categories.title")} />
       {(error ?? loadError) && (
         <div className="mb-4">
           <Alert>{error ?? loadError}</Alert>
@@ -45,13 +47,13 @@ export default function AdminCategoriesPage() {
       )}
       <div className="grid gap-6 md:grid-cols-3">
         <Card className="p-5 md:col-span-1">
-          <h2 className="mb-3 text-base font-semibold text-text">Yangi kategoriya</h2>
+          <h2 className="mb-3 text-base font-semibold text-text">{t("admin.categories.new")}</h2>
           <form onSubmit={create} className="space-y-3">
-            <Field label="Nomi" hint="Slug avtomatik yaratiladi; takrorlansa ALREADY_EXISTS qaytadi">
+            <Field label={t("admin.books.name")} hint={t("admin.categories.nameHint")}>
               <Input value={name} onChange={(e) => setName(e.target.value)} required />
             </Field>
             <Button type="submit" loading={busy}>
-              Qo&apos;shish
+              {t("admin.categories.add")}
             </Button>
           </form>
         </Card>
@@ -60,7 +62,7 @@ export default function AdminCategoriesPage() {
           {!items ? (
             <Spinner />
           ) : items.length === 0 ? (
-            <p className="text-sm text-muted">Kategoriyalar yo&apos;q</p>
+            <p className="text-sm text-muted">{t("admin.categories.empty")}</p>
           ) : (
             <ul className="divide-y divide-border">
               {items.map((c) => (
@@ -78,10 +80,10 @@ export default function AdminCategoriesPage() {
                     >
                       <Input value={editName} onChange={(e) => setEditName(e.target.value)} className="h-8" />
                       <Button size="sm" type="submit" loading={busy}>
-                        Saqlash
+                        {t("common.save")}
                       </Button>
                       <Button size="sm" type="button" variant="ghost" onClick={() => setEditing(null)}>
-                        Bekor
+                        {t("common.cancel")}
                       </Button>
                     </form>
                   ) : (
@@ -90,7 +92,7 @@ export default function AdminCategoriesPage() {
                         <span className="text-text">{c.name}</span>
                         {c.slug && <span className="ml-2 font-mono text-xs text-muted">{c.slug}</span>}
                         <span className="ml-2">
-                          <Badge tone={c.is_active === false ? "warning" : "success"}>{c.is_active === false ? "nofaol" : "faol"}</Badge>
+                          <Badge tone={c.is_active === false ? "warning" : "success"}>{c.is_active === false ? t("admin.categories.inactive") : t("admin.categories.active")}</Badge>
                         </span>
                       </div>
                       <div className="flex shrink-0 gap-1">
@@ -102,10 +104,10 @@ export default function AdminCategoriesPage() {
                             setEditName(c.name);
                           }}
                         >
-                          Tahrirlash
+                          {t("common.edit")}
                         </Button>
                         <Button size="sm" variant="secondary" loading={busy} onClick={() => run(() => adminApi.updateCategory(c.id, { is_active: c.is_active === false }))}>
-                          {c.is_active === false ? "Faollashtirish" : "O'chirib qo'yish"}
+                          {c.is_active === false ? t("common.activate") : t("admin.categories.disable")}
                         </Button>
                       </div>
                     </>

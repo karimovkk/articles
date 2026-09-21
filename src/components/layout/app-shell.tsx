@@ -7,19 +7,22 @@ import { useAuth } from "@/providers/auth-provider";
 import { useTheme } from "@/providers/theme-provider";
 import { Button, Spinner, cn } from "@/components/ui";
 import { env } from "@/lib/env";
+import { useT, type DictKey } from "@/i18n";
+import { LocaleSwitcher } from "@/i18n/locale-switcher";
 
-const NAV = [
-  { href: "/library", label: "Kutubxona" },
-  { href: "/profile", label: "Profil" },
+const NAV: Array<{ href: string; label: DictKey }> = [
+  { href: "/library", label: "nav.library" },
+  { href: "/catalog", label: "nav.catalog" },
+  { href: "/profile", label: "nav.profile" },
 ];
 
-const ADMIN_NAV = [
-  { href: "/admin", label: "Boshqaruv" },
-  { href: "/admin/books", label: "Kitoblar" },
-  { href: "/admin/users", label: "Foydalanuvchilar" },
-  { href: "/admin/access", label: "Ruxsatlar" },
-  { href: "/admin/categories", label: "Kategoriyalar" },
-  { href: "/admin/audit-logs", label: "Audit" },
+const ADMIN_NAV: Array<{ href: string; label: DictKey }> = [
+  { href: "/admin", label: "nav.admin.dashboard" },
+  { href: "/admin/books", label: "nav.admin.books" },
+  { href: "/admin/users", label: "nav.admin.users" },
+  { href: "/admin/access", label: "nav.admin.access" },
+  { href: "/admin/categories", label: "nav.admin.categories" },
+  { href: "/admin/audit-logs", label: "nav.admin.audit" },
 ];
 
 function isActive(pathname: string, href: string) {
@@ -31,6 +34,7 @@ function isActive(pathname: string, href: string) {
 export function AppShell({ children, chromeless = false }: { children: ReactNode; chromeless?: boolean }) {
   const { user, loading, isAdmin, logout } = useAuth();
   const { theme, toggle } = useTheme();
+  const { t } = useT();
   const pathname = usePathname();
   const router = useRouter();
 
@@ -48,7 +52,7 @@ export function AppShell({ children, chromeless = false }: { children: ReactNode
 
   if (chromeless) return <>{children}</>;
 
-  const displayName = user.full_name || user.email || user.phone || "Foydalanuvchi";
+  const displayName = user.full_name || user.email || user.phone || t("common.user");
 
   return (
     <div className="min-h-dvh">
@@ -64,7 +68,7 @@ export function AppShell({ children, chromeless = false }: { children: ReactNode
                 href={n.href}
                 className={cn("rounded-md px-3 py-1.5 text-sm", isActive(pathname, n.href) ? "bg-bg text-text" : "text-muted hover:text-text")}
               >
-                {n.label}
+                {t(n.label)}
               </Link>
             ))}
             {isAdmin && (
@@ -72,16 +76,17 @@ export function AppShell({ children, chromeless = false }: { children: ReactNode
                 href="/admin"
                 className={cn("rounded-md px-3 py-1.5 text-sm", pathname.startsWith("/admin") ? "bg-bg text-text" : "text-muted hover:text-text")}
               >
-                Admin
+                {t("nav.admin")}
               </Link>
             )}
           </nav>
           <div className="ml-auto flex items-center gap-2">
+            <LocaleSwitcher className="hidden sm:inline-flex" />
             <button
               onClick={toggle}
               className="rounded-md px-2 py-1 text-sm text-muted hover:text-text"
-              title={theme === "dark" ? "Kunduzgi rejim" : "Tungi rejim"}
-              aria-label="Mavzuni almashtirish"
+              title={theme === "dark" ? t("theme.light") : t("theme.dark")}
+              aria-label={t("theme.toggle")}
             >
               {theme === "dark" ? "☀️" : "🌙"}
             </button>
@@ -89,7 +94,7 @@ export function AppShell({ children, chromeless = false }: { children: ReactNode
               {displayName}
             </span>
             <Button variant="secondary" size="sm" onClick={() => void logout()}>
-              Chiqish
+              {t("nav.logout")}
             </Button>
           </div>
         </div>
@@ -105,22 +110,23 @@ export function AppShell({ children, chromeless = false }: { children: ReactNode
                     isActive(pathname, n.href) ? "bg-bg text-text" : "text-muted hover:text-text",
                   )}
                 >
-                  {n.label}
+                  {t(n.label)}
                 </Link>
               ))}
             </div>
           </div>
         )}
         <nav className="flex items-center gap-1 border-t border-border px-2 py-1 sm:hidden">
-          {[...NAV, ...(isAdmin ? [{ href: "/admin", label: "Admin" }] : [])].map((n) => (
+          {[...NAV, ...(isAdmin ? [{ href: "/admin", label: "nav.admin" as DictKey }] : [])].map((n) => (
             <Link
               key={n.href}
               href={n.href}
               className={cn("rounded-md px-3 py-1 text-sm", isActive(pathname, n.href) ? "bg-bg text-text" : "text-muted")}
             >
-              {n.label}
+              {t(n.label)}
             </Link>
           ))}
+          <LocaleSwitcher className="ml-auto" />
         </nav>
       </header>
       <main className="mx-auto max-w-6xl px-4 py-6">{children}</main>

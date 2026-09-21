@@ -1,5 +1,6 @@
 /**
  * Next.js 16 Proxy (sobiq middleware): optimistik yo'naltirish.
+ * `/catalog*` — public (himoyalanmagan, mehmon uchun ham ochiq).
  * Tokenlar localStorage'da (Bearer), shu sababli bu yerda faqat
  * `a365_auth` cookie bayrog'i tekshiriladi. Haqiqiy avtorizatsiya —
  * backendda (har so'rovda) va AuthProvider'da (/auth/me).
@@ -14,9 +15,10 @@ export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const hasAuth = request.cookies.get(AUTH_COOKIE)?.value === "1";
 
+  // Bosh sahifa: kirganlar → kutubxona, mehmonlar → public katalog (S-7)
   if (pathname === "/") {
     const url = request.nextUrl.clone();
-    url.pathname = hasAuth ? "/library" : "/login";
+    url.pathname = hasAuth ? "/library" : "/catalog";
     url.search = "";
     return NextResponse.redirect(url);
   }

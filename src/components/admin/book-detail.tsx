@@ -5,11 +5,15 @@ import Link from "next/link";
 import { Alert, Badge, Button, Card, Field, Input, PageHeader, Select, Spinner, Textarea, formatDate, statusTone } from "@/components/ui";
 import { adminApi, errorMessage, type BookAccess, type Category } from "@/lib/api";
 import { useAsync } from "@/lib/use-async";
+import { env } from "@/lib/env";
+import { formatMb, validateCover, validatePdf } from "@/lib/uploads";
 import { GrantModal } from "./user-detail";
+import { useT } from "@/i18n";
 
 const STATUS_OPTIONS = ["DRAFT", "ACTIVE", "INACTIVE"];
 
 export function AdminBookDetail({ bookId }: { bookId: string }) {
+  const { t } = useT();
   const { data, error: loadError, reload: load } = useAsync(
     async () => {
       const [book, categories, access] = await Promise.all([
@@ -29,6 +33,7 @@ export function AdminBookDetail({ bookId }: { bookId: string }) {
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [grantOpen, setGrantOpen] = useState(false);
+  const [upload, setUpload] = useState<{ label: string; loaded: number; total: number } | null>(null);
   const error = actionError ?? loadError;
 
   // Forma: foydalanuvchi tahrirlari serverdagi qiymatlar ustiga qo'yiladi
@@ -67,9 +72,27 @@ export function AdminBookDetail({ bookId }: { bookId: string }) {
     }
   }
 
+  /** Klient tekshiruvi → XHR yuklash (progress) → qayta yuklash. */
+  async function uploadFile(kind: "pdf" | "cover", file: File) {
+    setActionError(null);
+    setNotice(null);
+    const problem = kind === "pdf" ? await validatePdf(file) : await validateCover(file);
+    if (problem) {
+      setActionError(problem);
+      return;
+    }
+    const label = kind === "pdf" ? `PDF: ${file.name}` : `${t("admin.books.cover")}: ${file.name}`;
+    setUpload({ label, loaded: 0, total: file.size });
+    const opts = { onProgress: (loaded: number, total: number) => setUpload({ label, loaded, total }) };
+    await run(kind === "pdf" ? t("admin.books.pdfUploaded") : t("admin.books.coverUploaded"), () =>
+      kind === "pdf" ? adminApi.uploadBookFile(bookId, file, opts) : adminApi.uploadCover(bookId, file, opts),
+    );
+    setUpload(null);
+  }
+
   function saveMeta(e: FormEvent) {
     e.preventDefault();
-    void run("Saqlandi", () =>
+    void run(t("admin.books.saved"), () =>
       adminApi.updateBook(bookId, {
         title: form.title.trim(),
         author: form.author.trim() || null,
@@ -92,7 +115,7 @@ export function AdminBookDetail({ bookId }: { bookId: string }) {
           <>
             <Badge tone={statusTone(status)}>{status || "—"}</Badge>
             <Link href="/admin/books" className="text-sm text-accent hover:underline">
-              ← Ro&apos;yxat
+              {t("admin.backToList")}
             </Link>
           </>
         }
@@ -102,17 +125,17 @@ export function AdminBookDetail({ bookId }: { bookId: string }) {
 
       <div className="grid gap-6 md:grid-cols-2">
         <Card className="p-5">
-          <h2 className="mb-3 text-base font-semibold text-text">Ma&apos;lumotlar</h2>
+          <h2 className="mb-3 text-base font-semibold text-text">{t("admin.books.info")}</h2>
           <form onSubmit={saveMeta} className="space-y-3">
-            <Field label="Nomi">
+            <Field label={t("admin.books.name")}>
               <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required />
             </Field>
-            <Field label="Muallif">
+            <Field label={t("admin.books.author")}>
               <Input value={form.author} onChange={(e) => setForm({ ...form, author: e.target.value })} />
             </Field>
-            <Field label="Kategoriya">
+            <Field label={t("admin.books.category")}>
               <Select value={form.category_id} onChange={(e) => setForm({ ...form, category_id: e.target.value })}>
-                <option value="">— yo&apos;q —</option>
+                <option value="">{t("admin.books.noCategory")}</option>
                 {categories.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name}
@@ -120,31 +143,31 @@ export function AdminBookDetail({ bookId }: { bookId: string }) {
                 ))}
               </Select>
             </Field>
-            <Field label="Qisqacha mazmun">
+            <Field label={t("admin.books.summary")}>
               <Textarea rows={4} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
             </Field>
             <Button type="submit" loading={busy}>
-              Saqlash
+              {t("common.save")}
             </Button>
           </form>
         </Card>
 
         <div className="space-y-6">
           <Card className="p-5">
-            <h2 className="mb-1 text-base font-semibold text-text">Fayl va muqova</h2>
+            <h2 className="mb-1 text-base font-semibold text-text">{t("admin.books.fileAndCover")}</h2>
             <p className="mb-3 text-xs text-muted">
-              PDF yuklangach backend uni qayta ishlaydi (PROCESSING → READY): sahifa soni, mundarija, matn qatlami.
+              {t("admin.books.processingNote")} {t("admin.books.limits", { pdf: env.maxPdfMb, cover: env.maxCoverMb })}
             </p>
             <dl className="mb-4 grid grid-cols-3 gap-y-1 text-sm">
               <dt className="text-muted">PDF</dt>
-              <dd className="col-span-2 text-text">{book.has_source_file ? "✓ yuklangan" : "yo'q"}</dd>
-              <dt className="text-muted">Sahifalar</dt>
+              <dd className="col-span-2 text-text">{book.has_source_file ? t("admin.books.uploaded") : t("common.none")}</dd>
+              <dt className="text-muted">{t("admin.books.pages")}</dt>
               <dd className="col-span-2 text-text">{book.page_count ?? "—"}</dd>
-              <dt className="text-muted">Matn qatlami</dt>
-              <dd className="col-span-2 text-text">{book.text_available === undefined ? "—" : book.text_available ? "bor" : "yo'q (qidiruv ishlamaydi)"}</dd>
-              <dt className="text-muted">Muqova</dt>
-              <dd className="col-span-2 text-text">{book.has_cover ? "✓" : "yo'q"}</dd>
-              <dt className="text-muted">Yangilangan</dt>
+              <dt className="text-muted">{t("admin.books.textLayer")}</dt>
+              <dd className="col-span-2 text-text">{book.text_available === undefined ? "—" : book.text_available ? t("admin.books.textYes") : t("admin.books.textNo")}</dd>
+              <dt className="text-muted">{t("admin.books.cover")}</dt>
+              <dd className="col-span-2 text-text">{book.has_cover ? "✓" : t("common.none")}</dd>
+              <dt className="text-muted">{t("common.updated")}</dt>
               <dd className="col-span-2 text-text">{formatDate(book.updated_at ?? book.created_at)}</dd>
             </dl>
             <div className="flex flex-wrap gap-2">
@@ -155,7 +178,7 @@ export function AdminBookDetail({ bookId }: { bookId: string }) {
                 className="hidden"
                 onChange={(e) => {
                   const f = e.target.files?.[0];
-                  if (f) void run("PDF yuklandi, qayta ishlanmoqda…", () => adminApi.uploadBookFile(bookId, f));
+                  if (f) void uploadFile("pdf", f);
                   e.target.value = "";
                 }}
               />
@@ -166,22 +189,35 @@ export function AdminBookDetail({ bookId }: { bookId: string }) {
                 className="hidden"
                 onChange={(e) => {
                   const f = e.target.files?.[0];
-                  if (f) void run("Muqova yuklandi", () => adminApi.uploadCover(bookId, f));
+                  if (f) void uploadFile("cover", f);
                   e.target.value = "";
                 }}
               />
               <Button variant="secondary" loading={busy} onClick={() => fileRef.current?.click()}>
-                {book.has_source_file ? "PDF ni almashtirish" : "PDF yuklash"}
+                {book.has_source_file ? t("admin.books.replacePdf") : t("admin.books.uploadPdf")}
               </Button>
               <Button variant="secondary" loading={busy} onClick={() => coverRef.current?.click()}>
-                {book.has_cover ? "Muqovani almashtirish" : "Muqova yuklash"}
+                {book.has_cover ? t("admin.books.replaceCover") : t("admin.books.uploadCover")}
               </Button>
             </div>
+            {upload && (
+              <div className="mt-3" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round((upload.loaded / upload.total) * 100)}>
+                <div className="mb-1 flex justify-between text-xs text-muted">
+                  <span className="truncate">{upload.label}</span>
+                  <span className="shrink-0">
+                    {upload.loaded >= upload.total ? t("admin.books.serverProcessing") : `${Math.round((upload.loaded / upload.total) * 100)}% · ${formatMb(upload.loaded)} / ${formatMb(upload.total)}`}
+                  </span>
+                </div>
+                <div className="h-2 w-full overflow-hidden rounded-full bg-bg">
+                  <div className="h-full rounded-full bg-accent transition-[width]" style={{ width: `${Math.min(100, (upload.loaded / upload.total) * 100)}%` }} />
+                </div>
+              </div>
+            )}
           </Card>
 
           <Card className="p-5">
-            <h2 className="mb-1 text-base font-semibold text-text">Holat</h2>
-            <p className="mb-3 text-xs text-muted">Faqat ACTIVE kitoblar foydalanuvchilarga ko&apos;rinadi va o&apos;qiladi.</p>
+            <h2 className="mb-1 text-base font-semibold text-text">{t("common.status")}</h2>
+            <p className="mb-3 text-xs text-muted">{t("admin.books.statusNote")}</p>
             <div className="flex flex-wrap gap-2">
               {STATUS_OPTIONS.filter((s) => s !== status).map((s) => (
                 <Button
@@ -190,10 +226,10 @@ export function AdminBookDetail({ bookId }: { bookId: string }) {
                   variant={s === "ACTIVE" ? "primary" : "secondary"}
                   loading={busy}
                   disabled={s === "ACTIVE" && !book.has_source_file}
-                  title={s === "ACTIVE" && !book.has_source_file ? "Avval PDF yuklang" : undefined}
-                  onClick={() => run(`Holat: ${s}`, () => adminApi.updateBook(bookId, { status: s }))}
+                  title={s === "ACTIVE" && !book.has_source_file ? t("admin.books.uploadFirst") : undefined}
+                  onClick={() => run(t("admin.books.statusSet", { s }), () => adminApi.updateBook(bookId, { status: s }))}
                 >
-                  {s === "ACTIVE" ? "Faollashtirish" : s === "INACTIVE" ? "Nofaol qilish" : "Qoralama"}
+                  {s === "ACTIVE" ? t("common.activate") : s === "INACTIVE" ? t("common.deactivate") : t("admin.books.draft")}
                 </Button>
               ))}
             </div>
@@ -203,20 +239,22 @@ export function AdminBookDetail({ bookId }: { bookId: string }) {
 
       <Card className="p-5">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-base font-semibold text-text">Kimga ruxsat berilgan ({access.filter((a) => (a.status ?? "ACTIVE").toUpperCase() === "ACTIVE").length})</h2>
+          <h2 className="text-base font-semibold text-text">
+            {t("admin.books.grantedTo", { n: access.filter((a) => (a.status ?? "ACTIVE").toUpperCase() === "ACTIVE").length })}
+          </h2>
           <Button size="sm" onClick={() => setGrantOpen(true)}>
-            + Ruxsat berish
+            {t("admin.grant")}
           </Button>
         </div>
         {access.length === 0 ? (
-          <p className="text-sm text-muted">Hali hech kimga berilmagan</p>
+          <p className="text-sm text-muted">{t("admin.books.noneGranted")}</p>
         ) : (
           <table className="w-full text-sm">
             <thead className="text-left text-xs uppercase text-muted">
               <tr>
-                <th className="py-1">Foydalanuvchi</th>
-                <th className="py-1">Holat</th>
-                <th className="py-1">Berilgan</th>
+                <th className="py-1">{t("common.user")}</th>
+                <th className="py-1">{t("common.status")}</th>
+                <th className="py-1">{t("admin.granted")}</th>
                 <th />
               </tr>
             </thead>
@@ -234,8 +272,8 @@ export function AdminBookDetail({ bookId }: { bookId: string }) {
                   <td className="py-2 text-muted">{formatDate(a.granted_at)}</td>
                   <td className="py-2 text-right">
                     {(a.status ?? "ACTIVE").toUpperCase() === "ACTIVE" && (
-                      <Button size="sm" variant="danger" loading={busy} onClick={() => run("Ruxsat bekor qilindi", () => adminApi.revokeAccess(a.id))}>
-                        Bekor qilish
+                      <Button size="sm" variant="danger" loading={busy} onClick={() => run(t("admin.books.accessRevoked"), () => adminApi.revokeAccess(a.id))}>
+                        {t("common.revoke")}
                       </Button>
                     )}
                   </td>

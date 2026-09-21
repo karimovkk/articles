@@ -85,3 +85,26 @@ body {
   -webkit-user-drag: none;
   pointer-events: none;
 }
+
+/* ---- Highlight overlay (FE-5.2): canvas ustida, matn qatlami ostida ---- */
+.highlightLayer > div {
+  position: absolute;
+  border-radius: 2px;
+  mix-blend-mode: multiply;
+  opacity: 0.45;
+}
+/* Tungi rejimda canvas invert qilinadi — multiply qora bo'lib qoladi */
+.reader-night .highlightLayer > div {
+  mix-blend-mode: normal;
+  opacity: 0.35;
+}
+
+/* ---- Chop etish cheklovi (TZ §4, FE-4.6): reader chop etilmaydi ---- */
+@media print {
+  .print-protected {
+    display: none !important;
+  }
+  .print-notice {
+    display: block !important;
+  }
+}

@@ -1,89 +1,78 @@
-# Articles365 — Backend
+# Articles365 — Frontend
 
-Protected e-book platform backend (FastAPI + PostgreSQL + S3-compatible storage).
+Himoyalangan elektron kutubxona platformasining web-ilovasi: foydalanuvchi ruxsat berilgan
+kitoblarni faqat brauzer ichidagi reader'da o'qiydi (PDF.js, Range-stream, shaxsiy watermark),
+admin kitoblar/foydalanuvchilar/ruxsatlarni boshqaradi. **Backend alohida** (FastAPI, `/api/v1`) —
+uning hujjatlari shu repoda: [`API.md`](API.md) ⭐, [`SECURITY.md`](SECURITY.md), [`STORAGE.md`](STORAGE.md),
+[`ARCHITECTURE.md`](ARCHITECTURE.md) (backend README'si — [`DEPLOYMENT.md`](DEPLOYMENT.md) bilan birga).
 
-The core principle (from the TZ): **original book files are never handed to the
-client as a downloadable/public URL.** Books are read inside a web reader; every
-page/byte is delivered through an authenticated, access-checked API proxy with a
-per-user watermark payload, session control and admin-managed access grants.
+Ish rejasi va holat: [`FRONTEND_PLAN.md`](FRONTEND_PLAN.md).
 
-> Scope: **backend only** (API, business logic, DB, storage, security, tests,
-> Docker, docs). No frontend.
+## Stack
 
-## Tech stack
+Next.js 16 (App Router, Turbopack) · React 19 · TypeScript · Tailwind CSS 4 · pdfjs-dist.
+Qo'shimcha holat kutubxonasi yo'q — `useAsync`/`usePaged` hook'lari va React context.
 
-Python 3.12 (runs on 3.11+) · FastAPI · Pydantic v2 · SQLAlchemy 2 (async) ·
-PostgreSQL + asyncpg · Alembic · Redis (rate limiting) · S3-compatible object
-storage (MinIO / AWS S3 / Cloudflare R2) via aioboto3 · PyMuPDF · Argon2id ·
-pytest / httpx · Docker Compose.
-
-## Quick start (Docker)
+## Ishga tushirish
 
 ```bash
-cp .env.example .env                     # adjust secrets for anything real
-docker compose up -d postgres redis minio createbuckets
-docker compose run --rm api alembic upgrade head
-docker compose run --rm api python -m scripts.seed
-docker compose up -d api
-# API:      http://localhost:8001
-# Swagger:  http://localhost:8001/docs
-# MinIO UI: http://localhost:9101  (articles365 / articles365secret)
+# .env.local yarating (quyidagi jadvaldagi o'zgaruvchilar; .env* fayllar git'ga kirmaydi)
+npm ci                          # postinstall: pdf.worker.min.mjs → public/
+npm run dev                     # http://localhost:3000
 ```
 
-## Local development (venv)
+Backend `http://localhost:8001` da ishlayotgan bo'lishi kerak (qarang: backend README / Docker).
+Dev login: `admin@articles365.local` / `Admin12345!`, `user@articles365.local` / `User12345!` (seed).
 
-```bash
-# 1. Install deps
-python -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev]"            # or: uv sync
+| Buyruq | Vazifa |
+|---|---|
+| `npm run dev` | dev server |
+| `npm run build` / `npm start` | production build / start |
+| `npm run lint` | ESLint (`public/**` ignore qilingan — pdf.js worker) |
+| `npm run typecheck` | `tsc --noEmit` |
 
-# 2. Start infrastructure
-docker compose up -d postgres redis minio createbuckets
+## Env o'zgaruvchilar
 
-# 3. Configure environment
-cp .env.example .env
+| Nomi | Default | Izoh |
+|---|---|---|
+| `BACKEND_URL` | `http://localhost:8001` | Server tomonda: `/api/v1/*` → shu manzilga rewrite (CORS shart emas) |
+| `NEXT_PUBLIC_API_URL` | *(bo'sh)* | To'ldirilsa brauzer backendga **to'g'ridan-to'g'ri** murojaat qiladi (ngrok/staging). Backend CORS allowlist'ida frontend origin bo'lishi va `Authorization`, `X-Device-Id`, `Range`, `ngrok-skip-browser-warning` header'lariga ruxsat berilishi kerak |
+| `NEXT_PUBLIC_APP_NAME` | `Articles365` | Sarlavha |
+| `NEXT_PUBLIC_MAX_PDF_MB` | `500` | Klient tomonidagi PDF hajm tekshiruvi (backend `MAX_BOOK_UPLOAD_SIZE` ga moslang) |
+| `NEXT_PUBLIC_MAX_COVER_MB` | `5` | Muqova hajmi (backend `MAX_COVER_UPLOAD_SIZE`) |
+| `NEXT_PUBLIC_PURCHASE_URL` | *(bo'sh)* | Katalogdagi "Sotib olish" havolasi, masalan `https://t.me/bot?start=buy_{book_id}`; bo'sh bo'lsa "administrator bilan bog'laning" |
 
-# 4. Run migrations
-alembic upgrade head
+## Tuzilma
 
-# 5. Seed development data (admin + user + category + sample book)
-python -m scripts.seed
-
-# 6. Run the API
-uvicorn app.main:app --reload --port 8001
-
-# 7. Tests / lint / types
-pytest -v
-ruff check .
-mypy app
+```
+src/
+  app/               App Router: (auth) login/register · (app) library/profile/admin/* · (reader) reader/[bookId]
+  proxy.ts           Next 16 Proxy (sobiq middleware): cookie bayrog'i bo'yicha optimistik redirect
+  components/
+    reader/          PdfViewer (Range transport, scroll/varaqlash, highlight overlay), ReaderView, sidebar, watermark
+    admin/           DataTable/usePaged, user/book detail, guard
+    ui/              Button, Input, Modal, Badge, Alert, Pagination, …
+  lib/
+    api/             client (Bearer, refresh single-flight, XHR upload), modullar (auth, library, reader, reading, sessions, admin), error-codes
+    reader/          range-transport (PDF.js ↔ /reader/{id}/content), highlights (koordinatalar, ranglar)
+    uploads.ts       PDF/muqova klient tekshiruvi (magic bytes, hajm)
+  providers/         AuthProvider (/auth/me, auth hodisalari), ThemeProvider
 ```
 
-### Development credentials (seed)
+## Tillar (uz / ru / en)
 
-These are **development-only** defaults from `.env.example`; never reuse them in
-production. Override via `SEED_*` env vars.
+- Lug'atlar: `src/i18n/dict/{uz,ru,en}.ts`. `uz` — kalitlar manbai; `ru`/`en` `Dict` tipiga mos bo'lishi shart
+  (kalit tushib qolsa `tsc` xato beradi). Interpolyatsiya: `{n}` → `t("common.pageN", { n: 3 })`.
+- Komponentlarda `const { t } = useT()`; React'dan tashqarida (API klient, tekshiruvlar) `t()` (`@/i18n`).
+- Tanlangan til `localStorage` (`a365.locale`) da saqlanadi, `<html lang>` yangilanadi; default `uz`.
+  URL-prefiksli marshrutlash ishlatilmagan — ilova auth'langan SPA (`noindex`).
+- Almashtirgich: header (`LocaleSwitcher`) va auth sahifalari.
 
-| Role  | Email                       | Password       |
-|-------|-----------------------------|----------------|
-| Admin | `admin@articles365.local`   | `Admin12345!`  |
-| User  | `user@articles365.local`    | `User12345!`   |
+## Integratsiya kelishuvi (FE registri §0)
 
-## Documentation
-
-- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — layers, modules, data flow
-- [`docs/IMPLEMENTATION_PLAN.md`](docs/IMPLEMENTATION_PLAN.md) — phased plan + status
-- [`docs/REQUIREMENTS_TRACEABILITY.md`](docs/REQUIREMENTS_TRACEABILITY.md) — TZ → code map
-- [`docs/API.md`](docs/API.md) — endpoint reference
-- [`docs/SECURITY.md`](docs/SECURITY.md) — threat model & controls
-- [`docs/STORAGE.md`](docs/STORAGE.md) — private storage & protected delivery
-- [`docs/TESTING.md`](docs/TESTING.md) — test strategy & how to run
-- [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) — production deployment notes
-
-## API surface (v1, prefix `/api/v1`)
-
-Auth · Users (`/me`) · Library (`/library`) · Reader (`/reader/{id}`,
-`/reader/{id}/content`, `/reader/{id}/watermark`) · Reading
-(`/books/{id}/progress|annotations|search|toc`) · Sessions · Admin
-(`/admin/users|books|categories|book-access|sessions|audit-logs`).
-
-Health: `GET /health` (liveness), `GET /ready` (readiness).
+- Har himoyalangan so'rov: `Authorization: Bearer <access>`; 401 → `POST /auth/refresh` (rotatsiya) → bir marta qayta.
+- Xato konverti `{ error: { code, message, details } }` → `ApiError`; `error.code` → matn: `src/lib/api/error-codes.ts`.
+- `X-Device-Id` (barqaror, `localStorage`) va `ngrok-skip-browser-warning: 1` har so'rovda.
+- Reader (model A): PDF `GET /reader/{id}/content` dan `Range` bilan, bo'lak-bo'lak; fayl hech qachon to'liq yuklab olinmaydi.
+- Highlight koordinatalari: `annotations.location_data = { page, rects: [[x, y, w, h], …] }` — sahifa o'lchamiga nisbatan 0–1 ulushlar (backend tasdiqlagan; ≤ 32 KB). O'qishda eski `location` ham qabul qilinadi.
+- Progress `PUT /books/{id}/progress` — debounce 1.5 s + `pagehide` da `keepalive` bilan.

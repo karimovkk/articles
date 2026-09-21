@@ -1,6 +1,7 @@
 "use client";
 
 import { forwardRef, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
+import { getLocaleTag, useT } from "@/i18n";
 
 export function cn(...parts: Array<string | false | null | undefined>) {
   return parts.filter(Boolean).join(" ");
@@ -24,6 +25,16 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   loading?: boolean;
 }
 
+/** Tugma sinflari — `<Link>`/`<a>` ni tugma ko'rinishida chizish uchun (a ichida button yaroqsiz HTML). */
+export function buttonClass(variant: Variant = "primary", size: Size = "md", className?: string) {
+  return cn(
+    "inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent",
+    variantCls[variant],
+    sizeCls[size],
+    className,
+  );
+}
+
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
   { variant = "primary", size = "md", loading, className, children, disabled, ...rest },
   ref,
@@ -31,12 +42,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
   return (
     <button
       ref={ref}
-      className={cn(
-        "inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent",
-        variantCls[variant],
-        sizeCls[size],
-        className,
-      )}
+      className={buttonClass(variant, size, className)}
       disabled={disabled || loading}
       {...rest}
     >
@@ -136,17 +142,18 @@ export function EmptyState({ title, description, action }: { title: string; desc
 }
 
 export function Pagination({ page, pages, onChange }: { page: number; pages: number; onChange: (p: number) => void }) {
+  const { t } = useT();
   if (pages <= 1) return null;
   return (
     <div className="flex items-center justify-between gap-3 text-sm text-muted">
       <Button variant="secondary" size="sm" disabled={page <= 1} onClick={() => onChange(page - 1)}>
-        ← Oldingi
+        {t("common.prev")}
       </Button>
       <span>
         {page} / {pages}
       </span>
       <Button variant="secondary" size="sm" disabled={page >= pages} onClick={() => onChange(page + 1)}>
-        Keyingi →
+        {t("common.next")}
       </Button>
     </div>
   );
@@ -185,7 +192,7 @@ export function formatDate(v?: string | null) {
   if (!v) return "—";
   const d = new Date(v);
   if (Number.isNaN(d.getTime())) return v;
-  return d.toLocaleString("uz-UZ", { dateStyle: "medium", timeStyle: "short" });
+  return d.toLocaleString(getLocaleTag(), { dateStyle: "medium", timeStyle: "short" });
 }
 
 export function formatBytes(n?: number | null) {

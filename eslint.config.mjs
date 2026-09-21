@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Uchinchi tomon minified fayllari (postinstall'da pdfjs-dist'dan nusxalanadi)
+    "public/**",
   ]),
 ]);
 

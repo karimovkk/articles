@@ -5,8 +5,10 @@ import Link from "next/link";
 import { Alert, Badge, Button, Card, Field, Modal, PageHeader, Select, Spinner, formatDate, statusTone } from "@/components/ui";
 import { adminApi, errorMessage, type Book, type User, type UserStatus } from "@/lib/api";
 import { useAsync } from "@/lib/use-async";
+import { useT } from "@/i18n";
 
 export function AdminUserDetail({ userId }: { userId: string }) {
+  const { t } = useT();
   const { data, error: loadError, reload: load } = useAsync(
     async () => {
       const [user, access, sessions] = await Promise.all([adminApi.user(userId), adminApi.userBooks(userId), adminApi.userSessions(userId)]);
@@ -42,11 +44,11 @@ export function AdminUserDetail({ userId }: { userId: string }) {
   return (
     <div className="space-y-6">
       <PageHeader
-        title={user.full_name || user.email || user.phone || "Foydalanuvchi"}
+        title={user.full_name || user.email || user.phone || t("common.user")}
         description={[user.email, user.phone].filter(Boolean).join(" · ")}
         actions={
           <Link href="/admin/users" className="text-sm text-accent hover:underline">
-            ← Ro&apos;yxat
+            {t("admin.backToList")}
           </Link>
         }
       />
@@ -54,19 +56,19 @@ export function AdminUserDetail({ userId }: { userId: string }) {
 
       <div className="grid gap-6 md:grid-cols-2">
         <Card className="p-5">
-          <h2 className="mb-3 text-base font-semibold text-text">Hisob</h2>
+          <h2 className="mb-3 text-base font-semibold text-text">{t("admin.users.account")}</h2>
           <dl className="grid grid-cols-3 gap-y-2 text-sm">
             <dt className="text-muted">ID</dt>
             <dd className="col-span-2 font-mono text-xs text-text">{user.id}</dd>
-            <dt className="text-muted">Rol</dt>
+            <dt className="text-muted">{t("common.role")}</dt>
             <dd className="col-span-2">
               <Badge tone={user.role === "ADMIN" ? "info" : "neutral"}>{user.role}</Badge>
             </dd>
-            <dt className="text-muted">Holat</dt>
+            <dt className="text-muted">{t("common.status")}</dt>
             <dd className="col-span-2">
               <Badge tone={statusTone(user.status)}>{user.status}</Badge>
             </dd>
-            <dt className="text-muted">Yaratilgan</dt>
+            <dt className="text-muted">{t("common.created")}</dt>
             <dd className="col-span-2 text-text">{formatDate(user.created_at)}</dd>
           </dl>
           <div className="mt-4 flex flex-wrap gap-2">
@@ -80,16 +82,16 @@ export function AdminUserDetail({ userId }: { userId: string }) {
                   loading={busy}
                   onClick={() => run(() => adminApi.setUserStatus(user.id, s))}
                 >
-                  {s === "ACTIVE" ? "Faollashtirish" : s === "INACTIVE" ? "Nofaol qilish" : "Bloklash"}
+                  {s === "ACTIVE" ? t("common.activate") : s === "INACTIVE" ? t("common.deactivate") : t("common.block")}
                 </Button>
               ))}
           </div>
         </Card>
 
         <Card className="p-5">
-          <h2 className="mb-3 text-base font-semibold text-text">Sessiyalar ({sessions.length})</h2>
+          <h2 className="mb-3 text-base font-semibold text-text">{t("admin.users.sessions", { n: sessions.length })}</h2>
           {sessions.length === 0 ? (
-            <p className="text-sm text-muted">Faol sessiyalar yo&apos;q</p>
+            <p className="text-sm text-muted">{t("admin.users.noSessions")}</p>
           ) : (
             <ul className="divide-y divide-border text-sm">
               {sessions.map((s) => (
@@ -102,7 +104,7 @@ export function AdminUserDetail({ userId }: { userId: string }) {
                   </div>
                   {!s.revoked_at && (
                     <Button size="sm" variant="secondary" loading={busy} onClick={() => run(() => adminApi.revokeSession(s.id))}>
-                      Bekor qilish
+                      {t("common.revoke")}
                     </Button>
                   )}
                 </li>
@@ -114,21 +116,21 @@ export function AdminUserDetail({ userId }: { userId: string }) {
 
       <Card className="p-5">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-base font-semibold text-text">Kitoblarga ruxsat ({activeAccess.length} faol)</h2>
+          <h2 className="text-base font-semibold text-text">{t("admin.users.bookAccess", { n: activeAccess.length })}</h2>
           <Button size="sm" onClick={() => setGrantOpen(true)}>
-            + Ruxsat berish
+            {t("admin.grant")}
           </Button>
         </div>
         {access.length === 0 ? (
-          <p className="text-sm text-muted">Ruxsatlar yo&apos;q</p>
+          <p className="text-sm text-muted">{t("admin.users.noAccess")}</p>
         ) : (
           <table className="w-full text-sm">
             <thead className="text-left text-xs uppercase text-muted">
               <tr>
-                <th className="py-1">Kitob</th>
-                <th className="py-1">Holat</th>
-                <th className="py-1">Berilgan</th>
-                <th className="py-1">Bekor qilingan</th>
+                <th className="py-1">{t("admin.book")}</th>
+                <th className="py-1">{t("common.status")}</th>
+                <th className="py-1">{t("admin.granted")}</th>
+                <th className="py-1">{t("admin.revoked")}</th>
                 <th />
               </tr>
             </thead>
@@ -148,7 +150,7 @@ export function AdminUserDetail({ userId }: { userId: string }) {
                   <td className="py-2 text-right">
                     {(a.status ?? "ACTIVE").toUpperCase() === "ACTIVE" && (
                       <Button size="sm" variant="danger" loading={busy} onClick={() => run(() => adminApi.revokeAccess(a.id))}>
-                        Bekor qilish
+                        {t("common.revoke")}
                       </Button>
                     )}
                   </td>
@@ -174,6 +176,7 @@ export function AdminUserDetail({ userId }: { userId: string }) {
 
 /** Kitob tanlab, foydalanuvchiga ruxsat berish (POST /admin/book-access, idempotent). */
 export function GrantModal({ open, onClose, userId, bookId, onDone }: { open: boolean; onClose: () => void; userId?: string; bookId?: string; onDone: () => void }) {
+  const { t } = useT();
   const [selBook, setSelBook] = useState(bookId ?? "");
   const [selUser, setSelUser] = useState(userId ?? "");
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -209,13 +212,13 @@ export function GrantModal({ open, onClose, userId, bookId, onDone }: { open: bo
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="Kitobga ruxsat berish">
+    <Modal open={open} onClose={onClose} title={t("admin.access.grantTitle")}>
       <div className="space-y-4">
         {error && <Alert>{error}</Alert>}
         {!userId && (
-          <Field label="Foydalanuvchi">
+          <Field label={t("common.user")}>
             <Select value={selUser} onChange={(e) => setSelUser(e.target.value)}>
-              <option value="">— tanlang —</option>
+              <option value="">{t("admin.access.choose")}</option>
               {users.map((u) => (
                 <option key={u.id} value={u.id}>
                   {u.full_name || u.email || u.phone} {u.email ? `(${u.email})` : ""}
@@ -225,9 +228,9 @@ export function GrantModal({ open, onClose, userId, bookId, onDone }: { open: bo
           </Field>
         )}
         {!bookId && (
-          <Field label="Kitob">
+          <Field label={t("admin.book")}>
             <Select value={selBook} onChange={(e) => setSelBook(e.target.value)}>
-              <option value="">— tanlang —</option>
+              <option value="">{t("admin.access.choose")}</option>
               {books.map((b) => (
                 <option key={b.id} value={b.id}>
                   {b.title} {b.author ? `— ${b.author}` : ""} [{b.status}]
@@ -238,10 +241,10 @@ export function GrantModal({ open, onClose, userId, bookId, onDone }: { open: bo
         )}
         <div className="flex justify-end gap-2">
           <Button variant="ghost" onClick={onClose}>
-            Bekor
+            {t("common.cancel")}
           </Button>
           <Button onClick={() => void submit()} loading={busy} disabled={!selBook || !selUser}>
-            Ruxsat berish
+            {t("admin.access.grant")}
           </Button>
         </div>
       </div>

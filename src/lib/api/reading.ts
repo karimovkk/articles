@@ -8,7 +8,8 @@ export interface AnnotationInput {
   text?: string | null;
   note?: string | null;
   color?: string | null;
-  location?: Record<string, unknown> | null;
+  /** Backend maydoni `location_data` (opaque JSON, ≤ 32 KB) */
+  location_data?: Record<string, unknown> | null;
 }
 
 function asList<T>(raw: unknown): T[] {
@@ -17,30 +18,38 @@ function asList<T>(raw: unknown): T[] {
   return r?.items ?? r?.results ?? [];
 }
 
+/** Eski yozuvlar `location` bilan kelishi mumkin — `location_data` ga birlashtiriladi. */
+export function normalizeAnnotation(a: Annotation): Annotation {
+  if (a.location_data || !a.location) return a;
+  return { ...a, location_data: a.location };
+}
+
 export const readingApi = {
   getProgress(bookId: string): Promise<ReadingProgress | null> {
     return api<ReadingProgress | null>(`/books/${bookId}/progress`);
   },
 
+  /** `keepalive` — reader yopilganda (pagehide) yuborilgan so'rov ham serverga yetib boradi. */
   saveProgress(bookId: string, p: { current_page: number; total_pages: number; location?: Record<string, unknown> }): Promise<ReadingProgress> {
     const percent = p.total_pages ? Math.round((p.current_page / p.total_pages) * 10000) / 100 : 0;
     return api<ReadingProgress>(`/books/${bookId}/progress`, {
       method: "PUT",
+      keepalive: true,
       body: { current_page: p.current_page, total_pages: p.total_pages, percent, location: p.location ?? { page: p.current_page } },
     });
   },
 
   async listAnnotations(bookId: string, type?: AnnotationType): Promise<Annotation[]> {
     const raw = await api<Paginated<Annotation> | Annotation[]>(`/books/${bookId}/annotations`, { query: { type, page_size: 100 } });
-    return asList<Annotation>(raw);
+    return asList<Annotation>(raw).map(normalizeAnnotation);
   },
 
-  createAnnotation(bookId: string, input: AnnotationInput): Promise<Annotation> {
-    return api<Annotation>(`/books/${bookId}/annotations`, { method: "POST", body: input });
+  async createAnnotation(bookId: string, input: AnnotationInput): Promise<Annotation> {
+    return normalizeAnnotation(await api<Annotation>(`/books/${bookId}/annotations`, { method: "POST", body: input }));
   },
 
-  updateAnnotation(bookId: string, id: string, patch: Partial<AnnotationInput>): Promise<Annotation> {
-    return api<Annotation>(`/books/${bookId}/annotations/${id}`, { method: "PATCH", body: patch });
+  async updateAnnotation(bookId: string, id: string, patch: Partial<AnnotationInput>): Promise<Annotation> {
+    return normalizeAnnotation(await api<Annotation>(`/books/${bookId}/annotations/${id}`, { method: "PATCH", body: patch }));
   },
 
   deleteAnnotation(bookId: string, id: string): Promise<void> {

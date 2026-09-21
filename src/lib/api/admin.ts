@@ -1,6 +1,6 @@
 /** Admin API — barcha yo'llar ADMIN rolini talab qiladi (server tomonda tekshiriladi). */
-import { api } from "./client";
-import type { AuditLog, Book, BookAccess, Category, Paginated, Session, User, UserStatus } from "./types";
+import { api, apiUpload, type UploadOptions } from "./client";
+import type { AdminStats, AuditLog, Book, BookAccess, Category, Paginated, Session, User, UserStatus } from "./types";
 
 type Page = { page?: number; page_size?: number };
 
@@ -18,6 +18,11 @@ export interface BookInput {
 }
 
 export const adminApi = {
+  // ---- Stats (FE-6.9)
+  stats() {
+    return api<AdminStats>("/admin/stats");
+  },
+
   // ---- Users
   users(q: Page & { search?: string; status?: UserStatus | "" } = {}) {
     return api<Paginated<User>>("/admin/users", { query: { page: 1, page_size: 20, ...q } });
@@ -51,15 +56,16 @@ export const adminApi = {
   updateBook(id: string, patch: Partial<BookInput> & { status?: string }) {
     return api<Book>(`/admin/books/${id}`, { method: "PATCH", body: patch });
   },
-  uploadBookFile(id: string, file: File) {
+  /** PDF yuklash — progress bilan (XHR). Klient tekshiruvi: `lib/uploads.ts`. */
+  uploadBookFile(id: string, file: File, opts?: UploadOptions) {
     const fd = new FormData();
     fd.append("file", file, file.name);
-    return api<Book>(`/admin/books/${id}/file`, { method: "POST", body: fd });
+    return apiUpload<Book>(`/admin/books/${id}/file`, fd, opts);
   },
-  uploadCover(id: string, file: File) {
+  uploadCover(id: string, file: File, opts?: UploadOptions) {
     const fd = new FormData();
     fd.append("file", file, file.name);
-    return api<Book>(`/admin/books/${id}/cover`, { method: "POST", body: fd });
+    return apiUpload<Book>(`/admin/books/${id}/cover`, fd, opts);
   },
 
   // ---- Categories
