@@ -34,15 +34,15 @@ function isActive(pathname: string, href: string) {
 
 /** Klient tomonidagi guard: foydalanuvchi tekshirilguncha kutadi, yo'q bo'lsa /login. */
 export function AppShell({ children, chromeless = false }: { children: ReactNode; chromeless?: boolean }) {
-  const { user, loading, isAdmin, logout } = useAuth();
+  const { user, loading, expired, isAdmin, logout } = useAuth();
   const { theme, toggle } = useTheme();
   const { t } = useT();
   const pathname = usePathname();
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading && !user) router.replace(`/login?next=${encodeURIComponent(pathname)}`);
-  }, [loading, user, pathname, router]);
+    if (!loading && !user) router.replace(`/login?next=${encodeURIComponent(pathname)}${expired ? "&reason=expired" : ""}`);
+  }, [loading, user, expired, pathname, router]);
 
   if (loading || !user) {
     return (
@@ -83,7 +83,9 @@ export function AppShell({ children, chromeless = false }: { children: ReactNode
             )}
           </nav>
           <div className="ml-auto flex items-center gap-2">
-            <LocaleSwitcher className="hidden sm:inline-flex" />
+            <span className="hidden sm:inline-flex">
+              <LocaleSwitcher />
+            </span>
             <NotificationBell />
             <button
               onClick={toggle}
@@ -119,17 +121,18 @@ export function AppShell({ children, chromeless = false }: { children: ReactNode
             </div>
           </div>
         )}
-        <nav className="flex items-center gap-1 border-t border-border px-2 py-1 sm:hidden">
+        {/* Mobil nav: elementlar sig'masa gorizontal aylantiriladi (sahifa kengaymaydi) */}
+        <nav className="flex items-center gap-1 overflow-x-auto border-t border-border px-2 py-1 sm:hidden">
           {[...NAV, ...(isAdmin ? [{ href: "/admin", label: "nav.admin" as DictKey }] : [])].map((n) => (
             <Link
               key={n.href}
               href={n.href}
-              className={cn("rounded-md px-3 py-1 text-sm", isActive(pathname, n.href) ? "bg-bg text-text" : "text-muted")}
+              className={cn("shrink-0 whitespace-nowrap rounded-md px-3 py-1 text-sm", isActive(pathname, n.href) ? "bg-bg text-text" : "text-muted")}
             >
               {t(n.label)}
             </Link>
           ))}
-          <LocaleSwitcher className="ml-auto" />
+          <LocaleSwitcher className="ml-auto shrink-0" />
         </nav>
       </header>
       <main className="mx-auto max-w-6xl px-4 py-6">{children}</main>

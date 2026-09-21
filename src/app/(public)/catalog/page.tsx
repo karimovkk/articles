@@ -20,7 +20,7 @@ function CatalogList() {
   const page = Math.max(1, Number(params.get("page")) || 1);
   const [search, setSearch] = useState(query);
 
-  const { data, loading, error } = useAsync(() => catalogApi.list({ search: query || undefined, category_id: category || undefined, page, page_size: 24 }), [query, category, page]);
+  const { data, loading, error, reload } = useAsync(() => catalogApi.list({ search: query || undefined, category_id: category || undefined, page, page_size: 24 }), [query, category, page]);
   const { data: categories } = useAsync(() => catalogApi.categories().catch(() => []), []);
 
   const navigate = (q: string, cat: string, p: number) => {
@@ -28,7 +28,9 @@ function CatalogList() {
     if (q) sp.set("q", q);
     if (cat) sp.set("category", cat);
     if (p > 1) sp.set("page", String(p));
-    router.push(`/catalog${sp.size ? `?${sp}` : ""}`);
+    // Bir xil so'rov qayta yuborilsa (masalan, tarmoq xatosidan keyin) — URL o'zgarmaydi, shuning uchun qayta so'raymiz
+    if (q === query && cat === category && p === page) reload();
+    else router.push(`/catalog${sp.size ? `?${sp}` : ""}`);
   };
 
   return (

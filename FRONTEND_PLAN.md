@@ -207,6 +207,49 @@ katta-kichik harfga sezgir qidirgan (`Content-Range` vs nginx'dan kelgan `conten
 `content-disposition: inline`, `access-control-expose-headers: Content-Range, Accept-Ranges`; eksportda
 `content-disposition: attachment; filename="users.xlsx"`. FE 416-workaround zararsiz zaxira sifatida qoldi.
 
+## 9. Mustaqil sifat tekshiruvi (2026-09-21) — tashqi ruxsat talab qilmaydigan ishlar
+
+- [x] 9.1 e2e testlar + mock backend'ni repoga ko'chirish (`e2e/`), portativ brauzer topish, `npm run e2e`, README
+- [x] 9.2 **Production build** (`next build` + `next start`) bilan barcha e2e to'plamlar (hozirgacha faqat dev server)
+  **Tekshiruv (9.1–9.2):** `e2e/` (mock, 11 to'plam, 3 prod smoke, `lib.mjs`, `run.mjs`, README), `npm run e2e` dev —
+  11/11 ✅; `npm run e2e -- --prod` (next build + start) — **11/11 ✅**. Ikki poyga (ma'lumot kelishidan oldin tekshirish)
+  testlarda tuzatildi. `playwright-core` devDependency; skrinshotlar `e2e/out/` (gitignore).
+- [x] 9.3 Token muddati tugashi: 401 → refresh → qayta so'rov (reader Range bo'laklari o'rtasida ham); refresh xato →
+      login'ga yo'naltirish; parallel so'rovlarda bitta refresh (single-flight)
+- [x] 9.4 Katta PDF (≥ 60 MB) Range streaming: faqat kerakli bo'laklar so'raladi, to'liq yuklab olinmaydi, ochilish
+      vaqti, xotira
+  **Tekshiruv (9.3):** `session` to'plami 11/11 ✅ — eskirgan token: parallel so'rovlarda 1 ta refresh, reader ichida
+  mark-read/progress 401 → refresh → 200, ishlatilgan refresh → `INVALID_TOKEN`, refresh xatosi → tokenlar/cookie
+  tozalanadi → `/login?reason=expired`. **Topilib tuzatilgan bug:** sahifa yangilanganda sessiya tugagan bo'lsa
+  AppShell guard'i `reason=expired` siz yo'naltirar edi (xabar ko'rinmasdi) — `expired` holati auth kontekstiga
+  ko'chirildi, redirect faqat AppShell'da.
+  **Tekshiruv (9.4):** `bigpdf` to'plami 11/11 ✅ — 60.2 MB / 300 sahifa sintetik PDF: birinchi sahifa **1.0 s**,
+  dastlab **1.82 MB** so'raldi, 300-sahifaga sakrash **+0.52 MB** (fayl oxiridagi bo'lak), jami 2.34 MB (3.9 %),
+  Range'siz to'liq GET yo'q, JS heap 34 MB. Eslatma: sahifa obyektlari fayl bo'ylab sochilgan PDF'larda PDF.js
+  ochilishda (`checkLastPage`) ko'p bo'lak so'raydi — backend PDF'larni linearizatsiya qilsa (qpdf `--linearize`)
+  ochilish ancha tezlashadi (B14, tavsiya).
+- [x] 9.5 Boshqa brauzerlar: Firefox va WebKit (Safari dvigateli) — Playwright build'lari; iPhone emulyatsiyasi
+- [x] 9.6 Tarmoq/limit xatolari: 429 `RATE_LIMIT_EXCEEDED`, offline (`NETWORK_ERROR`), 5xx — tushunarli xabarlar,
+      "oq ekran" yo'q (registr §11.7)
+- [x] 9.7 Frontend xavfsizlik header'lari (`X-Frame-Options`, `nosniff`, `Referrer-Policy`, `Permissions-Policy`)
+      barcha sahifalar uchun + tekshiruv
+- [x] 9.8 Vizual o'tish: barcha sahifalar tungi rejim + 360px (skrinshotlar), kesilgan/ustma-ust elementlar
+  **Tekshiruv (9.5):** Firefox (Playwright build) — **13/13 to'plam ✅**; WebKit build yuklandi, lekin bu mashinada
+  ishlamaydi (ICU 74 / libjpeg8 kerak, tizimda ICU 78 — Kali; sudo'siz o'rnatib bo'lmaydi) → Safari **jamoa** tomonidan.
+  Chromium'ga xos joylar (CDP throttle, `isMobile`, `performance.memory`) testlarda shartli.
+  **Tekshiruv (9.6):** `network` 10/10 ✅ — 429, API uzilishi (NETWORK_ERROR), 503 login, 500 kutubxona/reader, 404.
+  Topilib tuzatildi: (a) xatodan keyin **bir xil so'rovni qayta yuborish** qayta so'ramas edi (katalog/kutubxona —
+  endi `reload()`); (b) reader kontent xatosida backend'ning xom xabari ko'rinar edi — endi `errorMessage()` xaritasi.
+  **Tekshiruv (9.7):** `headers` 12/12 ✅ — `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy`,
+  `Permissions-Policy`, `/reader` va `/books` `no-store`; `/books`, `/notifications` proxy guard'ga qo'shildi.
+  **Tekshiruv (9.8):** `visual` — 18 sahifa × 360/1280 × kunduzgi/tungi = 72 ko'rinish ✅ (gorizontal scroll yo'q, bo'sh
+  sahifa yo'q). Topilib tuzatildi: `LocaleSwitcher`/`buttonClass` ning `inline-flex` sinfi `hidden sm:...` bilan
+  to'qnashib mobil header'ni toshirar edi (katalog 514px, admin 409px); mobil nav endi aylantiriladi; admin
+  jadvallari `overflow-x-auto`; dashboard audit qatori `truncate`. Skrinshotlar: `e2e/out/visual/`.
+  **Yakuniy regressiya:** 16 to'plam (Chrome, dev) ✅, production build ✅, lint/typecheck ✅.
+- [~] 9.9 Prod'da to'liq foydalanuvchi zanjiri (test user/kitob/buyurtma), 2FA, katta PDF yuklash — **ruxsat kutilmoqda**
+- [~] 9.10 Deploy (Vercel) + jonli URL smoke, Safari/Edge/haqiqiy telefon — **jamoa**
+
 ### Backend uchun eslatmalar (jonli auditdan) — holat: B1 ✅(avvaldan) · B2 ✅ · B3 ✅ · B4 ✅ · B5 ✅ · B6 ✅(avvaldan) ·
 B7 ✅ · B8 ✅ (OpenAPI manba) · B9 ✅ · B10 ✅ · B11 ✅ · B12 ✅ · B13 ✅ — **ochiq savol yo'q**
 
@@ -225,7 +268,9 @@ B7 ✅ · B8 ✅ (OpenAPI manba) · B9 ✅ · B10 ✅ · B11 ✅ · B12 ✅ · B
 - B9 Progress: `current_page` 0 = boshlanmagan, 1-based; `percentage` ni FE hisoblab yuboradi — backend `page_count` dan
   o'zi hisoblasa ishonchliroq.
 - B10 `reading-heartbeat` chastotasi/limiti (rate-limit) — tavsiya etilgan interval?
-- B13 `UserResponse` da `two_factor_enabled` yo'q — profil 2FA holatini ko'rsata olmaydi.
+- B13 `UserResponse` da `two_factor_enabled` yo'q — profil 2FA holatini ko'rsata olmaydi. ✅
+- B14 (tavsiya) Yuklangan PDF'larni saqlashda linearizatsiya (`qpdf --linearize`): sahifa obyektlari sochilgan katta
+  PDF'larda PDF.js ochilishda ko'p Range bo'lagi so'raydi; linearizatsiya birinchi sahifani bir bo'lakda beradi.
 - B12 `GET /library/{book_id}` (bitta kitob: sarlavha, muallif, tavsif, muqova, ruxsat) yo'q — kitob sahifasi kutubxona
   keshi yoki public katalogdan oladi (INACTIVE kitob katalogda ko'rinmaydi → ma'lumot topilmasligi mumkin).
 - B11 `GET /library?sort=` faqat `granted|title`; registrdagi "So'nggi o'qilgan" (`recent`, `last_read_at` bo'yicha)

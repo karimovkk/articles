@@ -46,7 +46,8 @@ export interface PdfViewerProps {
   highlights?: Annotation[];
   onReady?: (info: { pageCount: number; size: number }) => void;
   onPageChange?: (page: number) => void;
-  onError?: (message: string) => void;
+  /** `error` — asl xato (ApiError bo'lsa kod bo'yicha xabar ko'rsatish uchun) */
+  onError?: (message: string, error?: unknown) => void;
   onTextSelected?: (sel: TextSelection | null) => void;
   onProgress?: (loaded: number, total: number) => void;
 }
@@ -103,7 +104,7 @@ export const PdfViewer = forwardRef<PdfViewerHandle, PdfViewerProps>(function Pd
       })
       .catch((e: unknown) => {
         if (cancelled) return;
-        onError?.(e instanceof Error ? e.message : t("reader.openFailed"));
+        onError?.(e instanceof Error ? e.message : t("reader.openFailed"), e);
       });
     return () => {
       cancelled = true;

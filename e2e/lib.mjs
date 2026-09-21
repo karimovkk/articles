@@ -1,0 +1,54 @@
+/**
+ * e2e yordamchilari: brauzerni topish (Chrome/Chromium/Firefox/WebKit), umumiy sozlamalar.
+ *  E2E_BASE     — frontend (default http://localhost:3100)
+ *  E2E_API      — mock backend (default http://localhost:8001)
+ *  E2E_BROWSER  — chrome | chromium | firefox | webkit (default chrome)
+ *  CHROME_PATH  — Chrome/Chromium bajariladigan fayl yo'li (aniqlanmasa)
+ */
+import { existsSync } from "node:fs";
+import { chromium, firefox, webkit } from "playwright-core";
+
+export const BASE = process.env.E2E_BASE ?? "http://localhost:3100";
+export const API_HOST = process.env.E2E_API ?? "http://localhost:8001";
+export const API = `${API_HOST}/api/v1`;
+export const BROWSER = process.env.E2E_BROWSER ?? "chrome";
+/** Chromium-only imkoniyatlar (CDP, isMobile, performance.memory) uchun */
+export const IS_CHROMIUM = BROWSER !== "firefox" && BROWSER !== "webkit";
+
+const CHROME_CANDIDATES = [
+  process.env.CHROME_PATH,
+  "/usr/bin/google-chrome",
+  "/usr/bin/google-chrome-stable",
+  "/usr/bin/chromium",
+  "/usr/bin/chromium-browser",
+  "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+  "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+].filter(Boolean);
+
+/** Tizimdagi Chrome (yuklab olishsiz) yoki Playwright build'lari (`npx playwright-core install firefox|webkit`). */
+export async function launch(extra = {}) {
+  if (BROWSER === "firefox") return firefox.launch({ headless: true, ...extra });
+  if (BROWSER === "webkit") return webkit.launch({ headless: true, ...extra });
+  const executablePath = CHROME_CANDIDATES.find((p) => existsSync(p));
+  if (executablePath) return chromium.launch({ executablePath, headless: true, args: ["--no-sandbox"], ...extra });
+  // Tizimda Chrome topilmasa — Playwright'ning Chromium build'i (`npx playwright-core install chromium`)
+  return chromium.launch({ headless: true, args: ["--no-sandbox"], ...extra });
+}
+
+export function makeCheck() {
+  let failures = 0;
+  const check = (name, ok, extra = "") => {
+    console.log(`${ok ? "✅" : "❌"} ${name}${extra ? " — " + extra : ""}`);
+    if (!ok) failures++;
+  };
+  const done = async (browser) => {
+    await browser?.close();
+    console.log(failures ? `\n${failures} ta tekshiruv muvaffaqiyatsiz` : "\nBarcha tekshiruvlar o'tdi");
+    process.exit(failures ? 1 : 0);
+  };
+  return { check, done, get failures() { return failures; } };
+}
+
+/** Mock holatini tiklash (`/__reset`). */
+export const reset = (query = "") => fetch(`${API_HOST}/__reset${query}`);
+export const mockGet = async (path) => (await fetch(`${API_HOST}${path}`)).json();

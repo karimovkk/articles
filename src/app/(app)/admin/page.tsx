@@ -133,7 +133,7 @@ export default function AdminHome() {
           <ul className="divide-y divide-border text-sm">
             {data.logs.map((l) => (
               <li key={l.id} className="flex items-center justify-between gap-3 py-2">
-                <span className="text-text">
+                <span className="min-w-0 truncate text-text">
                   <span className="font-mono text-xs text-accent">{l.action}</span>
                   {l.entity_type && <span className="ml-2 text-muted">{l.entity_type}</span>}
                 </span>

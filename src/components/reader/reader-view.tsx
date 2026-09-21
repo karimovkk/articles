@@ -524,7 +524,7 @@ export function ReaderView({ articleId }: { articleId: string }) {
               highlights={highlights}
               onReady={({ pageCount: n }) => setPageCount((c) => c || n)}
               onPageChange={onPageChange}
-              onError={(m) => setFatal({ code: "CONTENT_ERROR", message: m })}
+              onError={(m, e) => setFatal({ code: isApiError(e) ? e.code : "CONTENT_ERROR", message: e ? errorMessage(e, m) : m })}
               onTextSelected={setSelection}
             />
             {meta.features?.watermark !== false && <WatermarkOverlay payload={watermark} night={night} />}

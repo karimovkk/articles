@@ -5,13 +5,15 @@
  * login/logout hodisalarini tinglaydi va `expired` bo'lganda /login ga yo'naltiradi.
  */
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { AUTH_EVENT, authApi, tokenStore, type AuthChangeReason, type User } from "@/lib/api";
 
 interface AuthState {
   user: User | null;
   /** true — hali /auth/me tekshirilmagan */
   loading: boolean;
+  /** Sessiya muddati tugagan/bekor qilingan (refresh ham ishlamadi) — login sahifasida xabar uchun */
+  expired: boolean;
   isAdmin: boolean;
   refresh: () => Promise<User | null>;
   setUser: (u: User | null) => void;
@@ -33,8 +35,8 @@ async function fetchMe(): Promise<User | null> {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [expired, setExpired] = useState(false);
   const router = useRouter();
-  const pathname = usePathname();
 
   const refresh = useCallback(async () => {
     const me = await fetchMe();
@@ -55,21 +57,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  // Yo'naltirish AppShell'da (himoyalangan sahifalar): `expired` bo'lsa /login?reason=expired.
+  // Public sahifalarda (katalog) sessiya tugasa foydalanuvchi shunchaki mehmonga aylanadi.
   useEffect(() => {
     const onChange = (e: Event) => {
       const reason = (e as CustomEvent<AuthChangeReason>).detail;
-      if (reason === "login") void refresh();
+      if (reason === "login") {
+        setExpired(false);
+        void refresh();
+      }
       if (reason === "logout" || reason === "expired") {
         setUser(null);
         setLoading(false);
-        if (reason === "expired" && !pathname.startsWith("/login") && !pathname.startsWith("/register")) {
-          router.replace(`/login?next=${encodeURIComponent(pathname)}&reason=expired`);
-        }
+        setExpired(reason === "expired");
       }
     };
     window.addEventListener(AUTH_EVENT, onChange);
     return () => window.removeEventListener(AUTH_EVENT, onChange);
-  }, [pathname, refresh, router]);
+  }, [refresh]);
 
   const logout = useCallback(async () => {
     await authApi.logout();
@@ -77,8 +82,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [router]);
 
   const value = useMemo<AuthState>(
-    () => ({ user, loading, isAdmin: user?.role === "ADMIN", refresh, setUser, logout }),
-    [user, loading, refresh, logout],
+    () => ({ user, loading, expired, isAdmin: user?.role === "ADMIN", refresh, setUser, logout }),
+    [user, loading, expired, refresh, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

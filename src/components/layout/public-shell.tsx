@@ -49,7 +49,9 @@ export function PublicShell({ children }: { children: ReactNode }) {
             )}
           </nav>
           <div className="ml-auto flex items-center gap-2">
-            <LocaleSwitcher className="hidden sm:inline-flex" />
+            <span className="hidden sm:inline-flex">
+              <LocaleSwitcher />
+            </span>
             <NotificationBell />
             <button
               onClick={toggle}
@@ -64,9 +66,11 @@ export function PublicShell({ children }: { children: ReactNode }) {
                 <Link href="/login" className={buttonClass("secondary", "sm")}>
                   {t("auth.login")}
                 </Link>
-                <Link href="/register" className={buttonClass("primary", "sm", "hidden sm:inline-flex")}>
-                  {t("auth.register")}
-                </Link>
+                <span className="hidden sm:inline-flex">
+                  <Link href="/register" className={buttonClass("primary", "sm")}>
+                    {t("auth.register")}
+                  </Link>
+                </span>
               </>
             )}
           </div>

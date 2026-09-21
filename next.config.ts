@@ -6,7 +6,8 @@ import type { NextConfig } from "next";
  * dev rejimida CORS sozlash shart emas. Agar NEXT_PUBLIC_API_URL berilsa,
  * brauzer backendga to'g'ridan-to'g'ri murojaat qiladi (CORS kerak bo'ladi).
  */
-const BACKEND_URL = (process.env.BACKEND_URL ?? "http://localhost:8001").replace(/\/$/, "");
+// Oxiridagi `/` va `/api/v1` olib tashlanadi — rewrite `/api/v1/:path*` ni o'zi qo'shadi
+const BACKEND_URL = (process.env.BACKEND_URL ?? "http://localhost:8001").trim().replace(/\/+$/, "").replace(/\/api\/v1$/i, "");
 
 const nextConfig: NextConfig = {
   async rewrites() {
@@ -19,12 +20,23 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
-        // Reader sahifasi: himoyalangan kontent keshlanmasin
-        source: "/reader/:path*",
+        // Barcha sahifalar: asosiy xavfsizlik header'lari (TZ §4 — clickjacking, MIME sniffing, referrer, sensorlar)
+        source: "/:path*",
         headers: [
-          { key: "Cache-Control", value: "private, no-store, max-age=0" },
+          { key: "X-Frame-Options", value: "DENY" },
           { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=()" },
         ],
+      },
+      {
+        // Reader va kitob sahifalari: himoyalangan kontent keshlanmasin
+        source: "/reader/:path*",
+        headers: [{ key: "Cache-Control", value: "private, no-store, max-age=0" }],
+      },
+      {
+        source: "/books/:path*",
+        headers: [{ key: "Cache-Control", value: "private, no-store, max-age=0" }],
       },
     ];
   },

@@ -16,7 +16,7 @@ export default function LibraryPage() {
   const [sort, setSort] = useState<LibrarySort>("recent");
   const [page, setPage] = useState(1);
 
-  const { data, loading, error } = useAsync(
+  const { data, loading, error, reload } = useAsync(
     () => libraryApi.list({ search: query || undefined, sort, page, page_size: 24 }),
     [query, sort, page],
   );
@@ -29,6 +29,8 @@ export default function LibraryPage() {
         className="mb-6 flex flex-wrap gap-2"
         onSubmit={(e) => {
           e.preventDefault();
+          // Bir xil so'rov (masalan, xatodan keyin qayta urinish) — holat o'zgarmaydi, qo'lda qayta so'raymiz
+          if (search.trim() === query && page === 1) reload();
           setPage(1);
           setQuery(search.trim());
         }}

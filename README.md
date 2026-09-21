@@ -30,6 +30,7 @@ Dev login: `admin@articles365.local` / `Admin12345!`, `user@articles365.local` /
 | `npm run build` / `npm start` | production build / start |
 | `npm run lint` | ESLint (`public/**` ignore qilingan — pdf.js worker) |
 | `npm run typecheck` | `tsc --noEmit` |
+| `npm run e2e` | mock backend + headless Chrome bilan e2e (16 to'plam); `-- --prod` production build bilan; `E2E_BROWSER=firefox` — qarang `e2e/README.md` |
 
 ## Env o'zgaruvchilar
 

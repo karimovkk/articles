@@ -1,7 +1,20 @@
+/**
+ * Backend manzilini normallashtiradi: oxiridagi `/` va `/api/v1` olib tashlanadi
+ * (frontend `/api/v1` ni o'zi qo'shadi — ikkala yozuv ham qabul qilinadi:
+ * `https://api.example.com` yoki `https://api.example.com/api/v1`).
+ */
+export function normalizeApiBase(raw: string | undefined): string {
+  return (raw ?? "")
+    .trim()
+    .replace(/\/+$/, "")
+    .replace(/\/api\/v1$/i, "")
+    .replace(/\/+$/, "");
+}
+
 /** Brauzer va serverda xavfsiz o'qiladigan sozlamalar. */
 export const env = {
-  /** Bo'sh bo'lsa same-origin (/api/v1 → next.config rewrites). */
-  apiBaseUrl: (process.env.NEXT_PUBLIC_API_URL ?? "").replace(/\/$/, ""),
+  /** Bo'sh bo'lsa same-origin (/api/v1 → next.config rewrites `BACKEND_URL` ga). */
+  apiBaseUrl: normalizeApiBase(process.env.NEXT_PUBLIC_API_URL),
   appName: process.env.NEXT_PUBLIC_APP_NAME ?? "Articles365",
   /** Klient tomonidagi yuklash limitlari (MB) — backend `MAX_BOOK_UPLOAD_SIZE` / `MAX_COVER_UPLOAD_SIZE` ga mos qo'yiladi. */
   maxPdfMb: Number(process.env.NEXT_PUBLIC_MAX_PDF_MB) || 500,
