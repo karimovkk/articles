@@ -8,6 +8,7 @@ import { useAuth } from "@/providers/auth-provider";
 import { notificationsApi } from "@/lib/api";
 import { useT } from "@/i18n";
 import { cn } from "@/components/ui";
+import * as I from "@/components/ui/icons";
 
 const POLL_MS = 60_000;
 
@@ -35,16 +36,18 @@ export function NotificationBell({ className }: { className?: string }) {
   }, [user, pathname]);
 
   if (!user) return null;
+  const active = pathname === "/notifications";
   return (
     <Link
       href="/notifications"
-      className={cn("relative rounded-md px-2 py-1 text-sm text-muted hover:text-text", pathname === "/notifications" && "text-text", className)}
+      className={cn("icon-btn plain", active && "bg-surface-2 text-text", className)}
       title={t("notifications.title")}
       aria-label={count ? t("notifications.unreadN", { n: count }) : t("notifications.title")}
+      aria-current={active ? "page" : undefined}
     >
-      🔔
+      <I.Bell size={18} />
       {!!count && (
-        <span className="absolute -right-0.5 -top-0.5 min-w-[18px] rounded-full bg-accent px-1 text-center text-[10px] font-semibold leading-[18px] text-accent-fg" data-testid="unread-count">
+        <span className="dot" data-testid="unread-count">
           {count > 99 ? "99+" : count}
         </span>
       )}

@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import { useAsync } from "@/lib/use-async";
-import { Alert, Pagination, Spinner } from "@/components/ui";
+import { Alert, Pagination, Spinner, cn } from "@/components/ui";
 import type { Paginated } from "@/lib/api";
 import { useT } from "@/i18n";
 
@@ -11,6 +11,8 @@ export interface Column<T> {
   header: string;
   render: (row: T) => ReactNode;
   className?: string;
+  /** Raqamli ustun — o'ngga tekislanadi, tabular raqamlar */
+  num?: boolean;
 }
 
 export function DataTable<T extends { id: string }>({
@@ -20,6 +22,8 @@ export function DataTable<T extends { id: string }>({
   error,
   onPage,
   empty,
+  onRowClick,
+  minWidth,
 }: {
   data: Paginated<T> | null;
   columns: Column<T>[];
@@ -27,62 +31,88 @@ export function DataTable<T extends { id: string }>({
   error: string | null;
   onPage: (p: number) => void;
   empty?: string;
+  onRowClick?: (row: T) => void;
+  /** Kichik ekranlarda gorizontal aylantirish uchun minimal kenglik */
+  minWidth?: number;
 }) {
   const { t } = useT();
   empty ??= t("common.noData");
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {error && <Alert>{error}</Alert>}
-      <div className="overflow-x-auto rounded-xl border border-border bg-surface">
-        <table className="w-full text-sm">
-          <thead className="bg-bg text-left text-xs uppercase tracking-wide text-muted">
-            <tr>
-              {columns.map((c) => (
-                <th key={c.key} className={`px-3 py-2 font-medium ${c.className ?? ""}`}>
-                  {c.header}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {loading ? (
+      <div className={cn("table-wrap", loading && data && "is-loading")} aria-busy={loading}>
+        <div className="table-scroll">
+          <table className="table" style={minWidth ? { minWidth } : undefined}>
+            <thead>
               <tr>
-                <td colSpan={columns.length} className="px-3 py-10 text-center text-muted">
-                  <Spinner className="mx-auto size-5" />
-                </td>
+                {columns.map((c) => (
+                  <th key={c.key} className={cn(c.num && "text-right", c.className)}>
+                    {c.header}
+                  </th>
+                ))}
               </tr>
-            ) : !data || data.items.length === 0 ? (
-              <tr>
-                <td colSpan={columns.length} className="px-3 py-10 text-center text-muted">
-                  {empty}
-                </td>
-              </tr>
-            ) : (
-              data.items.map((row) => (
-                <tr key={row.id} className="hover:bg-bg/60">
-                  {columns.map((c) => (
-                    <td key={c.key} className={`px-3 py-2 align-top text-text ${c.className ?? ""}`}>
-                      {c.render(row)}
-                    </td>
-                  ))}
+            </thead>
+            <tbody>
+              {loading && !data ? (
+                <tr>
+                  <td colSpan={columns.length} className="empty-cell">
+                    <Spinner className="mx-auto size-5" />
+                  </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-      {data && (
-        <div className="flex items-center justify-between text-xs text-muted">
-          <span>
-            {t("common.total")}: {data.total}
-          </span>
-          <Pagination page={data.page} pages={data.pages} onChange={onPage} />
+              ) : !data || data.items.length === 0 ? (
+                <tr>
+                  <td colSpan={columns.length} className="empty-cell">
+                    {empty}
+                  </td>
+                </tr>
+              ) : (
+                data.items.map((row) => (
+                  <tr
+                    key={row.id}
+                    className={cn(onRowClick && "clickable")}
+                    onClick={
+                      onRowClick
+                        ? (e) => {
+                            // Qator ichidagi havola/tugma o'z ishini qiladi — ikki marta navigatsiya bo'lmasin
+                            if ((e.target as HTMLElement).closest("a, button, [role='combobox'], input, label")) return;
+                            onRowClick(row);
+                          }
+                        : undefined
+                    }
+                  >
+                    {columns.map((c) => (
+                      <td key={c.key} className={cn(c.num && "num text-right", c.className)}>
+                        {c.render(row)}
+                      </td>
+                    ))}
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
-      )}
+      </div>
+      {data && <Pagination page={data.page} pages={data.pages} total={data.total} onChange={onPage} />}
     </div>
   );
 }
 
+/** Jadval ustidagi filtr paneli (`.table-toolbar`): forma sifatida — Enter qidiradi. */
+export function Toolbar({ children, onSubmit, meta, className }: { children: ReactNode; onSubmit?: () => void; meta?: ReactNode; className?: string }) {
+  return (
+    <form
+      className={cn("table-toolbar", className)}
+      onSubmit={(e) => {
+        e.preventDefault();
+        onSubmit?.();
+      }}
+      role="search"
+    >
+      {children}
+      {meta && <div className="toolbar-meta">{meta}</div>}
+    </form>
+  );
+}
 
 /** Ro'yxat yuklash uchun umumiy hook: filtr (`deps`) o'zgarsa 1-sahifaga qaytadi. */
 export function usePaged<T>(fetcher: (page: number) => Promise<Paginated<T>>, deps: readonly unknown[]) {

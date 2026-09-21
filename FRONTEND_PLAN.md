@@ -250,6 +250,43 @@ katta-kichik harfga sezgir qidirgan (`Content-Range` vs nginx'dan kelgan `conten
 - [~] 9.9 Prod'da to'liq foydalanuvchi zanjiri (test user/kitob/buyurtma), 2FA, katta PDF yuklash — **ruxsat kutilmoqda**
 - [~] 9.10 Deploy (Vercel) + jonli URL smoke, Safari/Edge/haqiqiy telefon — **jamoa**
 
+## 10. Dizayn yangilanishi (2026-09-21) — ilhom: Alfa-FCUI "Floodlight" tizimi
+
+Tamoyil: qora ramka + suzuvchi och "varaq", bitta aksent, display shrift sarlavhalarda, yumaloq kartalar/tugmalar,
+jadvalda tinted sarlavha, chip'lar; **barcha dropdown-simon elementlar qo'lbola** (native `<select>`, `confirm()`,
+`checkbox` yo'q) — portal orqali, klaviatura va mobil bilan.
+
+- [x] 10.1 Dizayn tizimi: tokenlar (light/dark), shriftlar (Manrope + Unbounded, `next/font`, self-hosted), bazaviy CSS
+      (`src/app/design.css`, `globals.css` `@theme inline` orqali Tailwind'ga bog'langan): tugmalar, chip, karta,
+      page-head, stat plitka, jadval, forma, menyu, select, kalendar, modal, pill/tab, bo'sh holat, skeleton, progress
+- [x] 10.2 Qo'lbola boshqaruv elementlari (`src/components/ui/`): `Select` (portal, ≥6 variantda qidiruv, ↑↓/Home/End/
+      Enter/Esc, harf bilan sakrash, combobox/listbox aria), `DatePicker` (kun/oy/yil, Bugun/Tozalash, min/max, uz/ru/en),
+      `Menu`/`MenuItem`, `Switch`, `ConfirmProvider`+`useConfirm`, `Modal` (portal, Esc, fokus), `DropdownPanel`
+      (viewport'ga sig'masa yuqoriga, scroll/resize/ResizeObserver), inline SVG ikonkalar (`icons.tsx`)
+- [x] 10.3 Admin qobig'i (`AdminShell`): sidebar (4 bo'lim, faol element aksent, yig'iladigan — `localStorage`,
+      <900px drawer), topbar (crumbs + `useAdminCrumb` detal nomi, bildirishnoma, til menyusi, mavzu, "Ilovaga qaytish"),
+      foydalanuvchi chipi + menyu; `src/app/(admin)/admin/*` route guruhi (`AppShell chromeless` → `AdminGuard`)
+- [x] 10.4 Admin sahifalari: dashboard (`Stat` plitkalar + so'nggi amallar), kitoblar/foydalanuvchilar/ruxsatlar/
+      buyurtmalar/audit (`Toolbar` + `DataTable`, qo'lbola `Select` filtrlar, qator bosilsa detal), kitob (hero + tablar
+      Ma'lumotlar/Maqolalar/Ruxsatlar, **nashr sanasi — `DatePicker`** → `book_metadata.published_at`, holat `Switch`
+      + tasdiqlash, maqola amallari `Menu`, TOC darajasi `Select`), foydalanuvchi (hero, hisob, sessiyalar, ruxsatlar,
+      bloklash tasdiqlash), kategoriyalar (`Switch` holat, inline tahrir), `GrantModal` — qidiruvli `Select`
+- [x] 10.5 Kutubxona (page-head statistika, "Davom ettirish" kartasi, `.book-grid` muqova kartalari: progress,
+      o'qilgan/jami badge) va kitob sahifasi (`.book-hero`, 3 stat, progress, "O'qishni boshlash/Davom ettirish",
+      maqolalar "playlist"i: raqam/✓/▶, holat chip); katalog (toolbar, kartalar, narx) va batafsil (`.book-hero`, buyurtma
+      paneli); muqova placeholder'i nom bilan (`BookCover`, admin uchun `source="auto"`)
+- [x] 10.6 Umumiy qobiq: `SiteHeader` (pill nav, til menyusi, mavzu, bildirishnoma icon-btn, foydalanuvchi chipi + menyu:
+      profil/bildirishnomalar/admin/chiqish; mobil pill nav), auth layout (qora "art" panel + forma varag'i), profil,
+      bildirishnomalar (`Switch` "faqat o'qilmaganlar"), 404/xato; reader toolbar/sidebar ikonkalar va tablar;
+      barcha `confirm()` → `useConfirm`; native `<select>`/`checkbox` qolmadi; `+`/`←`/`→` matnli prefikslar → ikonkalar
+- [x] 10.7 Testlar: e2e yordamchilari (`selectPick`, `selectOptionCount`, `confirmDialog`, `datePick`), 7 to'plam va
+      2 prod smoke yangilandi; `tsc` ✅ · `eslint` ✅ · **production build 16/16 to'plam (226 tekshiruv) ✅** ·
+      Chrome dev 16/16 ✅ · Firefox 16/16 ✅ (visual alohida ishga tushirilganda — uzoq dev sessiyada 90 s timeout) ·
+      vizual sweep 72 ko'rinish (360/1280 × light/dark, gorizontal scroll yo'q) ✅ (2026-09-21)
+
+**Tekshiruv:** skrinshotlar `e2e/out/visual/` (gitignored). Eslatma: `.next/types` eskirgan bo'lsa `tsc` `(app)/admin`
+yo'llari haqida xato beradi — `rm -rf .next/types .next/dev/types` yoki `next build` yangilaydi.
+
 ### Backend uchun eslatmalar (jonli auditdan) — holat: B1 ✅(avvaldan) · B2 ✅ · B3 ✅ · B4 ✅ · B5 ✅ · B6 ✅(avvaldan) ·
 B7 ✅ · B8 ✅ (OpenAPI manba) · B9 ✅ · B10 ✅ · B11 ✅ · B12 ✅ · B13 ✅ — **ochiq savol yo'q**
 

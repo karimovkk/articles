@@ -9,7 +9,8 @@ import Link from "next/link";
 import { useAuth } from "@/providers/auth-provider";
 import { BookCover } from "@/components/book-cover";
 import { Price } from "@/components/catalog/price";
-import { Alert, Badge, Card, Spinner, buttonClass } from "@/components/ui";
+import { Badge, Card, EmptyState, Spinner, buttonClass } from "@/components/ui";
+import * as I from "@/components/ui/icons";
 import { OrderPanel } from "@/components/orders/order-panel";
 import { catalogApi, readerApi, type CatalogItem } from "@/lib/api";
 import { useT } from "@/i18n";
@@ -51,41 +52,51 @@ export function CatalogBookDetail({ bookId }: { bookId: string }) {
   }
   if (item === null) {
     return (
-      <div className="space-y-3">
-        <Alert>{t("catalog.notFound")}</Alert>
-        <Link href="/catalog" className="text-sm text-accent hover:underline">
-          {t("catalog.back")}
-        </Link>
-      </div>
+      <EmptyState
+        icon={<I.Search size={22} />}
+        title={t("catalog.notFound")}
+        action={
+          <Link href="/catalog" className={buttonClass("secondary")}>
+            <I.ArrowLeft size={16} />
+            {t("catalog.back")}
+          </Link>
+        }
+      />
     );
   }
 
   return (
-    <div className="space-y-4">
-      <Link href="/catalog" className="text-sm text-accent hover:underline">
-        {t("catalog.back")}
-      </Link>
-      <div className="grid gap-6 md:grid-cols-[220px_1fr]">
-        <BookCover bookId={item.book_id} title={item.title} hasCover={item.has_cover} size="medium" source="catalog" className="max-w-[220px]" />
-        <div className="space-y-4">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-text">{item.title}</h1>
-            {item.author && <p className="mt-1 text-muted">{item.author}</p>}
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              {item.category_name && <Badge>{item.category_name}</Badge>}
-              {!!item.article_count && <span className="text-xs text-muted">{t("catalog.articles", { n: item.article_count })}</span>}
-            </div>
+    <div className="space-y-5">
+      <nav className="crumbs" aria-label="breadcrumb">
+        <Link href="/catalog">{t("nav.catalog")}</Link>
+        <I.ChevronRight size={14} />
+        <span className="current">{item.title}</span>
+      </nav>
+      <div className="book-hero">
+        <BookCover bookId={item.book_id} title={item.title} hasCover={item.has_cover} size="medium" source="catalog" />
+        <div className="flex min-w-0 flex-col gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            {item.category_name && <Badge>{item.category_name}</Badge>}
+            {!!item.article_count && <Badge tone="accent">{t("catalog.articles", { n: item.article_count })}</Badge>}
           </div>
-          <p className="text-xl font-semibold text-text">
+          <div>
+            <h1 className="book-hero-title">{item.title}</h1>
+            {item.author && <p className="mt-1 text-[15px] font-semibold text-muted">{item.author}</p>}
+          </div>
+          <p className="max-w-2xl whitespace-pre-wrap text-sm leading-relaxed text-text-2">{item.description || t("catalog.noDescription")}</p>
+          <p className="font-display text-2xl font-semibold tracking-tight text-text">
             <Price value={item.price} />
           </p>
-          <p className="whitespace-pre-wrap text-sm text-text">{item.description || t("catalog.noDescription")}</p>
 
-          <Card className="p-4">
+          <Card className="mt-auto" padded>
             {hasAccess ? (
               <div className="flex flex-wrap items-center gap-3">
-                <span className="text-sm text-muted">{t("catalog.inLibrary")}</span>
+                <span className="flex items-center gap-2 text-sm font-semibold text-muted">
+                  <I.CheckCircle size={16} className="text-success" />
+                  {t("catalog.inLibrary")}
+                </span>
                 <Link href={`/books/${item.book_id}`} className={buttonClass()}>
+                  <I.BookOpen size={16} />
                   {t("catalog.read")}
                 </Link>
               </div>

@@ -14,7 +14,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/providers/auth-provider";
-import { Alert, Button, Spinner, cn } from "@/components/ui";
+import { Alert, IconButton, Spinner, cn } from "@/components/ui";
 import {
   errorMessage,
   isApiError,
@@ -28,6 +28,7 @@ import {
 } from "@/lib/api";
 import { HIGHLIGHT_COLORS, normalizeColor } from "@/lib/reader/highlights";
 import { useT } from "@/i18n";
+import * as I from "@/components/ui/icons";
 import { PdfViewer, type PdfViewerHandle, type TextSelection, type ViewMode } from "./pdf-viewer";
 import { ReaderSidebar, type SidebarTab } from "./reader-sidebar";
 import { WatermarkOverlay, type WatermarkLike } from "./watermark-overlay";
@@ -364,7 +365,7 @@ export function ReaderView({ articleId }: { articleId: string }) {
     return (
       <div className="flex min-h-dvh flex-col items-center justify-center gap-4 px-4 text-center">
         <Alert>{friendly}</Alert>
-        <Link href="/library" className="text-sm text-accent underline">
+        <Link href="/library" className="text-sm font-bold text-accent-ink underline">
           {t("common.backToLibrary")}
         </Link>
       </div>
@@ -387,7 +388,7 @@ export function ReaderView({ articleId }: { articleId: string }) {
         {!failed && <Spinner />}
         <p className="text-lg font-medium text-text">{meta.title}</p>
         <Alert tone={failed ? "danger" : "info"}>{failed ? t("reader.processingFailed") : t("reader.processing")}</Alert>
-        <Link href={`/books/${meta.book_id}`} className="text-sm text-accent underline">
+        <Link href={`/books/${meta.book_id}`} className="text-sm font-bold text-accent-ink underline">
           {t("reader.backToBook")}
         </Link>
       </div>
@@ -401,25 +402,25 @@ export function ReaderView({ articleId }: { articleId: string }) {
 
       <div className={cn("print-protected flex h-dvh flex-col", night && "dark")}>
         {/* Toolbar */}
-        <header className="z-30 flex h-12 shrink-0 items-center gap-2 border-b border-border bg-surface px-2 text-text sm:px-3">
-          <Link href={`/books/${meta.book_id}`} className="rounded-md px-2 py-1 text-sm text-muted hover:text-text" title={t("reader.backToBook")}>
-            ←
+        <header className="z-30 flex h-14 shrink-0 items-center gap-1 border-b border-border bg-surface px-1.5 text-text sm:gap-1.5 sm:px-3">
+          <Link href={`/books/${meta.book_id}`} className="icon-btn plain" title={t("reader.backToBook")} aria-label={t("reader.backToBook")}>
+            <I.ArrowLeft size={18} />
           </Link>
-          <button onClick={() => setSidebarOpen((s) => !s)} className="rounded-md px-2 py-1 text-sm hover:bg-bg" title={t("reader.panel")}>
-            ☰
+          <button type="button" onClick={() => setSidebarOpen((s) => !s)} className={cn("icon-btn plain", sidebarOpen && "bg-surface-2 text-text")} title={t("reader.panel")} aria-label={t("reader.panel")} aria-pressed={sidebarOpen}>
+            <I.PanelLeft size={18} />
           </button>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium">{meta.title}</p>
+          <div className="min-w-0 flex-1 pl-1">
+            <p className="truncate text-[13.5px] font-bold">{meta.title}</p>
             {(prev || next) && (
-              <p className="flex gap-2 text-[11px] text-muted">
+              <p className="flex gap-3 text-[11px] font-semibold text-muted">
                 {prev && (
-                  <Link href={`/reader/${prev.article_id}`} className="truncate hover:text-text" title={prev.title}>
-                    ‹ {t("reader.prevArticle")}
+                  <Link href={`/reader/${prev.article_id}`} className="inline-flex min-w-0 items-center gap-0.5 truncate hover:text-text" title={prev.title}>
+                    <I.ChevronLeft size={12} /> {t("reader.prevArticle")}
                   </Link>
                 )}
                 {next && (
-                  <Link href={`/reader/${next.article_id}`} className="truncate hover:text-text" title={next.title}>
-                    {t("reader.nextArticle")} ›
+                  <Link href={`/reader/${next.article_id}`} className="inline-flex min-w-0 items-center gap-0.5 truncate hover:text-text" title={next.title}>
+                    {t("reader.nextArticle")} <I.ChevronRight size={12} />
                   </Link>
                 )}
               </p>
@@ -427,7 +428,7 @@ export function ReaderView({ articleId }: { articleId: string }) {
           </div>
 
           <form
-            className="flex items-center gap-1 text-sm"
+            className="flex items-center gap-1.5 text-sm"
             onSubmit={(e) => {
               e.preventDefault();
               const n = Number(pageInput);
@@ -436,55 +437,48 @@ export function ReaderView({ articleId }: { articleId: string }) {
               (e.currentTarget.querySelector("input") as HTMLInputElement | null)?.blur();
             }}
           >
-            <input
-              value={pageInput}
-              onChange={(e) => setPageInput(e.target.value)}
-              className="h-8 w-14 rounded-md border border-border bg-bg px-2 text-center text-sm"
-              inputMode="numeric"
-              aria-label={t("common.page")}
-            />
-            <span className="text-muted">/ {pageCount || "…"}</span>
+            <input value={pageInput} onChange={(e) => setPageInput(e.target.value)} className="input sm w-14 text-center font-bold tabular-nums" inputMode="numeric" aria-label={t("common.page")} />
+            <span className="text-xs font-semibold text-muted">/ {pageCount || "…"}</span>
           </form>
 
-          <div className="hidden items-center gap-1 sm:flex">
-            <button onClick={() => setZoomIdx((z) => Math.max(0, z - 1))} className="rounded-md px-2 py-1 hover:bg-bg" title={t("reader.zoomOut")}>
-              −
+          <div className="hidden items-center sm:flex">
+            <button type="button" onClick={() => setZoomIdx((z) => Math.max(0, z - 1))} className="icon-btn plain sm" title={t("reader.zoomOut")} aria-label={t("reader.zoomOut")}>
+              <I.ZoomOut size={16} />
             </button>
-            <span className="w-12 text-center text-xs text-muted">{Math.round(ZOOMS[zoomIdx] * 100)}%</span>
-            <button onClick={() => setZoomIdx((z) => Math.min(ZOOMS.length - 1, z + 1))} className="rounded-md px-2 py-1 hover:bg-bg" title={t("reader.zoomIn")}>
-              +
+            <span className="w-11 text-center text-xs font-bold tabular-nums text-muted">{Math.round(ZOOMS[zoomIdx] * 100)}%</span>
+            <button type="button" onClick={() => setZoomIdx((z) => Math.min(ZOOMS.length - 1, z + 1))} className="icon-btn plain sm" title={t("reader.zoomIn")} aria-label={t("reader.zoomIn")}>
+              <I.ZoomIn size={16} />
             </button>
           </div>
           <button
+            type="button"
             onClick={() => void toggleRead(!isRead)}
-            className={cn("rounded-md px-2 py-1 text-xs hover:bg-bg", isRead && "text-green-600 dark:text-green-400")}
+            className={cn("btn ghost sm max-sm:!px-2", isRead && "text-success")}
             title={isRead ? t("reader.markUnread") : t("reader.markRead")}
             aria-label={isRead ? t("reader.markUnread") : t("reader.markRead")}
             aria-pressed={isRead}
           >
-            {isRead ? "✓ " : "○ "}
+            {isRead ? <I.CheckCircle size={16} /> : <I.Check size={16} className="opacity-50" />}
             <span className="hidden md:inline">{t("reader.readLabel")}</span>
           </button>
-          <button
-            onClick={toggleMode}
-            className="rounded-md px-2 py-1 text-xs hover:bg-bg"
-            title={mode === "scroll" ? t("reader.toPageMode") : t("reader.toScrollMode")}
-            aria-label={t("reader.readingMode")}
-          >
-            {mode === "scroll" ? t("reader.modeScroll") : t("reader.modePage")}
+          <button type="button" onClick={toggleMode} className="btn ghost sm max-sm:!px-2" title={mode === "scroll" ? t("reader.toPageMode") : t("reader.toScrollMode")} aria-label={t("reader.readingMode")}>
+            {mode === "scroll" ? <I.Rows size={16} /> : <I.Columns size={16} />}
+            <span className="hidden sm:inline">{mode === "scroll" ? t("reader.modeScroll") : t("reader.modePage")}</span>
           </button>
-          <button onClick={toggleNight} className="rounded-md px-2 py-1 hover:bg-bg" title={night ? t("theme.light") : t("theme.dark")}>
-            {night ? "☀️" : "🌙"}
+          <button type="button" onClick={toggleNight} className="icon-btn plain" title={night ? t("theme.light") : t("theme.dark")} aria-label={night ? t("theme.light") : t("theme.dark")}>
+            {night ? <I.Sun size={18} /> : <I.Moon size={18} />}
           </button>
           <button
+            type="button"
             onClick={() => {
               if (document.fullscreenElement) void document.exitFullscreen();
               else void document.documentElement.requestFullscreen?.();
             }}
-            className="hidden rounded-md px-2 py-1 hover:bg-bg sm:block"
+            className="icon-btn plain hidden sm:inline-flex"
             title={t("reader.fullscreen")}
+            aria-label={t("reader.fullscreen")}
           >
-            ⛶
+            <I.Maximize size={18} />
           </button>
         </header>
 
@@ -530,7 +524,7 @@ export function ReaderView({ articleId }: { articleId: string }) {
             {meta.features?.watermark !== false && <WatermarkOverlay payload={watermark} night={night} />}
 
             {selection && (
-              <div className="absolute left-1/2 top-2 z-40 flex -translate-x-1/2 items-center gap-1 rounded-lg border border-border bg-surface p-1.5 shadow-lg">
+              <div className="absolute left-1/2 top-2 z-40 flex -translate-x-1/2 items-center gap-1 rounded-full border border-border bg-surface p-1.5 pl-3 shadow-lg">
                 <span className="px-1 text-xs text-muted">{t("reader.highlightAt", { n: selection.page })}</span>
                 {HIGHLIGHT_COLORS.map((c) => (
                   <button
@@ -543,14 +537,14 @@ export function ReaderView({ articleId }: { articleId: string }) {
                     style={{ background: c.hex }}
                   />
                 ))}
-                <Button size="sm" variant="ghost" onClick={() => setSelection(null)} aria-label={t("common.close")}>
-                  ✕
-                </Button>
+                <IconButton size="sm" variant="plain" onClick={() => setSelection(null)} label={t("common.close")}>
+                  <I.X size={15} />
+                </IconButton>
               </div>
             )}
 
             {toast && (
-              <div className="pointer-events-none absolute bottom-4 left-1/2 z-40 -translate-x-1/2 rounded-lg bg-black/80 px-3 py-1.5 text-sm text-white">
+              <div className="pointer-events-none absolute bottom-4 left-1/2 z-40 -translate-x-1/2 rounded-full bg-[var(--ink)] px-4 py-2 text-[13px] font-bold text-[var(--chalk)] shadow-lg">
                 {toast}
               </div>
             )}

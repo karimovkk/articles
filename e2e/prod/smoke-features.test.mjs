@@ -1,5 +1,5 @@
 // Backend B-yangilanishlari prod'da UI orqali (faqat o'qish): /categories filtri, /catalog/{id}, 2FA holati, sort=recent, nomlar
-import { launch } from "../lib.mjs";
+import { launch, selectPick, selectOptionCount } from "../lib.mjs";
 const BASE = process.env.E2E_BASE ?? "http://localhost:3200";
 const EMAIL = process.env.A365_EMAIL, PASS = process.env.A365_PASS;
 let failures = 0;
@@ -15,9 +15,9 @@ const bodyHas = async (text) => page.evaluate((t) => document.body.innerText.rep
 // mehmon: katalog + kategoriya filtri + detail
 await page.goto(`${BASE}/catalog`);
 await page.waitForSelector("text=Psychology", { timeout: 45000 });
-await page.waitForSelector("select", { timeout: 15000 });
-check("Katalog: kategoriya filtri (GET /categories) — 'Jurnal maqolalari'", (await page.locator("select option").count()) === 2);
-await page.selectOption("select", { label: "Jurnal maqolalari" });
+await page.waitForSelector('[data-testid="catalog-category"]', { timeout: 15000 });
+check("Katalog: kategoriya filtri (GET /categories) — 'Jurnal maqolalari'", (await selectOptionCount(page, '[data-testid="catalog-category"]')) === 2);
+await selectPick(page, '[data-testid="catalog-category"]', { label: "Jurnal maqolalari" });
 await page.waitForURL((u) => !!u.searchParams.get("category"), { timeout: 15000 });
 await page.waitForSelector("text=Psychology", { timeout: 15000 });
 check("Kategoriya bo'yicha filtr ishladi", apiCalls.some((c) => c.includes("/catalog") && c.startsWith("200")));
@@ -35,8 +35,9 @@ await page.fill('input[autocomplete="username"]', EMAIL); await page.fill('input
 const libResp = page.waitForResponse((r) => r.url().includes("/api/v1/library"), { timeout: 45000 });
 await page.waitForURL(`${BASE}/library`, { timeout: 45000 });
 await libResp;
-await page.waitForSelector("select", { timeout: 15000 });
-check("Kutubxona: sort=recent default (B11), 3 variant", (await page.locator("select option").count()) === 3 && apiCalls.some((c) => c === "200 GET /api/v1/library"), `options=${await page.locator("select option").count()} calls=${apiCalls.filter((c) => c.includes("/library")).join(",")}`);
+await page.waitForSelector('[data-testid="library-sort"]', { timeout: 15000 });
+const sortOpts = await selectOptionCount(page, '[data-testid="library-sort"]');
+check("Kutubxona: sort=recent default (B11), 3 variant", sortOpts === 3 && apiCalls.some((c) => c === "200 GET /api/v1/library"), `options=${sortOpts} calls=${apiCalls.filter((c) => c.includes("/library")).join(",")}`);
 await page.goto(`${BASE}/profile`);
 await page.waitForSelector("text=Ikki bosqichli tasdiqlash", { timeout: 45000 });
 check("Profil: 2FA holati 'O'chirilgan' (two_factor_enabled=false), faqat 'yoqish'", (await bodyHas("O'chirilgan")) && (await page.locator("text=2FA o'chirish").count()) === 0);

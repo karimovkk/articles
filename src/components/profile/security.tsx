@@ -39,9 +39,8 @@ export function PasswordCard() {
   }
 
   return (
-    <Card className="p-5">
-      <h2 className="mb-4 text-base font-semibold text-text">{t("profile.password.title")}</h2>
-      <form onSubmit={submit} className="space-y-3">
+    <Card title={t("profile.password.title")}>
+      <form onSubmit={submit} className="space-y-4">
         {msg && <Alert tone={msg.tone}>{msg.text}</Alert>}
         <Field label={t("profile.password.old")}>
           <Input type="password" autoComplete="current-password" value={oldPw} onChange={(e) => setOldPw(e.target.value)} required />
@@ -111,11 +110,7 @@ export function TwoFactorCard() {
   }
 
   return (
-    <Card className="p-5">
-      <div className="mb-1 flex items-center gap-2">
-        <h2 className="text-base font-semibold text-text">{t("profile.twofa.title")}</h2>
-        {enabled !== undefined && <Badge tone={enabled ? "success" : "neutral"}>{enabled ? t("profile.twofa.on") : t("profile.twofa.off")}</Badge>}
-      </div>
+    <Card title={t("profile.twofa.title")} actions={enabled !== undefined && <Badge tone={enabled ? "success" : "neutral"} dot>{enabled ? t("profile.twofa.on") : t("profile.twofa.off")}</Badge>}>
       <p className="mb-4 text-xs text-muted">{t("profile.twofa.description")}</p>
       {msg && (
         <div className="mb-3">
@@ -144,7 +139,7 @@ export function TwoFactorCard() {
               <div className="space-y-2 text-sm text-text">
                 <p>{t("profile.twofa.scan")}</p>
                 <p className="text-xs text-muted">{t("profile.twofa.secretHint")}</p>
-                <code className="block break-all rounded-md bg-bg px-2 py-1 font-mono text-xs">{setup.secret}</code>
+                <code className="block break-all rounded-[10px] bg-surface-2 px-2.5 py-1.5 font-mono text-xs">{setup.secret}</code>
               </div>
             </div>
           )}

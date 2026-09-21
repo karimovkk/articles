@@ -3,7 +3,8 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { useAuth } from "@/providers/auth-provider";
-import { Alert } from "@/components/ui";
+import { EmptyState, buttonClass } from "@/components/ui";
+import * as I from "@/components/ui/icons";
 import { useT } from "@/i18n";
 
 /** Brauzer tomonidagi rol tekshiruvi — haqiqiy himoya backend `require_admin`da. */
@@ -12,11 +13,18 @@ export function AdminGuard({ children }: { children: ReactNode }) {
   const { isAdmin } = useAuth();
   if (!isAdmin) {
     return (
-      <div className="space-y-3">
-        <Alert>{t("admin.onlyAdmin")}</Alert>
-        <Link href="/library" className="text-sm text-accent underline">
-          {t("common.backToLibrary")}
-        </Link>
+      <div className="flex min-h-dvh items-center justify-center p-6">
+        <EmptyState
+          className="w-full max-w-md bg-surface"
+          icon={<I.Lock size={22} />}
+          title={t("admin.onlyAdmin")}
+          action={
+            <Link href="/library" className={buttonClass("primary")}>
+              <I.ArrowLeft size={16} />
+              {t("common.backToLibrary")}
+            </Link>
+          }
+        />
       </div>
     );
   }

@@ -63,13 +63,18 @@ await page.fill('input[type="password"]', "User12345!");
 await page.click('button[type="submit"]');
 await page.waitForURL(`${BASE}/library`);
 await page.waitForSelector("text=My library");
-check("en: kutubxona sahifasi + header (Library/Profile/Sign out)", (await has("Library")) && (await has("Profile")) && (await has("Sign out")));
+await page.click('header [data-testid="user-menu"]');
+check("en: kutubxona sahifasi + header (Library/Profile/Sign out — qo'lbola menyu)", (await has("Library")) && (await has("Profile")) && (await has("Sign out")));
+await page.keyboard.press("Escape");
 check("en: kitob kartasi 'articles read' / 'Not started'", (await appears("0/3 articles read")) && (await has("Not started")));
 
 // ---- header'dan ru ga o'tish → darhol yangilanadi
-await page.click('header [role="group"] button:has-text("ru")');
+await page.click('header [data-testid="locale-menu"]');
+await page.click('[data-testid="locale-ru"]');
 await page.waitForSelector("text=Моя библиотека");
+await page.click('header [data-testid="user-menu"]');
 check("ru: header orqali almashtirish darhol qo'llanadi", (await has("Библиотека")) && (await has("Выйти")) && (await appears("прочитано статей: 0/3")));
+await page.keyboard.press("Escape");
 await page.screenshot({ path: OUT + "21-library-ru.png" });
 
 // ---- Profil (ru)
@@ -80,7 +85,7 @@ check("ru: profil sahifasi", (await has("Личный кабинет")) && (awai
 // ---- Reader (ru): toolbar, sidebar tablari, sahifa belgilari
 await page.goto(`${BASE}/reader/${ART}`);
 await page.waitForFunction(() => document.querySelector('[data-page="1"] canvas')?.width > 0, null, { timeout: 20000 });
-check("ru: reader rejim tugmasi", await has("▤ Лента"));
+check("ru: reader rejim tugmasi", await has("Лента"));
 await page.click('button[title="Панель"]');
 await page.waitForSelector("text=Оглавление");
 check("ru: sidebar tablari", (await has("Закладки")) && (await has("Выделения")) && (await has("Заметки")));
@@ -95,11 +100,12 @@ await page.screenshot({ path: OUT + "22-reader-ru.png" });
 await page.evaluate(() => localStorage.setItem("a365.locale", "uz"));
 await page.reload();
 await page.waitForFunction(() => document.querySelector('[data-page="1"] canvas')?.width > 0, null, { timeout: 20000 });
-check("uz: reader qayta ochilganda o'zbekcha", (await has("▤ Scroll")) && (await lang()) === "uz");
+check("uz: reader qayta ochilganda o'zbekcha", (await has("Scroll")) && (await lang()) === "uz");
 
 // ---- Admin (en): logout → admin login → en
 await page.goto(`${BASE}/library`);
-await page.click("text=Chiqish");
+await page.click('header [data-testid="user-menu"]');
+await page.click('[data-testid="logout"]');
 await page.waitForURL((u) => u.pathname === "/login");
 await page.click('[role="group"] button:has-text("en")');
 await page.fill('input[autocomplete="username"]', "admin@articles365.local");

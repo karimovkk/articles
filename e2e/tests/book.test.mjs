@@ -1,5 +1,5 @@
 // Task 7.2 — kutubxona (kitob darajasida) → kitob sahifasi (maqolalar) → reader havolasi
-import { launch, BASE, API, reset, mockGet } from "../lib.mjs";
+import { launch, BASE, API, reset, mockGet, selectOptionCount } from "../lib.mjs";
 import { mkdirSync } from "node:fs";
 
 const BOOK = "11111111-1111-4111-8111-111111111111";
@@ -41,7 +41,7 @@ await page.waitForSelector("text=Test kitob", { timeout: 10000 });
 
 // ---- Kutubxona kartasi: kitob darajasida
 check("Kutubxona: 1/3 maqola o'qildi, umumiy % (100+50+0)/3=50", (await bodyHas("1/3 maqola o'qildi")) && (await bodyHas("50% o'qilgan")));
-check("Kutubxona: sort recent/granted/title (B11)", (await page.locator("select option").count()) === 3);
+check("Kutubxona: sort recent/granted/title (B11) — qo'lbola Select", (await selectOptionCount(page, '[data-testid="library-sort"]')) === 3);
 await page.screenshot({ path: OUT + "50-library.png" });
 
 // ---- Kitob sahifasi

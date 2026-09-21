@@ -3,8 +3,9 @@
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { DataTable, usePaged, type Column } from "@/components/admin/data-table";
-import { Alert, Badge, Button, Field, Input, Modal, PageHeader, Select, formatDate, statusTone } from "@/components/ui";
+import { DataTable, Toolbar, usePaged, type Column } from "@/components/admin/data-table";
+import { Alert, Avatar, Badge, Button, Field, Input, Modal, PageHeader, SearchInput, Select, formatDate, statusTone } from "@/components/ui";
+import * as I from "@/components/ui/icons";
 import { adminApi, errorMessage, type User, type UserStatus } from "@/lib/api";
 import { downloadBlob } from "@/lib/admin-names";
 import { useT } from "@/i18n";
@@ -41,57 +42,69 @@ export default function AdminUsersPage() {
     {
       key: "who",
       header: t("common.user"),
+      render: (u) => {
+        const name = u.full_name || u.email || u.phone || u.id.slice(0, 8);
+        return (
+          <div className="row-name">
+            <Avatar name={name} size="sm" tone={u.role === "ADMIN" ? "accent" : undefined} />
+            <span className="min-w-0">
+              <Link href={`/admin/users/${u.id}`} className="name block hover:text-accent-ink">
+                {name}
+              </Link>
+              <span className="sub block">{[u.email, u.phone].filter(Boolean).join(" · ") || "—"}</span>
+            </span>
+          </div>
+        );
+      },
+    },
+    { key: "role", header: t("common.role"), render: (u) => <Badge tone={u.role === "ADMIN" ? "accent" : "neutral"}>{u.role}</Badge> },
+    {
+      key: "status",
+      header: t("common.status"),
       render: (u) => (
-        <Link href={`/admin/users/${u.id}`} className="text-accent hover:underline">
-          {u.full_name || u.email || u.phone || u.id.slice(0, 8)}
-        </Link>
+        <Badge tone={statusTone(u.status)} dot>
+          {u.status}
+        </Badge>
       ),
     },
-    { key: "contact", header: t("admin.users.contact"), render: (u) => <span className="text-muted">{[u.email, u.phone].filter(Boolean).join(" · ") || "—"}</span> },
-    { key: "role", header: t("common.role"), render: (u) => <Badge tone={u.role === "ADMIN" ? "info" : "neutral"}>{u.role}</Badge> },
-    { key: "status", header: t("common.status"), render: (u) => <Badge tone={statusTone(u.status)}>{u.status}</Badge> },
-    { key: "created", header: t("common.created"), render: (u) => <span className="text-muted">{formatDate(u.created_at)}</span> },
+    { key: "created", header: t("common.created"), render: (u) => <span className="muted">{formatDate(u.created_at)}</span> },
+  ];
+
+  const statusOptions = [
+    { value: "", label: t("admin.allStatuses") },
+    { value: "ACTIVE", label: "ACTIVE" },
+    { value: "INACTIVE", label: "INACTIVE" },
+    { value: "BLOCKED", label: "BLOCKED" },
   ];
 
   return (
     <div>
       <PageHeader
+        eyebrow={t("admin.nav.people")}
         title={t("admin.users.title")}
+        icon={<I.Users size={26} />}
         actions={
           <>
-            <Button variant="secondary" size="sm" loading={exporting} onClick={() => void exportUsers()}>
+            <Button variant="secondary" loading={exporting} onClick={() => void exportUsers()} icon={<I.Download size={16} />}>
               {t("admin.export.xlsx")}
             </Button>
-            <Button size="sm" onClick={() => setCreateOpen(true)}>
+            <Button onClick={() => setCreateOpen(true)} icon={<I.Plus size={16} />} data-testid="new-user">
               {t("admin.users.create")}
             </Button>
           </>
         }
       />
       {exportErr && (
-        <div className="mb-4">
-          <Alert>{exportErr}</Alert>
-        </div>
+        <Alert className="mb-4">{exportErr}</Alert>
       )}
-      <form
-        className="mb-4 flex flex-wrap gap-2"
-        onSubmit={(e) => {
-          e.preventDefault();
-          setQuery(search.trim());
-        }}
-      >
-        <Input placeholder={t("admin.users.searchPlaceholder")} value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-xs" />
-        <Select value={status} onChange={(e) => setStatus(e.target.value as UserStatus | "")} className="w-40">
-          <option value="">{t("admin.allStatuses")}</option>
-          <option value="ACTIVE">ACTIVE</option>
-          <option value="INACTIVE">INACTIVE</option>
-          <option value="BLOCKED">BLOCKED</option>
-        </Select>
+      <Toolbar onSubmit={() => setQuery(search.trim())} meta={data ? `${t("common.total")}: ${data.total}` : undefined}>
+        <SearchInput placeholder={t("admin.users.searchPlaceholder")} value={search} onChange={(e) => setSearch(e.target.value)} className="w-full max-w-xs" aria-label={t("common.search")} />
+        <Select value={status} onChange={(v) => setStatus(v as UserStatus | "")} options={statusOptions} className="w-44" aria-label={t("common.status")} data-testid="filter-status" />
         <Button type="submit" variant="secondary">
           {t("common.search")}
         </Button>
-      </form>
-      <DataTable data={data} columns={columns} loading={loading} error={error} onPage={setPage} />
+      </Toolbar>
+      <DataTable data={data} columns={columns} loading={loading} error={error} onPage={setPage} onRowClick={(u) => router.push(`/admin/users/${u.id}`)} minWidth={640} />
       <CreateUserModal open={createOpen} onClose={() => setCreateOpen(false)} onCreated={(u) => router.push(`/admin/users/${u.id}`)} />
     </div>
   );
@@ -122,7 +135,7 @@ function CreateUserModal({ open, onClose, onCreated }: { open: boolean; onClose:
   }
 
   return (
-    <Modal open={open} onClose={onClose} title={t("admin.users.create")}>
+    <Modal open={open} onClose={onClose} title={t("admin.users.create")} icon={<I.User size={18} />}>
       <form onSubmit={submit} className="space-y-3">
         {error && <Alert>{error}</Alert>}
         <Field label={t("auth.fullName")}>

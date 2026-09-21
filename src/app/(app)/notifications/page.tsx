@@ -4,7 +4,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Alert, Button, Card, EmptyState, PageHeader, Pagination, Spinner, cn, formatDate } from "@/components/ui";
+import { Alert, Badge, Button, Card, EmptyState, PageHeader, Pagination, Spinner, Switch, cn, formatDate } from "@/components/ui";
+import * as I from "@/components/ui/icons";
 import { emitNotificationsChanged } from "@/components/notifications/bell";
 import { errorMessage, notificationsApi, type Notification } from "@/lib/api";
 import { useAsync } from "@/lib/use-async";
@@ -62,32 +63,35 @@ export default function NotificationsPage() {
   return (
     <div>
       <PageHeader
+        eyebrow={t("nav.profile")}
         title={t("notifications.title")}
+        icon={<I.Bell size={26} />}
         actions={
           <>
-            <label className="flex items-center gap-1.5 text-sm text-muted">
-              <input type="checkbox" checked={unreadOnly} onChange={(e) => { setPage(1); setUnreadOnly(e.target.checked); }} />
-              {t("notifications.unreadOnly")}
-            </label>
-            <Button size="sm" variant="secondary" onClick={() => void readAll()} disabled={!items.some((n) => !n.is_read)}>
+            <Switch
+              checked={unreadOnly}
+              onChange={(v) => {
+                setPage(1);
+                setUnreadOnly(v);
+              }}
+              label={t("notifications.unreadOnly")}
+              data-testid="unread-only"
+            />
+            <Button variant="secondary" onClick={() => void readAll()} disabled={!items.some((n) => !n.is_read)} icon={<I.CheckCircle size={16} />}>
               {t("notifications.readAll")}
             </Button>
           </>
         }
       />
-      {(error ?? loadError) && (
-        <div className="mb-4">
-          <Alert>{error ?? loadError}</Alert>
-        </div>
-      )}
+      {(error ?? loadError) && <Alert className="mb-4">{error ?? loadError}</Alert>}
       {loading && !data ? (
         <div className="flex justify-center py-16 text-muted">
           <Spinner />
         </div>
       ) : items.length === 0 ? (
-        <EmptyState title={t("notifications.empty")} />
+        <EmptyState title={t("notifications.empty")} icon={<I.Bell size={22} />} />
       ) : (
-        <Card className="divide-y divide-border">
+        <Card className="tracklist overflow-hidden">
           {items.map((n) => {
             const href = linkFor(n);
             return (
@@ -95,28 +99,32 @@ export default function NotificationsPage() {
                 key={n.id}
                 type="button"
                 onClick={() => void open(n)}
-                className={cn("flex w-full items-start gap-3 px-4 py-3 text-left hover:bg-bg/60", !n.is_read && "bg-accent/5")}
+                className={cn("track w-full text-left hover:bg-hover", !n.is_read && "bg-[var(--accent-softer)]")}
+                style={{ gridTemplateColumns: "36px minmax(0,1fr) auto" }}
                 data-unread={!n.is_read || undefined}
               >
-                <span className={cn("mt-1.5 size-2 shrink-0 rounded-full", n.is_read ? "bg-transparent" : "bg-accent")} aria-hidden />
-                <span className="min-w-0 flex-1">
+                <span className={cn("track-num", !n.is_read && "bg-accent text-accent-fg")} aria-hidden>
+                  <I.Bell size={14} />
+                </span>
+                <span className="min-w-0">
                   <span className="flex flex-wrap items-center gap-2">
-                    <span className={cn("text-sm", n.is_read ? "text-text" : "font-semibold text-text")}>{n.title}</span>
-                    <span className="text-[11px] text-muted">{t(TYPE_KEY[n.type] ?? "notifications.type.GENERAL")}</span>
+                    <span className={cn("text-sm", n.is_read ? "font-semibold text-text-2" : "font-extrabold text-text")}>{n.title}</span>
+                    <Badge>{t(TYPE_KEY[n.type] ?? "notifications.type.GENERAL")}</Badge>
                   </span>
                   {n.body && <span className="mt-0.5 block text-sm text-muted">{n.body}</span>}
-                  <span className="mt-1 block text-xs text-muted">
+                  <span className="track-sub">
                     {formatDate(n.created_at)}
                     {href && (
                       <>
                         {" · "}
-                        <Link href={href} className="text-accent hover:underline" onClick={(e) => e.stopPropagation()}>
+                        <Link href={href} className="font-bold text-accent-ink hover:underline" onClick={(e) => e.stopPropagation()}>
                           {t("notifications.open")} →
                         </Link>
                       </>
                     )}
                   </span>
                 </span>
+                <I.ChevronRight size={16} className="text-muted" />
               </button>
             );
           })}

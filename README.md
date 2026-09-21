@@ -48,18 +48,43 @@ Dev login: `admin@articles365.local` / `Admin12345!`, `user@articles365.local` /
 
 ```
 src/
-  app/               App Router: (auth) login/register · (app) library/profile/admin/* · (reader) reader/[bookId]
+  app/               App Router: (auth) login/register · (public) catalog · (app) library/books/profile/notifications ·
+                     (admin) admin/* (o'z qobig'i: sidebar + topbar) · (reader) reader/[articleId]
+  app/design.css     Dizayn tizimi: tokenlar (light/dark), tugma/chip/karta/jadval/forma/menyu/kalendar/modal sinflari
   proxy.ts           Next 16 Proxy (sobiq middleware): cookie bayrog'i bo'yicha optimistik redirect
   components/
     reader/          PdfViewer (Range transport, scroll/varaqlash, highlight overlay), ReaderView, sidebar, watermark
-    admin/           DataTable/usePaged, user/book detail, guard
-    ui/              Button, Input, Modal, Badge, Alert, Pagination, …
+    admin/           AdminShell (sidebar/topbar/crumbs), DataTable/Toolbar/usePaged, user/book detail, guard
+    layout/          SiteHeader (foydalanuvchi/public qobiq), AppShell (auth guard), PublicShell
+    ui/              Bazaviy to'plam + qo'lbola boshqaruv elementlari (quyida)
   lib/
     api/             client (Bearer, refresh single-flight, XHR upload), modullar (auth, library, reader, reading, sessions, admin), error-codes
     reader/          range-transport (PDF.js ↔ /reader/{id}/content), highlights (koordinatalar, ranglar)
     uploads.ts       PDF/muqova klient tekshiruvi (magic bytes, hajm)
   providers/         AuthProvider (/auth/me, auth hodisalari), ThemeProvider
 ```
+
+## Dizayn tizimi va qo'lbola UI elementlari
+
+Ilhom — [Alfa-FCUI](https://github.com/cognilabs-company/Alfa-FCUI) ("Floodlight"): qora ramka ustida suzuvchi och
+varaq, bitta aksent (marigold), Manrope (matn) + Unbounded (sarlavha) shriftlari (`next/font/google`, self-hosted).
+Tokenlar `src/app/design.css` da (`:root` / `.dark`), Tailwind utilitalari `globals.css` `@theme inline` orqali
+shu tokenlarga bog'langan (`bg-surface-2`, `text-accent-ink`, `text-muted`, …).
+
+Brauzerning native elementlari o'rniga hammasi qo'lda yozilgan (`src/components/ui/`):
+
+| Komponent | Fayl | Izoh |
+|---|---|---|
+| `Select` | `select.tsx` | portal panel, ↑↓/Home/End/Enter/Esc, harf bilan sakrash, ≥6 variantda qidiruv, `role=combobox/listbox/option`, `data-value` |
+| `DatePicker` | `date-picker.tsx` | kun/oy/yil ko'rinishlari, Bugun/Tozalash, `min`/`max`, uz/ru/en oy nomlari, `YYYY-MM-DD` |
+| `Menu` / `MenuItem` | `menu.tsx` | amallar menyusi (render-prop trigger), `role=menu/menuitem`, klaviatura |
+| `Switch` | `switch.tsx` | `role=switch`, `aria-checked` |
+| `ConfirmProvider` / `useConfirm` | `confirm.tsx` | `window.confirm()` o'rniga Promise qaytaruvchi modal (`confirm-ok` / `confirm-cancel`) |
+| `Modal` | `modal.tsx` | portal, Esc, fokus, body scroll bloklash |
+| `DropdownPanel` | `dropdown.tsx` | umumiy joylashuv (viewport'ga sig'masa yuqoriga), scroll/resize'ga ergashadi, tashqariga bosish |
+| ikonkalar | `icons.tsx` | inline SVG (`import * as I from "@/components/ui/icons"`) |
+
+e2e yordamchilari (`e2e/lib.mjs`): `selectPick`, `selectOptionCount`, `confirmDialog`, `datePick`.
 
 ## Tillar (uz / ru / en)
 

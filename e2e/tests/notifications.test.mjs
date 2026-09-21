@@ -42,7 +42,7 @@ check("Bildirishnoma ochildi → o'qildi (soni 1) va kitob sahifasiga o'tdi", tr
 // faqat o'qilmaganlar filtri + barchasini o'qildi
 await page.goto(`${BASE}/notifications`);
 await page.waitForSelector("text=Salom", { timeout: 10000 });
-await page.check('input[type="checkbox"]');
+await page.click('[data-testid="unread-only"]');
 await page.waitForFunction(() => document.querySelectorAll("[data-unread]").length === 1 && !document.body.innerText.includes("Kitobga ruxsat berildi"), null, { timeout: 8000 });
 check("Faqat o'qilmaganlar filtri (unread_only)", true);
 await page.click("text=Barchasini o'qildi deb belgilash");

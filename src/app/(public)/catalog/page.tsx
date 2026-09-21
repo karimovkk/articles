@@ -6,7 +6,8 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { BookCover } from "@/components/book-cover";
 import { Price } from "@/components/catalog/price";
-import { Alert, Badge, Button, EmptyState, Input, PageHeader, Pagination, Select, Spinner } from "@/components/ui";
+import { Alert, Badge, Button, EmptyState, PageHeader, Pagination, SearchInput, Select, Spinner } from "@/components/ui";
+import * as I from "@/components/ui/icons";
 import { catalogApi } from "@/lib/api";
 import { useAsync } from "@/lib/use-async";
 import { useT } from "@/i18n";
@@ -35,58 +36,63 @@ function CatalogList() {
 
   return (
     <div>
-      <PageHeader title={t("catalog.title")} description={t("catalog.description")} />
+      <PageHeader eyebrow={t("nav.catalog")} title={t("catalog.title")} description={t("catalog.description")} icon={<I.Grid size={26} />} />
       <form
-        className="mb-6 flex flex-wrap gap-2"
+        className="table-toolbar"
+        role="search"
         onSubmit={(e) => {
           e.preventDefault();
           navigate(search.trim(), category, 1);
         }}
       >
-        <Input placeholder={t("catalog.searchPlaceholder")} value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-sm" />
+        <SearchInput placeholder={t("catalog.searchPlaceholder")} value={search} onChange={(e) => setSearch(e.target.value)} className="w-full max-w-sm" aria-label={t("common.search")} />
         {categories && categories.length > 0 && (
-          <Select value={category} onChange={(e) => navigate(search.trim(), e.target.value, 1)} className="w-52" aria-label={t("admin.books.category")}>
-            <option value="">{t("catalog.allCategories")}</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </Select>
+          <Select
+            value={category}
+            onChange={(v) => navigate(search.trim(), v, 1)}
+            options={[{ value: "", label: t("catalog.allCategories") }, ...categories.map((c) => ({ value: c.id, label: c.name }))]}
+            className="w-52"
+            aria-label={t("admin.books.category")}
+            data-testid="catalog-category"
+          />
         )}
         <Button type="submit" variant="secondary">
           {t("common.search")}
         </Button>
+        {data && <div className="toolbar-meta">{t("common.total")}: {data.total}</div>}
       </form>
 
-      {error && (
-        <div className="mb-4">
-          <Alert>{error}</Alert>
-        </div>
-      )}
+      {error && <Alert className="mb-4">{error}</Alert>}
 
       {loading && !data ? (
         <div className="flex justify-center py-16 text-muted">
           <Spinner />
         </div>
       ) : !data || data.items.length === 0 ? (
-        <EmptyState title={t("catalog.empty")} />
+        <EmptyState title={t("catalog.empty")} icon={<I.Search size={22} />} />
       ) : (
         <div className={loading ? "opacity-60 transition-opacity" : ""}>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+          <div className="book-grid" data-testid="book-grid">
             {data.items.map((item) => (
-              <Link key={item.book_id} href={`/catalog/${item.book_id}`} className="group block">
-                <BookCover bookId={item.book_id} title={item.title} hasCover={item.has_cover} source="catalog" />
-                <div className="mt-2">
-                  <p className="line-clamp-2 text-sm font-medium text-text group-hover:text-accent">{item.title}</p>
-                  {item.author && <p className="truncate text-xs text-muted">{item.author}</p>}
-                  <p className="mt-1 text-sm font-semibold text-text">
+              <Link key={item.book_id} href={`/catalog/${item.book_id}`} className="book-card">
+                <BookCover bookId={item.book_id} title={item.title} hasCover={item.has_cover} source="catalog">
+                  {!!item.article_count && (
+                    <span className="badge-tr">
+                      <Badge className="bg-[rgba(15,20,18,0.72)] text-white backdrop-blur-sm">{t("catalog.articles", { n: item.article_count })}</Badge>
+                    </span>
+                  )}
+                </BookCover>
+                <div className="min-w-0">
+                  <p className="book-title">{item.title}</p>
+                  {item.author && <p className="book-meta">{item.author}</p>}
+                  <p className="mt-1.5 text-[13.5px] font-extrabold text-text">
                     <Price value={item.price} />
                   </p>
-                  <div className="mt-1 flex flex-wrap gap-1">
-                    {item.category_name && <Badge>{item.category_name}</Badge>}
-                    {!!item.article_count && <span className="text-[11px] text-muted">{t("catalog.articles", { n: item.article_count })}</span>}
-                  </div>
+                  {item.category_name && (
+                    <div className="mt-1.5">
+                      <Badge>{item.category_name}</Badge>
+                    </div>
+                  )}
                 </div>
               </Link>
             ))}

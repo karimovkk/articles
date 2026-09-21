@@ -1,5 +1,5 @@
 // Task 7.7 — admin: maqolalar CRUD/fayl/TOC, buyurtmalar approve/reject, foydalanuvchi yaratish/parol/sessiyalar, eksport, nomlar
-import { launch, BASE, API, reset, mockGet } from "../lib.mjs";
+import { launch, BASE, API, reset, mockGet, selectPick, confirmDialog } from "../lib.mjs";
 import { mkdirSync } from "node:fs";
 const BOOK = "11111111-1111-4111-8111-111111111111", BOOK2 = "33333333-3333-4333-8333-333333333333";
 const USER_ID = "u1u1u1u1-u1u1-4u1u-8u1u-u1u1u1u1u1u1";
@@ -16,7 +16,6 @@ await fetch(`${API}/orders/${o.id}/receipt`, { method: "POST", headers: uh, body
 const browser = await launch();
 const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 }, acceptDownloads: true });
 const page = await ctx.newPage();
-page.on("dialog", (d) => d.accept());
 const pageErrors = [];
 page.on("pageerror", (e) => pageErrors.push(e.message));
 process.on("unhandledRejection", async (e) => { console.log("❌ XATO:", e.message.split("\n")[0]); await page.screenshot({ path: OUT + "99-admin-failure.png" }).catch(() => {}); await browser.close(); process.exit(1); });
@@ -46,7 +45,7 @@ const accessAfter = await (await fetch(`${API}/admin/book-access?book_id=${BOOK2
 check("Approve → ruxsat yaratildi (book-access)", accessAfter.items.some((a) => a.user_id === USER_ID && a.status === "ACTIVE"));
 // reject flow
 const o2 = await (await fetch(`${API}/orders`, { method: "POST", headers: uh, body: JSON.stringify({ book_id: "22222222-2222-4222-8222-000000000001" }) })).json();
-await page.selectOption("select", "PENDING");
+await selectPick(page, '[data-testid="filter-status"]', "PENDING");
 await page.waitForSelector("text=Rad etish", { timeout: 8000 });
 await page.click("text=Rad etish");
 await page.fill('textarea[placeholder^="Sabab"]', "To'lov kelmadi");
@@ -58,7 +57,9 @@ check("Reject → REJECTED + sabab", ord?.status === "REJECTED" && ord?.reject_r
 // ---- Maqolalar: yaratish → fayl yuklash → PROCESSING → READY (polling) → TOC → rename → o'chirish
 await page.goto(`${BASE}/admin/books/${BOOK}`);
 await page.waitForSelector("text=Maqolalar (3)", { timeout: 10000 });
+await page.click('[data-testid="tab-access"]');
 check("Kitob: ruxsat ro'yxatida user nomi", await bodyHas("Test User"));
+await page.click('[data-testid="tab-articles"]');
 await page.fill('input[placeholder^="Masalan"]', "Yangi bob");
 await page.click("text=Maqola qo'shish");
 await page.waitForSelector("text=Maqolalar (4)", { timeout: 8000 });
@@ -73,22 +74,24 @@ await page.waitForFunction(() => [...document.querySelectorAll("tr")].some((r) =
 check("Polling → READY (3 s da yangilanadi)", true);
 const ups = await mockGet("/__uploads");
 check("Fayl maqola endpointiga ketdi (multipart)", ups.some((u) => u.path.includes("/articles/") && u.path.endsWith("/file") && u.contentType === "multipart/form-data"));
-// TOC
-await row.locator('button:has-text("Mundarija")').click();
+// TOC (qator menyusi — qo'lbola Menu)
+await row.locator('[data-testid="article-menu"]').click();
+await page.click('[role="menuitem"]:has-text("Mundarija")');
 await page.waitForSelector("text=Qo'lda mundarija", { timeout: 5000 });
 await page.fill('input[placeholder="Bo\'lim sarlavhasi"]', "Kirish");
 await page.fill('input[placeholder="Sahifa"]', "1");
 await page.click("text=Qator qo'shish");
 await page.locator('input[placeholder="Bo\'lim sarlavhasi"]').nth(1).fill("Asosiy qism");
 await page.locator('input[placeholder="Sahifa"]').nth(1).fill("3");
-await page.locator('select[aria-label="level"]').nth(1).selectOption("2");
+await selectPick(page, page.locator('[role="combobox"][aria-label="level"]').nth(1), "2");
 await page.click('div[role="dialog"] button[type="submit"]');
 await page.waitForFunction(() => !document.querySelector('div[role="dialog"]'), null, { timeout: 8000 });
 const arts = await mockGet("/__articles");
 const nb = arts.find((a) => a.title === "Yangi bob");
 check("Qo'lda TOC saqlandi (PUT .../toc: level/title/page)", JSON.stringify(nb?.article_metadata?.toc) === JSON.stringify([{ level: 1, title: "Kirish", page: 1 }, { level: 2, title: "Asosiy qism", page: 3 }]), JSON.stringify(nb?.article_metadata?.toc));
 // rename
-await row.locator('button:has-text("Tahrirlash")').click();
+await row.locator('[data-testid="article-menu"]').click();
+await page.click('[role="menuitem"]:has-text("Tahrirlash")');
 await page.fill('div[role="dialog"] input', "Yangi bob (tahrir)");
 await page.click('div[role="dialog"] button[type="submit"]');
 await page.waitForSelector("text=Yangi bob (tahrir)", { timeout: 8000 });
@@ -97,16 +100,18 @@ check("Maqola nomi o'zgartirildi (PATCH)", true);
 await page.locator("tr", { hasText: "Yangi bob (tahrir)" }).locator('button[aria-label="Yuqoriga"]').click();
 await page.waitForFunction(() => { const rows = [...document.querySelectorAll("tr[data-article]")]; return rows[2]?.innerText.includes("Yangi bob (tahrir)"); }, null, { timeout: 8000 });
 check("Tartib o'zgartirildi (order_index almashinuvi)", true);
-// delete
-await page.locator("tr", { hasText: "Yangi bob (tahrir)" }).locator('button:has-text("O\'chirish")').click();
+// delete (qo'lbola ConfirmDialog)
+await page.locator("tr", { hasText: "Yangi bob (tahrir)" }).locator('[data-testid="article-menu"]').click();
+await page.click('[role="menuitem"]:has-text("O\'chirish")');
+await confirmDialog(page, true);
 await page.waitForSelector("text=Maqolalar (3)", { timeout: 8000 });
 check("Maqola o'chirildi (DELETE)", true);
 await page.screenshot({ path: OUT + "100-admin-articles.png" });
 
 // ---- Foydalanuvchi yaratish → sahifa → parol tiklash → barcha sessiyalarni bekor qilish
 await page.goto(`${BASE}/admin/users`);
-await page.waitForSelector("text=+ Foydalanuvchi yaratish", { timeout: 10000 });
-await page.click("text=+ Foydalanuvchi yaratish");
+await page.waitForSelector("text=Foydalanuvchi yaratish", { timeout: 10000 });
+await page.click("text=Foydalanuvchi yaratish");
 await page.fill('div[role="dialog"] input[placeholder^="user@example"]', "yangi@articles365.local");
 await page.locator('div[role="dialog"] input').nth(0).fill("Yangi Foydalanuvchi");
 await page.locator('div[role="dialog"] input[type="text"]').last().fill("Parol12345");
@@ -120,6 +125,7 @@ await page.click('div[role="dialog"] button[type="submit"]');
 await page.waitForSelector("text=Parol tiklandi", { timeout: 8000 });
 check("Parol tiklandi (POST reset-password)", true);
 await page.click("text=Barcha sessiyalarni bekor qilish");
+await confirmDialog(page, true);
 await page.waitForTimeout(500);
 const log = await mockGet("/__log");
 check("Barcha sessiyalar bekor qilindi (DELETE /admin/users/{id}/sessions)", log.some((l) => /^DELETE \/admin\/users\/[^/]+\/sessions$/.test(l)));

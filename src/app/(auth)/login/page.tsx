@@ -131,7 +131,7 @@ function LoginForm() {
       </Button>
       <p className="text-center text-sm text-muted">
         {t("auth.noAccount")}{" "}
-        <Link href="/register" className="text-accent hover:underline">
+        <Link href="/register" className="font-bold text-accent-ink hover:underline">
           {t("auth.register")}
         </Link>
       </p>

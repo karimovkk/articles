@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { DataTable, usePaged, type Column } from "@/components/admin/data-table";
-import { Alert, Button, Input, PageHeader, Select, formatDate } from "@/components/ui";
+import { DataTable, Toolbar, usePaged, type Column } from "@/components/admin/data-table";
+import { Alert, Badge, Button, Input, PageHeader, Select, formatDate } from "@/components/ui";
+import * as I from "@/components/ui/icons";
 import { AUDIT_ACTIONS, adminApi, errorMessage, type AuditAction, type AuditLog } from "@/lib/api";
 import { downloadBlob } from "@/lib/admin-names";
 import { useT } from "@/i18n";
@@ -34,8 +35,16 @@ export default function AdminAuditLogsPage() {
   );
 
   const columns: Column<AuditLog>[] = [
-    { key: "time", header: t("admin.audit.time"), render: (l) => <span className="whitespace-nowrap text-muted">{formatDate(l.created_at)}</span> },
-    { key: "action", header: t("admin.audit.action"), render: (l) => <span className="font-mono text-xs text-accent">{l.action}</span> },
+    { key: "time", header: t("admin.audit.time"), render: (l) => <span className="muted whitespace-nowrap">{formatDate(l.created_at)}</span> },
+    {
+      key: "action",
+      header: t("admin.audit.action"),
+      render: (l) => (
+        <Badge tone="accent" className="font-mono">
+          {l.action}
+        </Badge>
+      ),
+    },
     {
       key: "entity",
       header: t("admin.audit.entity"),
@@ -65,40 +74,32 @@ export default function AdminAuditLogsPage() {
   return (
     <div>
       <PageHeader
+        eyebrow={t("admin.nav.system")}
         title={t("admin.audit.title")}
         description={t("admin.audit.description")}
+        icon={<I.History size={26} />}
         actions={
-          <Button variant="secondary" size="sm" loading={exporting} onClick={() => void exportLogs()}>
+          <Button variant="secondary" loading={exporting} onClick={() => void exportLogs()} icon={<I.Download size={16} />}>
             {t("admin.export.xlsx")}
           </Button>
         }
       />
-      {exportErr && (
-        <div className="mb-4">
-          <Alert>{exportErr}</Alert>
-        </div>
-      )}
-      <form
-        className="mb-4 flex flex-wrap gap-2"
-        onSubmit={(e) => {
-          e.preventDefault();
-          setFilters({ action, entity_type: entity.trim() });
-        }}
-      >
-        <Select value={action} onChange={(e) => setAction(e.target.value as AuditAction | "")} className="w-64">
-          <option value="">{t("admin.audit.allActions")}</option>
-          {AUDIT_ACTIONS.map((a) => (
-            <option key={a} value={a}>
-              {a}
-            </option>
-          ))}
-        </Select>
-        <Input placeholder={t("admin.audit.entityPlaceholder")} value={entity} onChange={(e) => setEntity(e.target.value)} className="max-w-xs" />
-        <Button type="submit" variant="secondary">
+      {exportErr && <Alert className="mb-4">{exportErr}</Alert>}
+      <Toolbar onSubmit={() => setFilters({ action, entity_type: entity.trim() })} meta={data ? `${t("common.total")}: ${data.total}` : undefined}>
+        <Select
+          value={action}
+          onChange={(v) => setAction(v as AuditAction | "")}
+          options={[{ value: "", label: t("admin.audit.allActions") }, ...AUDIT_ACTIONS.map((a) => ({ value: a, label: a }))]}
+          className="w-64"
+          aria-label={t("admin.audit.action")}
+          data-testid="filter-action"
+        />
+        <Input placeholder={t("admin.audit.entityPlaceholder")} value={entity} onChange={(e) => setEntity(e.target.value)} className="max-w-xs" aria-label={t("admin.audit.entity")} />
+        <Button type="submit" variant="secondary" icon={<I.Filter size={15} />}>
           {t("common.filter")}
         </Button>
-      </form>
-      <DataTable data={data} columns={columns} loading={loading} error={error} onPage={setPage} />
+      </Toolbar>
+      <DataTable data={data} columns={columns} loading={loading} error={error} onPage={setPage} minWidth={860} />
     </div>
   );
 }

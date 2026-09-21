@@ -54,8 +54,7 @@ export function MyOrders() {
   }
 
   return (
-    <Card className="p-5">
-      <h2 className="mb-1 text-base font-semibold text-text">{t("orders.title")}</h2>
+    <Card title={t("orders.title")}>
       <p className="mb-4 text-xs text-muted">{t("orders.description")}</p>
       {(error ?? actionError) && (
         <div className="mb-3">
@@ -67,7 +66,7 @@ export function MyOrders() {
       ) : orders.length === 0 ? (
         <p className="text-sm text-muted">
           {t("orders.empty")}{" "}
-          <Link href="/catalog" className="text-accent hover:underline">
+          <Link href="/catalog" className="font-bold text-accent-ink hover:underline">
             {t("nav.catalog")} →
           </Link>
         </p>
@@ -77,7 +76,7 @@ export function MyOrders() {
             <li key={o.id} className="py-3 text-sm">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="min-w-0">
-                  <Link href={`/catalog/${o.book_id}`} className="font-medium text-text hover:text-accent">
+                  <Link href={`/catalog/${o.book_id}`} className="font-bold text-text hover:text-accent-ink">
                     {o.book_title || titles[o.book_id] || "…"}
                   </Link>
                   <p className="text-xs text-muted">
@@ -110,7 +109,7 @@ export function MyOrders() {
               )}
               {o.status === "AWAITING_REVIEW" && <p className="mt-1 text-xs text-muted">{t("orders.awaitingHint")}</p>}
               {o.status === "APPROVED" && (
-                <Link href={`/books/${o.book_id}`} className="mt-1 inline-block text-xs text-accent hover:underline">
+                <Link href={`/books/${o.book_id}`} className="mt-1 inline-block text-xs font-bold text-accent-ink hover:underline">
                   {t("orders.openBook")} →
                 </Link>
               )}

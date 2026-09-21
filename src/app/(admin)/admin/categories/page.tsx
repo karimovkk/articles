@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { Alert, Badge, Button, Card, Field, Input, PageHeader, Spinner } from "@/components/ui";
+import { Alert, Badge, Button, Card, EmptyState, Field, IconButton, Input, PageHeader, Spinner, Switch } from "@/components/ui";
+import * as I from "@/components/ui/icons";
 import { adminApi, errorMessage, type Category } from "@/lib/api";
 import { useAsync } from "@/lib/use-async";
 import { useT } from "@/i18n";
@@ -40,37 +41,39 @@ export default function AdminCategoriesPage() {
 
   return (
     <div>
-      <PageHeader title={t("admin.categories.title")} />
-      {(error ?? loadError) && (
-        <div className="mb-4">
-          <Alert>{error ?? loadError}</Alert>
-        </div>
-      )}
-      <div className="grid gap-6 md:grid-cols-3">
-        <Card className="p-5 md:col-span-1">
-          <h2 className="mb-3 text-base font-semibold text-text">{t("admin.categories.new")}</h2>
-          <form onSubmit={create} className="space-y-3">
+      <PageHeader eyebrow={t("admin.nav.content")} title={t("admin.categories.title")} icon={<I.Tag size={26} />} />
+      {(error ?? loadError) && <Alert className="mb-4">{error ?? loadError}</Alert>}
+      <div className="grid gap-5 md:grid-cols-3">
+        <Card className="md:col-span-1" title={t("admin.categories.new")}>
+          <form onSubmit={create} className="space-y-4">
             <Field label={t("admin.books.name")} hint={t("admin.categories.nameHint")}>
-              <Input value={name} onChange={(e) => setName(e.target.value)} required />
+              <Input value={name} onChange={(e) => setName(e.target.value)} required data-testid="category-name" />
             </Field>
-            <Button type="submit" loading={busy}>
+            <Button type="submit" loading={busy} icon={<I.Plus size={16} />}>
               {t("admin.categories.add")}
             </Button>
           </form>
         </Card>
 
-        <Card className="p-5 md:col-span-2">
+        <Card className="md:col-span-2" title={t("admin.categories.title")} actions={items && <Badge>{items.length}</Badge>} padded={false}>
           {!items ? (
-            <Spinner />
+            <div className="p-5">
+              <Spinner />
+            </div>
           ) : items.length === 0 ? (
-            <p className="text-sm text-muted">{t("admin.categories.empty")}</p>
+            <div className="p-5">
+              <EmptyState title={t("admin.categories.empty")} icon={<I.Tag size={22} />} className="border-0" />
+            </div>
           ) : (
-            <ul className="divide-y divide-border">
+            <ul className="tracklist" data-testid="category-list">
               {items.map((c) => (
-                <li key={c.id} className="flex items-center justify-between gap-3 py-2 text-sm">
+                <li key={c.id} className="track" style={{ gridTemplateColumns: "36px minmax(0,1fr) auto" }}>
+                  <span className="track-num">
+                    <I.Tag size={14} />
+                  </span>
                   {editing?.id === c.id ? (
                     <form
-                      className="flex flex-1 gap-2"
+                      className="col-span-2 flex flex-wrap gap-2"
                       onSubmit={(e) => {
                         e.preventDefault();
                         void run(async () => {
@@ -79,7 +82,7 @@ export default function AdminCategoriesPage() {
                         });
                       }}
                     >
-                      <Input value={editName} onChange={(e) => setEditName(e.target.value)} className="h-8" />
+                      <Input value={editName} onChange={(e) => setEditName(e.target.value)} inputSize="sm" className="max-w-xs flex-1" autoFocus aria-label={t("admin.books.name")} />
                       <Button size="sm" type="submit" loading={busy}>
                         {t("common.save")}
                       </Button>
@@ -89,28 +92,35 @@ export default function AdminCategoriesPage() {
                     </form>
                   ) : (
                     <>
-                      <div className="min-w-0">
-                        <span className="text-text">{c.name}</span>
-                        {c.slug && <span className="ml-2 font-mono text-xs text-muted">{c.slug}</span>}
-                        <span className="ml-2">
-                          <Badge tone={c.status === "INACTIVE" ? "warning" : "success"}>{c.status === "INACTIVE" ? t("admin.categories.inactive") : t("admin.categories.active")}</Badge>
+                      <span className="min-w-0">
+                        <span className="track-title">{c.name}</span>
+                        <span className="track-sub flex flex-wrap items-center gap-2">
+                          {c.slug && <span className="font-mono">{c.slug}</span>}
+                          <Badge tone={c.status === "INACTIVE" ? "warning" : "success"} dot>
+                            {c.status === "INACTIVE" ? t("admin.categories.inactive") : t("admin.categories.active")}
+                          </Badge>
                         </span>
-                      </div>
-                      <div className="flex shrink-0 gap-1">
-                        <Button
+                      </span>
+                      <span className="flex items-center gap-2">
+                        <Switch
+                          checked={c.status !== "INACTIVE"}
+                          disabled={busy}
+                          aria-label={c.status === "INACTIVE" ? t("common.activate") : t("admin.categories.disable")}
+                          onChange={() => run(() => adminApi.updateCategory(c.id, { status: c.status === "INACTIVE" ? "ACTIVE" : "INACTIVE" }))}
+                          data-testid={`category-switch-${c.slug ?? c.id}`}
+                        />
+                        <IconButton
                           size="sm"
-                          variant="ghost"
+                          variant="plain"
+                          label={t("common.edit")}
                           onClick={() => {
                             setEditing(c);
                             setEditName(c.name);
                           }}
                         >
-                          {t("common.edit")}
-                        </Button>
-                        <Button size="sm" variant="secondary" loading={busy} onClick={() => run(() => adminApi.updateCategory(c.id, { status: c.status === "INACTIVE" ? "ACTIVE" : "INACTIVE" }))}>
-                          {c.status === "INACTIVE" ? t("common.activate") : t("admin.categories.disable")}
-                        </Button>
-                      </div>
+                          <I.Pencil size={15} />
+                        </IconButton>
+                      </span>
                     </>
                   )}
                 </li>

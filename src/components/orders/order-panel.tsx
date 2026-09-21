@@ -145,7 +145,7 @@ export function OrderPanel({ bookId }: { bookId: string }) {
               {t("orders.openBook")}
             </Link>
           )}
-          <Link href="/profile" className="block text-xs text-accent hover:underline">
+          <Link href="/profile" className="block text-xs font-bold text-accent-ink hover:underline">
             {t("orders.viewOrders")} →
           </Link>
         </div>

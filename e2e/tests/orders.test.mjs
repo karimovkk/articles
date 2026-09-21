@@ -65,7 +65,8 @@ check("APPROVED → ruxsat berildi → 'O'qish' ko'rinadi", (await page.locator(
 
 // ---- 2FA login
 await page.goto(`${BASE}/library`);
-await page.click("text=Chiqish");
+await page.click('header [data-testid="user-menu"]');
+await page.click('[data-testid="logout"]');
 await page.waitForURL((u) => u.pathname === "/login");
 await page.fill('input[autocomplete="username"]', "2fa@articles365.local");
 await page.fill('input[type="password"]', "User12345!");

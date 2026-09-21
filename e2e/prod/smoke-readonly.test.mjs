@@ -1,5 +1,5 @@
 // Task 7.1 — jonli backend (prod) bilan smoke: faqat o'qish (login/logout sessiyasi bundan mustasno)
-import { launch } from "../lib.mjs";
+import { launch, selectOptionCount } from "../lib.mjs";
 import { mkdirSync } from "node:fs";
 
 const BASE = process.env.E2E_BASE ?? "http://localhost:3200";
@@ -88,8 +88,8 @@ check("Kategoriyalar: status → 'faol'", await bodyHas("faol"));
 await page.goto(`${BASE}/admin/audit-logs`);
 await page.waitForSelector("td:has-text(\"BOOK_\")", { timeout: 15000 });
 check("Audit: action enum, meta JSON, IP", (await bodyHas("book_access")) && (await bodyHas("144.124")));
-const optCount = await page.locator("select option").count();
-check("Audit: action filtri select (19 amal)", optCount >= 19, `${optCount}`);
+const optCount = await selectOptionCount(page, '[data-testid="filter-action"]');
+check("Audit: action filtri (qo'lbola Select, 19 amal)", optCount >= 19, `${optCount}`);
 
 // ---- Users
 await page.goto(`${BASE}/admin/users`);

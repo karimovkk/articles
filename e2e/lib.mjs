@@ -52,3 +52,46 @@ export function makeCheck() {
 /** Mock holatini tiklash (`/__reset`). */
 export const reset = (query = "") => fetch(`${API_HOST}/__reset${query}`);
 export const mockGet = async (path) => (await fetch(`${API_HOST}${path}`)).json();
+
+/* ---------- Qo'lbola boshqaruv elementlari (10.2) ---------- */
+
+/** Qo'lbola Select: trigger'ni ochib, `role=option` dan qiymat (`data-value`) yoki yorliq bo'yicha tanlaydi. */
+export async function selectPick(page, trigger, opt) {
+  const trig = typeof trigger === "string" ? page.locator(trigger) : trigger;
+  await trig.click();
+  const list = page.locator('[role="listbox"]');
+  await list.waitFor({ timeout: 5000 });
+  const target = typeof opt === "string" ? list.locator(`[role="option"][data-value="${opt}"]`) : list.locator('[role="option"]', { hasText: opt.label });
+  await target.first().click();
+  await list.waitFor({ state: "detached", timeout: 5000 }).catch(() => undefined);
+}
+
+/** Qo'lbola Select variantlari soni (panel ochib-yopiladi). */
+export async function selectOptionCount(page, trigger) {
+  const trig = typeof trigger === "string" ? page.locator(trigger) : trigger;
+  await trig.click();
+  const list = page.locator('[role="listbox"]');
+  await list.waitFor({ timeout: 5000 });
+  const n = await list.locator('[role="option"]').count();
+  await page.keyboard.press("Escape");
+  await list.waitFor({ state: "detached", timeout: 5000 }).catch(() => undefined);
+  return n;
+}
+
+/** Qo'lbola tasdiqlash oynasi (`useConfirm`): ochilishini kutib, OK/Bekor bosadi. */
+export async function confirmDialog(page, ok = true) {
+  const btn = page.locator(`[data-testid="${ok ? "confirm-ok" : "confirm-cancel"}"]`);
+  await btn.waitFor({ timeout: 5000 });
+  await btn.click();
+  await page.locator('[data-testid="confirm-dialog"]').waitFor({ state: "detached", timeout: 5000 }).catch(() => undefined);
+}
+
+/** Qo'lbola DatePicker: trigger'ni ochib, `data-date="YYYY-MM-DD"` katakni bosadi (joriy oyda bo'lishi kerak). */
+export async function datePick(page, trigger, iso) {
+  const trig = typeof trigger === "string" ? page.locator(trigger) : trigger;
+  await trig.click();
+  const pop = page.locator(".cal-pop");
+  await pop.waitFor({ timeout: 5000 });
+  await pop.locator(`[data-date="${iso}"]`).click();
+  await pop.waitFor({ state: "detached", timeout: 5000 }).catch(() => undefined);
+}

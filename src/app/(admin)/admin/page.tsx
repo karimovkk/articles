@@ -4,11 +4,13 @@
  * Admin dashboard (FE-6.9): GET /admin/stats — umumiy sonlar va holat bo'yicha taqsimot.
  * Endpoint bo'lmasa (eski backend) ro'yxat `total`laridan hisoblanadi.
  */
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { Alert, Badge, Card, PageHeader, Spinner, formatDate, statusTone } from "@/components/ui";
+import { Alert, Badge, Card, PageHeader, Spinner, Stat, buttonClass, formatDate, statusTone } from "@/components/ui";
+import * as I from "@/components/ui/icons";
 import { adminApi, isApiError, type AdminStats, type AuditLog } from "@/lib/api";
 import { useT } from "@/i18n";
+import { formatNumber as fmt } from "@/i18n";
 
 interface Loaded {
   stats: AdminStats;
@@ -67,50 +69,51 @@ export default function AdminHome() {
   }, []);
 
   const s = data?.stats;
-  const tiles: Array<{ href: string; label: string; value?: number; breakdown?: Record<string, number> }> = [
-    { href: "/admin/users", label: t("nav.admin.users"), value: s?.users.total, breakdown: s?.users.by_status },
-    { href: "/admin/books", label: t("nav.admin.books"), value: s?.books.total, breakdown: s?.books.by_status },
-    ...(s?.articles ? [{ href: "/admin/books", label: t("admin.stats.articles"), value: s.articles.total, breakdown: s.articles.by_processing }] : []),
-    { href: "/admin/access", label: t("nav.admin.access"), value: s?.access.total, breakdown: s?.access.by_status },
-    { href: "/admin/categories", label: t("nav.admin.categories"), value: s?.categories },
-    { href: "/admin/orders", label: t("admin.orders.awaiting"), value: data?.ordersAwaiting },
+  const tiles: Array<{ href: string; label: string; value?: number; breakdown?: Record<string, number>; icon: ReactNode }> = [
+    { href: "/admin/users", label: t("nav.admin.users"), value: s?.users.total, breakdown: s?.users.by_status, icon: <I.Users size={17} /> },
+    { href: "/admin/books", label: t("nav.admin.books"), value: s?.books.total, breakdown: s?.books.by_status, icon: <I.Book size={17} /> },
+    ...(s?.articles ? [{ href: "/admin/books", label: t("admin.stats.articles"), value: s.articles.total, breakdown: s.articles.by_processing, icon: <I.FileText size={17} /> }] : []),
+    { href: "/admin/access", label: t("nav.admin.access"), value: s?.access.total, breakdown: s?.access.by_status, icon: <I.Key size={17} /> },
+    { href: "/admin/categories", label: t("nav.admin.categories"), value: s?.categories, icon: <I.Tag size={17} /> },
+    { href: "/admin/orders", label: t("admin.orders.awaiting"), value: data?.ordersAwaiting, icon: <I.ShoppingBag size={17} /> },
     ...(data && !data.fallback
       ? [
-          { href: "/admin/books", label: t("admin.stats.annotations"), value: s?.annotations },
-          { href: "/admin/users", label: t("admin.stats.activeSessions"), value: s?.active_sessions },
+          { href: "/admin/books", label: t("admin.stats.annotations"), value: s?.annotations, icon: <I.Highlighter size={17} /> },
+          { href: "/admin/users", label: t("admin.stats.activeSessions"), value: s?.active_sessions, icon: <I.Activity size={17} /> },
         ]
       : []),
   ];
 
   return (
     <div>
-      <PageHeader title={t("admin.title")} description={t("admin.description")} />
+      <PageHeader eyebrow={t("nav.admin")} title={t("admin.title")} description={t("admin.description")} icon={<I.Sparkles size={26} />} />
       {data?.fallback && (
-        <div className="mb-4">
-          <Alert tone="info">{t("admin.stats.fallback")}</Alert>
-        </div>
+        <Alert tone="info" className="mb-4">
+          {t("admin.stats.fallback")}
+        </Alert>
       )}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" data-testid="stat-grid">
         {tiles.map((tile, i) => (
-          <Link key={`${tile.href}-${i}`} href={tile.href}>
-            <Card className="h-full p-5 transition-colors hover:border-accent">
-              <p className="text-sm text-muted">{tile.label}</p>
-              <p className="mt-1 text-3xl font-semibold text-text">{tile.value ?? <Spinner className="size-6" />}</p>
-              {tile.breakdown && Object.keys(tile.breakdown).length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-1">
-                  {Object.entries(tile.breakdown).map(([k, v]) => (
-                    <Badge key={k} tone={statusTone(k)}>
+          <Stat
+            key={`${tile.href}-${i}`}
+            href={tile.href}
+            label={tile.label}
+            icon={tile.icon}
+            value={tile.value === undefined ? <Spinner className="size-6" /> : fmt(tile.value)}
+            foot={
+              tile.breakdown && Object.keys(tile.breakdown).length > 0
+                ? Object.entries(tile.breakdown).map(([k, v]) => (
+                    <Badge key={k} tone={statusTone(k)} dot>
                       {k}: {v}
                     </Badge>
-                  ))}
-                </div>
-              )}
-            </Card>
-          </Link>
+                  ))
+                : undefined
+            }
+          />
         ))}
       </div>
       {s?.users.by_role && (
-        <p className="mt-3 text-xs text-muted">
+        <p className="mt-3 text-xs font-semibold text-muted">
           {t("common.role")}:{" "}
           {Object.entries(s.users.by_role)
             .map(([k, v]) => `${k} ${v}`)
@@ -118,26 +121,37 @@ export default function AdminHome() {
         </p>
       )}
 
-      <Card className="mt-6 p-5">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-base font-semibold text-text">{t("admin.recentActions")}</h2>
-          <Link href="/admin/audit-logs" className="text-sm text-accent hover:underline">
+      <Card
+        className="mt-6"
+        title={t("admin.recentActions")}
+        actions={
+          <Link href="/admin/audit-logs" className={buttonClass("ghost", "sm")}>
             {t("admin.all")}
+            <I.ArrowRight size={15} />
           </Link>
-        </div>
+        }
+        padded={false}
+      >
         {!data ? (
-          <Spinner />
+          <div className="p-5">
+            <Spinner />
+          </div>
         ) : data.logs.length === 0 ? (
-          <p className="text-sm text-muted">{t("admin.noRecords")}</p>
+          <p className="p-5 text-sm text-muted">{t("admin.noRecords")}</p>
         ) : (
-          <ul className="divide-y divide-border text-sm">
-            {data.logs.map((l) => (
-              <li key={l.id} className="flex items-center justify-between gap-3 py-2">
-                <span className="min-w-0 truncate text-text">
-                  <span className="font-mono text-xs text-accent">{l.action}</span>
-                  {l.entity_type && <span className="ml-2 text-muted">{l.entity_type}</span>}
+          <ul className="tracklist">
+            {data.logs.map((l, i) => (
+              <li key={l.id} className="track">
+                <span className="track-num">{i + 1}</span>
+                <span className="min-w-0">
+                  <span className="track-title">
+                    <Badge tone="accent" className="font-mono">
+                      {l.action}
+                    </Badge>
+                    {l.entity_type && <span className="ml-2 text-xs font-semibold text-muted">{l.entity_type}</span>}
+                  </span>
                 </span>
-                <span className="shrink-0 text-xs text-muted">{formatDate(l.created_at)}</span>
+                <span className="shrink-0 text-xs font-semibold text-muted">{formatDate(l.created_at)}</span>
               </li>
             ))}
           </ul>

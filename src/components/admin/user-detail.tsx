@@ -2,44 +2,24 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import {
-  Alert,
-  Badge,
-  Button,
-  Card,
-  Field,
-  Input,
-  Modal,
-  PageHeader,
-  Select,
-  Spinner,
-  formatDate,
-  statusTone,
-} from "@/components/ui";
-import {
-  adminApi,
-  errorMessage,
-  type Book,
-  type User,
-  type UserStatus,
-} from "@/lib/api";
+import { Alert, Avatar, Badge, Button, Card, Field, Input, Modal, Select, Spinner, buttonClass, cn, formatDate, statusTone, useConfirm } from "@/components/ui";
+import * as I from "@/components/ui/icons";
+import { adminApi, errorMessage, type Book, type User, type UserStatus } from "@/lib/api";
 import { shortAgent } from "@/lib/agent";
 import { useEntityNames } from "@/lib/admin-names";
 import { useAsync } from "@/lib/use-async";
+import { useAdminCrumb } from "./admin-shell";
 import { useT } from "@/i18n";
 
 export function AdminUserDetail({ userId }: { userId: string }) {
   const { t } = useT();
+  const confirm = useConfirm();
   const {
     data,
     error: loadError,
     reload: load,
   } = useAsync(async () => {
-    const [user, access, sessions] = await Promise.all([
-      adminApi.user(userId),
-      adminApi.userBooks(userId),
-      adminApi.userSessions(userId),
-    ]);
+    const [user, access, sessions] = await Promise.all([adminApi.user(userId), adminApi.userBooks(userId), adminApi.userSessions(userId)]);
     return { user, access, sessions };
   }, [userId]);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -49,10 +29,9 @@ export function AdminUserDetail({ userId }: { userId: string }) {
   const [newPassword, setNewPassword] = useState("");
   const [notice, setNotice] = useState<string | null>(null);
   const error = actionError ?? loadError;
-  const names = useEntityNames(
-    [],
-    data?.access.filter((a) => !a.book_title).map((a) => a.book_id) ?? [],
-  );
+  const names = useEntityNames([], data?.access.filter((a) => !a.book_title).map((a) => a.book_id) ?? []);
+  const displayName = data ? data.user.full_name || data.user.email || data.user.phone || t("common.user") : null;
+  useAdminCrumb(displayName);
 
   async function run(fn: () => Promise<unknown>) {
     setBusy(true);
@@ -67,143 +46,123 @@ export function AdminUserDetail({ userId }: { userId: string }) {
     }
   }
 
+  async function revokeAll(id: string) {
+    const ok = await confirm({ title: t("admin.users.revokeAll"), message: t("admin.users.revokeAllConfirm"), confirmLabel: t("admin.users.revokeAll"), tone: "danger" });
+    if (ok) void run(() => adminApi.revokeAllSessions(id));
+  }
+
+  async function setStatus(id: string, s: UserStatus) {
+    if (s === "BLOCKED") {
+      const ok = await confirm({ title: t("common.block"), message: t("admin.users.blockConfirm"), confirmLabel: t("common.block"), tone: "danger" });
+      if (!ok) return;
+    }
+    void run(() => adminApi.setUserStatus(id, s));
+  }
+
   if (!data) {
     return error ? <Alert>{error}</Alert> : <Spinner />;
   }
   const { user, access, sessions } = data;
-
-  const activeAccess = access.filter(
-    (a) => (a.status ?? "ACTIVE").toUpperCase() === "ACTIVE",
-  );
+  const activeAccess = access.filter((a) => (a.status ?? "ACTIVE").toUpperCase() === "ACTIVE");
+  const activeSessions = sessions.filter((s) => !s.revoked_at).length;
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title={user.full_name || user.email || user.phone || t("common.user")}
-        description={[user.email, user.phone].filter(Boolean).join(" · ")}
-        actions={
-          <Link
-            href="/admin/users"
-            className="text-sm text-accent hover:underline"
-          >
+    <div className="space-y-5">
+      {/* Hero */}
+      <div className="page-head">
+        <div className="flex min-w-0 items-center gap-4">
+          <Avatar name={displayName} size="lg" tone={user.role === "ADMIN" ? "accent" : undefined} />
+          <div className="min-w-0">
+            <div className="mb-1 flex flex-wrap items-center gap-2">
+              <Badge tone={user.role === "ADMIN" ? "accent" : "neutral"}>{user.role}</Badge>
+              <Badge tone={statusTone(user.status)} dot>
+                {user.status}
+              </Badge>
+            </div>
+            <h1 className="page-title">{displayName}</h1>
+            <p className="page-sub">{[user.email, user.phone].filter(Boolean).join(" · ") || "—"}</p>
+          </div>
+        </div>
+        <div className="page-actions">
+          <Button variant="secondary" size="sm" onClick={() => setResetOpen(true)} icon={<I.Key size={15} />}>
+            {t("admin.users.resetPassword")}
+          </Button>
+          <Link href="/admin/users" className={buttonClass("ghost", "sm")}>
+            <I.ArrowLeft size={15} />
             {t("admin.backToList")}
           </Link>
-        }
-      />
+        </div>
+      </div>
+
       {error && <Alert>{error}</Alert>}
       {notice && <Alert tone="success">{notice}</Alert>}
 
-      <div className="grid gap-6 md:grid-cols-2">
-        <Card className="p-5">
-          <h2 className="mb-3 text-base font-semibold text-text">
-            {t("admin.users.account")}
-          </h2>
-          <dl className="grid grid-cols-3 gap-y-2 text-sm">
+      <div className="grid gap-5 lg:grid-cols-2">
+        <Card title={t("admin.users.account")}>
+          <dl className="grid grid-cols-[110px_minmax(0,1fr)] gap-y-2.5 text-sm">
             <dt className="text-muted">ID</dt>
-            <dd className="col-span-2 font-mono text-xs text-text">
-              {user.id}
-            </dd>
+            <dd className="font-mono text-xs text-text">{user.id}</dd>
             <dt className="text-muted">{t("common.role")}</dt>
-            <dd className="col-span-2">
-              <Badge tone={user.role === "ADMIN" ? "info" : "neutral"}>
-                {user.role}
-              </Badge>
+            <dd>
+              <Badge tone={user.role === "ADMIN" ? "accent" : "neutral"}>{user.role}</Badge>
             </dd>
             <dt className="text-muted">{t("common.status")}</dt>
-            <dd className="col-span-2">
-              <Badge tone={statusTone(user.status)}>{user.status}</Badge>
+            <dd>
+              <Badge tone={statusTone(user.status)} dot>
+                {user.status}
+              </Badge>
             </dd>
             <dt className="text-muted">{t("common.created")}</dt>
-            <dd className="col-span-2 text-text">
-              {formatDate(user.created_at)}
-            </dd>
+            <dd className="text-text">{formatDate(user.created_at)}</dd>
+            {user.two_factor_enabled !== undefined && (
+              <>
+                <dt className="text-muted">2FA</dt>
+                <dd>
+                  <Badge tone={user.two_factor_enabled ? "success" : "neutral"}>{user.two_factor_enabled ? t("profile.twofa.on") : t("profile.twofa.off")}</Badge>
+                </dd>
+              </>
+            )}
           </dl>
-          <div className="mt-4 flex flex-wrap gap-2">
+          <div className="mt-5 flex flex-wrap gap-2 border-t border-border pt-4">
             {(["ACTIVE", "INACTIVE", "BLOCKED"] as UserStatus[])
               .filter((s) => s !== user.status)
               .map((s) => (
-                <Button
-                  key={s}
-                  size="sm"
-                  variant={
-                    s === "ACTIVE"
-                      ? "primary"
-                      : s === "BLOCKED"
-                        ? "danger"
-                        : "secondary"
-                  }
-                  loading={busy}
-                  onClick={() => run(() => adminApi.setUserStatus(user.id, s))}
-                >
-                  {s === "ACTIVE"
-                    ? t("common.activate")
-                    : s === "INACTIVE"
-                      ? t("common.deactivate")
-                      : t("common.block")}
+                <Button key={s} size="sm" variant={s === "ACTIVE" ? "primary" : s === "BLOCKED" ? "danger-ghost" : "secondary"} loading={busy} onClick={() => void setStatus(user.id, s)} data-testid={`status-${s}`}>
+                  {s === "ACTIVE" ? t("common.activate") : s === "INACTIVE" ? t("common.deactivate") : t("common.block")}
                 </Button>
               ))}
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() => setResetOpen(true)}
-            >
-              {t("admin.users.resetPassword")}
-            </Button>
           </div>
         </Card>
 
-        <Card className="p-5">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-base font-semibold text-text">
-              {t("admin.users.sessions", { n: sessions.length })}
-            </h2>
-            {sessions.some((s) => !s.revoked_at) && (
-              <Button
-                size="sm"
-                variant="danger"
-                loading={busy}
-                onClick={() => {
-                  if (confirm(t("admin.users.revokeAllConfirm")))
-                    void run(() => adminApi.revokeAllSessions(user.id));
-                }}
-              >
+        <Card
+          title={t("admin.users.sessions", { n: sessions.length })}
+          actions={
+            activeSessions > 0 && (
+              <Button size="sm" variant="danger-ghost" loading={busy} onClick={() => void revokeAll(user.id)}>
                 {t("admin.users.revokeAll")}
               </Button>
-            )}
-          </div>
+            )
+          }
+          padded={false}
+        >
           {sessions.length === 0 ? (
-            <p className="text-sm text-muted">{t("admin.users.noSessions")}</p>
+            <p className="p-5 text-sm text-muted">{t("admin.users.noSessions")}</p>
           ) : (
-            <ul className="divide-y divide-border text-sm">
+            <ul className="tracklist">
               {sessions.map((s) => (
-                <li
-                  key={s.id}
-                  className={`flex items-center justify-between gap-2 py-2 ${s.revoked_at ? "opacity-50" : ""}`}
-                >
-                  <div className="min-w-0">
-                    <p
-                      className="truncate text-text"
-                      title={s.user_agent ?? undefined}
-                    >
+                <li key={s.id} className={cn("track", s.revoked_at && "opacity-50")}>
+                  <span className="track-num">{/mobile|android|iphone/i.test(s.user_agent ?? "") ? <I.Smartphone size={15} /> : <I.Monitor size={15} />}</span>
+                  <span className="min-w-0">
+                    <span className="track-title" title={s.user_agent ?? undefined}>
                       {shortAgent(s.user_agent) || s.id.slice(0, 8)}
-                      {s.revoked_at && (
-                        <span className="ml-2 text-xs text-muted">
-                          ({t("admin.revoked").toLowerCase()})
-                        </span>
-                      )}
-                    </p>
-                    <p className="text-xs text-muted">
-                      {s.ip_address ?? ""} ·{" "}
-                      {formatDate(s.last_active_at ?? s.created_at)}
-                    </p>
-                  </div>
+                      {s.revoked_at && <span className="ml-2 text-xs font-medium text-muted">({t("admin.revoked").toLowerCase()})</span>}
+                    </span>
+                    <span className="track-sub">
+                      {s.ip_address ?? ""} · {formatDate(s.last_active_at ?? s.created_at)}
+                    </span>
+                  </span>
                   {!s.revoked_at && (
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      loading={busy}
-                      onClick={() => run(() => adminApi.revokeSession(s.id))}
-                    >
+                    <Button size="sm" variant="secondary" loading={busy} onClick={() => run(() => adminApi.revokeSession(s.id))}>
                       {t("common.revoke")}
                     </Button>
                   )}
@@ -214,76 +173,62 @@ export function AdminUserDetail({ userId }: { userId: string }) {
         </Card>
       </div>
 
-      <Card className="p-5">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-base font-semibold text-text">
-            {t("admin.users.bookAccess", { n: activeAccess.length })}
-          </h2>
-          <Button size="sm" onClick={() => setGrantOpen(true)}>
+      <Card
+        title={t("admin.users.bookAccess", { n: activeAccess.length })}
+        actions={
+          <Button size="sm" onClick={() => setGrantOpen(true)} icon={<I.Plus size={15} />}>
             {t("admin.grant")}
           </Button>
-        </div>
+        }
+        padded={false}
+      >
         {access.length === 0 ? (
-          <p className="text-sm text-muted">{t("admin.users.noAccess")}</p>
+          <p className="p-5 text-sm text-muted">{t("admin.users.noAccess")}</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[560px] text-sm">
-              <thead className="text-left text-xs uppercase text-muted">
-                <tr>
-                  <th className="py-1">{t("admin.book")}</th>
-                  <th className="py-1">{t("common.status")}</th>
-                  <th className="py-1">{t("admin.granted")}</th>
-                  <th className="py-1">{t("admin.revoked")}</th>
-                  <th />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {access.map((a) => (
-                  <tr key={a.id}>
-                    <td className="py-2 text-text">
-                      <Link
-                        href={`/admin/books/${a.book_id}`}
-                        className="text-accent hover:underline"
-                      >
-                        {a.book_title ||
-                          names.books[a.book_id] ||
-                          a.book_id.slice(0, 8)}
-                      </Link>
-                    </td>
-                    <td className="py-2">
-                      <Badge tone={statusTone(a.status)}>{a.status}</Badge>
-                    </td>
-                    <td className="py-2 text-muted">
-                      {formatDate(a.granted_at)}
-                    </td>
-                    <td className="py-2 text-muted">
-                      {formatDate(a.revoked_at)}
-                    </td>
-                    <td className="py-2 text-right">
-                      {(a.status ?? "ACTIVE").toUpperCase() === "ACTIVE" && (
-                        <Button
-                          size="sm"
-                          variant="danger"
-                          loading={busy}
-                          onClick={() => run(() => adminApi.revokeAccess(a.id))}
-                        >
-                          {t("common.revoke")}
-                        </Button>
-                      )}
-                    </td>
+          <div className="table-wrap">
+            <div className="table-scroll">
+              <table className="table" style={{ minWidth: 600 }}>
+                <thead>
+                  <tr>
+                    <th>{t("admin.book")}</th>
+                    <th>{t("common.status")}</th>
+                    <th>{t("admin.granted")}</th>
+                    <th>{t("admin.revoked")}</th>
+                    <th />
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {access.map((a) => (
+                    <tr key={a.id}>
+                      <td>
+                        <Link href={`/admin/books/${a.book_id}`} className="name hover:text-accent-ink">
+                          {a.book_title || names.books[a.book_id] || a.book_id.slice(0, 8)}
+                        </Link>
+                      </td>
+                      <td>
+                        <Badge tone={statusTone(a.status)} dot>
+                          {a.status}
+                        </Badge>
+                      </td>
+                      <td className="muted">{formatDate(a.granted_at)}</td>
+                      <td className="muted">{formatDate(a.revoked_at)}</td>
+                      <td className="text-right">
+                        {(a.status ?? "ACTIVE").toUpperCase() === "ACTIVE" && (
+                          <Button size="sm" variant="danger-ghost" loading={busy} onClick={() => run(() => adminApi.revokeAccess(a.id))}>
+                            {t("common.revoke")}
+                          </Button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </Card>
 
-      <Modal
-        open={resetOpen}
-        onClose={() => setResetOpen(false)}
-        title={t("admin.users.resetPassword")}
-      >
+      <Modal open={resetOpen} onClose={() => setResetOpen(false)} title={t("admin.users.resetPassword")} size="sm" icon={<I.Key size={18} />}>
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -294,25 +239,14 @@ export function AdminUserDetail({ userId }: { userId: string }) {
               setNotice(t("admin.users.passwordReset"));
             });
           }}
-          className="space-y-3"
+          className="space-y-4"
         >
           <p className="text-xs text-muted">{t("admin.users.resetHint")}</p>
           <Field label={t("profile.password.new")}>
-            <Input
-              type="text"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              required
-              minLength={8}
-              autoComplete="off"
-            />
+            <Input type="text" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required minLength={8} autoComplete="off" />
           </Field>
           <div className="flex justify-end gap-2">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => setResetOpen(false)}
-            >
+            <Button type="button" variant="ghost" onClick={() => setResetOpen(false)}>
               {t("common.cancel")}
             </Button>
             <Button type="submit" loading={busy}>
@@ -335,20 +269,8 @@ export function AdminUserDetail({ userId }: { userId: string }) {
   );
 }
 
-/** Kitob tanlab, foydalanuvchiga ruxsat berish (POST /admin/book-access, idempotent). */
-export function GrantModal({
-  open,
-  onClose,
-  userId,
-  bookId,
-  onDone,
-}: {
-  open: boolean;
-  onClose: () => void;
-  userId?: string;
-  bookId?: string;
-  onDone: () => void;
-}) {
+/** Kitob tanlab, foydalanuvchiga ruxsat berish (POST /admin/book-access, idempotent). Qidiruvli qo'lbola Select. */
+export function GrantModal({ open, onClose, userId, bookId, onDone }: { open: boolean; onClose: () => void; userId?: string; bookId?: string; onDone: () => void }) {
   const { t } = useT();
   const [selBook, setSelBook] = useState(bookId ?? "");
   const [selUser, setSelUser] = useState(userId ?? "");
@@ -358,12 +280,8 @@ export function GrantModal({
   const { data: options, error: loadError } = useAsync(async () => {
     if (!open) return { books: [] as Book[], users: [] as User[] };
     const [books, users] = await Promise.all([
-      bookId
-        ? Promise.resolve([] as Book[])
-        : adminApi.books({ page_size: 100 }).then((r) => r.items),
-      userId
-        ? Promise.resolve([] as User[])
-        : adminApi.users({ page_size: 100 }).then((r) => r.items),
+      bookId ? Promise.resolve([] as Book[]) : adminApi.books({ page_size: 100 }).then((r) => r.items),
+      userId ? Promise.resolve([] as User[]) : adminApi.users({ page_size: 100 }).then((r) => r.items),
     ]);
     return { books, users };
   }, [open, bookId, userId]);
@@ -386,49 +304,40 @@ export function GrantModal({
   }
 
   return (
-    <Modal open={open} onClose={onClose} title={t("admin.access.grantTitle")}>
+    <Modal open={open} onClose={onClose} title={t("admin.access.grantTitle")} icon={<I.Key size={18} />} data-testid="grant-modal">
       <div className="space-y-4">
         {error && <Alert>{error}</Alert>}
         {!userId && (
           <Field label={t("common.user")}>
             <Select
               value={selUser}
-              onChange={(e) => setSelUser(e.target.value)}
-            >
-              <option value="">{t("admin.access.choose")}</option>
-              {users.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.full_name || u.email || u.phone}{" "}
-                  {u.email ? `(${u.email})` : ""}
-                </option>
-              ))}
-            </Select>
+              onChange={setSelUser}
+              placeholder={t("admin.access.choose")}
+              searchable
+              options={users.map((u) => ({ value: u.id, label: u.full_name || u.email || u.phone || u.id.slice(0, 8), description: [u.email, u.phone].filter(Boolean).join(" · ") || undefined }))}
+              aria-label={t("common.user")}
+              data-testid="grant-user"
+            />
           </Field>
         )}
         {!bookId && (
           <Field label={t("admin.book")}>
             <Select
               value={selBook}
-              onChange={(e) => setSelBook(e.target.value)}
-            >
-              <option value="">{t("admin.access.choose")}</option>
-              {books.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.title} {b.author ? `— ${b.author}` : ""} [{b.status}]
-                </option>
-              ))}
-            </Select>
+              onChange={setSelBook}
+              placeholder={t("admin.access.choose")}
+              searchable
+              options={books.map((b) => ({ value: b.id, label: b.title, description: `${b.author ? `${b.author} · ` : ""}${b.status}` }))}
+              aria-label={t("admin.book")}
+              data-testid="grant-book"
+            />
           </Field>
         )}
         <div className="flex justify-end gap-2">
           <Button variant="ghost" onClick={onClose}>
             {t("common.cancel")}
           </Button>
-          <Button
-            onClick={() => void submit()}
-            loading={busy}
-            disabled={!selBook || !selUser}
-          >
+          <Button onClick={() => void submit()} loading={busy} disabled={!selBook || !selUser} icon={<I.Check size={16} />} data-testid="grant-submit">
             {t("admin.access.grant")}
           </Button>
         </div>

@@ -1,5 +1,5 @@
 // Task 5/6 tekshiruvi: public katalog, batafsil, sotib olish, /admin/stats dashboard, location_data + eski location
-import { launch, BASE, reset, mockGet } from "../lib.mjs";
+import { launch, BASE, reset, mockGet, selectPick, selectOptionCount } from "../lib.mjs";
 import { mkdirSync } from "node:fs";
 
 const BOOK = "11111111-1111-4111-8111-111111111111";
@@ -37,12 +37,12 @@ check("Mehmon qobig'i: Kirish/Ro'yxatdan o'tish", await has("Kirish"));
 const hdrs0 = await mockGet("/__headers");
 check("Katalog so'rovi Authorization'siz ketdi (public)", hdrs0.some((h) => h.path === "/catalog"));
 check("Pagination bor (31 ta kitob / 24)", await has("1 / 2"));
-check("Kategoriya filtri (GET /categories) ko'rsatildi", (await page.locator("select option").count()) === 2);
-await page.selectOption("select", "c1c1c1c1-c1c1-4c1c-8c1c-c1c1c1c1c1c1");
+check("Kategoriya filtri (GET /categories) ko'rsatildi — qo'lbola Select", (await selectOptionCount(page, '[data-testid="catalog-category"]')) === 2);
+await selectPick(page, '[data-testid="catalog-category"]', "c1c1c1c1-c1c1-4c1c-8c1c-c1c1c1c1c1c1");
 await page.waitForURL((u) => u.searchParams.get("category") === "c1c1c1c1-c1c1-4c1c-8c1c-c1c1c1c1c1c1");
 await page.waitForFunction(() => document.body.innerText.includes("Test kitob") && !document.body.innerText.includes("Kitob 2\n"), null, { timeout: 8000 });
 check("Kategoriya filtri: URL ?category= va so'rov category_id bilan", (await mockGet("/__log")).some((l) => l.includes("/catalog") ) );
-await page.selectOption("select", "");
+await selectPick(page, '[data-testid="catalog-category"]', "");
 await page.waitForURL((u) => !u.searchParams.get("category"));
 await page.screenshot({ path: OUT + "30-catalog.png" });
 
@@ -59,10 +59,12 @@ await page.click(`a[href="/catalog/${BOOK}"]`);
 await page.waitForURL(`${BASE}/catalog/${BOOK}`);
 await page.waitForSelector("h1:has-text('Test kitob')");
 check("Batafsil: tavsif (ko'p qatorli) va narx", (await has("Ikkinchi qator")) && (await bodyHas("45 000 so'm")));
-await page.click('[role="group"] button:has-text("en")');
+await page.click('header [data-testid="locale-menu"]');
+await page.click('[data-testid="locale-en"]');
 await page.waitForFunction(() => document.body.innerText.includes("45,000 UZS"), null, { timeout: 5000 });
-check("en: narx '45,000 UZS'", true);
-await page.click('[role="group"] button:has-text("uz")');
+check("en: narx '45,000 UZS' (qo'lbola til menyusi)", true);
+await page.click('header [data-testid="locale-menu"]');
+await page.click('[data-testid="locale-uz"]');
 check("Mehmon: 'Sotib olish uchun tizimga kiring' havolasi", (await page.locator('a:has-text("Sotib olish uchun tizimga kiring")').count()) === 1);
 await page.screenshot({ path: OUT + "31-catalog-detail.png" });
 
@@ -117,7 +119,8 @@ check("`page` yuqori darajada", fresh?.page === 1);
 
 // ---- Admin dashboard: /admin/stats
 await page.goto(`${BASE}/library`);
-await page.click("text=Chiqish");
+await page.click('header [data-testid="user-menu"]');
+await page.click('[data-testid="logout"]');
 await page.waitForURL((u) => u.pathname === "/login");
 await page.fill('input[autocomplete="username"]', "admin@articles365.local");
 await page.fill('input[type="password"]', "Admin12345!");

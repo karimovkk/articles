@@ -54,7 +54,8 @@ const devices = new Set(apiCalls.map((h) => h.device));
 check("X-Device-Id barqaror (bitta qiymat)", devices.size === 1, `${devices.size}`);
 
 // ---- 5xx → INTERNAL_ERROR matni (admin audit sahifasi)
-await page.click("text=Chiqish");
+await page.click('header [data-testid="user-menu"]');
+await page.click('[data-testid="logout"]');
 await page.waitForURL((u) => u.pathname === "/login");
 check("Logout → /login", true);
 await login("admin@articles365.local", "Admin12345!");
@@ -68,6 +69,7 @@ await fetch(`${API.replace("/api/v1", "")}/__set500?on=0`);
 // ---- 3.4 Upload: validatsiya (PDF emas) — so'rov yuborilmaydi
 await page.goto(`${BASE}/admin/books/${BOOK}`);
 await page.waitForSelector("text=Maqolalar (3)", { timeout: 8000 });
+await page.click('[data-testid="tab-articles"]');
 const fake = OUT + "fake.pdf";
 writeFileSync(fake, "hello, not a pdf");
 const pickPdf = async (file) => {

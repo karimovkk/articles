@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { Button, Input, Textarea, cn, formatDate } from "@/components/ui";
+import * as I from "@/components/ui/icons";
 import type { Annotation, SearchMatch, TocEntry } from "@/lib/api";
 import { HIGHLIGHT_COLORS, getHighlightRects, normalizeColor } from "@/lib/reader/highlights";
 import { useT, type DictKey } from "@/i18n";
@@ -43,20 +44,16 @@ export function ReaderSidebar(p: Props) {
   const { t } = useT();
   return (
     <aside className="flex h-full w-full flex-col border-r border-border bg-surface md:w-80">
-      <div className="flex items-center justify-between border-b border-border px-3 py-2">
-        <div className="flex flex-wrap gap-1">
+      <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
+        <div className="tabs wrap" role="tablist">
           {TABS.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => p.onTab(tab.id)}
-              className={cn("rounded-md px-2 py-1 text-xs", p.tab === tab.id ? "bg-bg text-text" : "text-muted hover:text-text")}
-            >
+            <button key={tab.id} type="button" role="tab" aria-selected={p.tab === tab.id} onClick={() => p.onTab(tab.id)} className={cn("tab !h-7 !px-2.5 !text-xs", p.tab === tab.id && "active")}>
               {t(tab.label)}
             </button>
           ))}
         </div>
-        <button onClick={p.onClose} className="ml-2 text-muted hover:text-text md:hidden" aria-label={t("common.close")}>
-          ✕
+        <button type="button" onClick={p.onClose} className="icon-btn plain sm md:hidden" aria-label={t("common.close")}>
+          <I.X size={16} />
         </button>
       </div>
       <div className="min-h-0 flex-1 overflow-auto p-3 text-sm">
@@ -128,9 +125,7 @@ function SearchPanel({ searchAvailable, searchHits, searching, onSearch, goToPag
         className="flex gap-2"
       >
         <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("reader.searchPlaceholder")} />
-        <Button type="submit" size="md" loading={searching}>
-          →
-        </Button>
+        <Button type="submit" size="md" loading={searching} aria-label={t("common.search")} icon={<I.Search size={16} />} className="shrink-0 !px-3" />
       </form>
       {searchHits && searchHits.length === 0 && <p className="text-muted">{t("reader.noResults")}</p>}
       {searchHits?.map((h, i) => (
@@ -195,7 +190,7 @@ function AnnotationList({
                           aria-label={t("reader.changeColor")}
                         />
                       )}
-                      <button onClick={() => goToPage(pageNo)} className="text-xs font-medium text-accent hover:underline">
+                      <button onClick={() => goToPage(pageNo)} className="text-xs font-medium font-bold text-accent-ink hover:underline">
                         {t("common.pageN", { n: pageNo })}
                       </button>
                       {onChangeColor && !hasRects && (
@@ -282,7 +277,7 @@ function NotesPanel({ annotations, currentPage, goToPage, onAddNote, onUpdateNot
         {notes.map((a) => (
           <li key={a.id} className="rounded-lg border border-border p-2">
             <div className="flex items-center justify-between">
-              <button onClick={() => goToPage(a.page ?? 1)} className="text-xs font-medium text-accent hover:underline">
+              <button onClick={() => goToPage(a.page ?? 1)} className="text-xs font-medium font-bold text-accent-ink hover:underline">
                 {t("common.pageN", { n: a.page ?? 1 })}
               </button>
               <div className="flex gap-2 text-xs">

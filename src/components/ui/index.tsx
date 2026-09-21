@@ -1,79 +1,104 @@
 "use client";
 
-import { forwardRef, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
+/**
+ * Bazaviy UI to'plami — `design.css` sinflari ustida (tokenlar: src/app/design.css).
+ * Qo'lbola boshqaruv elementlari alohida fayllarda va shu yerdan re-eksport qilinadi:
+ * Select, DatePicker, Menu, Switch, ConfirmDialog (useConfirm), ikonkalar (`icons.tsx`).
+ */
+import { forwardRef, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type TextareaHTMLAttributes } from "react";
+import Link from "next/link";
 import { formatDateTime, useT } from "@/i18n";
+import { cn } from "./cn";
+import * as I from "./icons";
 
-export function cn(...parts: Array<string | false | null | undefined>) {
-  return parts.filter(Boolean).join(" ");
-}
+export { cn } from "./cn";
+export { Select, type SelectOption, type SelectProps } from "./select";
+export { DatePicker, toISODate, parseISODate, formatISODate } from "./date-picker";
+export { Menu, MenuItem, MenuSep, MenuLabel } from "./menu";
+export { Switch } from "./switch";
+export { ConfirmProvider, useConfirm, type ConfirmOptions } from "./confirm";
+export { Modal, type ModalProps } from "./modal";
 
 /* ---------- Button ---------- */
-type Variant = "primary" | "secondary" | "ghost" | "danger";
-type Size = "sm" | "md";
+type Variant = "primary" | "secondary" | "ghost" | "danger" | "soft" | "dark" | "danger-ghost";
+type Size = "sm" | "md" | "lg";
 
 const variantCls: Record<Variant, string> = {
-  primary: "bg-accent text-accent-fg hover:opacity-90 disabled:opacity-50",
-  secondary: "bg-surface border border-border text-text hover:bg-bg disabled:opacity-50",
-  ghost: "text-text hover:bg-bg disabled:opacity-50",
-  danger: "bg-red-600 text-white hover:bg-red-700 disabled:opacity-50",
+  primary: "primary",
+  secondary: "",
+  ghost: "ghost",
+  danger: "danger",
+  soft: "soft",
+  dark: "dark",
+  "danger-ghost": "danger-ghost",
 };
-const sizeCls: Record<Size, string> = { sm: "h-8 px-3 text-sm", md: "h-10 px-4 text-sm" };
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: Variant;
   size?: Size;
   loading?: boolean;
+  icon?: ReactNode;
 }
 
 /** Tugma sinflari — `<Link>`/`<a>` ni tugma ko'rinishida chizish uchun (a ichida button yaroqsiz HTML). */
 export function buttonClass(variant: Variant = "primary", size: Size = "md", className?: string) {
-  return cn(
-    "inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent",
-    variantCls[variant],
-    sizeCls[size],
-    className,
-  );
+  return cn("btn", variantCls[variant], size !== "md" && size, className);
 }
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
-  { variant = "primary", size = "md", loading, className, children, disabled, ...rest },
+  { variant = "primary", size = "md", loading, icon, className, children, disabled, type = "button", ...rest },
   ref,
 ) {
   return (
-    <button
-      ref={ref}
-      className={buttonClass(variant, size, className)}
-      disabled={disabled || loading}
-      {...rest}
-    >
-      {loading && <Spinner className="size-4" />}
+    <button ref={ref} type={type} className={buttonClass(variant, size, className)} disabled={disabled || loading} aria-busy={loading || undefined} {...rest}>
+      {loading ? <Spinner className="size-4" /> : icon}
       {children}
     </button>
   );
 });
 
-/* ---------- Inputs ---------- */
-const fieldCls =
-  "w-full rounded-lg border border-border bg-surface px-3 text-sm text-text placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent disabled:opacity-60";
+/** Faqat ikonka tugma (`.icon-btn`); `label` — aria-label (majburiy). */
+export interface IconButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+  label: string;
+  size?: "sm" | "md";
+  variant?: "default" | "plain" | "danger";
+  badge?: number | string;
+}
+export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(function IconButton({ label, size = "md", variant = "default", badge, className, children, type = "button", ...rest }, ref) {
+  return (
+    <button ref={ref} type={type} aria-label={label} title={label} className={cn("icon-btn", size === "sm" && "sm", variant !== "default" && variant, className)} {...rest}>
+      {children}
+      {badge !== undefined && badge !== 0 && badge !== "" && <span className="dot">{badge}</span>}
+    </button>
+  );
+});
 
-export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(function Input({ className, ...rest }, ref) {
-  return <input ref={ref} className={cn(fieldCls, "h-10", className)} {...rest} />;
+/* ---------- Inputs ---------- */
+export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement> & { inputSize?: "sm" | "md" }>(function Input({ className, inputSize, ...rest }, ref) {
+  return <input ref={ref} className={cn("input", inputSize === "sm" && "sm", className)} {...rest} />;
 });
 
 export const Textarea = forwardRef<HTMLTextAreaElement, TextareaHTMLAttributes<HTMLTextAreaElement>>(function Textarea({ className, ...rest }, ref) {
-  return <textarea ref={ref} className={cn(fieldCls, "py-2", className)} {...rest} />;
+  return <textarea ref={ref} className={cn("textarea", className)} {...rest} />;
 });
 
-export const Select = forwardRef<HTMLSelectElement, SelectHTMLAttributes<HTMLSelectElement>>(function Select({ className, ...rest }, ref) {
-  return <select ref={ref} className={cn(fieldCls, "h-10", className)} {...rest} />;
-});
-
-export function Field({ label, children, hint }: { label: string; children: ReactNode; hint?: string }) {
+/** Qidiruv input'i (ikonka bilan) */
+export const SearchInput = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(function SearchInput({ className, ...rest }, ref) {
   return (
-    <label className="block space-y-1.5">
-      <span className="text-sm font-medium text-text">{label}</span>
+    <div className={cn("input-wrap", className)}>
+      <I.Search size={16} />
+      <input ref={ref} type="search" className="input" {...rest} />
+    </div>
+  );
+});
+
+/** Forma maydoni: yorliq + boshqaruv elementi (`<label>` — Input/Textarea bilan bevosita, qo'lbola Select/DatePicker'da yorliq bosilsa trigger ochiladi). */
+export function Field({ label, children, hint, className }: { label: string; children: ReactNode; hint?: string; className?: string }) {
+  return (
+    <label className={cn("field", className)}>
+      <span className="label">{label}</span>
       {children}
-      {hint && <span className="block text-xs text-muted">{hint}</span>}
+      {hint && <span className="hint">{hint}</span>}
     </label>
   );
 }
@@ -88,106 +113,131 @@ export function Spinner({ className }: { className?: string }) {
   );
 }
 
-export function Card({ className, children }: { className?: string; children: ReactNode }) {
-  return <div className={cn("rounded-xl border border-border bg-surface", className)}>{children}</div>;
+export function Card({ className, children, title, actions, padded }: { className?: string; children: ReactNode; title?: ReactNode; actions?: ReactNode; padded?: boolean }) {
+  if (title === undefined && !actions) return <div className={cn("card", padded && "card-body", className)}>{children}</div>;
+  return (
+    <div className={cn("card", className)}>
+      <div className="card-header">
+        <div className="card-title min-w-0 flex-1 truncate">{title}</div>
+        {actions}
+      </div>
+      <div className={padded === false ? undefined : "card-body"}>{children}</div>
+    </div>
+  );
 }
 
-export function Badge({ children, tone = "neutral" }: { children: ReactNode; tone?: "neutral" | "success" | "warning" | "danger" | "info" }) {
-  const tones = {
-    neutral: "bg-bg text-muted border-border",
-    success: "bg-green-500/10 text-green-600 border-green-500/30 dark:text-green-400",
-    warning: "bg-amber-500/10 text-amber-600 border-amber-500/30 dark:text-amber-400",
-    danger: "bg-red-500/10 text-red-600 border-red-500/30 dark:text-red-400",
-    info: "bg-blue-500/10 text-blue-600 border-blue-500/30 dark:text-blue-400",
-  };
-  return <span className={cn("inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium", tones[tone])}>{children}</span>;
+export type Tone = "neutral" | "success" | "warning" | "danger" | "info" | "accent";
+
+export function Badge({ children, tone = "neutral", dot, className }: { children: ReactNode; tone?: Tone; dot?: boolean; className?: string }) {
+  return (
+    <span className={cn("chip", tone !== "neutral" && tone, className)}>
+      {dot && <span className="chip-dot" />}
+      {children}
+    </span>
+  );
 }
 
-export function statusTone(status?: string | null): "neutral" | "success" | "warning" | "danger" | "info" {
+export function statusTone(status?: string | null): Tone {
   switch ((status ?? "").toUpperCase()) {
     case "ACTIVE":
     case "READY":
+    case "APPROVED":
       return "success";
     case "PROCESSING":
     case "UPLOADING":
     case "INACTIVE":
     case "DRAFT":
+    case "PENDING":
+    case "AWAITING_REVIEW":
       return "warning";
     case "BLOCKED":
     case "FAILED":
     case "REVOKED":
+    case "REJECTED":
       return "danger";
     default:
       return "neutral";
   }
 }
 
-export function Alert({ children, tone = "danger" }: { children: ReactNode; tone?: "danger" | "info" | "success" }) {
-  const cls = {
-    danger: "border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-300",
-    info: "border-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-blue-300",
-    success: "border-green-500/30 bg-green-500/10 text-green-700 dark:text-green-300",
-  };
-  return <div className={cn("rounded-lg border px-3 py-2 text-sm", cls[tone])}>{children}</div>;
+export function Alert({ children, tone = "danger", className }: { children: ReactNode; tone?: "danger" | "info" | "success" | "warning"; className?: string }) {
+  const Icon = tone === "danger" ? I.XCircle : tone === "success" ? I.CheckCircle : tone === "warning" ? I.AlertTriangle : I.Info;
+  return (
+    <div className={cn("alert", tone, className)} role={tone === "danger" ? "alert" : "status"}>
+      <Icon size={17} className="mt-0.5 shrink-0" />
+      <div className="min-w-0 flex-1">{children}</div>
+    </div>
+  );
 }
 
-export function EmptyState({ title, description, action }: { title: string; description?: string; action?: ReactNode }) {
+export function EmptyState({ title, description, action, icon, className }: { title: string; description?: string; action?: ReactNode; icon?: ReactNode; className?: string }) {
   return (
-    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border px-6 py-14 text-center">
-      <p className="text-base font-medium text-text">{title}</p>
-      {description && <p className="mt-1 max-w-md text-sm text-muted">{description}</p>}
+    <div className={cn("empty", className)}>
+      <div className="empty-icon">{icon ?? <I.Inbox size={22} />}</div>
+      <p className="title">{title}</p>
+      {description && <p className="desc">{description}</p>}
       {action && <div className="mt-4">{action}</div>}
     </div>
   );
 }
 
-export function Pagination({ page, pages, onChange }: { page: number; pages: number; onChange: (p: number) => void }) {
+export function Pagination({ page, pages, total, onChange }: { page: number; pages: number; total?: number; onChange: (p: number) => void }) {
   const { t } = useT();
-  if (pages <= 1) return null;
+  if (pages <= 1 && total === undefined) return null;
   return (
-    <div className="flex items-center justify-between gap-3 text-sm text-muted">
-      <Button variant="secondary" size="sm" disabled={page <= 1} onClick={() => onChange(page - 1)}>
-        {t("common.prev")}
-      </Button>
-      <span>
-        {page} / {pages}
-      </span>
-      <Button variant="secondary" size="sm" disabled={page >= pages} onClick={() => onChange(page + 1)}>
-        {t("common.next")}
-      </Button>
+    <div className="pager">
+      <span>{total !== undefined ? `${t("common.total")}: ${total}` : ""}</span>
+      <div className="flex items-center gap-2">
+        <IconButton size="sm" label={t("common.prev")} disabled={page <= 1} onClick={() => onChange(page - 1)}>
+          <I.ChevronLeft size={16} />
+        </IconButton>
+        <span className="num tabular-nums">
+          {page} / {Math.max(pages, 1)}
+        </span>
+        <IconButton size="sm" label={t("common.next")} disabled={page >= pages} onClick={() => onChange(page + 1)}>
+          <I.ChevronRight size={16} />
+        </IconButton>
+      </div>
     </div>
   );
 }
 
-export function PageHeader({ title, description, actions }: { title: string; description?: string; actions?: ReactNode }) {
+export function PageHeader({ title, description, eyebrow, actions, icon, className }: { title: ReactNode; description?: ReactNode; eyebrow?: ReactNode; actions?: ReactNode; icon?: ReactNode; className?: string }) {
   return (
-    <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
+    <div className={cn("page-head", className)}>
+      {icon && <div className="page-icon">{icon}</div>}
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-text">{title}</h1>
-        {description && <p className="mt-1 text-sm text-muted">{description}</p>}
+        {eyebrow && <span className="page-eyebrow">{eyebrow}</span>}
+        <h1 className="page-title">{title}</h1>
+        {description && <p className="page-sub">{description}</p>}
       </div>
-      {actions && <div className="flex items-center gap-2">{actions}</div>}
+      {actions && <div className="page-actions">{actions}</div>}
     </div>
   );
 }
 
-export function Modal({ open, title, onClose, children }: { open: boolean; title: string; onClose: () => void; children: ReactNode }) {
-  if (!open) return null;
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose} role="dialog" aria-modal>
-      <div className="w-full max-w-lg rounded-xl border border-border bg-surface p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-text">{title}</h2>
-          <button className="text-muted hover:text-text" onClick={onClose} aria-label="Yopish">
-            ✕
-          </button>
-        </div>
-        {children}
+export function Stat({ label, value, icon, foot, href, className }: { label: ReactNode; value: ReactNode; icon?: ReactNode; foot?: ReactNode; href?: string; className?: string }) {
+  const body = (
+    <>
+      <div className="stat-head">
+        <span className="stat-label">{label}</span>
+        {icon && <span className="stat-icon">{icon}</span>}
       </div>
-    </div>
+      <div className="stat-value">{value}</div>
+      {foot && <div className="stat-foot">{foot}</div>}
+    </>
   );
+  if (href) {
+    return (
+      <Link href={href} className={cn("stat", className)}>
+        {body}
+      </Link>
+    );
+  }
+  return <div className={cn("stat", className)}>{body}</div>;
 }
 
+/* ---------- Format ---------- */
 export function formatDate(v?: string | null) {
   if (!v) return "—";
   const d = new Date(v);
@@ -205,4 +255,23 @@ export function formatBytes(n?: number | null) {
     i++;
   }
   return `${v.toFixed(i ? 1 : 0)} ${u[i]}`;
+}
+
+/** Ism bosh harflari (avatar uchun) */
+export function initials(name?: string | null, fallback = "?") {
+  const parts = (name ?? "").trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return fallback;
+  return parts
+    .slice(0, 2)
+    .map((p) => p[0])
+    .join("")
+    .toUpperCase();
+}
+
+export function Avatar({ name, size, tone, className }: { name?: string | null; size?: "sm" | "md" | "lg"; tone?: "accent"; className?: string }) {
+  return (
+    <span className={cn("avatar", size && size !== "md" && size, tone, className)} aria-hidden>
+      {initials(name)}
+    </span>
+  );
 }
