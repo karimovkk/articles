@@ -1,20 +1,35 @@
-/** Admin API — barcha yo'llar ADMIN rolini talab qiladi (server tomonda tekshiriladi). */
-import { api, apiUpload, type UploadOptions } from "./client";
-import type { AdminStats, AuditLog, Book, BookAccess, Category, Paginated, Session, User, UserStatus } from "./types";
+/** Admin API — barcha yo'llar ADMIN rolini talab qiladi (server tomonda tekshiriladi). Manba: OpenAPI 2026-09-21. */
+import { api, apiRaw, apiUpload, type UploadOptions } from "./client";
+import type {
+  AdminStats,
+  Article,
+  AuditAction,
+  AuditLog,
+  Book,
+  BookAccess,
+  BookStatus,
+  Category,
+  CategoryStatus,
+  MessageResponse,
+  Order,
+  OrderStatus,
+  Paginated,
+  Session,
+  TocEntry,
+  User,
+  UserStatus,
+} from "./types";
 
 type Page = { page?: number; page_size?: number };
-
-function asList<T>(raw: unknown): T[] {
-  if (Array.isArray(raw)) return raw as T[];
-  return ((raw as { items?: T[] } | null)?.items) ?? [];
-}
 
 export interface BookInput {
   title: string;
   author?: string | null;
   description?: string | null;
   category_id?: string | null;
-  language?: string | null;
+  /** decimal — string ("30000.00") yoki number */
+  price?: string | number | null;
+  book_metadata?: Record<string, unknown>;
 }
 
 export const adminApi = {
@@ -30,21 +45,32 @@ export const adminApi = {
   user(id: string) {
     return api<User>(`/admin/users/${id}`);
   },
+  /** PM Q1: admin foydalanuvchi yaratadi (kontakt ixtiyoriy, parol majburiy). */
+  createUser(input: { email?: string | null; phone?: string | null; full_name?: string | null; password: string }) {
+    return api<User>("/admin/users", { method: "POST", body: input });
+  },
   setUserStatus(id: string, status: UserStatus) {
     return api<User>(`/admin/users/${id}/status`, { method: "PATCH", body: { status } });
   },
-  async userBooks(id: string): Promise<BookAccess[]> {
-    return asList<BookAccess>(await api(`/admin/users/${id}/books`, { query: { page_size: 100 } }));
+  /** S-12: parolni faqat admin tiklaydi. */
+  resetPassword(id: string, newPassword: string) {
+    return api<MessageResponse>(`/admin/users/${id}/reset-password`, { method: "POST", body: { new_password: newPassword } });
   },
-  async userSessions(id: string): Promise<Session[]> {
-    return asList<Session>(await api(`/admin/users/${id}/sessions`));
+  userBooks(id: string): Promise<BookAccess[]> {
+    return api<BookAccess[]>(`/admin/users/${id}/books`);
+  },
+  userSessions(id: string): Promise<Session[]> {
+    return api<Session[]>(`/admin/users/${id}/sessions`);
+  },
+  revokeAllSessions(userId: string) {
+    return api<MessageResponse>(`/admin/users/${userId}/sessions`, { method: "DELETE" });
   },
   revokeSession(sessionId: string) {
-    return api<void>(`/admin/sessions/${sessionId}`, { method: "DELETE" });
+    return api<MessageResponse>(`/admin/sessions/${sessionId}`, { method: "DELETE" });
   },
 
   // ---- Books
-  books(q: Page & { search?: string; status?: string; category_id?: string } = {}) {
+  books(q: Page & { search?: string; status?: BookStatus | ""; category_id?: string } = {}) {
     return api<Paginated<Book>>("/admin/books", { query: { page: 1, page_size: 20, ...q } });
   },
   book(id: string) {
@@ -53,14 +79,8 @@ export const adminApi = {
   createBook(input: BookInput) {
     return api<Book>("/admin/books", { method: "POST", body: input });
   },
-  updateBook(id: string, patch: Partial<BookInput> & { status?: string }) {
+  updateBook(id: string, patch: Partial<BookInput> & { status?: BookStatus }) {
     return api<Book>(`/admin/books/${id}`, { method: "PATCH", body: patch });
-  },
-  /** PDF yuklash — progress bilan (XHR). Klient tekshiruvi: `lib/uploads.ts`. */
-  uploadBookFile(id: string, file: File, opts?: UploadOptions) {
-    const fd = new FormData();
-    fd.append("file", file, file.name);
-    return apiUpload<Book>(`/admin/books/${id}/file`, fd, opts);
   },
   uploadCover(id: string, file: File, opts?: UploadOptions) {
     const fd = new FormData();
@@ -68,14 +88,38 @@ export const adminApi = {
     return apiUpload<Book>(`/admin/books/${id}/cover`, fd, opts);
   },
 
-  // ---- Categories
-  async categories(): Promise<Category[]> {
-    return asList<Category>(await api("/admin/categories", { query: { page_size: 100 } }));
+  // ---- Articles (kitob ichidagi maqolalar — fayl har biriga alohida)
+  articles(bookId: string): Promise<Article[]> {
+    return api<Article[]>(`/admin/books/${bookId}/articles`);
   },
-  createCategory(input: { name: string; slug?: string; description?: string }) {
+  createArticle(bookId: string, input: { title: string; order_index?: number }) {
+    return api<Article>(`/admin/books/${bookId}/articles`, { method: "POST", body: input });
+  },
+  updateArticle(bookId: string, articleId: string, patch: { title?: string | null; order_index?: number | null }) {
+    return api<Article>(`/admin/books/${bookId}/articles/${articleId}`, { method: "PATCH", body: patch });
+  },
+  deleteArticle(bookId: string, articleId: string) {
+    return api<MessageResponse>(`/admin/books/${bookId}/articles/${articleId}`, { method: "DELETE" });
+  },
+  /** PDF yuklash — progress bilan (XHR). Klient tekshiruvi: `lib/uploads.ts`. */
+  uploadArticleFile(bookId: string, articleId: string, file: File, opts?: UploadOptions) {
+    const fd = new FormData();
+    fd.append("file", file, file.name);
+    return apiUpload<Article>(`/admin/books/${bookId}/articles/${articleId}/file`, fd, opts);
+  },
+  /** Qo'lda mundarija (T1-24 / FE-6.10). */
+  setArticleToc(bookId: string, articleId: string, entries: Array<Pick<TocEntry, "title" | "page"> & { level?: number }>) {
+    return api<Article>(`/admin/books/${bookId}/articles/${articleId}/toc`, { method: "PUT", body: { entries } });
+  },
+
+  // ---- Categories
+  categories(q: Page & { search?: string; status?: CategoryStatus | "" } = {}) {
+    return api<Paginated<Category>>("/admin/categories", { query: { page: 1, page_size: 100, ...q } });
+  },
+  createCategory(input: { name: string; slug?: string | null; description?: string | null }) {
     return api<Category>("/admin/categories", { method: "POST", body: input });
   },
-  updateCategory(id: string, patch: { name?: string; slug?: string; description?: string; is_active?: boolean }) {
+  updateCategory(id: string, patch: { name?: string | null; description?: string | null; status?: CategoryStatus | null }) {
     return api<Category>(`/admin/categories/${id}`, { method: "PATCH", body: patch });
   },
 
@@ -83,15 +127,35 @@ export const adminApi = {
   access(q: Page & { user_id?: string; book_id?: string; status?: string } = {}) {
     return api<Paginated<BookAccess>>("/admin/book-access", { query: { page: 1, page_size: 20, ...q } });
   },
-  grantAccess(input: { user_id: string; book_id: string; note?: string }) {
+  grantAccess(input: { user_id: string; book_id: string }) {
     return api<BookAccess>("/admin/book-access", { method: "POST", body: input });
   },
   revokeAccess(accessId: string) {
     return api<BookAccess>(`/admin/book-access/${accessId}/revoke`, { method: "POST" });
   },
 
+  // ---- Orders (PM S-16)
+  orders(q: Page & { status?: OrderStatus | "" } = {}) {
+    return api<Paginated<Order>>("/admin/orders", { query: { page: 1, page_size: 20, ...q } });
+  },
+  approveOrder(id: string) {
+    return api<Order>(`/admin/orders/${id}/approve`, { method: "POST" });
+  },
+  rejectOrder(id: string, reason?: string) {
+    return api<Order>(`/admin/orders/${id}/reject`, { method: "POST", body: { reason: reason || null } });
+  },
+
   // ---- Audit
-  auditLogs(q: Page & { admin_id?: string; action?: string; entity_type?: string } = {}) {
+  auditLogs(q: Page & { admin_id?: string; action?: AuditAction | ""; entity_type?: string } = {}) {
     return api<Paginated<AuditLog>>("/admin/audit-logs", { query: { page: 1, page_size: 30, ...q } });
+  },
+
+  // ---- Export (XLSX; fayl nomi `Content-Disposition` dan, bo'lmasa FE default)
+  async exportBlob(kind: "users" | "audit-logs"): Promise<{ blob: Blob; filename: string | null }> {
+    const res = await apiRaw(`/admin/export/${kind}`, { headers: { Accept: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, */*" } });
+    if (!res.ok) throw new Error(`HTTP_${res.status}`);
+    const cd = res.headers.get("Content-Disposition") ?? "";
+    const m = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(cd);
+    return { blob: await res.blob(), filename: m ? decodeURIComponent(m[1]) : null };
   },
 };

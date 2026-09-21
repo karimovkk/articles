@@ -1,14 +1,18 @@
 /**
- * Reader (himoyalangan kontent) — STORAGE.md / API.md:
- *  GET /reader/{id}            → metadata
- *  GET /reader/{id}/content    → Range (200/206/416), Content-Range, Accept-Ranges
- *  GET /reader/{id}/cover      → muqova (blob)
- *  GET /reader/{id}/watermark  → HMAC-imzolangan watermark payload
+ * Reader (himoyalangan kontent) — maqola bo'yicha (OpenAPI):
+ *  GET /reader/books/{book_id}/articles     → maqolalar ro'yxati (holat, %, o'qilgan)
+ *  GET /reader/books/{book_id}/cover?size=  → muqova (original|thumb|medium)
+ *  GET /reader/articles/{id}                → metadata (page_count, processing_status, features)
+ *  GET /reader/articles/{id}/content        → Range (206 / 416 {details.size})
+ *  GET /reader/articles/{id}/watermark      → HMAC-imzolangan watermark
  *
- * Kitob fayliga doimiy URL yo'q: barcha baytlar Bearer + access tekshiruvi bilan keladi.
+ * Fayl hech qachon to'liq yuklab olinmaydi: barcha baytlar Bearer + ruxsat tekshiruvi bilan keladi.
+ * Backend hozircha 206 javobda `Content-Range` bermaydi (B1) — hajm 416 `details.size` orqali olinadi.
  */
 import { api, apiRaw, ApiError } from "./client";
-import type { ReaderMeta, WatermarkPayload } from "./types";
+import type { ArticleListItem, ReaderMeta, WatermarkPayload } from "./types";
+
+export type CoverSize = "original" | "thumb" | "medium";
 
 export interface RangeChunk {
   status: 200 | 206;
@@ -25,45 +29,50 @@ function parseContentRange(h: string | null): { start: number; end: number; tota
   return { start: Number(m[1]), end: Number(m[2]), total: m[3] === "*" ? NaN : Number(m[3]) };
 }
 
-async function throwFromResponse(res: Response): Promise<never> {
+async function errorFromResponse(res: Response): Promise<ApiError> {
   let code = `HTTP_${res.status}`;
   let message = res.statusText;
+  let details: unknown;
   try {
-    const body = (await res.json()) as { error?: { code?: string; message?: string } };
+    const body = (await res.json()) as { error?: { code?: string; message?: string; details?: unknown } };
     code = body.error?.code ?? code;
     message = body.error?.message ?? message;
+    details = body.error?.details;
   } catch {
     /* body JSON emas */
   }
-  throw new ApiError(res.status, code, message);
+  return new ApiError(res.status, code, message, details);
 }
 
+const content = (articleId: string) => `/reader/articles/${articleId}/content`;
+
 export const readerApi = {
-  meta(bookId: string): Promise<ReaderMeta> {
-    return api<ReaderMeta>(`/reader/${bookId}`);
+  articles(bookId: string): Promise<ArticleListItem[]> {
+    return api<ArticleListItem[]>(`/reader/books/${bookId}/articles`);
   },
 
-  watermark(bookId: string): Promise<WatermarkPayload> {
-    return api<WatermarkPayload>(`/reader/${bookId}/watermark`);
+  meta(articleId: string): Promise<ReaderMeta> {
+    return api<ReaderMeta>(`/reader/articles/${articleId}`);
   },
 
-  /** Muqova — blob URL (chaqiruvchi URL.revokeObjectURL qilishi kerak). */
-  async coverUrl(bookId: string, signal?: AbortSignal): Promise<string | null> {
-    const res = await apiRaw(`/reader/${bookId}/cover`, { headers: { Accept: "image/*" }, signal });
+  watermark(articleId: string): Promise<WatermarkPayload> {
+    return api<WatermarkPayload>(`/reader/articles/${articleId}/watermark`);
+  },
+
+  /** Muqova — blob URL (chaqiruvchi URL.revokeObjectURL qilishi kerak). Ruxsat talab qiladi. */
+  async coverUrl(bookId: string, size: CoverSize = "thumb", signal?: AbortSignal): Promise<string | null> {
+    const res = await apiRaw(`/reader/books/${bookId}/cover`, { query: { size }, headers: { Accept: "image/*" }, signal });
     if (!res.ok) return null;
     return URL.createObjectURL(await res.blob());
   },
 
   /**
    * Bayt oralig'ini oladi: `Range: bytes=start-end` (end inclusive).
-   * 206 → so'ralgan bo'lak; 200 → server Range'ni qo'llamadi (butun fayl);
-   * 416 → RANGE_NOT_SATISFIABLE (ApiError).
+   * 206 → so'ralgan bo'lak (Content-Range bo'lmasa so'ralgan qiymatlar ishlatiladi);
+   * 200 → server Range'ni qo'llamadi (butun fayl); 416 → RANGE_NOT_SATISFIABLE (ApiError).
    */
-  async fetchRange(bookId: string, start: number, end: number, signal?: AbortSignal): Promise<RangeChunk> {
-    const res = await apiRaw(`/reader/${bookId}/content`, {
-      headers: { Range: `bytes=${start}-${end}`, Accept: "application/pdf, */*" },
-      signal,
-    });
+  async fetchRange(articleId: string, start: number, end: number, signal?: AbortSignal): Promise<RangeChunk> {
+    const res = await apiRaw(content(articleId), { headers: { Range: `bytes=${start}-${end}`, Accept: "application/pdf, */*" }, signal });
     if (res.status === 206) {
       const cr = parseContentRange(res.headers.get("Content-Range"));
       const bytes = new Uint8Array(await res.arrayBuffer());
@@ -79,24 +88,45 @@ export const readerApi = {
       const bytes = new Uint8Array(await res.arrayBuffer());
       return { status: 200, start: 0, end: bytes.byteLength - 1, total: bytes.byteLength, bytes };
     }
-    return throwFromResponse(res);
+    throw await errorFromResponse(res);
   },
 
-  /** Fayl hajmi (HEAD o'rniga 0-0 Range → Content-Range'dan total). */
-  async size(bookId: string, signal?: AbortSignal): Promise<{ total: number; supportsRange: boolean; head?: Uint8Array }> {
-    const res = await apiRaw(`/reader/${bookId}/content`, {
-      headers: { Range: "bytes=0-0", Accept: "application/pdf, */*" },
-      signal,
-    });
+  /**
+   * Fayl hajmi va Range qo'llab-quvvatlanishi.
+   *  1) `Range: bytes=0-0` → 206 + Content-Range → total;
+   *  2) Content-Range bo'lmasa (B1) → ataylab yaroqsiz Range → 416 `details.size`;
+   *  3) 200 → server Range'siz butun faylni berdi (head qaytariladi).
+   */
+  async size(articleId: string, signal?: AbortSignal): Promise<{ total: number; supportsRange: boolean; head?: Uint8Array }> {
+    const res = await apiRaw(content(articleId), { headers: { Range: "bytes=0-0", Accept: "application/pdf, */*" }, signal });
     if (res.status === 206) {
       const cr = parseContentRange(res.headers.get("Content-Range"));
       await res.arrayBuffer();
       if (cr && Number.isFinite(cr.total)) return { total: cr.total, supportsRange: true };
+      const total = await readerApi.sizeVia416(articleId, signal);
+      if (total !== null) return { total, supportsRange: true };
+      // hajm aniqlanmadi — butun faylni olish (oxirgi chora)
+      const full = await apiRaw(content(articleId), { headers: { Accept: "application/pdf, */*" }, signal });
+      if (!full.ok) throw await errorFromResponse(full);
+      const buf = new Uint8Array(await full.arrayBuffer());
+      return { total: buf.byteLength, supportsRange: false, head: buf };
     }
     if (res.status === 200) {
       const buf = new Uint8Array(await res.arrayBuffer());
       return { total: buf.byteLength, supportsRange: false, head: buf };
     }
-    return throwFromResponse(res);
+    throw await errorFromResponse(res);
+  },
+
+  /** Backend 416 javobida `details.size` qaytaradi — Content-Range bo'lmaganda hajm manbai. */
+  async sizeVia416(articleId: string, signal?: AbortSignal): Promise<number | null> {
+    const res = await apiRaw(content(articleId), { headers: { Range: "bytes=9007199254740000-", Accept: "application/pdf, */*" }, signal });
+    if (res.status !== 416) {
+      await res.arrayBuffer().catch(() => undefined);
+      return null;
+    }
+    const err = await errorFromResponse(res);
+    const size = (err.details as { size?: unknown } | undefined)?.size;
+    return typeof size === "number" && size > 0 ? size : null;
   },
 };

@@ -1,7 +1,7 @@
 "use client";
 
 import { forwardRef, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
-import { getLocaleTag, useT } from "@/i18n";
+import { formatDateTime, useT } from "@/i18n";
 
 export function cn(...parts: Array<string | false | null | undefined>) {
   return parts.filter(Boolean).join(" ");
@@ -192,7 +192,7 @@ export function formatDate(v?: string | null) {
   if (!v) return "—";
   const d = new Date(v);
   if (Number.isNaN(d.getTime())) return v;
-  return d.toLocaleString(getLocaleTag(), { dateStyle: "medium", timeStyle: "short" });
+  return formatDateTime(d);
 }
 
 export function formatBytes(n?: number | null) {

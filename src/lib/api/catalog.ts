@@ -1,11 +1,11 @@
 /**
- * Public katalog (FE-2, S-7): GET /catalog — auth YO'Q, rate-limit bor.
+ * Public katalog (FE-2, S-7) — auth YO'Q, rate-limit bor:
+ *  GET /catalog, GET /catalog/{book_id}, GET /catalog/{book_id}/cover?size=, GET /categories
  * Kontent baribir himoyalangan — bu faqat sotuv ro'yxati.
- * `GET /catalog/{id}` hozircha yo'q (backend'dan so'ralgan): batafsil sahifa uchun
- * ro'yxatdan sessionStorage kesh → sahifalab qidirish.
  */
-import { api } from "./client";
-import type { CatalogItem, Paginated } from "./types";
+import { api, apiRaw, isApiError } from "./client";
+import type { CatalogItem, Category, Paginated } from "./types";
+import type { CoverSize } from "./reader";
 
 export interface CatalogQuery {
   search?: string;
@@ -14,46 +14,30 @@ export interface CatalogQuery {
   page_size?: number;
 }
 
-const CACHE_PREFIX = "a365.catalog.";
-const SCAN_PAGE_SIZE = 100;
-const SCAN_MAX_PAGES = 10;
-
-export const catalogCache = {
-  put(item: CatalogItem) {
-    try {
-      window.sessionStorage.setItem(CACHE_PREFIX + item.book_id, JSON.stringify(item));
-    } catch {
-      /* sessionStorage yo'q */
-    }
-  },
-  get(bookId: string): CatalogItem | null {
-    try {
-      const raw = window.sessionStorage.getItem(CACHE_PREFIX + bookId);
-      return raw ? (JSON.parse(raw) as CatalogItem) : null;
-    } catch {
-      return null;
-    }
-  },
-};
-
 export const catalogApi = {
   list(q: CatalogQuery = {}): Promise<Paginated<CatalogItem>> {
     return api<Paginated<CatalogItem>>("/catalog", { auth: false, query: { page: 1, page_size: 24, ...q } });
   },
 
-  /** Bitta kitob: kesh, bo'lmasa ro'yxatni sahifalab qidirish (katalog kichik). */
+  /** Bitta kitob; topilmasa (404) yoki nofaol bo'lsa null. */
   async find(bookId: string, signal?: AbortSignal): Promise<CatalogItem | null> {
-    const cached = catalogCache.get(bookId);
-    if (cached) return cached;
-    for (let page = 1; page <= SCAN_MAX_PAGES; page++) {
-      const res = await api<Paginated<CatalogItem>>("/catalog", { auth: false, query: { page, page_size: SCAN_PAGE_SIZE }, signal });
-      const hit = res.items.find((i) => i.book_id === bookId);
-      if (hit) {
-        catalogCache.put(hit);
-        return hit;
-      }
-      if (page >= res.pages) break;
+    try {
+      return await api<CatalogItem>(`/catalog/${bookId}`, { auth: false, signal });
+    } catch (e) {
+      if (isApiError(e) && e.status === 404) return null;
+      throw e;
     }
-    return null;
+  },
+
+  /** Faol kategoriyalar (public) — katalog filtri uchun. */
+  categories(): Promise<Category[]> {
+    return api<Category[]>("/categories", { auth: false });
+  },
+
+  /** Public muqova — blob URL (chaqiruvchi URL.revokeObjectURL qilishi kerak). */
+  async coverUrl(bookId: string, size: CoverSize = "thumb", signal?: AbortSignal): Promise<string | null> {
+    const res = await apiRaw(`/catalog/${bookId}/cover`, { auth: false, query: { size }, headers: { Accept: "image/*" }, signal });
+    if (!res.ok) return null;
+    return URL.createObjectURL(await res.blob());
   },
 };

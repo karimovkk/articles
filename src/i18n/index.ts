@@ -88,6 +88,20 @@ export function formatNumber(n: number, locale: Locale = getLocale()): string {
   return `${n < 0 ? "-" : ""}${grouped}${frac ? dec + frac : ""}`;
 }
 
+const UZ_MONTHS = ["yan", "fev", "mar", "apr", "may", "iyn", "iyl", "avg", "sen", "okt", "noy", "dek"];
+
+/**
+ * Sana-vaqt formati. Chrome'ning ICU ma'lumotida `uz` oy nomlari yo'q ("M09" chiqadi) — uz uchun
+ * qo'lda ("21 sen 2026, 10:35"); ru/en — Intl.
+ */
+export function formatDateTime(d: Date, locale: Locale = getLocale()): string {
+  if (locale === "uz") {
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getDate()} ${UZ_MONTHS[d.getMonth()]} ${d.getFullYear()}, ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+  return d.toLocaleString(getLocaleTag(), { dateStyle: "medium", timeStyle: "short" });
+}
+
 /* ---------- tarjima ---------- */
 export type Params = Record<string, string | number>;
 

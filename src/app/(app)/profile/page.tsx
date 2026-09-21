@@ -5,6 +5,9 @@ import { useAuth } from "@/providers/auth-provider";
 import { Alert, Badge, Button, Card, Field, Input, PageHeader, Spinner, formatDate, statusTone } from "@/components/ui";
 import { authApi, errorMessage, sessionsApi, type Session } from "@/lib/api";
 import { useAsync } from "@/lib/use-async";
+import { shortAgent } from "@/lib/agent";
+import { PasswordCard, TwoFactorCard } from "@/components/profile/security";
+import { MyOrders } from "@/components/orders/my-orders";
 import { useT } from "@/i18n";
 
 export default function ProfilePage() {
@@ -86,34 +89,41 @@ export default function ProfilePage() {
           {(sessErr ?? sessListErr) && <Alert>{sessErr ?? sessListErr}</Alert>}
           {!sessions ? (
             <Spinner />
-          ) : sessions.length === 0 ? (
+          ) : sessions.filter((s) => !s.revoked_at).length === 0 ? (
             <p className="text-sm text-muted">{t("profile.noSessions")}</p>
           ) : (
             <ul className="divide-y divide-border">
-              {sessions.map((s) => (
-                <li key={s.id} className="flex items-center justify-between gap-3 py-3">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm text-text">
-                      {s.device_name || s.user_agent || s.device_id || s.id.slice(0, 8)}
-                      {s.is_current && (
-                        <span className="ml-2">
-                          <Badge tone="success">{t("profile.current")}</Badge>
-                        </span>
-                      )}
-                    </p>
-                    <p className="text-xs text-muted">
-                      {s.ip ?? s.ip_address ?? ""} · {formatDate(s.last_seen_at ?? s.created_at)}
-                    </p>
-                  </div>
-                  <Button variant="secondary" size="sm" onClick={() => void revoke(s)}>
-                    {t("common.revoke")}
-                  </Button>
-                </li>
-              ))}
+              {sessions
+                .filter((s) => !s.revoked_at)
+                .map((s) => (
+                  <li key={s.id} className="flex items-center justify-between gap-3 py-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm text-text" title={s.user_agent ?? undefined}>
+                        {shortAgent(s.user_agent) || s.id.slice(0, 8)}
+                        {s.is_current && (
+                          <span className="ml-2">
+                            <Badge tone="success">{t("profile.current")}</Badge>
+                          </span>
+                        )}
+                      </p>
+                      <p className="text-xs text-muted">
+                        {s.ip_address ?? ""} · {formatDate(s.last_active_at ?? s.created_at)}
+                      </p>
+                    </div>
+                    <Button variant="secondary" size="sm" onClick={() => void revoke(s)}>
+                      {t("common.revoke")}
+                    </Button>
+                  </li>
+                ))}
             </ul>
           )}
         </Card>
+
+        <PasswordCard />
+        <TwoFactorCard />
       </div>
+
+      <MyOrders />
     </div>
   );
 }

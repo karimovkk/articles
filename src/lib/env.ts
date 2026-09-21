@@ -11,6 +11,8 @@ export const env = {
    * Bo'sh bo'lsa "administrator bilan bog'laning" ko'rsatiladi. Aniq oqim — PM Q2.
    */
   purchaseUrl: process.env.NEXT_PUBLIC_PURCHASE_URL ?? "",
+  /** Buyurtma yaratilgach ko'rsatiladigan to'lov ko'rsatmasi (karta raqami, Telegram va h.k.). `\n` — yangi qator. */
+  paymentInstructions: (process.env.NEXT_PUBLIC_PAYMENT_INSTRUCTIONS ?? "").replace(/\\n/g, "\n"),
 } as const;
 
 /** Sotib olish havolasini kitob uchun quradi; sozlanmagan bo'lsa null. */

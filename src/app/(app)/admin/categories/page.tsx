@@ -8,7 +8,8 @@ import { useT } from "@/i18n";
 
 export default function AdminCategoriesPage() {
   const { t } = useT();
-  const { data: items, error: loadError, reload } = useAsync(() => adminApi.categories(), []);
+  const { data, error: loadError, reload } = useAsync(() => adminApi.categories({ page_size: 100 }), []);
+  const items = data?.items;
   const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
@@ -92,7 +93,7 @@ export default function AdminCategoriesPage() {
                         <span className="text-text">{c.name}</span>
                         {c.slug && <span className="ml-2 font-mono text-xs text-muted">{c.slug}</span>}
                         <span className="ml-2">
-                          <Badge tone={c.is_active === false ? "warning" : "success"}>{c.is_active === false ? t("admin.categories.inactive") : t("admin.categories.active")}</Badge>
+                          <Badge tone={c.status === "INACTIVE" ? "warning" : "success"}>{c.status === "INACTIVE" ? t("admin.categories.inactive") : t("admin.categories.active")}</Badge>
                         </span>
                       </div>
                       <div className="flex shrink-0 gap-1">
@@ -106,8 +107,8 @@ export default function AdminCategoriesPage() {
                         >
                           {t("common.edit")}
                         </Button>
-                        <Button size="sm" variant="secondary" loading={busy} onClick={() => run(() => adminApi.updateCategory(c.id, { is_active: c.is_active === false }))}>
-                          {c.is_active === false ? t("common.activate") : t("admin.categories.disable")}
+                        <Button size="sm" variant="secondary" loading={busy} onClick={() => run(() => adminApi.updateCategory(c.id, { status: c.status === "INACTIVE" ? "ACTIVE" : "INACTIVE" }))}>
+                          {c.status === "INACTIVE" ? t("common.activate") : t("admin.categories.disable")}
                         </Button>
                       </div>
                     </>

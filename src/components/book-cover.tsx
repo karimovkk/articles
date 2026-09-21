@@ -1,23 +1,38 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { readerApi } from "@/lib/api";
+import { catalogApi, readerApi, type CoverSize } from "@/lib/api";
 import { cn } from "@/components/ui";
 
 /**
- * Muqova — himoyalangan endpoint (/reader/{id}/cover) orqali Bearer bilan
- * yuklanadi va blob URL sifatida ko'rsatiladi. <img src="..."> to'g'ridan-to'g'ri
- * ishlamaydi, chunki brauzer Authorization sarlavhasini yubormaydi.
+ * Muqova blob URL sifatida ko'rsatiladi:
+ *  - `source="reader"` — `/reader/books/{id}/cover` (Bearer + ruxsat; kutubxona);
+ *  - `source="catalog"` — `/catalog/{id}/cover` (public; katalog, mehmonlar uchun ham).
+ * <img src="..."> to'g'ridan-to'g'ri ishlamaydi, chunki brauzer Authorization sarlavhasini yubormaydi.
  */
-export function BookCover({ bookId, title, className, hasCover = true }: { bookId: string; title: string; className?: string; hasCover?: boolean }) {
+export function BookCover({
+  bookId,
+  title,
+  className,
+  hasCover = true,
+  size = "thumb",
+  source = "reader",
+}: {
+  bookId: string;
+  title: string;
+  className?: string;
+  hasCover?: boolean;
+  /** `thumb|medium` — WebP rendition (T1-05), `original` — asl fayl */
+  size?: CoverSize;
+  source?: "reader" | "catalog";
+}) {
   const [url, setUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (!hasCover) return;
     const ac = new AbortController();
     let objectUrl: string | null = null;
-    readerApi
-      .coverUrl(bookId, ac.signal)
+    (source === "catalog" ? catalogApi.coverUrl(bookId, size, ac.signal) : readerApi.coverUrl(bookId, size, ac.signal))
       .then((u) => {
         objectUrl = u;
         setUrl(u);
@@ -27,7 +42,7 @@ export function BookCover({ bookId, title, className, hasCover = true }: { bookI
       ac.abort();
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [bookId, hasCover]);
+  }, [bookId, hasCover, size, source]);
 
   return (
     <div className={cn("relative aspect-[3/4] w-full overflow-hidden rounded-lg border border-border bg-bg", className)}>

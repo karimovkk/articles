@@ -5,7 +5,7 @@
  * keyingi Range so'rovlari 401 bilan tushadi. Shu sababli barcha bo'laklar
  * bizning apiRaw (Bearer + avtomatik refresh) orqali olinadi:
  *
- *   GET /api/v1/reader/{id}/content   Range: bytes=a-b  →  206 + Content-Range
+ *   GET /api/v1/reader/articles/{id}/content   Range: bytes=a-b  →  206 (+ Content-Range; hozircha yo'q — B1)
  *
  * Fayl hech qachon to'liq yuklab olinmaydi — PDF.js faqat kerakli
  * bo'laklarni so'raydi (STORAGE.md: chunk-by-chunk streaming).
@@ -35,11 +35,11 @@ export interface OpenedDocument {
   destroy: () => void;
 }
 
-export async function openProtectedPdf(bookId: string, onProgress?: (loaded: number, total: number) => void): Promise<OpenedDocument> {
+export async function openProtectedPdf(articleId: string, onProgress?: (loaded: number, total: number) => void): Promise<OpenedDocument> {
   const pdfjs = await loadPdfJs();
   const controller = new AbortController();
 
-  const info = await readerApi.size(bookId, controller.signal);
+  const info = await readerApi.size(articleId, controller.signal);
 
   // Server Range'ni qo'llamasa (200) — butun fayl qo'lda keladi
   if (!info.supportsRange && info.head) {
@@ -59,7 +59,7 @@ export async function openProtectedPdf(bookId: string, onProgress?: (loaded: num
       const c = new AbortController();
       this.inflight.add(c);
       readerApi
-        .fetchRange(bookId, begin, Math.min(end, total) - 1, c.signal)
+        .fetchRange(articleId, begin, Math.min(end, total) - 1, c.signal)
         .then((chunk) => {
           loaded += chunk.bytes.byteLength;
           onProgress?.(Math.min(loaded, total), total);

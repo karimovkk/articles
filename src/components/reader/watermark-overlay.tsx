@@ -2,15 +2,17 @@
 
 /**
  * Dinamik shaxsiy watermark (SECURITY.md §4): backend qaytargan HMAC-imzolangan
- * label butun o'quvchi maydoni ustiga plitka ko'rinishida qo'yiladi. Label
- * foydalanuvchini aniqlashga imkon beradi (masked PII + trace id), lekin
- * to'liq shaxsiy ma'lumotni oshkor qilmaydi.
+ * `watermark_text` butun o'quvchi maydoni ustiga plitka ko'rinishida qo'yiladi. Matn
+ * foydalanuvchini aniqlashga imkon beradi (masked PII + trace id), lekin to'liq
+ * shaxsiy ma'lumotni oshkor qilmaydi.
  */
 import type { WatermarkPayload } from "@/lib/api";
 
-export function WatermarkOverlay({ payload, night }: { payload: WatermarkPayload | null; night: boolean }) {
+export type WatermarkLike = Pick<WatermarkPayload, "watermark_text"> & Partial<WatermarkPayload>;
+
+export function WatermarkOverlay({ payload, night }: { payload: WatermarkLike | null; night: boolean }) {
   if (!payload) return null;
-  const label = payload.label || [payload.user_ref, payload.trace_id].filter(Boolean).join(" · ");
+  const label = payload.watermark_text || [payload.user_ref, payload.trace_id].filter(Boolean).join(" · ");
   const cells = Array.from({ length: 24 });
   return (
     <div className="pointer-events-none absolute inset-0 z-20 select-none overflow-hidden" aria-hidden>

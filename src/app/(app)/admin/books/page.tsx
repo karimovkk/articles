@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { DataTable, usePaged, type Column } from "@/components/admin/data-table";
 import { Alert, Badge, Button, Field, Input, Modal, PageHeader, Select, Textarea, formatDate, statusTone } from "@/components/ui";
-import { adminApi, errorMessage, type Book, type Category } from "@/lib/api";
+import { adminApi, errorMessage, type Book, type BookStatus, type Category } from "@/lib/api";
+import { Price } from "@/components/catalog/price";
 import { useT } from "@/i18n";
 
 export default function AdminBooksPage() {
@@ -13,7 +14,7 @@ export default function AdminBooksPage() {
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [query, setQuery] = useState("");
-  const [status, setStatus] = useState("");
+  const [status, setStatus] = useState<BookStatus | "">("");
   const [createOpen, setCreateOpen] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
 
@@ -23,7 +24,10 @@ export default function AdminBooksPage() {
   );
 
   useEffect(() => {
-    adminApi.categories().then(setCategories).catch(() => undefined);
+    adminApi
+      .categories()
+      .then((r) => setCategories(r.items))
+      .catch(() => undefined);
   }, []);
 
   const columns: Column<Book>[] = [
@@ -41,16 +45,8 @@ export default function AdminBooksPage() {
     },
     { key: "category", header: t("admin.books.category"), render: (b) => <span className="text-muted">{b.category?.name ?? categories.find((c) => c.id === b.category_id)?.name ?? "—"}</span> },
     { key: "status", header: t("common.status"), render: (b) => <Badge tone={statusTone(b.status)}>{b.status ?? "—"}</Badge> },
-    {
-      key: "file",
-      header: t("admin.books.file"),
-      render: (b) => (
-        <span className="text-xs text-muted">
-          {b.has_source_file ? `${t("admin.books.pdfYes")}${b.page_count ? ` · ${t("common.pagesN", { n: b.page_count })}` : ""}` : t("common.none")}
-          {b.has_cover ? ` · ${t("admin.books.coverYes")}` : ""}
-        </span>
-      ),
-    },
+    { key: "price", header: t("admin.books.price"), render: (b) => <Price value={b.price} /> },
+    { key: "cover", header: t("admin.books.cover"), render: (b) => <span className="text-xs text-muted">{b.has_cover ? "✓" : t("common.none")}</span> },
     { key: "created", header: t("common.created"), render: (b) => <span className="text-muted">{formatDate(b.created_at)}</span> },
   ];
 
@@ -65,13 +61,10 @@ export default function AdminBooksPage() {
         }}
       >
         <Input placeholder={t("admin.books.searchPlaceholder")} value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-xs" />
-        <Select value={status} onChange={(e) => setStatus(e.target.value)} className="w-44">
+        <Select value={status} onChange={(e) => setStatus(e.target.value as BookStatus | "")} className="w-44">
           <option value="">{t("admin.allStatuses")}</option>
-          {["DRAFT", "UPLOADING", "PROCESSING", "READY", "ACTIVE", "INACTIVE", "FAILED"].map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
+          <option value="ACTIVE">ACTIVE</option>
+          <option value="INACTIVE">INACTIVE</option>
         </Select>
         <Button type="submit" variant="secondary">
           {t("common.search")}
@@ -90,6 +83,7 @@ function CreateBookModal({ open, onClose, categories, onCreated }: { open: boole
   const [author, setAuthor] = useState("");
   const [description, setDescription] = useState("");
   const [categoryId, setCategoryId] = useState("");
+  const [price, setPrice] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -103,6 +97,7 @@ function CreateBookModal({ open, onClose, categories, onCreated }: { open: boole
         author: author.trim() || null,
         description: description.trim() || null,
         category_id: categoryId || null,
+        price: price.trim() || 0,
       });
       onCreated(b);
     } catch (err) {
@@ -131,6 +126,9 @@ function CreateBookModal({ open, onClose, categories, onCreated }: { open: boole
               </option>
             ))}
           </Select>
+        </Field>
+        <Field label={t("admin.books.price")}>
+          <Input type="number" min={0} step="1000" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="0" />
         </Field>
         <Field label={t("admin.books.summary")}>
           <Textarea rows={3} value={description} onChange={(e) => setDescription(e.target.value)} />

@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { BookCover } from "@/components/book-cover";
 import { Alert, Button, EmptyState, Input, PageHeader, Pagination, Select, Spinner } from "@/components/ui";
-import { libraryApi, progressPercent } from "@/lib/api";
+import { clampPercent, libraryApi, libraryCache } from "@/lib/api";
 import type { LibrarySort } from "@/lib/api/library";
 import { useAsync } from "@/lib/use-async";
 import { useT } from "@/i18n";
@@ -67,19 +67,19 @@ export default function LibraryPage() {
         <div className={loading ? "opacity-60 transition-opacity" : ""}>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
             {data.items.map((item) => {
-              const pct = progressPercent(item.progress, item.book.page_count);
+              const pct = clampPercent(item.overall_percentage);
               return (
-                <Link key={item.id} href={`/reader/${item.book.id}`} className="group block">
-                  <BookCover bookId={item.book.id} title={item.book.title} hasCover={item.book.has_cover !== false} />
+                <Link key={item.book_id} href={`/books/${item.book_id}`} onClick={() => libraryCache.put(item)} className="group block">
+                  <BookCover bookId={item.book_id} title={item.title} hasCover={item.has_cover} />
                   <div className="mt-2">
-                    <p className="line-clamp-2 text-sm font-medium text-text group-hover:text-accent">{item.book.title}</p>
-                    {item.book.author && <p className="truncate text-xs text-muted">{item.book.author}</p>}
+                    <p className="line-clamp-2 text-sm font-medium text-text group-hover:text-accent">{item.title}</p>
+                    {item.author && <p className="truncate text-xs text-muted">{item.author}</p>}
                     <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-bg">
                       <div className="h-full rounded-full bg-accent" style={{ width: `${pct}%` }} />
                     </div>
                     <p className="mt-1 text-[11px] text-muted">
                       {pct > 0 ? t("library.readPercent", { n: pct }) : t("library.notStarted")}
-                      {item.book.page_count ? ` · ${t("common.pagesN", { n: item.book.page_count })}` : ""}
+                      {item.article_count ? ` · ${t("library.articlesRead", { read: item.read_count, total: item.article_count })}` : ""}
                     </p>
                   </div>
                 </Link>

@@ -13,6 +13,7 @@ import { buttonClass, cn } from "@/components/ui";
 import { env } from "@/lib/env";
 import { useT } from "@/i18n";
 import { LocaleSwitcher } from "@/i18n/locale-switcher";
+import { NotificationBell } from "@/components/notifications/bell";
 
 export function PublicShell({ children }: { children: ReactNode }) {
   const { user, loading, isAdmin } = useAuth();
@@ -49,6 +50,7 @@ export function PublicShell({ children }: { children: ReactNode }) {
           </nav>
           <div className="ml-auto flex items-center gap-2">
             <LocaleSwitcher className="hidden sm:inline-flex" />
+            <NotificationBell />
             <button
               onClick={toggle}
               className="rounded-md px-2 py-1 text-sm text-muted hover:text-text"

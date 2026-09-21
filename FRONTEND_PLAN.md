@@ -106,6 +106,131 @@ uchun "45,000", Node "45 000" berardi. Public kategoriya filtri — public `/cat
 
 ---
 
+## 7. Jonli API auditi (2026-09-21, `https://articles.api.cognilabs.org/openapi.json`, 61 endpoint)
+
+**Xulosa:** `API.md` eskirgan. Backend'da **Article ierarxiyasi** joriy: kitob = maqolalar (PDF) to'plami; reader,
+progress, annotatsiya, qidiruv, TOC — **maqola bo'yicha** (`/reader/articles/{id}`, `/articles/{id}/...`). Bundan tashqari
+buyurtmalar (orders), bildirishnomalar, 2FA, parol o'zgartirish, admin foydalanuvchi yaratish/parol tiklash, eksport
+(XLSX), qo'lda TOC, mark-read, reading-heartbeat bor. Eski `/reader/{book_id}`, `/books/{id}/progress` → **404**.
+Jonli tekshiruv (faqat o'qish + admin'ga bitta kitobga vaqtinchalik ruxsat berib, keyin bekor qilindi): xato konverti
+✅, refresh rotatsiya ✅ (eski token → `INVALID_TOKEN`), logout → `SESSION_REVOKED` ✅, CORS `localhost:3000` ✅
+(`authorization, x-device-id, ngrok-skip-browser-warning, range` ruxsat), stats ✅, katalog ✅, annotatsiya CRUD
+(`location_data` saqlanadi) ✅, progress/heartbeat/mark-read ✅, search/toc ✅, **`/content` 206 lekin `Content-Range`
+yo'q** ❗ (416 javobida `details.size` bor).
+
+### Frontend tasklari (tartib bilan)
+
+- [x] 7.1 **API qatlami** OpenAPI'ga moslash: login `{identifier, password, device_name, totp_code?}`; register → `UserResponse`
+      (token yo'q → login); logout `{refresh_token}`; sessiya `last_active_at`/`revoked_at`; `LibraryItem` (tekis:
+      `book_id, overall_percentage, read_count, article_count, last_read_at`); `Annotation` (`article_id, selected_text,
+      note_text, label, location_data`); `ProgressResponse` (`percentage, is_read, reading_seconds`); `SearchResponse.matches`;
+      `TocResponse.entries` (`level`); `Watermark.watermark_text`; `ReaderMetadata` (`processing_status, features.can_*`);
+      `BookAdmin` (`price` string, status ACTIVE|INACTIVE, `category` nested); `Category.status`; audit `meta`/`action` enum;
+      yangi modullar: articles, orders, notifications, me (password, 2fa), admin articles/orders/users/export.
+      Xato kodlari: `INVALID_TOKEN`, `RANGE_NOT_SATISFIABLE.details.size`.
+  **Tekshiruv (7.1):** typecheck/lint/build ✅; **prod smoke** (dev server → `articles.api.cognilabs.org`, faqat o'qish)
+  20/20 ✅: katalog (decimal narx), login/INVALID_CREDENTIALS, profil sessiyalari (`last_active_at`, bekor qilinganlar
+  yashirin), `/admin/stats`, kitoblar (narx/ACTIVE), kitob sahifasi (maqolalar READY/2 sahifa), kategoriyalar (`status`),
+  audit (enum filtr, `meta`), foydalanuvchilar, logout. Topildi va tuzatildi: `/library?sort=recent` → 422 (faqat
+  `granted|title`, B11); Chrome ICU `uz` oy nomlari yo'q → `formatDateTime`.
+- [x] 7.2 **Kutubxona → kitob sahifasi**: `/library` kartalari kitob darajasida (`overall_percentage`, `read_count/article_count`,
+      muqova `?size=thumb`); `/books/[bookId]` — maqolalar ro'yxati (`/reader/books/{id}/articles`: holat, %, o'qilgan),
+      "davom ettirish".
+  **Tekshiruv (7.2):** typecheck/lint/build ✅; e2e (OpenAPI-shakldagi yangi mock) 12/12 ✅: kutubxona kartasi
+  (`read_count/article_count`, `overall_percentage`), kitob sahifasi (holatlar, %, "Davom ettirish" → yarim o'qilgan
+  maqola, PROCESSING havolasiz), keshsiz ochilganda katalogdan ma'lumot, 403 ekrani, reader maqola id bilan
+  (Content-Range'siz 206 → 416 `details.size` workaround ishladi). Backend eslatma B12: `GET /library/{book_id}` yo'q.
+- [x] 7.3 **Reader maqola bo'yicha** `/reader/[articleId]`: metadata/content/watermark `/reader/articles/{id}`;
+      `Content-Range` yo'qligi uchun hajm 416 `details.size` orqali (workaround); `features.can_search/has_toc/watermark`;
+      `processing_status != READY` ekrani; progress `PUT {current_page, current_location, percentage}`;
+      `reading-heartbeat` (30 s, faqat ko'rinayotganda); "O'qib bo'lindi" (`mark-read`, FE-5.8); annotatsiya maydonlari;
+      TOC `entries`; qidiruv `matches`; maqolalar orasida oldingi/keyingi.
+  **Tekshiruv (7.3):** typecheck/lint/build ✅; e2e 19/19 ✅: `/reader/[articleId]`, qo'shni maqolalar (faqat READY),
+  `watermark_text`, TOC `entries`/`level`, qidiruv `matches`, mark-read qo'lda + avtomatik (oxirgi sahifa), progress
+  `current_page/percentage/current_location`, heartbeat (30 s + yashirilganda/yopilganda qoldiq, `keepalive`),
+  PROCESSING holat ekrani (content so'ralmaydi), 403, highlight `selected_text`/`location_data`/`article_id`, `note_text`,
+  Ctrl+P, varaqlash. `features.watermark=false` bo'lsa overlay yashirinadi; `can_read=false` → holat ekrani.
+- [x] 7.4 **Profil**: parol o'zgartirish (FE-1.9, `/me/password`); 2FA sozlash (QR `provisioning_uri`, enable/disable);
+      sessiyalar (`last_active_at`, bekor qilinganlar ajratiladi); buyurtmalarim (`/orders`).
+  **Tekshiruv (7.4):** typecheck/lint/build ✅; e2e 12/12 ✅: parol (mos kelmaslik, noto'g'ri joriy parol, muvaffaqiyat),
+  2FA (QR `qrcode` bilan lokal chiziladi, secret, noto'g'ri/to'g'ri kod, enable/disable), buyurtmalarim (kitob nomi
+  katalogdan, PENDING → chek → AWAITING_REVIEW → admin approve → APPROVED + kitob havolasi). Backend eslatma B13:
+  `UserResponse` da 2FA holati (`two_factor_enabled`) yo'q — ikkala tugma ham ko'rsatiladi.
+- [x] 7.5 **Buyurtma oqimi** (FE-2.3, PM S-16): katalog → "Sotib olish" → `POST /orders {book_id}` (PENDING) → to'lov
+      ko'rsatmasi (`NEXT_PUBLIC_PAYMENT_INSTRUCTIONS`/Telegram) → "To'ladim" `POST /orders/{id}/receipt` (AWAITING_REVIEW)
+      → holat kuzatuvi; login'da `totp_code` maydoni (2FA talab qilinsa).
+  **Tekshiruv (7.5):** typecheck/lint/build ✅; e2e 12/12 ✅: mehmon → `login?next=`, `POST /orders` (summa kitob
+  narxidan), PENDING → chek → AWAITING_REVIEW, reload'da holat, REJECTED sabab + qayta buyurtma, APPROVED → ruxsat →
+  "O'qish", 2FA login (`TWO_FACTOR_REQUIRED` → kod maydoni, `INVALID_TOTP`, muvaffaqiyat). `NEXT_PUBLIC_PAYMENT_INSTRUCTIONS`
+  env — to'lov ko'rsatmasi; `NEXT_PUBLIC_PURCHASE_URL` ixtiyoriy Telegram havolasi.
+- [x] 7.6 **Bildirishnomalar** (FE-7.3): header'da qo'ng'iroq + `unread-count`, ro'yxat, o'qildi / barchasini o'qildi.
+  **Tekshiruv (7.6):** typecheck/lint/build ✅; e2e 7/7 ✅: qo'ng'iroq badge (`unread-count`, 60 s + fokus), `/notifications`
+  ro'yxati (o'qilmagan ajratilgan, tur yorlig'i, `meta.book_id` → kitob havolasi), ochish → o'qildi, `unread_only` filtri,
+  barchasini o'qildi → badge yo'qoladi.
+- [x] 7.7 **Admin**: kitob (`price`, ACTIVE/INACTIVE, `book_metadata`); **maqolalar** (yaratish/tahrirlash/o'chirish/tartib,
+      fayl yuklash `.../articles/{id}/file`, qo'lda TOC muharriri `PUT .../toc` — FE-6.10); kategoriyalar (`status`, qidiruv,
+      pagination); foydalanuvchilar (yaratish FE-6.11, parol tiklash FE-1.8, barcha sessiyalarni bekor qilish);
+      **buyurtmalar** (ro'yxat, approve/reject); eksport XLSX (FE-6.14); audit (`meta`, `action` enum filtr);
+      ruxsatlar ro'yxatida user/book nomlarini resolve qilish (kesh bilan).
+  **Tekshiruv (7.7):** typecheck/lint/build ✅; e2e 19/19 ✅: dashboard "tekshiruvdagi buyurtmalar", `/admin/orders`
+  (nomlar resolve, approve → ruxsat, reject + sabab), maqolalar (yaratish, PDF yuklash progress → PROCESSING → READY
+  polling, qo'lda TOC `PUT .../toc`, rename, tartib ↑↓, o'chirish), foydalanuvchi yaratish → parol tiklash → barcha
+  sessiyalar bekor, XLSX eksport (fayl nomi FE'da), ruxsatlar ro'yxatida user/kitob nomlari (N+1 kesh, B5).
+- [x] 7.8 **Mock backend'ni OpenAPI'ga moslash**, barcha e2e to'plamlarni yangilash, **prod smoke test** (login, katalog,
+      kutubxona, reader Range, annotatsiya, progress — admin akkaunt bilan, keyin tozalash).
+
+  **Tekshiruv (7.8):** mock to'liq OpenAPI shaklida (kitob→maqolalar, orders, notifications, 2FA, Content-Range'siz 206);
+  barcha 11 e2e to'plam ✅ (reader 32, xato/UX 16, i18n 21, katalog 26, kitob 12, reader-maqola 19, profil 12,
+  buyurtma 12, bildirishnoma 7, admin 19, mobil 3 — jami **179**); **prod smoke** (admin akkaunt, vaqtinchalik ruxsat →
+  o'qish → tozalash) 16/16 funksional ✅: kutubxona, kitob sahifasi, reader haqiqiy PDF (Range 416-workaround),
+  prod watermark, highlight saqlash/tiklash, qidiruv, mark-read, progress, katalog buyurtma tugmasi, admin sahifalar.
+  Prod'da qoldirilgan iz: audit logda BOOK_ACCESS_GRANTED/REVOKED yozuvlari (annotatsiya o'chirildi, ruxsat bekor).
+
+## 8. Backend B-javoblari bo'yicha moslashtirish (2026-09-21, ikkinchi deploy — 65 endpoint)
+
+- [x] 8.1 `GET /catalog/{id}` → batafsil sahifa to'g'ridan-to'g'ri; `GET /categories` → katalogda kategoriya filtri
+      (`?category=`); `GET /catalog/{id}/cover` → mehmonlar uchun ham public muqova (`BookCover source="catalog"`)
+- [x] 8.2 `GET /library/{id}` → kitob sahifasi ma'lumoti (kesh/katalog o'rniga); `sort=recent` qaytarildi (default)
+- [x] 8.3 `two_factor_enabled` → profilda 2FA holati (badge) va faqat tegishli amal; yoqish/o'chirishdan keyin `/auth/me`
+- [x] 8.4 `user_email/user_full_name/book_title` → admin ruxsatlar, buyurtmalar, kitob/foydalanuvchi sahifalari,
+      buyurtmalarim — N+1 resolver faqat maydon bo'lmaganda (eski backend) ishlaydi
+- [x] 8.5 `DEVICE_LIMIT_REACHED.details.active_devices` ko'rsatiladi; `TOTP_REQUIRED`/`INVALID_TOTP` matnlari;
+      eksport fayl nomi `Content-Disposition`dan; heartbeat 30 s (≤ 120 s cheklovi ichida)
+
+**Tekshiruv (8):** typecheck/lint/build ✅; mock yangilandi (Content-Range prod kabi bor, `__setnocr` bilan B1-workaround
+ham sinaladi); barcha 11 e2e to'plam ✅; **prod smoke (faqat o'qish) 8/8 ✅**: kategoriya filtri, `/catalog/{id}`,
+mehmon holati, `sort=recent`, 2FA badge, admin ruxsatlarda N+1 yo'q.
+
+**Tuzatish (mening xatom):** B1 va B6 backend'da avvaldan to'g'ri edi — audit skriptim javob header'larini
+katta-kichik harfga sezgir qidirgan (`Content-Range` vs nginx'dan kelgan `content-range`). curl bilan tasdiqlandi:
+206 da `content-range`, `accept-ranges`, `cache-control: private, no-store`, `x-content-type-options: nosniff`,
+`content-disposition: inline`, `access-control-expose-headers: Content-Range, Accept-Ranges`; eksportda
+`content-disposition: attachment; filename="users.xlsx"`. FE 416-workaround zararsiz zaxira sifatida qoldi.
+
+### Backend uchun eslatmalar (jonli auditdan) — holat: B1 ✅(avvaldan) · B2 ✅ · B3 ✅ · B4 ✅ · B5 ✅ · B6 ✅(avvaldan) ·
+B7 ✅ · B8 ✅ (OpenAPI manba) · B9 ✅ · B10 ✅ · B11 ✅ · B12 ✅ · B13 ✅ — **ochiq savol yo'q**
+
+- B1 ❗ `GET /reader/articles/{id}/content`: 206 javobda `Content-Range`, `Accept-Ranges: bytes` yo'q; `Cache-Control:
+  private, no-store`, `X-Content-Type-Options: nosniff`, `Content-Disposition: inline` ham yo'q (STORAGE.md/SECURITY.md
+  va'da qilgan). To'g'ridan-to'g'ri (CORS) rejim uchun `Access-Control-Expose-Headers: Content-Range, Accept-Ranges` kerak.
+- B2 2FA yoqilgan foydalanuvchi login'ida qaytadigan xato kodi hujjatlanmagan (`TWO_FACTOR_REQUIRED`?). FE `totp_code`
+  maydonini shu kod bo'yicha ko'rsatadi — kodni ayting.
+- B3 `DEVICE_LIMIT_REACHED.details = {limit, active_devices[]}` — kutilmoqda. `X-Device-Id` header ishlatiladimi?
+- B4 Public: `GET /catalog/{book_id}`, public muqova (`/catalog/{id}/cover`), public `GET /categories` — katalog uchun.
+- B5 `BookAccessResponse` da user/book qisqacha ma'lumoti (ism, email, kitob nomi) yo'q → admin ro'yxatida N+1 so'rov.
+  `OrderResponse` da ham user/book nomi yo'q.
+- B6 Eksport (`/admin/export/*`) XLSX qaytaradi, lekin `Content-Disposition` (fayl nomi) yo'q.
+- B7 CORS allowlist'ga prod frontend origin'ini qo'shish kerak (hozir `localhost:3000`; boshqa origin → 400).
+- B8 `API.md` ni OpenAPI'ga moslab yangilash (reader/annotations/progress endpointlari, orders, notifications, 2FA).
+- B9 Progress: `current_page` 0 = boshlanmagan, 1-based; `percentage` ni FE hisoblab yuboradi — backend `page_count` dan
+  o'zi hisoblasa ishonchliroq.
+- B10 `reading-heartbeat` chastotasi/limiti (rate-limit) — tavsiya etilgan interval?
+- B13 `UserResponse` da `two_factor_enabled` yo'q — profil 2FA holatini ko'rsata olmaydi.
+- B12 `GET /library/{book_id}` (bitta kitob: sarlavha, muallif, tavsif, muqova, ruxsat) yo'q — kitob sahifasi kutubxona
+  keshi yoki public katalogdan oladi (INACTIVE kitob katalogda ko'rinmaydi → ma'lumot topilmasligi mumkin).
+- B11 `GET /library?sort=` faqat `granted|title`; registrdagi "So'nggi o'qilgan" (`recent`, `last_read_at` bo'yicha)
+  tartibi yo'q — qo'shilsa FE'da tayyor.
+
 ## Backend bilan muloqot
 
 **Javob olindi (2026-09-21):** `/catalog` va `/admin/stats` bor (API.md eskirgan, OpenAPI — manba haqiqati);

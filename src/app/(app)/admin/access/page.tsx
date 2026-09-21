@@ -6,6 +6,7 @@ import { DataTable, usePaged, type Column } from "@/components/admin/data-table"
 import { GrantModal } from "@/components/admin/user-detail";
 import { Badge, Button, PageHeader, Select, formatDate, statusTone } from "@/components/ui";
 import { adminApi, errorMessage, type BookAccess } from "@/lib/api";
+import { useEntityNames } from "@/lib/admin-names";
 import { useT } from "@/i18n";
 
 export default function AdminAccessPage() {
@@ -15,6 +16,10 @@ export default function AdminAccessPage() {
   const [actionErr, setActionErr] = useState<string | null>(null);
 
   const { data, loading, error, setPage, reload } = usePaged<BookAccess>((page) => adminApi.access({ page, status: status || undefined }), [status]);
+  const names = useEntityNames(
+    data?.items.filter((a) => !a.user_full_name && !a.user_email).map((a) => a.user_id) ?? [],
+    data?.items.filter((a) => !a.book_title).map((a) => a.book_id) ?? [],
+  );
 
   async function revoke(a: BookAccess) {
     if (!confirm(t("admin.access.revokeConfirm"))) return;
@@ -33,7 +38,7 @@ export default function AdminAccessPage() {
       header: t("common.user"),
       render: (a) => (
         <Link href={`/admin/users/${a.user_id}`} className="text-accent hover:underline">
-          {a.user?.full_name || a.user?.email || a.user?.phone || a.user_id.slice(0, 8)}
+          {a.user_full_name || a.user_email || names.users[a.user_id] || a.user_id.slice(0, 8)}
         </Link>
       ),
     },
@@ -42,7 +47,7 @@ export default function AdminAccessPage() {
       header: t("admin.book"),
       render: (a) => (
         <Link href={`/admin/books/${a.book_id}`} className="text-accent hover:underline">
-          {a.book?.title ?? a.book_id.slice(0, 8)}
+          {a.book_title || names.books[a.book_id] || a.book_id.slice(0, 8)}
         </Link>
       ),
     },

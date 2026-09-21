@@ -10,8 +10,8 @@ import { useAuth } from "@/providers/auth-provider";
 import { BookCover } from "@/components/book-cover";
 import { Price } from "@/components/catalog/price";
 import { Alert, Badge, Card, Spinner, buttonClass } from "@/components/ui";
+import { OrderPanel } from "@/components/orders/order-panel";
 import { catalogApi, readerApi, type CatalogItem } from "@/lib/api";
-import { purchaseLink } from "@/lib/env";
 import { useT } from "@/i18n";
 
 export function CatalogBookDetail({ bookId }: { bookId: string }) {
@@ -34,7 +34,7 @@ export function CatalogBookDetail({ bookId }: { bookId: string }) {
     if (authLoading || !user) return;
     let alive = true;
     readerApi
-      .meta(bookId)
+      .articles(bookId)
       .then(() => alive && setHasAccess(true))
       .catch(() => alive && setHasAccess(false));
     return () => {
@@ -60,15 +60,13 @@ export function CatalogBookDetail({ bookId }: { bookId: string }) {
     );
   }
 
-  const buy = purchaseLink(item.book_id);
-
   return (
     <div className="space-y-4">
       <Link href="/catalog" className="text-sm text-accent hover:underline">
         {t("catalog.back")}
       </Link>
       <div className="grid gap-6 md:grid-cols-[220px_1fr]">
-        <BookCover bookId={item.book_id} title={item.title} hasCover={!!user && item.has_cover !== false} className="max-w-[220px]" />
+        <BookCover bookId={item.book_id} title={item.title} hasCover={item.has_cover} size="medium" source="catalog" className="max-w-[220px]" />
         <div className="space-y-4">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight text-text">{item.title}</h1>
@@ -87,19 +85,12 @@ export function CatalogBookDetail({ bookId }: { bookId: string }) {
             {hasAccess ? (
               <div className="flex flex-wrap items-center gap-3">
                 <span className="text-sm text-muted">{t("catalog.inLibrary")}</span>
-                <Link href={`/reader/${item.book_id}`} className={buttonClass()}>
+                <Link href={`/books/${item.book_id}`} className={buttonClass()}>
                   {t("catalog.read")}
                 </Link>
               </div>
-            ) : buy ? (
-              <div className="space-y-2">
-                <a href={buy} target="_blank" rel="noopener noreferrer" className={buttonClass()}>
-                  {t("catalog.buy")}
-                </a>
-                <p className="text-xs text-muted">{t("catalog.buyHint")}</p>
-              </div>
             ) : (
-              <Alert tone="info">{t("catalog.contactAdmin")}</Alert>
+              <OrderPanel bookId={item.book_id} />
             )}
           </Card>
         </div>

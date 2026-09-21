@@ -1,31 +1,32 @@
 "use client";
 
-/** Public katalog (FE-2.1): GET /catalog — qidiruv, pagination. Kategoriya filtri — public kategoriyalar endpointi so'ralgan. */
+/** Public katalog (FE-2.1): GET /catalog — qidiruv, kategoriya filtri (`GET /categories`), pagination, public muqova. */
 import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useAuth } from "@/providers/auth-provider";
 import { BookCover } from "@/components/book-cover";
 import { Price } from "@/components/catalog/price";
-import { Alert, Badge, Button, EmptyState, Input, PageHeader, Pagination, Spinner } from "@/components/ui";
-import { catalogApi, catalogCache } from "@/lib/api";
+import { Alert, Badge, Button, EmptyState, Input, PageHeader, Pagination, Select, Spinner } from "@/components/ui";
+import { catalogApi } from "@/lib/api";
 import { useAsync } from "@/lib/use-async";
 import { useT } from "@/i18n";
 
 function CatalogList() {
   const { t } = useT();
-  const { user } = useAuth();
   const router = useRouter();
   const params = useSearchParams();
   const query = params.get("q") ?? "";
+  const category = params.get("category") ?? "";
   const page = Math.max(1, Number(params.get("page")) || 1);
   const [search, setSearch] = useState(query);
 
-  const { data, loading, error } = useAsync(() => catalogApi.list({ search: query || undefined, page, page_size: 24 }), [query, page]);
+  const { data, loading, error } = useAsync(() => catalogApi.list({ search: query || undefined, category_id: category || undefined, page, page_size: 24 }), [query, category, page]);
+  const { data: categories } = useAsync(() => catalogApi.categories().catch(() => []), []);
 
-  const navigate = (q: string, p: number) => {
+  const navigate = (q: string, cat: string, p: number) => {
     const sp = new URLSearchParams();
     if (q) sp.set("q", q);
+    if (cat) sp.set("category", cat);
     if (p > 1) sp.set("page", String(p));
     router.push(`/catalog${sp.size ? `?${sp}` : ""}`);
   };
@@ -37,10 +38,20 @@ function CatalogList() {
         className="mb-6 flex flex-wrap gap-2"
         onSubmit={(e) => {
           e.preventDefault();
-          navigate(search.trim(), 1);
+          navigate(search.trim(), category, 1);
         }}
       >
         <Input placeholder={t("catalog.searchPlaceholder")} value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-sm" />
+        {categories && categories.length > 0 && (
+          <Select value={category} onChange={(e) => navigate(search.trim(), e.target.value, 1)} className="w-52" aria-label={t("admin.books.category")}>
+            <option value="">{t("catalog.allCategories")}</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </Select>
+        )}
         <Button type="submit" variant="secondary">
           {t("common.search")}
         </Button>
@@ -62,9 +73,8 @@ function CatalogList() {
         <div className={loading ? "opacity-60 transition-opacity" : ""}>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
             {data.items.map((item) => (
-              <Link key={item.book_id} href={`/catalog/${item.book_id}`} onClick={() => catalogCache.put(item)} className="group block">
-                {/* Muqova: public endpoint yo'q — faqat kirgan foydalanuvchi uchun urinib ko'riladi (ruxsat bo'lsa ko'rinadi) */}
-                <BookCover bookId={item.book_id} title={item.title} hasCover={!!user && item.has_cover !== false} />
+              <Link key={item.book_id} href={`/catalog/${item.book_id}`} className="group block">
+                <BookCover bookId={item.book_id} title={item.title} hasCover={item.has_cover} source="catalog" />
                 <div className="mt-2">
                   <p className="line-clamp-2 text-sm font-medium text-text group-hover:text-accent">{item.title}</p>
                   {item.author && <p className="truncate text-xs text-muted">{item.author}</p>}
@@ -80,7 +90,7 @@ function CatalogList() {
             ))}
           </div>
           <div className="mt-6">
-            <Pagination page={data.page} pages={data.pages} onChange={(p) => navigate(query, p)} />
+            <Pagination page={data.page} pages={data.pages} onChange={(p) => navigate(query, category, p)} />
           </div>
         </div>
       )}

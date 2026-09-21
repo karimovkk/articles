@@ -1,70 +1,75 @@
-/** O'qish ma'lumotlari: progress, annotatsiyalar, kitob ichida qidiruv, mundarija. */
+/**
+ * O'qish ma'lumotlari — maqola bo'yicha (OpenAPI `/articles/{article_id}/...`):
+ * progress (PUT + heartbeat + mark-read), annotatsiyalar, qidiruv, mundarija.
+ */
 import { api } from "./client";
-import type { Annotation, AnnotationType, Paginated, ReadingProgress, SearchHit, SearchResponse, TocEntry } from "./types";
+import type { Annotation, AnnotationType, MessageResponse, ReadingProgress, SearchMatch, SearchResponse, TocEntry, TocResponse } from "./types";
 
 export interface AnnotationInput {
   type: AnnotationType;
-  page: number;
-  text?: string | null;
-  note?: string | null;
-  color?: string | null;
-  /** Backend maydoni `location_data` (opaque JSON, ≤ 32 KB) */
+  page?: number | null;
+  /** Belgi joyi (opaque JSON, ≤ 32 KB) — highlight: `{ page, rects }` */
   location_data?: Record<string, unknown> | null;
-}
-
-function asList<T>(raw: unknown): T[] {
-  if (Array.isArray(raw)) return raw as T[];
-  const r = raw as { items?: T[]; results?: T[] } | null;
-  return r?.items ?? r?.results ?? [];
-}
-
-/** Eski yozuvlar `location` bilan kelishi mumkin — `location_data` ga birlashtiriladi. */
-export function normalizeAnnotation(a: Annotation): Annotation {
-  if (a.location_data || !a.location) return a;
-  return { ...a, location_data: a.location };
+  selected_text?: string | null;
+  note_text?: string | null;
+  color?: string | null;
+  label?: string | null;
 }
 
 export const readingApi = {
-  getProgress(bookId: string): Promise<ReadingProgress | null> {
-    return api<ReadingProgress | null>(`/books/${bookId}/progress`);
+  getProgress(articleId: string): Promise<ReadingProgress> {
+    return api<ReadingProgress>(`/articles/${articleId}/progress`);
   },
 
-  /** `keepalive` — reader yopilganda (pagehide) yuborilgan so'rov ham serverga yetib boradi. */
-  saveProgress(bookId: string, p: { current_page: number; total_pages: number; location?: Record<string, unknown> }): Promise<ReadingProgress> {
-    const percent = p.total_pages ? Math.round((p.current_page / p.total_pages) * 10000) / 100 : 0;
-    return api<ReadingProgress>(`/books/${bookId}/progress`, {
+  /**
+   * `keepalive` — reader yopilganda (pagehide) yuborilgan so'rov ham serverga yetib boradi.
+   * `current_page` 1-based; `percentage` sahifa/jami dan hisoblanadi (B9).
+   */
+  saveProgress(articleId: string, p: { current_page: number; total_pages: number; location?: Record<string, unknown> }): Promise<ReadingProgress> {
+    const percentage = p.total_pages ? Math.round((p.current_page / p.total_pages) * 10000) / 100 : 0;
+    return api<ReadingProgress>(`/articles/${articleId}/progress`, {
       method: "PUT",
       keepalive: true,
-      body: { current_page: p.current_page, total_pages: p.total_pages, percent, location: p.location ?? { page: p.current_page } },
+      body: { current_page: p.current_page, current_location: p.location ?? { page: p.current_page }, percentage },
     });
   },
 
-  async listAnnotations(bookId: string, type?: AnnotationType): Promise<Annotation[]> {
-    const raw = await api<Paginated<Annotation> | Annotation[]>(`/books/${bookId}/annotations`, { query: { type, page_size: 100 } });
-    return asList<Annotation>(raw).map(normalizeAnnotation);
+  /** Faol o'qish vaqti (T1-21): har N soniyada, faqat sahifa ko'rinayotganda. */
+  heartbeat(articleId: string, seconds: number, currentPage?: number): Promise<ReadingProgress> {
+    return api<ReadingProgress>(`/articles/${articleId}/reading-heartbeat`, {
+      method: "POST",
+      keepalive: true,
+      body: { seconds, current_page: currentPage ?? null },
+    });
   },
 
-  async createAnnotation(bookId: string, input: AnnotationInput): Promise<Annotation> {
-    return normalizeAnnotation(await api<Annotation>(`/books/${bookId}/annotations`, { method: "POST", body: input }));
+  markRead(articleId: string, isRead: boolean): Promise<ReadingProgress> {
+    return api<ReadingProgress>(`/articles/${articleId}/mark-read`, { method: "POST", query: { is_read: isRead } });
   },
 
-  async updateAnnotation(bookId: string, id: string, patch: Partial<AnnotationInput>): Promise<Annotation> {
-    return normalizeAnnotation(await api<Annotation>(`/books/${bookId}/annotations/${id}`, { method: "PATCH", body: patch }));
+  listAnnotations(articleId: string, type?: AnnotationType): Promise<Annotation[]> {
+    return api<Annotation[]>(`/articles/${articleId}/annotations`, { query: { type } });
   },
 
-  deleteAnnotation(bookId: string, id: string): Promise<void> {
-    return api<void>(`/books/${bookId}/annotations/${id}`, { method: "DELETE" });
+  createAnnotation(articleId: string, input: AnnotationInput): Promise<Annotation> {
+    return api<Annotation>(`/articles/${articleId}/annotations`, { method: "POST", body: input });
   },
 
-  async search(bookId: string, q: string): Promise<{ textAvailable: boolean; hits: SearchHit[] }> {
-    const raw = await api<SearchResponse | SearchHit[]>(`/books/${bookId}/search`, { query: { q } });
-    if (Array.isArray(raw)) return { textAvailable: true, hits: raw };
-    return { textAvailable: raw.text_available !== false, hits: asList<SearchHit>(raw) };
+  updateAnnotation(articleId: string, id: string, patch: Partial<Omit<AnnotationInput, "type">>): Promise<Annotation> {
+    return api<Annotation>(`/articles/${articleId}/annotations/${id}`, { method: "PATCH", body: patch });
   },
 
-  async toc(bookId: string): Promise<TocEntry[]> {
-    const raw = await api<TocEntry[] | { items?: TocEntry[]; toc?: TocEntry[] }>(`/books/${bookId}/toc`);
-    if (Array.isArray(raw)) return raw;
-    return raw?.items ?? raw?.toc ?? [];
+  deleteAnnotation(articleId: string, id: string): Promise<MessageResponse> {
+    return api<MessageResponse>(`/articles/${articleId}/annotations/${id}`, { method: "DELETE" });
+  },
+
+  async search(articleId: string, q: string, limit = 50): Promise<{ textAvailable: boolean; total: number; hits: SearchMatch[] }> {
+    const r = await api<SearchResponse>(`/articles/${articleId}/search`, { query: { q, limit } });
+    return { textAvailable: r.text_available !== false, total: r.total_matches ?? r.matches?.length ?? 0, hits: r.matches ?? [] };
+  },
+
+  async toc(articleId: string): Promise<TocEntry[]> {
+    const r = await api<TocResponse>(`/articles/${articleId}/toc`);
+    return r.entries ?? [];
   },
 };

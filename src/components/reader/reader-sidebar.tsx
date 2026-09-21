@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { Button, Input, Textarea, cn, formatDate } from "@/components/ui";
-import type { Annotation, SearchHit, TocEntry } from "@/lib/api";
+import type { Annotation, SearchMatch, TocEntry } from "@/lib/api";
 import { HIGHLIGHT_COLORS, getHighlightRects, normalizeColor } from "@/lib/reader/highlights";
 import { useT, type DictKey } from "@/i18n";
 
@@ -19,7 +19,7 @@ interface Props {
   tocAvailable: boolean;
 
   searchAvailable: boolean;
-  searchHits: SearchHit[] | null;
+  searchHits: SearchMatch[] | null;
   searching: boolean;
   onSearch: (q: string) => void;
 
@@ -95,21 +95,23 @@ function TocPanel({ toc, available, goToPage }: { toc: TocEntry[] | null; availa
   if (!available) return <p className="text-muted">{t("reader.tocUnavailable")}</p>;
   if (!toc) return <p className="text-muted">{t("common.loading")}</p>;
   if (toc.length === 0) return <p className="text-muted">{t("reader.tocEmpty")}</p>;
-  const render = (items: TocEntry[], depth = 0) =>
-    items.map((e, i) => (
-      <div key={`${depth}-${i}`}>
+  // Tekis ro'yxat: `level` (1 = bo'lim, 2 = kichik bo'lim, …) chekinish bilan ko'rsatiladi
+  return (
+    <div className="space-y-0.5">
+      {toc.map((e, i) => (
         <button
-          onClick={() => goToPage(e.page)}
-          className="flex w-full items-start justify-between gap-2 rounded px-2 py-1 text-left hover:bg-bg"
-          style={{ paddingLeft: 8 + (e.level ?? depth) * 12 }}
+          key={i}
+          onClick={() => e.page !== null && goToPage(e.page)}
+          disabled={e.page === null}
+          className="flex w-full items-start justify-between gap-2 rounded px-2 py-1 text-left hover:bg-bg disabled:opacity-60"
+          style={{ paddingLeft: 8 + Math.max(0, (e.level ?? 1) - 1) * 12 }}
         >
           <span className="text-text">{e.title}</span>
-          <span className="shrink-0 text-xs text-muted">{e.page}</span>
+          {e.page !== null && <span className="shrink-0 text-xs text-muted">{e.page}</span>}
         </button>
-        {e.children?.length ? render(e.children, depth + 1) : null}
-      </div>
-    ));
-  return <div className="space-y-0.5">{render(toc)}</div>;
+      ))}
+    </div>
+  );
 }
 
 function SearchPanel({ searchAvailable, searchHits, searching, onSearch, goToPage }: Props) {
@@ -174,10 +176,11 @@ function AnnotationList({
         <ul className="space-y-2">
           {items
             .slice()
-            .sort((a, b) => a.page - b.page)
+            .sort((a, b) => (a.page ?? 0) - (b.page ?? 0))
             .map((a) => {
               const color = normalizeColor(a.color);
               const hasRects = getHighlightRects(a).length > 0;
+              const pageNo = a.page ?? 1;
               return (
                 <li key={a.id} className="rounded-lg border border-border p-2">
                   <div className="flex items-center justify-between gap-2">
@@ -192,8 +195,8 @@ function AnnotationList({
                           aria-label={t("reader.changeColor")}
                         />
                       )}
-                      <button onClick={() => goToPage(a.page)} className="text-xs font-medium text-accent hover:underline">
-                        {t("common.pageN", { n: a.page })}
+                      <button onClick={() => goToPage(pageNo)} className="text-xs font-medium text-accent hover:underline">
+                        {t("common.pageN", { n: pageNo })}
                       </button>
                       {onChangeColor && !hasRects && (
                         <span className="text-[10px] text-muted" title={t("reader.noPositionHint")}>
@@ -223,18 +226,18 @@ function AnnotationList({
                       ))}
                     </div>
                   )}
-                  {a.text && (
+                  {a.selected_text && (
                     <p className="mt-1 line-clamp-4 text-text">
                       {onChangeColor ? (
                         <mark className="rounded-sm px-0.5 text-inherit" style={{ background: `${color}80` }}>
-                          {a.text}
+                          {a.selected_text}
                         </mark>
                       ) : (
-                        <>“{a.text}”</>
+                        <>“{a.selected_text}”</>
                       )}
                     </p>
                   )}
-                  {a.note && <p className="mt-1 text-muted">{a.note}</p>}
+                  {a.note_text && <p className="mt-1 text-muted">{a.note_text}</p>}
                   <p className="mt-1 text-[11px] text-muted">{formatDate(a.created_at)}</p>
                 </li>
               );
@@ -251,7 +254,7 @@ function NotesPanel({ annotations, currentPage, goToPage, onAddNote, onUpdateNot
   const [busy, setBusy] = useState(false);
   const [editing, setEditing] = useState<Annotation | null>(null);
   const [editText, setEditText] = useState("");
-  const notes = annotations.filter((a) => a.type === "NOTE").sort((a, b) => a.page - b.page);
+  const notes = annotations.filter((a) => a.type === "NOTE").sort((a, b) => (a.page ?? 0) - (b.page ?? 0));
 
   return (
     <div className="space-y-3">
@@ -279,15 +282,15 @@ function NotesPanel({ annotations, currentPage, goToPage, onAddNote, onUpdateNot
         {notes.map((a) => (
           <li key={a.id} className="rounded-lg border border-border p-2">
             <div className="flex items-center justify-between">
-              <button onClick={() => goToPage(a.page)} className="text-xs font-medium text-accent hover:underline">
-                {t("common.pageN", { n: a.page })}
+              <button onClick={() => goToPage(a.page ?? 1)} className="text-xs font-medium text-accent hover:underline">
+                {t("common.pageN", { n: a.page ?? 1 })}
               </button>
               <div className="flex gap-2 text-xs">
                 <button
                   className="text-muted hover:text-text"
                   onClick={() => {
                     setEditing(a);
-                    setEditText(a.note ?? a.text ?? "");
+                    setEditText(a.note_text ?? a.selected_text ?? "");
                   }}
                 >
                   {t("common.edit")}
@@ -316,7 +319,7 @@ function NotesPanel({ annotations, currentPage, goToPage, onAddNote, onUpdateNot
                 </div>
               </div>
             ) : (
-              <p className="mt-1 whitespace-pre-wrap text-text">{a.note ?? a.text}</p>
+              <p className="mt-1 whitespace-pre-wrap text-text">{a.note_text ?? a.selected_text}</p>
             )}
           </li>
         ))}

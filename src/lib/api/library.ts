@@ -1,6 +1,7 @@
 import { api } from "./client";
-import type { Book, LibraryItem, Paginated, ReadingProgress } from "./types";
+import type { LibraryItem, Paginated } from "./types";
 
+/** `recent` — oxirgi o'qilgan bo'yicha (backend 2026-09-21, B11). */
 export type LibrarySort = "granted" | "title" | "recent";
 
 export interface LibraryQuery {
@@ -11,32 +12,19 @@ export interface LibraryQuery {
   page_size?: number;
 }
 
-/** Backend elementni `book` ichida yoki tekis qaytarishi mumkin — ikkalasini ham qo'llab-quvvatlaymiz. */
-export function normalizeLibraryItem(raw: unknown): LibraryItem {
-  const r = raw as Record<string, unknown>;
-  const book = (r.book as Book | undefined) ?? (r as unknown as Book);
-  const bookId = (r.book_id as string | undefined) ?? book.id;
-  return {
-    id: String(r.id ?? bookId),
-    book: { ...book, id: bookId },
-    progress: (r.progress as ReadingProgress | null | undefined) ?? null,
-    granted_at: (r.granted_at as string | null | undefined) ?? null,
-    access_status: r.access_status as string | undefined,
-  };
-}
-
+/** GET /library — ruxsat berilgan kitoblar (kitob darajasida; maqolalar alohida). */
 export const libraryApi = {
-  async list(q: LibraryQuery = {}): Promise<Paginated<LibraryItem>> {
-    const res = await api<Paginated<unknown>>("/library", { query: { page: 1, page_size: 24, ...q } });
-    return { ...res, items: (res.items ?? []).map(normalizeLibraryItem) };
+  list(q: LibraryQuery = {}): Promise<Paginated<LibraryItem>> {
+    return api<Paginated<LibraryItem>>("/library", { query: { page: 1, page_size: 24, ...q } });
+  },
+  /** Bitta kitob (ruxsat tekshiruvi bilan; ruxsatsiz → 403 BOOK_ACCESS_DENIED) — B12. */
+  get(bookId: string): Promise<LibraryItem> {
+    return api<LibraryItem>(`/library/${bookId}`);
   },
 };
 
-/** Foiz: backend bergan bo'lsa shu, aks holda sahifadan hisoblanadi. */
-export function progressPercent(p?: ReadingProgress | null, pageCount?: number | null): number {
-  if (!p) return 0;
-  if (typeof p.percent === "number") return Math.max(0, Math.min(100, Math.round(p.percent)));
-  const total = p.total_pages ?? pageCount ?? 0;
-  if (!total || !p.current_page) return 0;
-  return Math.max(0, Math.min(100, Math.round((p.current_page / total) * 100)));
+/** 0–100 oralig'ida butun foiz. */
+export function clampPercent(p?: number | null): number {
+  if (typeof p !== "number" || !Number.isFinite(p)) return 0;
+  return Math.max(0, Math.min(100, Math.round(p)));
 }

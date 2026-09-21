@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Alert, Badge, Button, Card, Field, Modal, PageHeader, Select, Spinner, formatDate, statusTone } from "@/components/ui";
+import { Alert, Badge, Button, Card, Field, Input, Modal, PageHeader, Select, Spinner, formatDate, statusTone } from "@/components/ui";
 import { adminApi, errorMessage, type Book, type User, type UserStatus } from "@/lib/api";
+import { shortAgent } from "@/lib/agent";
+import { useEntityNames } from "@/lib/admin-names";
 import { useAsync } from "@/lib/use-async";
 import { useT } from "@/i18n";
 
@@ -19,7 +21,11 @@ export function AdminUserDetail({ userId }: { userId: string }) {
   const [actionError, setActionError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [grantOpen, setGrantOpen] = useState(false);
+  const [resetOpen, setResetOpen] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [notice, setNotice] = useState<string | null>(null);
   const error = actionError ?? loadError;
+  const names = useEntityNames([], data?.access.filter((a) => !a.book_title).map((a) => a.book_id) ?? []);
 
   async function run(fn: () => Promise<unknown>) {
     setBusy(true);
@@ -53,6 +59,7 @@ export function AdminUserDetail({ userId }: { userId: string }) {
         }
       />
       {error && <Alert>{error}</Alert>}
+      {notice && <Alert tone="success">{notice}</Alert>}
 
       <div className="grid gap-6 md:grid-cols-2">
         <Card className="p-5">
@@ -85,21 +92,41 @@ export function AdminUserDetail({ userId }: { userId: string }) {
                   {s === "ACTIVE" ? t("common.activate") : s === "INACTIVE" ? t("common.deactivate") : t("common.block")}
                 </Button>
               ))}
+            <Button size="sm" variant="secondary" onClick={() => setResetOpen(true)}>
+              {t("admin.users.resetPassword")}
+            </Button>
           </div>
         </Card>
 
         <Card className="p-5">
-          <h2 className="mb-3 text-base font-semibold text-text">{t("admin.users.sessions", { n: sessions.length })}</h2>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-base font-semibold text-text">{t("admin.users.sessions", { n: sessions.length })}</h2>
+            {sessions.some((s) => !s.revoked_at) && (
+              <Button
+                size="sm"
+                variant="danger"
+                loading={busy}
+                onClick={() => {
+                  if (confirm(t("admin.users.revokeAllConfirm"))) void run(() => adminApi.revokeAllSessions(user.id));
+                }}
+              >
+                {t("admin.users.revokeAll")}
+              </Button>
+            )}
+          </div>
           {sessions.length === 0 ? (
             <p className="text-sm text-muted">{t("admin.users.noSessions")}</p>
           ) : (
             <ul className="divide-y divide-border text-sm">
               {sessions.map((s) => (
-                <li key={s.id} className="flex items-center justify-between gap-2 py-2">
+                <li key={s.id} className={`flex items-center justify-between gap-2 py-2 ${s.revoked_at ? "opacity-50" : ""}`}>
                   <div className="min-w-0">
-                    <p className="truncate text-text">{s.device_name || s.user_agent || s.device_id || s.id.slice(0, 8)}</p>
+                    <p className="truncate text-text" title={s.user_agent ?? undefined}>
+                      {shortAgent(s.user_agent) || s.id.slice(0, 8)}
+                      {s.revoked_at && <span className="ml-2 text-xs text-muted">({t("admin.revoked").toLowerCase()})</span>}
+                    </p>
                     <p className="text-xs text-muted">
-                      {s.ip ?? s.ip_address ?? ""} · {formatDate(s.last_seen_at ?? s.created_at)}
+                      {s.ip_address ?? ""} · {formatDate(s.last_active_at ?? s.created_at)}
                     </p>
                   </div>
                   {!s.revoked_at && (
@@ -139,7 +166,7 @@ export function AdminUserDetail({ userId }: { userId: string }) {
                 <tr key={a.id}>
                   <td className="py-2 text-text">
                     <Link href={`/admin/books/${a.book_id}`} className="text-accent hover:underline">
-                      {a.book?.title ?? a.book_id}
+                      {a.book_title || names.books[a.book_id] || a.book_id.slice(0, 8)}
                     </Link>
                   </td>
                   <td className="py-2">
@@ -160,6 +187,34 @@ export function AdminUserDetail({ userId }: { userId: string }) {
           </table>
         )}
       </Card>
+
+      <Modal open={resetOpen} onClose={() => setResetOpen(false)} title={t("admin.users.resetPassword")}>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            void run(async () => {
+              await adminApi.resetPassword(user.id, newPassword);
+              setResetOpen(false);
+              setNewPassword("");
+              setNotice(t("admin.users.passwordReset"));
+            });
+          }}
+          className="space-y-3"
+        >
+          <p className="text-xs text-muted">{t("admin.users.resetHint")}</p>
+          <Field label={t("profile.password.new")}>
+            <Input type="text" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required minLength={8} autoComplete="off" />
+          </Field>
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="ghost" onClick={() => setResetOpen(false)}>
+              {t("common.cancel")}
+            </Button>
+            <Button type="submit" loading={busy}>
+              {t("admin.users.resetPassword")}
+            </Button>
+          </div>
+        </form>
+      </Modal>
 
       <GrantModal
         open={grantOpen}

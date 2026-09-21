@@ -1,12 +1,24 @@
+/**
+ * Auth (OpenAPI): POST /auth/login {identifier, password, device_name?, totp_code?} → LoginResponse;
+ * POST /auth/register {email|phone, password, full_name?} → UserResponse (token YO'Q → keyin login);
+ * POST /auth/logout {refresh_token}; GET /auth/me; PATCH /me; POST /me/password; /me/2fa/*.
+ */
 import { api, emitAuthChanged } from "./client";
 import { tokenStore } from "./token-store";
-import type { LoginResponse, User } from "./types";
+import { shortAgent } from "@/lib/agent";
+import type { LoginResponse, MessageResponse, TwoFactorSetup, User } from "./types";
 
-/** Email yoki telefon ekanini aniqlab, backend kutgan maydonlarga ajratadi. */
+/** Email yoki telefon ekanini aniqlab, backend kutgan maydonlarga ajratadi (register uchun). */
 export function splitIdentifier(identifier: string): { email?: string; phone?: string } {
   const v = identifier.trim();
   if (v.includes("@")) return { email: v.toLowerCase() };
   return { phone: v.replace(/[\s-]/g, "") };
+}
+
+/** Sessiyalar ro'yxatida ko'rinadigan qisqa qurilma nomi (brauzer · OS). */
+export function deviceName(): string {
+  if (typeof navigator === "undefined") return "web";
+  return (shortAgent(navigator.userAgent) || "Browser").slice(0, 100);
 }
 
 export interface RegisterInput {
@@ -15,51 +27,33 @@ export interface RegisterInput {
   full_name?: string;
 }
 
-/** Turli javob shakllarini ({access_token,...,user} yoki {tokens:{...},user}) yagona ko'rinishga keltiradi. */
-function normalizeLogin(raw: unknown): LoginResponse {
-  const r = (raw ?? {}) as Record<string, unknown>;
-  const tokens = (r.tokens as Record<string, unknown> | undefined) ?? r;
-  return {
-    access_token: String(tokens.access_token ?? ""),
-    refresh_token: String(tokens.refresh_token ?? ""),
-    token_type: tokens.token_type as string | undefined,
-    expires_in: tokens.expires_in as number | undefined,
-    user: r.user as User | undefined,
-  };
-}
-
 export const authApi = {
-  async register(input: RegisterInput): Promise<LoginResponse> {
-    const raw = await api("/auth/register", {
+  async login(identifier: string, password: string, totpCode?: string): Promise<LoginResponse> {
+    const data = await api<LoginResponse>("/auth/login", {
       method: "POST",
       auth: false,
-      body: { ...splitIdentifier(input.identifier), password: input.password, full_name: input.full_name || undefined },
+      body: { identifier: identifier.trim(), password, device_name: deviceName(), ...(totpCode ? { totp_code: totpCode } : {}) },
     });
-    const data = normalizeLogin(raw);
-    // Ba'zi backendlar ro'yxatdan o'tishda token qaytarmaydi — u holda login qilinadi
-    if (!data.access_token) return authApi.login(input.identifier, input.password);
-    tokenStore.set(data.access_token, data.refresh_token);
-    emitAuthChanged("login");
-    return data;
-  },
-
-  async login(identifier: string, password: string): Promise<LoginResponse> {
-    const raw = await api("/auth/login", {
-      method: "POST",
-      auth: false,
-      body: { ...splitIdentifier(identifier), identifier: identifier.trim(), password },
-    });
-    const data = normalizeLogin(raw);
     if (!data.access_token) throw new Error("Backend access_token qaytarmadi");
     tokenStore.set(data.access_token, data.refresh_token);
     emitAuthChanged("login");
     return data;
   },
 
+  /** Ro'yxatdan o'tish token qaytarmaydi — darhol login qilinadi. */
+  async register(input: RegisterInput): Promise<LoginResponse> {
+    await api<User>("/auth/register", {
+      method: "POST",
+      auth: false,
+      body: { ...splitIdentifier(input.identifier), password: input.password, full_name: input.full_name || null },
+    });
+    return authApi.login(input.identifier, input.password);
+  },
+
   async logout(): Promise<void> {
     const refresh = tokenStore.getRefresh();
     try {
-      await api("/auth/logout", { method: "POST", noRefresh: true, body: refresh ? { refresh_token: refresh } : undefined });
+      await api<MessageResponse>("/auth/logout", { method: "POST", noRefresh: true, body: { refresh_token: refresh } });
     } catch {
       /* token allaqachon bekor qilingan bo'lishi mumkin */
     } finally {
@@ -72,7 +66,22 @@ export const authApi = {
     return api<User>("/auth/me");
   },
 
-  updateProfile(patch: { full_name: string }): Promise<User> {
+  updateProfile(patch: { full_name: string | null }): Promise<User> {
     return api<User>("/me", { method: "PATCH", body: patch });
+  },
+
+  changePassword(oldPassword: string, newPassword: string): Promise<MessageResponse> {
+    return api<MessageResponse>("/me/password", { method: "POST", body: { old_password: oldPassword, new_password: newPassword } });
+  },
+
+  // ---- 2FA (TOTP)
+  twoFactorSetup(): Promise<TwoFactorSetup> {
+    return api<TwoFactorSetup>("/me/2fa/setup", { method: "POST" });
+  },
+  twoFactorEnable(code: string): Promise<MessageResponse> {
+    return api<MessageResponse>("/me/2fa/enable", { method: "POST", body: { code } });
+  },
+  twoFactorDisable(code: string): Promise<MessageResponse> {
+    return api<MessageResponse>("/me/2fa/disable", { method: "POST", body: { code } });
   },
 };

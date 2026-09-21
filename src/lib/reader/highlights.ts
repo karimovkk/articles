@@ -42,9 +42,9 @@ export function normalizeColor(color?: string | null): string {
 
 const MAX_RECTS = 200;
 
-/** `location_data.rects` (eski: `location.rects`) ni xavfsiz o'qiydi; noto'g'ri elementlar tashlab yuboriladi. */
+/** `location_data.rects` ni xavfsiz o'qiydi; noto'g'ri elementlar tashlab yuboriladi. */
 export function getHighlightRects(a: Annotation): HighlightRect[] {
-  const raw = (a.location_data ?? a.location)?.rects;
+  const raw = a.location_data?.rects;
   if (!Array.isArray(raw)) return [];
   const out: HighlightRect[] = [];
   for (const r of raw) {

@@ -40,7 +40,8 @@ Dev login: `admin@articles365.local` / `Admin12345!`, `user@articles365.local` /
 | `NEXT_PUBLIC_APP_NAME` | `Articles365` | Sarlavha |
 | `NEXT_PUBLIC_MAX_PDF_MB` | `500` | Klient tomonidagi PDF hajm tekshiruvi (backend `MAX_BOOK_UPLOAD_SIZE` ga moslang) |
 | `NEXT_PUBLIC_MAX_COVER_MB` | `5` | Muqova hajmi (backend `MAX_COVER_UPLOAD_SIZE`) |
-| `NEXT_PUBLIC_PURCHASE_URL` | *(bo'sh)* | Katalogdagi "Sotib olish" havolasi, masalan `https://t.me/bot?start=buy_{book_id}`; bo'sh bo'lsa "administrator bilan bog'laning" |
+| `NEXT_PUBLIC_PAYMENT_INSTRUCTIONS` | *(bo'sh)* | Buyurtma yaratilgach ko'rsatiladigan to'lov ko'rsatmasi (karta, Telegram va h.k.; `\n` — yangi qator) |
+| `NEXT_PUBLIC_PURCHASE_URL` | *(bo'sh)* | Ixtiyoriy tashqi havola (Telegram bot), `{book_id}` shabloni; buyurtma paneli yonida "Telegram" tugmasi |
 
 ## Tuzilma
 

@@ -11,6 +11,11 @@ function safeNext(v: string | null): string {
   return v && v.startsWith("/") && !v.startsWith("//") ? v : "/library";
 }
 
+/** 2FA talab qilinganini bildiruvchi kodlar (backend hujjatlamagan — B2). */
+function isTwoFactorCode(code: string): boolean {
+  return /TWO_FACTOR|2FA|TOTP_REQUIRED|OTP_REQUIRED/i.test(code);
+}
+
 /** Backend `details` da limit bo'lsa (masalan `{limit: 2}`) — soni, aks holda null. */
 function deviceLimit(details: unknown): number | null {
   const d = details as { limit?: unknown; max_devices?: unknown } | null | undefined;
@@ -51,6 +56,8 @@ function LoginForm() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<{ code: string; text: string; details?: unknown } | null>(null);
   const [loading, setLoading] = useState(false);
+  const [totp, setTotp] = useState("");
+  const [needTotp, setNeedTotp] = useState(false);
   const expired = params.get("reason") === "expired";
 
   async function onSubmit(e: FormEvent) {
@@ -58,10 +65,17 @@ function LoginForm() {
     setError(null);
     setLoading(true);
     try {
-      await authApi.login(identifier, password);
+      await authApi.login(identifier, password, needTotp ? totp.trim() : undefined);
       router.replace(safeNext(params.get("next")));
     } catch (err) {
-      setError({ code: isApiError(err) ? err.code : "ERROR", text: errorMessage(err, t("auth.loginFailed")), details: isApiError(err) ? err.details : undefined });
+      const code = isApiError(err) ? err.code : "ERROR";
+      // 2FA yoqilgan hisob: kod maydonini ko'rsatish (B2 — aniq kod nomi backend'dan kutilmoqda)
+      if (isTwoFactorCode(code)) {
+        setNeedTotp(true);
+        setError(needTotp ? { code, text: errorMessage(err) } : null);
+        return;
+      }
+      setError({ code, text: errorMessage(err, t("auth.loginFailed")), details: isApiError(err) ? err.details : undefined });
     } finally {
       setLoading(false);
     }
@@ -107,6 +121,11 @@ function LoginForm() {
       <Field label={t("auth.password")}>
         <Input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
       </Field>
+      {needTotp && (
+        <Field label={t("auth.totp")} hint={t("auth.totpHint")}>
+          <Input value={totp} onChange={(e) => setTotp(e.target.value)} inputMode="numeric" autoComplete="one-time-code" placeholder="123456" required autoFocus className="font-mono tracking-widest" />
+        </Field>
+      )}
       <Button type="submit" className="w-full" loading={loading}>
         {t("auth.login")}
       </Button>

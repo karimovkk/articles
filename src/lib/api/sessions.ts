@@ -1,12 +1,11 @@
 import { api } from "./client";
-import type { Paginated, Session } from "./types";
+import type { MessageResponse, Session } from "./types";
 
 export const sessionsApi = {
-  async list(): Promise<Session[]> {
-    const raw = await api<Session[] | Paginated<Session>>("/sessions");
-    return Array.isArray(raw) ? raw : (raw.items ?? []);
+  list(): Promise<Session[]> {
+    return api<Session[]>("/sessions");
   },
-  revoke(id: string): Promise<void> {
-    return api<void>(`/sessions/${id}`, { method: "DELETE" });
+  revoke(id: string): Promise<MessageResponse> {
+    return api<MessageResponse>(`/sessions/${id}`, { method: "DELETE" });
   },
 };

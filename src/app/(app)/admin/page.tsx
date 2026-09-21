@@ -14,6 +14,8 @@ interface Loaded {
   stats: AdminStats;
   fallback: boolean;
   logs: AuditLog[];
+  /** Tekshiruvni kutayotgan buyurtmalar (stats'da yo'q) */
+  ordersAwaiting: number;
 }
 
 /** Eski backend: /admin/stats yo'q — ro'yxatlardan minimal statistika. */
@@ -29,7 +31,7 @@ async function statsFromLists(): Promise<AdminStats> {
     users: { total: total(u) },
     books: { total: total(b) },
     access: { total: total(a) },
-    categories: c.status === "fulfilled" ? c.value.length : 0,
+    categories: c.status === "fulfilled" ? c.value.total : 0,
     annotations: 0,
     active_sessions: 0,
   };
@@ -50,11 +52,17 @@ export default function AdminHome() {
         stats = await statsFromLists();
         fallback = true;
       }
-      const logs = await adminApi
-        .auditLogs({ page_size: 8 })
-        .then((r) => r.items)
-        .catch(() => [] as AuditLog[]);
-      setData({ stats, fallback, logs });
+      const [logs, ordersAwaiting] = await Promise.all([
+        adminApi
+          .auditLogs({ page_size: 8 })
+          .then((r) => r.items)
+          .catch(() => [] as AuditLog[]),
+        adminApi
+          .orders({ status: "AWAITING_REVIEW", page_size: 1 })
+          .then((r) => r.total)
+          .catch(() => 0),
+      ]);
+      setData({ stats, fallback, logs, ordersAwaiting });
     })();
   }, []);
 
@@ -65,6 +73,7 @@ export default function AdminHome() {
     ...(s?.articles ? [{ href: "/admin/books", label: t("admin.stats.articles"), value: s.articles.total, breakdown: s.articles.by_processing }] : []),
     { href: "/admin/access", label: t("nav.admin.access"), value: s?.access.total, breakdown: s?.access.by_status },
     { href: "/admin/categories", label: t("nav.admin.categories"), value: s?.categories },
+    { href: "/admin/orders", label: t("admin.orders.awaiting"), value: data?.ordersAwaiting },
     ...(data && !data.fallback
       ? [
           { href: "/admin/books", label: t("admin.stats.annotations"), value: s?.annotations },

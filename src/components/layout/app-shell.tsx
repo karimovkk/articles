@@ -9,6 +9,7 @@ import { Button, Spinner, cn } from "@/components/ui";
 import { env } from "@/lib/env";
 import { useT, type DictKey } from "@/i18n";
 import { LocaleSwitcher } from "@/i18n/locale-switcher";
+import { NotificationBell } from "@/components/notifications/bell";
 
 const NAV: Array<{ href: string; label: DictKey }> = [
   { href: "/library", label: "nav.library" },
@@ -21,6 +22,7 @@ const ADMIN_NAV: Array<{ href: string; label: DictKey }> = [
   { href: "/admin/books", label: "nav.admin.books" },
   { href: "/admin/users", label: "nav.admin.users" },
   { href: "/admin/access", label: "nav.admin.access" },
+  { href: "/admin/orders", label: "nav.admin.orders" },
   { href: "/admin/categories", label: "nav.admin.categories" },
   { href: "/admin/audit-logs", label: "nav.admin.audit" },
 ];
@@ -82,6 +84,7 @@ export function AppShell({ children, chromeless = false }: { children: ReactNode
           </nav>
           <div className="ml-auto flex items-center gap-2">
             <LocaleSwitcher className="hidden sm:inline-flex" />
+            <NotificationBell />
             <button
               onClick={toggle}
               className="rounded-md px-2 py-1 text-sm text-muted hover:text-text"

@@ -36,7 +36,7 @@ export interface TextSelection {
 }
 
 export interface PdfViewerProps {
-  bookId: string;
+  articleId: string;
   initialPage?: number;
   /** 1 = ekranga moslash; 1.5 = 150% */
   zoom: number;
@@ -64,7 +64,7 @@ interface PageHighlight {
 }
 
 export const PdfViewer = forwardRef<PdfViewerHandle, PdfViewerProps>(function PdfViewer(
-  { bookId, initialPage = 1, zoom, night, mode, highlights, onReady, onPageChange, onError, onTextSelected, onProgress },
+  { articleId, initialPage = 1, zoom, night, mode, highlights, onReady, onPageChange, onError, onTextSelected, onProgress },
   ref,
 ) {
   const { t } = useT();
@@ -83,7 +83,7 @@ export const PdfViewer = forwardRef<PdfViewerHandle, PdfViewerProps>(function Pd
   // ---- Hujjatni ochish
   useEffect(() => {
     let cancelled = false;
-    openProtectedPdf(bookId, (loaded, total) => {
+    openProtectedPdf(articleId, (loaded, total) => {
       setLoadProgress({ loaded, total });
       onProgress?.(loaded, total);
     })
@@ -111,8 +111,8 @@ export const PdfViewer = forwardRef<PdfViewerHandle, PdfViewerProps>(function Pd
       destroyRef.current = null;
       docRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- faqat bookId o'zgarganda qayta ochiladi
-  }, [bookId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- faqat articleId o'zgarganda qayta ochiladi
+  }, [articleId]);
 
   // ---- Konteyner o'lchami
   useLayoutEffect(() => {
@@ -145,7 +145,7 @@ export const PdfViewer = forwardRef<PdfViewerHandle, PdfViewerProps>(function Pd
     const map = new Map<number, PageHighlight[]>();
     for (const a of highlights ?? []) {
       const rects = getHighlightRects(a);
-      if (!rects.length) continue;
+      if (!rects.length || a.page === null) continue;
       const list = map.get(a.page) ?? [];
       list.push({ id: a.id, color: normalizeColor(a.color), rects });
       map.set(a.page, list);
