@@ -98,7 +98,7 @@ export function DataTable<T extends { id: string }>({
 }
 
 /** Jadval ustidagi filtr paneli (`.table-toolbar`): forma sifatida — Enter qidiradi. */
-export function Toolbar({ children, onSubmit, meta, className }: { children: ReactNode; onSubmit?: () => void; meta?: ReactNode; className?: string }) {
+export function Toolbar({ children, onSubmit, meta, className, busy }: { children: ReactNode; onSubmit?: () => void; meta?: ReactNode; className?: string; busy?: boolean }) {
   return (
     <form
       className={cn("table-toolbar", className)}
@@ -109,6 +109,7 @@ export function Toolbar({ children, onSubmit, meta, className }: { children: Rea
       role="search"
     >
       {children}
+      {busy && <Spinner className="size-4 text-muted" />}
       {meta && <div className="toolbar-meta">{meta}</div>}
     </form>
   );

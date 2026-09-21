@@ -10,10 +10,10 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, u
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/providers/auth-provider";
-import { useTheme } from "@/providers/theme-provider";
 import { Avatar, IconButton, Menu, MenuItem, MenuLabel, MenuSep, cn } from "@/components/ui";
 import { LocaleSwitcher } from "@/i18n/locale-switcher";
 import * as I from "@/components/ui/icons";
+import { ThemeSwitch } from "@/components/ui/theme-switch";
 import { env } from "@/lib/env";
 import { useT, type DictKey } from "@/i18n";
 import { NotificationBell } from "@/components/notifications/bell";
@@ -92,7 +92,6 @@ function setCollapsed(v: boolean) {
 
 export function AdminShell({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth();
-  const { theme, toggle } = useTheme();
   const { t } = useT();
   const pathname = usePathname();
   const stored = useSyncExternalStore(subscribeNav, readCollapsed, () => false);
@@ -131,20 +130,22 @@ export function AdminShell({ children }: { children: ReactNode }) {
                 </span>
               )}
             </Link>
-            <button
-              type="button"
-              className="sidebar-toggle max-[900px]:hidden"
-              aria-label={collapsed ? t("ui.nav.expand") : t("ui.nav.collapse")}
-              aria-pressed={stored}
-              onClick={() => setCollapsed(!stored)}
-              data-testid="nav-toggle"
-            >
-              <I.PanelLeft size={18} />
-            </button>
             <button type="button" className="sidebar-toggle min-[901px]:hidden" aria-label={t("ui.nav.closeMenu")} onClick={() => setMobileOpen(false)}>
               <I.X size={18} />
             </button>
           </div>
+          {/* Yig'ish tugmasi — sidebar chekkasida, doim bir xil balandlikda */}
+          <button
+            type="button"
+            className="sidebar-collapse"
+            aria-label={collapsed ? t("ui.nav.expand") : t("ui.nav.collapse")}
+            title={collapsed ? t("ui.nav.expand") : t("ui.nav.collapse")}
+            aria-pressed={stored}
+            onClick={() => setCollapsed(!stored)}
+            data-testid="nav-toggle"
+          >
+            {collapsed ? <I.ChevronsRight size={15} /> : <I.ChevronsLeft size={15} />}
+          </button>
           <nav className="nav">
             {ADMIN_NAV.map((s) => (
               <div key={s.label} className="contents">
@@ -228,9 +229,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
             <div className="topbar-actions">
               <NotificationBell />
               <LocaleSwitcher variant="menu" />
-              <IconButton label={theme === "dark" ? t("theme.light") : t("theme.dark")} variant="plain" onClick={toggle} data-testid="theme-toggle">
-                {theme === "dark" ? <I.Sun size={18} /> : <I.Moon size={18} />}
-              </IconButton>
+              <ThemeSwitch />
               <Link href="/library" className="btn sm max-[640px]:hidden">
                 <I.ArrowUpRight size={15} />
                 {t("ui.backToApp")}

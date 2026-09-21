@@ -1054,6 +1054,115 @@ a.stat:hover {
   box-shadow: var(--ring);
 }
 
+/* Mavzu almashtirgich (oy ⇄ quyosh) */
+.theme-switch {
+  position: relative;
+  width: 58px;
+  height: 30px;
+  flex-shrink: 0;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  overflow: hidden;
+  transition:
+    background 350ms var(--ease),
+    border-color 350ms var(--ease);
+}
+.theme-switch.is-dark {
+  background: var(--ink);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+.theme-switch:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+.ts-icon {
+  position: absolute;
+  top: 50%;
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  transform: translateY(-50%);
+  transition:
+    opacity 300ms var(--ease),
+    transform 300ms var(--ease);
+}
+.ts-moon {
+  left: 3px;
+}
+.ts-sun {
+  right: 3px;
+}
+.theme-switch.is-dark .ts-icon {
+  color: #b4beb7;
+}
+.theme-switch.is-dark .ts-moon,
+.theme-switch:not(.is-dark) .ts-sun {
+  opacity: 0;
+  transform: translateY(-50%) scale(0.6);
+}
+.ts-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  transform: translateX(28px);
+  transition:
+    transform 450ms cubic-bezier(0.34, 1.4, 0.64, 1),
+    background 350ms var(--ease),
+    color 350ms var(--ease);
+}
+.theme-switch.is-dark .ts-knob {
+  transform: translateX(0);
+  background: #f4f2ec;
+  color: var(--ink);
+}
+.ts-knob svg {
+  position: absolute;
+  transition:
+    transform 450ms cubic-bezier(0.34, 1.4, 0.64, 1),
+    opacity 250ms var(--ease);
+}
+.ts-knob .k-moon,
+.theme-switch.is-dark .ts-knob .k-sun {
+  opacity: 0;
+  transform: rotate(-120deg) scale(0.3);
+}
+.theme-switch.is-dark .ts-knob .k-moon {
+  opacity: 1;
+  transform: rotate(0) scale(1);
+}
+
+/* Mavzu almashishida "to'lqin" (View Transitions): yangi ko'rinish aylana bo'lib ochiladi, eski ostida turadi */
+html[data-theme-wave] {
+  view-transition-name: root;
+}
+html[data-theme-wave]::view-transition-old(root),
+html[data-theme-wave]::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+  display: block;
+}
+html[data-theme-wave]::view-transition-image-pair(root) {
+  isolation: auto;
+}
+html[data-theme-wave]::view-transition-old(root) {
+  z-index: 1;
+}
+html[data-theme-wave]::view-transition-new(root) {
+  z-index: 2;
+}
+
 /* ---------- Menyu (dropdown) ---------- */
 
 .menu {
@@ -1433,14 +1542,14 @@ a.stat:hover {
   min-width: 0;
 }
 .sheet-content > * {
-  max-width: 1480px;
-  margin-inline: auto;
+  min-width: 0;
 }
 .sidebar {
+  position: relative;
+  z-index: 50; /* chekkadagi yig'ish tugmasi varaq (topbar z-index 40) ustida tursin */
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
   min-width: 0;
-  overflow: hidden;
   color: var(--frame-text);
   background: var(--frame);
   --text: var(--frame-text);
@@ -1479,6 +1588,37 @@ a.stat:hover {
   color: var(--frame-text);
 }
 .sidebar-toggle:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+/* Yig'ish/yoyish tugmasi — doim bir joyda: sidebar'ning o'ng chekkasida, yuqorida (ikkala holatda ham) */
+.sidebar-collapse {
+  position: absolute;
+  top: 26px;
+  right: -14px;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--border-strong);
+  background: var(--frame-2);
+  color: var(--frame-text-2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  transition:
+    background 120ms var(--ease),
+    color 120ms var(--ease),
+    transform 160ms var(--ease);
+}
+.sidebar-collapse:hover {
+  background: var(--accent);
+  color: var(--accent-contrast);
+  border-color: transparent;
+  transform: scale(1.08);
+}
+.sidebar-collapse:focus-visible {
   outline: none;
   box-shadow: var(--ring);
 }
@@ -1640,12 +1780,8 @@ a.stat:hover {
   margin-left: 0;
 }
 .app-frame[data-nav="collapsed"] .sidebar-header {
-  flex-direction: column;
-  padding: 16px 0 10px;
-  gap: 10px;
-}
-.app-frame[data-nav="collapsed"] .sidebar-header .sidebar-toggle {
-  margin-left: 0;
+  justify-content: center;
+  padding: 14px 0;
 }
 .app-frame[data-nav="collapsed"] .nav {
   padding-inline: 14px;
@@ -1736,8 +1872,6 @@ a.stat:hover {
   backdrop-filter: blur(10px);
 }
 .site-header-inner {
-  margin-inline: auto;
-  max-width: 1200px;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -1775,9 +1909,7 @@ a.stat:hover {
   color: var(--pill-text);
 }
 .site-main {
-  margin-inline: auto;
-  max-width: 1200px;
-  padding: 24px 20px 72px;
+  padding: 24px 24px 72px;
 }
 .user-chip {
   display: flex;
@@ -1831,8 +1963,8 @@ a.stat:hover {
 
 .book-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 18px 16px;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 20px 18px;
 }
 .book-card {
   display: flex;
@@ -2091,8 +2223,11 @@ a.track:hover {
     transform: translateX(0);
   }
   .app-frame[data-nav="collapsed"] .sidebar-header {
-    flex-direction: row;
+    justify-content: flex-start;
     padding: 14px 12px 14px 20px;
+  }
+  .sidebar-collapse {
+    display: none;
   }
   .app-frame[data-nav="collapsed"] .nav-item {
     justify-content: flex-start;

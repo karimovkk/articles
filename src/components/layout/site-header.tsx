@@ -9,9 +9,9 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/providers/auth-provider";
-import { useTheme } from "@/providers/theme-provider";
-import { Avatar, IconButton, Menu, MenuItem, MenuLabel, MenuSep, buttonClass, cn } from "@/components/ui";
+import { Avatar, Menu, MenuItem, MenuLabel, MenuSep, buttonClass, cn } from "@/components/ui";
 import * as I from "@/components/ui/icons";
+import { ThemeSwitch } from "@/components/ui/theme-switch";
 import { env } from "@/lib/env";
 import { useT, type DictKey } from "@/i18n";
 import { LocaleSwitcher } from "@/i18n/locale-switcher";
@@ -28,7 +28,6 @@ function isActive(pathname: string, href: string) {
 
 export function SiteHeader() {
   const { user, loading, isAdmin, logout } = useAuth();
-  const { theme, toggle } = useTheme();
   const { t } = useT();
   const pathname = usePathname();
   const displayName = user ? user.full_name || user.email || user.phone || t("common.user") : "";
@@ -69,9 +68,7 @@ export function SiteHeader() {
         <span className="max-[640px]:hidden">{nav}</span>
         <div className="ml-auto flex items-center gap-2">
           <LocaleSwitcher variant="menu" />
-          <IconButton label={theme === "dark" ? t("theme.light") : t("theme.dark")} variant="plain" onClick={toggle} data-testid="theme-toggle">
-            {theme === "dark" ? <I.Sun size={18} /> : <I.Moon size={18} />}
-          </IconButton>
+          <ThemeSwitch />
           {user && <NotificationBell />}
           {user ? (
             <Menu

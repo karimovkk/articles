@@ -2,7 +2,7 @@
 
 import { LOCALES, useT } from "@/i18n";
 import { Menu, MenuItem, cn } from "@/components/ui";
-import * as I from "@/components/ui/icons";
+import { Flag } from "@/components/ui/flags";
 
 /** Til tanlash — segment (auth sahifalari) yoki qo'lbola menyu (header). */
 export function LocaleSwitcher({ className, variant = "seg" }: { className?: string; variant?: "seg" | "menu" }) {
@@ -15,13 +15,13 @@ export function LocaleSwitcher({ className, variant = "seg" }: { className?: str
         aria-label={t("common.language")}
         trigger={(p) => (
           <button {...p} type="button" className={cn("btn ghost sm", className)} aria-label={t("common.language")} data-testid="locale-menu">
-            <I.Globe size={16} />
+            <Flag locale={locale} size={20} />
             <span className="uppercase">{locale}</span>
           </button>
         )}
       >
         {LOCALES.map((l) => (
-          <MenuItem key={l.code} selected={locale === l.code} onSelect={() => setLocale(l.code)} data-testid={`locale-${l.code}`}>
+          <MenuItem key={l.code} selected={locale === l.code} onSelect={() => setLocale(l.code)} icon={<Flag locale={l.code} size={20} />} data-testid={`locale-${l.code}`}>
             {l.label}
           </MenuItem>
         ))}
@@ -32,6 +32,7 @@ export function LocaleSwitcher({ className, variant = "seg" }: { className?: str
     <div className={cn("seg", className)} role="group" aria-label={t("common.language")}>
       {LOCALES.map((l) => (
         <button key={l.code} type="button" onClick={() => setLocale(l.code)} title={l.label} aria-pressed={locale === l.code} className={cn("uppercase", locale === l.code && "active")} data-testid={`locale-${l.code}`}>
+          <Flag locale={l.code} size={18} />
           {l.code}
         </button>
       ))}

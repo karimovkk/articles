@@ -33,6 +33,23 @@ await page.waitForSelector("text=Tekshiruvdagi buyurtmalar", { timeout: 10000 })
 await page.waitForFunction(() => [...document.querySelectorAll("a")].some((a) => a.href.endsWith("/admin/orders") && /\b1\b/.test(a.innerText)), null, { timeout: 8000 });
 check("Dashboard: tekshiruvdagi buyurtmalar = 1", true);
 
+// ---- 11.5 Sidebar yig'ish tugmasi: ikkala holatda ham bir xil balandlikda, sidebar chekkasida; holat saqlanadi
+const togglePos = async () => page.evaluate(() => {
+  const r = document.querySelector('[data-testid="nav-toggle"]').getBoundingClientRect();
+  const sb = document.querySelector(".sidebar").getBoundingClientRect();
+  return { cy: Math.round(r.top + r.height / 2), cx: Math.round(r.left + r.width / 2), edge: Math.round(sb.right), w: Math.round(sb.width) };
+});
+const p1 = await togglePos();
+await page.click('[data-testid="nav-toggle"]');
+await page.waitForFunction(() => document.querySelector(".app-frame").dataset.nav === "collapsed", null, { timeout: 3000 });
+await page.waitForTimeout(350);
+const p2 = await togglePos();
+check("Sidebar yig'ildi (256 → 84 px)", p1.w > 200 && p2.w < 100, `${p1.w}→${p2.w}`);
+check("Yig'ish tugmasi bir xil balandlikda qoldi va chekkada", p1.cy === p2.cy && Math.abs(p1.cx - p1.edge) < 4 && Math.abs(p2.cx - p2.edge) < 4, JSON.stringify([p1, p2]));
+check("Sidebar holati localStorage'da", (await page.evaluate(() => localStorage.getItem("a365.adminNav"))) === "collapsed");
+await page.click('[data-testid="nav-toggle"]');
+await page.waitForFunction(() => document.querySelector(".app-frame").dataset.nav === "open", null, { timeout: 3000 });
+
 // ---- Buyurtmalar: nomlar resolve, approve → ruxsat
 await page.goto(`${BASE}/admin/orders`);
 await page.waitForSelector("text=Chek 777", { timeout: 10000 });

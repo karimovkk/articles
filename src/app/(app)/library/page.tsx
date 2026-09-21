@@ -7,19 +7,25 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { BookCover } from "@/components/book-cover";
-import { Alert, Badge, Button, EmptyState, PageHeader, Pagination, SearchInput, Select, Spinner, buttonClass } from "@/components/ui";
+import { Alert, Badge, EmptyState, PageHeader, Pagination, SearchInput, Select, Spinner, buttonClass } from "@/components/ui";
 import * as I from "@/components/ui/icons";
 import { clampPercent, libraryApi, libraryCache, type LibraryItem } from "@/lib/api";
 import type { LibrarySort } from "@/lib/api/library";
 import { useAsync } from "@/lib/use-async";
+import { useDebounced } from "@/lib/use-debounce";
 import { formatDateTime, useT } from "@/i18n";
 
 export default function LibraryPage() {
   const { t } = useT();
   const [search, setSearch] = useState("");
-  const [query, setQuery] = useState("");
+  const [debounced, flush] = useDebounced(search.trim(), 300); // jonli qidiruv: yozilayotganda so'raladi
+  const query = debounced;
   const [sort, setSort] = useState<LibrarySort>("recent");
-  const [page, setPage] = useState(1);
+  // Sahifa filtrga bog'langan: qidiruv/saralash o'zgarsa 1-sahifaga qaytadi
+  const filterKey = `${query}|${sort}`;
+  const [pageState, setPageState] = useState({ page: 1, filterKey });
+  const page = pageState.filterKey === filterKey ? pageState.page : 1;
+  const setPage = (p: number) => setPageState({ page: p, filterKey });
 
   const { data, loading, error, reload } = useAsync(() => libraryApi.list({ search: query || undefined, sort, page, page_size: 24 }), [query, sort, page]);
 
@@ -96,27 +102,14 @@ export default function LibraryPage() {
         role="search"
         onSubmit={(e) => {
           e.preventDefault();
-          // Bir xil so'rov (masalan, xatodan keyin qayta urinish) — holat o'zgarmaydi, qo'lda qayta so'raymiz
-          if (search.trim() === query && page === 1) reload();
-          setPage(1);
-          setQuery(search.trim());
+          // Enter — kutmasdan; bir xil so'rov (masalan, xatodan keyin) — qo'lda qayta so'raymiz
+          if (search.trim() === query) reload();
+          else flush();
         }}
       >
-        <SearchInput placeholder={t("library.searchPlaceholder")} value={search} onChange={(e) => setSearch(e.target.value)} className="w-full max-w-sm" aria-label={t("common.search")} />
-        <Select
-          value={sort}
-          onChange={(v) => {
-            setPage(1);
-            setSort(v as LibrarySort);
-          }}
-          options={sortOptions}
-          className="w-48"
-          aria-label={t("library.sortLabel")}
-          data-testid="library-sort"
-        />
-        <Button type="submit" variant="secondary">
-          {t("common.search")}
-        </Button>
+        <SearchInput placeholder={t("library.searchPlaceholder")} value={search} onChange={(e) => setSearch(e.target.value)} className="w-full max-w-sm" aria-label={t("common.search")} data-testid="library-search" />
+        <Select value={sort} onChange={(v) => setSort(v as LibrarySort)} options={sortOptions} className="w-48" aria-label={t("library.sortLabel")} data-testid="library-sort" />
+        {loading && data && <Spinner className="size-4 text-muted" />}
       </form>
 
       {error && <Alert className="mb-4">{error}</Alert>}

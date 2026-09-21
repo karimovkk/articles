@@ -82,9 +82,15 @@ Brauzerning native elementlari o'rniga hammasi qo'lda yozilgan (`src/components/
 | `ConfirmProvider` / `useConfirm` | `confirm.tsx` | `window.confirm()` o'rniga Promise qaytaruvchi modal (`confirm-ok` / `confirm-cancel`) |
 | `Modal` | `modal.tsx` | portal, Esc, fokus, body scroll bloklash |
 | `DropdownPanel` | `dropdown.tsx` | umumiy joylashuv (viewport'ga sig'masa yuqoriga), scroll/resize'ga ergashadi, tashqariga bosish |
+| `ThemeSwitch` | `theme-switch.tsx` | oy ⇄ quyosh, `role=switch`; `ThemeProvider.toggle(origin)` bosilgan nuqtadan "to'lqin" (View Transitions API, fallback — oddiy) |
+| bayroqlar | `flags.tsx` | UZ/RU/GB inline SVG (til almashtirgich) |
 | ikonkalar | `icons.tsx` | inline SVG (`import * as I from "@/components/ui/icons"`) |
 
-e2e yordamchilari (`e2e/lib.mjs`): `selectPick`, `selectOptionCount`, `confirmDialog`, `datePick`.
+Qidiruv maydonlari jonli (`useDebounced` / `useDebouncedCallback`, `src/lib/use-debounce.ts`): 300 ms debounce, Enter —
+darhol, eskirgan javob e'tiborsiz (`useAsync`), katalogda URL `?q=` `router.replace` bilan sinxron.
+
+e2e yordamchilari (`e2e/lib.mjs`): `selectPick`, `selectOptionCount`, `confirmDialog`, `datePick`; mock `/__delay?search=…&ms=…`
+— jonli qidiruv poygasini sinash.
 
 ## Tillar (uz / ru / en)
 

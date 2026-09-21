@@ -341,16 +341,25 @@ export function ReaderView({ articleId }: { articleId: string }) {
     }
   };
 
+  // Jonli qidiruv: faqat oxirgi so'rov natijasi qo'llanadi (eskirgan javob keyin kelsa — e'tiborsiz)
+  const searchSeq = useRef(0);
   const onSearch = async (q: string) => {
+    const seq = ++searchSeq.current;
+    if (!q) {
+      setSearchHits(null);
+      setSearching(false);
+      return;
+    }
     setSearching(true);
     try {
       const r = await readingApi.search(articleId, q);
+      if (seq !== searchSeq.current) return;
       setSearchAvailable(r.textAvailable);
       setSearchHits(r.hits);
     } catch (e) {
-      showToast(errorMessage(e));
+      if (seq === searchSeq.current) showToast(errorMessage(e));
     } finally {
-      setSearching(false);
+      if (seq === searchSeq.current) setSearching(false);
     }
   };
 

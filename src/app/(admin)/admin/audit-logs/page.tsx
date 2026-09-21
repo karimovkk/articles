@@ -6,13 +6,15 @@ import { Alert, Badge, Button, Input, PageHeader, Select, formatDate } from "@/c
 import * as I from "@/components/ui/icons";
 import { AUDIT_ACTIONS, adminApi, errorMessage, type AuditAction, type AuditLog } from "@/lib/api";
 import { downloadBlob } from "@/lib/admin-names";
+import { useDebounced } from "@/lib/use-debounce";
 import { useT } from "@/i18n";
 
 export default function AdminAuditLogsPage() {
   const { t } = useT();
   const [action, setAction] = useState<AuditAction | "">("");
   const [entity, setEntity] = useState("");
-  const [filters, setFilters] = useState<{ action: AuditAction | ""; entity_type: string }>({ action: "", entity_type: "" });
+  const [entityQ, flush] = useDebounced(entity.trim(), 300); // jonli filtr
+  const filters = { action, entity_type: entityQ };
   const [exporting, setExporting] = useState(false);
   const [exportErr, setExportErr] = useState<string | null>(null);
 
@@ -85,7 +87,7 @@ export default function AdminAuditLogsPage() {
         }
       />
       {exportErr && <Alert className="mb-4">{exportErr}</Alert>}
-      <Toolbar onSubmit={() => setFilters({ action, entity_type: entity.trim() })} meta={data ? `${t("common.total")}: ${data.total}` : undefined}>
+      <Toolbar onSubmit={flush} meta={data ? `${t("common.total")}: ${data.total}` : undefined} busy={loading && !!data}>
         <Select
           value={action}
           onChange={(v) => setAction(v as AuditAction | "")}
@@ -95,9 +97,6 @@ export default function AdminAuditLogsPage() {
           data-testid="filter-action"
         />
         <Input placeholder={t("admin.audit.entityPlaceholder")} value={entity} onChange={(e) => setEntity(e.target.value)} className="max-w-xs" aria-label={t("admin.audit.entity")} />
-        <Button type="submit" variant="secondary" icon={<I.Filter size={15} />}>
-          {t("common.filter")}
-        </Button>
       </Toolbar>
       <DataTable data={data} columns={columns} loading={loading} error={error} onPage={setPage} minWidth={860} />
     </div>

@@ -8,13 +8,14 @@ import { Alert, Badge, Button, Field, Input, Modal, PageHeader, SearchInput, Sel
 import * as I from "@/components/ui/icons";
 import { adminApi, errorMessage, type Book, type BookStatus, type Category } from "@/lib/api";
 import { Price } from "@/components/catalog/price";
+import { useDebounced } from "@/lib/use-debounce";
 import { useT } from "@/i18n";
 
 export default function AdminBooksPage() {
   const { t } = useT();
   const router = useRouter();
   const [search, setSearch] = useState("");
-  const [query, setQuery] = useState("");
+  const [query, flush] = useDebounced(search.trim(), 300); // jonli qidiruv
   const [status, setStatus] = useState<BookStatus | "">("");
   const [createOpen, setCreateOpen] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -82,12 +83,9 @@ export default function AdminBooksPage() {
           </Button>
         }
       />
-      <Toolbar onSubmit={() => setQuery(search.trim())} meta={data ? `${t("common.total")}: ${data.total}` : undefined}>
+      <Toolbar onSubmit={flush} meta={data ? `${t("common.total")}: ${data.total}` : undefined} busy={loading && !!data}>
         <SearchInput placeholder={t("admin.books.searchPlaceholder")} value={search} onChange={(e) => setSearch(e.target.value)} className="w-full max-w-xs" aria-label={t("common.search")} />
         <Select value={status} onChange={(v) => setStatus(v as BookStatus | "")} options={statusOptions} className="w-44" aria-label={t("common.status")} data-testid="filter-status" />
-        <Button type="submit" variant="secondary">
-          {t("common.search")}
-        </Button>
       </Toolbar>
       <DataTable data={data} columns={columns} loading={loading} error={error} onPage={setPage} onRowClick={(b) => router.push(`/admin/books/${b.id}`)} minWidth={760} />
 

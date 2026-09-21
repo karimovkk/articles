@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { Button, Input, Textarea, cn, formatDate } from "@/components/ui";
+import { Button, Spinner, Textarea, cn, formatDate } from "@/components/ui";
 import * as I from "@/components/ui/icons";
+import { useDebouncedCallback } from "@/lib/use-debounce";
 import type { Annotation, SearchMatch, TocEntry } from "@/lib/api";
 import { HIGHLIGHT_COLORS, getHighlightRects, normalizeColor } from "@/lib/reader/highlights";
 import { useT, type DictKey } from "@/i18n";
@@ -114,18 +115,32 @@ function TocPanel({ toc, available, goToPage }: { toc: TocEntry[] | null; availa
 function SearchPanel({ searchAvailable, searchHits, searching, onSearch, goToPage }: Props) {
   const { t } = useT();
   const [q, setQ] = useState("");
+  // Jonli qidiruv: ≥2 belgi yozilgach 350 ms dan keyin; Enter — darhol
+  const live = useDebouncedCallback((v: string) => onSearch(v.length >= 2 ? v : ""), 350);
   if (!searchAvailable) return <p className="text-muted">{t("reader.searchUnavailable")}</p>;
   return (
     <div className="space-y-3">
       <form
         onSubmit={(e: FormEvent) => {
           e.preventDefault();
+          live.cancel();
           if (q.trim().length >= 2) onSearch(q.trim());
         }}
-        className="flex gap-2"
+        className="input-wrap"
+        role="search"
       >
-        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("reader.searchPlaceholder")} />
-        <Button type="submit" size="md" loading={searching} aria-label={t("common.search")} icon={<I.Search size={16} />} className="shrink-0 !px-3" />
+        <I.Search size={16} />
+        <input
+          value={q}
+          onChange={(e) => {
+            setQ(e.target.value);
+            live.call(e.target.value.trim());
+          }}
+          placeholder={t("reader.searchPlaceholder")}
+          className="input"
+          aria-label={t("common.search")}
+        />
+        {searching && <Spinner className="absolute right-3 size-4 text-muted" />}
       </form>
       {searchHits && searchHits.length === 0 && <p className="text-muted">{t("reader.noResults")}</p>}
       {searchHits?.map((h, i) => (

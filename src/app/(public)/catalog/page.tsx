@@ -6,10 +6,11 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { BookCover } from "@/components/book-cover";
 import { Price } from "@/components/catalog/price";
-import { Alert, Badge, Button, EmptyState, PageHeader, Pagination, SearchInput, Select, Spinner } from "@/components/ui";
+import { Alert, Badge, EmptyState, PageHeader, Pagination, SearchInput, Select, Spinner } from "@/components/ui";
 import * as I from "@/components/ui/icons";
 import { catalogApi } from "@/lib/api";
 import { useAsync } from "@/lib/use-async";
+import { useDebouncedCallback } from "@/lib/use-debounce";
 import { useT } from "@/i18n";
 
 function CatalogList() {
@@ -20,19 +21,38 @@ function CatalogList() {
   const category = params.get("category") ?? "";
   const page = Math.max(1, Number(params.get("page")) || 1);
   const [search, setSearch] = useState(query);
+  // O'zimiz URL'ga yozgan oxirgi q — tashqi o'zgarish (orqaga/oldinga, havola) dan farqlash uchun
+  const [pushed, setPushed] = useState(query);
+  const [prevQuery, setPrevQuery] = useState(query);
+  if (query !== prevQuery) {
+    setPrevQuery(query);
+    if (query !== pushed) {
+      setSearch(query);
+      setPushed(query);
+    }
+  }
 
   const { data, loading, error, reload } = useAsync(() => catalogApi.list({ search: query || undefined, category_id: category || undefined, page, page_size: 24 }), [query, category, page]);
   const { data: categories } = useAsync(() => catalogApi.categories().catch(() => []), []);
 
-  const navigate = (q: string, cat: string, p: number) => {
+  const href = (q: string, cat: string, p: number) => {
     const sp = new URLSearchParams();
     if (q) sp.set("q", q);
     if (cat) sp.set("category", cat);
     if (p > 1) sp.set("page", String(p));
+    return `/catalog${sp.size ? `?${sp}` : ""}`;
+  };
+  const navigate = (q: string, cat: string, p: number) => {
     // Bir xil so'rov qayta yuborilsa (masalan, tarmoq xatosidan keyin) — URL o'zgarmaydi, shuning uchun qayta so'raymiz
     if (q === query && cat === category && p === page) reload();
-    else router.push(`/catalog${sp.size ? `?${sp}` : ""}`);
+    else router.push(href(q, cat, p));
   };
+  // Jonli qidiruv: yozilayotganda (300 ms) URL `?q=` `replace` bilan yangilanadi (tarix ifloslanmaydi), sahifa 1 ga qaytadi
+  const live = useDebouncedCallback((q: string) => {
+    if (q === query) return;
+    setPushed(q);
+    router.replace(href(q, category, 1));
+  }, 300);
 
   return (
     <div>
@@ -42,10 +62,23 @@ function CatalogList() {
         role="search"
         onSubmit={(e) => {
           e.preventDefault();
-          navigate(search.trim(), category, 1);
+          if (search.trim() === query) {
+            live.cancel();
+            reload();
+          } else live.flush();
         }}
       >
-        <SearchInput placeholder={t("catalog.searchPlaceholder")} value={search} onChange={(e) => setSearch(e.target.value)} className="w-full max-w-sm" aria-label={t("common.search")} />
+        <SearchInput
+          placeholder={t("catalog.searchPlaceholder")}
+          value={search}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            live.call(e.target.value.trim());
+          }}
+          className="w-full max-w-sm"
+          aria-label={t("common.search")}
+          data-testid="catalog-search"
+        />
         {categories && categories.length > 0 && (
           <Select
             value={category}
@@ -56,9 +89,7 @@ function CatalogList() {
             data-testid="catalog-category"
           />
         )}
-        <Button type="submit" variant="secondary">
-          {t("common.search")}
-        </Button>
+        {loading && data && <Spinner className="size-4 text-muted" />}
         {data && <div className="toolbar-meta">{t("common.total")}: {data.total}</div>}
       </form>
 

@@ -287,6 +287,30 @@ jadvalda tinted sarlavha, chip'lar; **barcha dropdown-simon elementlar qo'lbola*
 **Tekshiruv:** skrinshotlar `e2e/out/visual/` (gitignored). Eslatma: `.next/types` eskirgan bo'lsa `tsc` `(app)/admin`
 yo'llari haqida xato beradi — `rm -rf .next/types .next/dev/types` yoki `next build` yangilaydi.
 
+## 11. Dizayn tuzatishlari (2026-09-21, foydalanuvchi fikri)
+
+- [x] 11.1 To'liq kenglik: foydalanuvchi qobig'i (`.site-main`, `.site-header-inner`) va admin varag'i (`.sheet-content`)
+      `max-width` cheklovisiz — kontent ekran kengligini to'ldiradi (gutter'lar saqlanadi)
+- [x] 11.2 Jonli qidiruv (`useDebounced` / `useDebouncedCallback`, `src/lib/use-debounce.ts`): tugmalar olib tashlandi,
+      yozilayotganda 300 ms debounce; eskirgan javob e'tiborsiz (`useAsync` kalit tekshiruvi, reader'da `seq`), fokus
+      saqlanadi, Enter — darhol (flush; bir xil so'rov → `reload`); katalog URL `?q=` `router.replace` bilan (tarix toza,
+      tashqi URL o'zgarishi input'ga qaytadi), kutubxona/admin kitoblar/foydalanuvchilar/audit (sahifa 1 ga qaytadi),
+      reader sidebar (≥2 belgi). Test: `e2e/tests/search.test.mjs` (23 tekshiruv, jumladan mock `/__delay` bilan poyga) ✅
+- [x] 11.3 Til almashtirgichda bayroqlar — inline SVG (`src/components/ui/flags.tsx`, emoji Windows'da chiqmaydi):
+      header/topbar menyusi (trigger + har bir variant), auth segmenti
+- [x] 11.4 `ThemeSwitch` (`src/components/ui/theme-switch.tsx`, `role=switch`): chapda oy, o'ngda quyosh, tugmacha
+      pruzhinali suriladi, ikonkalar aylanib almashadi (CSS); `ThemeProvider.toggle(origin)` — bosilgan nuqtadan aylana
+      "to'lqin" (View Transitions API + `clip-path: circle()`, 750 ms; API yo'q / `prefers-reduced-motion` → oddiy),
+      klaviaturada tugma markazidan. Header va admin topbar'da. Test: `e2e/tests/theme.test.mjs` (13) — Chrome (to'lqin)
+      ✅, Firefox ✅
+- [x] 11.5 Admin sidebar yig'ish tugmasi (`.sidebar-collapse`) — sidebar'ning o'ng chekkasida, yuqorida (y=50px), ikkala
+      holatda ham bir xil balandlikda (« / » ikonkalari); `admin` to'plamida o'lchov tekshiruvi ✅
+- [x] 11.6 Testlar: yangi to'plamlar `search` (23) va `theme` (13), `admin` ga sidebar o'lchovi; mock `/__delay`
+      (poyga) va audit `entity_type` filtri. `tsc` ✅ · `eslint` ✅ · **production build 18/18 to'plam (265 tekshiruv)
+      ✅** · Firefox 18/18 ✅ (visual — alohida; uzoq dev sessiyada 90 s timeout, mahsulot xatosi emas) · brauzerda
+      vizual: to'liq kenglik 1920px, bayroqlar (segment + menyu), switch ikkala holat, to'lqin kadrlari, sidebar
+      tugmasi (2026-09-21)
+
 ### Backend uchun eslatmalar (jonli auditdan) — holat: B1 ✅(avvaldan) · B2 ✅ · B3 ✅ · B4 ✅ · B5 ✅ · B6 ✅(avvaldan) ·
 B7 ✅ · B8 ✅ (OpenAPI manba) · B9 ✅ · B10 ✅ · B11 ✅ · B12 ✅ · B13 ✅ — **ochiq savol yo'q**
 

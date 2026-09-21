@@ -46,6 +46,7 @@ const log = [];
 const headersSeen = [];
 let audit500 = false;
 let noContentRange = false;
+let delayRule = null; // /__delay?search=Kitob&ms=1500
 let failRule = null; // /__fail?path=/catalog&status=429&code=RATE_LIMIT_EXCEEDED — mos yo'llar shu xato bilan javob beradi // B1 workaround'ni sinash uchun toggle (prod'da Content-Range BOR)
 function reset(opts = {}) {
   books = freshBooks();
@@ -125,6 +126,9 @@ createServer(async (req, res) => {
   if (path === "/__fail") { failRule = q.get("off") ? null : { path: q.get("path") ?? "/", status: Number(q.get("status") ?? 500), code: q.get("code") ?? "INTERNAL_ERROR" }; return json(res, 200, { failRule }); }
   if (failRule && path.startsWith(failRule.path)) return err(res, failRule.status, failRule.code, `Injected ${failRule.status}`);
   if (path === "/__setnocr") { noContentRange = q.get("on") === "1"; return json(res, 200, { noContentRange }); }
+  // Jonli qidiruv poygasi: berilgan `search` qiymatli so'rov `ms` kechikadi (eskirgan javob keyin keladi)
+  if (path === "/__delay") { delayRule = q.get("off") ? null : { search: q.get("search") ?? "", ms: Number(q.get("ms") ?? 1000) }; return json(res, 200, { delayRule }); }
+  if (delayRule && q.get("search") === delayRule.search) await new Promise((r) => setTimeout(r, delayRule.ms));
 
   // ---- public
   if (path === "/catalog") {
@@ -278,7 +282,7 @@ createServer(async (req, res) => {
   if (path.startsWith("/admin/")) {
     if (me.role !== "ADMIN") return err(res, 403, "PERMISSION_DENIED", "Admin only");
     if (path === "/admin/stats") return json(res, 200, { users: { total: users.length, by_status: { ACTIVE: users.length }, by_role: { USER: users.length - 1, ADMIN: 1 } }, books: { total: books.length, by_status: { ACTIVE: books.length } }, articles: { total: articles.length, by_processing: { READY: articles.filter((a) => a.processing_status === "READY").length, PROCESSING: articles.filter((a) => a.processing_status === "PROCESSING").length } }, categories: categories.length, access: { total: access.length, by_status: { ACTIVE: access.filter((a) => a.status === "ACTIVE").length } }, annotations: annotations.length, active_sessions: 3 });
-    if (path === "/admin/audit-logs") { if (audit500 || q.get("boom")) return err(res, 500, "INTERNAL_ERROR", "boom"); return json(res, 200, paged([{ id: "l1", admin_id: ADMIN.id, action: "BOOK_ACCESS_GRANTED", entity_type: "book_access", entity_id: "acc-1", meta: { book_id: BOOK_ID, user_id: USER.id }, ip_address: "127.0.0.1", created_at: now() }, { id: "l2", admin_id: null, action: "SUSPICIOUS_ACTIVITY", entity_type: "user", entity_id: USER.id, meta: {}, ip_address: null, created_at: now() }].filter((l) => !q.get("action") || l.action === q.get("action")))); }
+    if (path === "/admin/audit-logs") { if (audit500 || q.get("boom")) return err(res, 500, "INTERNAL_ERROR", "boom"); return json(res, 200, paged([{ id: "l1", admin_id: ADMIN.id, action: "BOOK_ACCESS_GRANTED", entity_type: "book_access", entity_id: "acc-1", meta: { book_id: BOOK_ID, user_id: USER.id }, ip_address: "127.0.0.1", created_at: now() }, { id: "l2", admin_id: null, action: "SUSPICIOUS_ACTIVITY", entity_type: "user", entity_id: USER.id, meta: {}, ip_address: null, created_at: now() }].filter((l) => !q.get("action") || l.action === q.get("action")).filter((l) => !q.get("entity_type") || l.entity_type === q.get("entity_type")))); }
     if (path === "/admin/categories" && m === "GET") return json(res, 200, paged(categories.filter((c) => !q.get("status") || c.status === q.get("status"))));
     if (path === "/admin/categories" && m === "POST") { const b = await readBody(req); if (categories.some((c) => c.name === b.name)) return err(res, 409, "ALREADY_EXISTS", "Category exists"); const c = { id: randomUUID(), name: b.name, slug: b.slug ?? b.name.toLowerCase().replace(/\s+/g, "-"), description: b.description ?? null, status: "ACTIVE", created_at: now(), updated_at: now() }; categories.push(c); return json(res, 201, c); }
     const cm = /^\/admin\/categories\/([^/]+)$/.exec(path);

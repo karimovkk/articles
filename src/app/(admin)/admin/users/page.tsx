@@ -8,13 +8,14 @@ import { Alert, Avatar, Badge, Button, Field, Input, Modal, PageHeader, SearchIn
 import * as I from "@/components/ui/icons";
 import { adminApi, errorMessage, type User, type UserStatus } from "@/lib/api";
 import { downloadBlob } from "@/lib/admin-names";
+import { useDebounced } from "@/lib/use-debounce";
 import { useT } from "@/i18n";
 
 export default function AdminUsersPage() {
   const { t } = useT();
   const router = useRouter();
   const [search, setSearch] = useState("");
-  const [query, setQuery] = useState("");
+  const [query, flush] = useDebounced(search.trim(), 300); // jonli qidiruv
   const [status, setStatus] = useState<UserStatus | "">("");
   const [createOpen, setCreateOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -97,12 +98,9 @@ export default function AdminUsersPage() {
       {exportErr && (
         <Alert className="mb-4">{exportErr}</Alert>
       )}
-      <Toolbar onSubmit={() => setQuery(search.trim())} meta={data ? `${t("common.total")}: ${data.total}` : undefined}>
+      <Toolbar onSubmit={flush} meta={data ? `${t("common.total")}: ${data.total}` : undefined} busy={loading && !!data}>
         <SearchInput placeholder={t("admin.users.searchPlaceholder")} value={search} onChange={(e) => setSearch(e.target.value)} className="w-full max-w-xs" aria-label={t("common.search")} />
         <Select value={status} onChange={(v) => setStatus(v as UserStatus | "")} options={statusOptions} className="w-44" aria-label={t("common.status")} data-testid="filter-status" />
-        <Button type="submit" variant="secondary">
-          {t("common.search")}
-        </Button>
       </Toolbar>
       <DataTable data={data} columns={columns} loading={loading} error={error} onPage={setPage} onRowClick={(u) => router.push(`/admin/users/${u.id}`)} minWidth={640} />
       <CreateUserModal open={createOpen} onClose={() => setCreateOpen(false)} onCreated={(u) => router.push(`/admin/users/${u.id}`)} />
