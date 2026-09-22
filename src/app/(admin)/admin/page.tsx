@@ -9,6 +9,7 @@ import Link from "next/link";
 import { Alert, Badge, Card, PageHeader, Spinner, Stat, buttonClass, formatDate, statusTone } from "@/components/ui";
 import * as I from "@/components/ui/icons";
 import { adminApi, isApiError, type AdminStats, type AuditLog } from "@/lib/api";
+import { auditActionLabel, auditEntityLabel } from "@/lib/admin-names";
 import { useT } from "@/i18n";
 import { formatNumber as fmt } from "@/i18n";
 
@@ -144,11 +145,10 @@ export default function AdminHome() {
               <li key={l.id} className="track">
                 <span className="track-num">{i + 1}</span>
                 <span className="min-w-0">
-                  <span className="track-title">
-                    <Badge tone="accent" className="font-mono">
-                      {l.action}
-                    </Badge>
-                    {l.entity_type && <span className="ml-2 text-xs font-semibold text-muted">{l.entity_type}</span>}
+                  <span className="track-title">{auditActionLabel(l.action)}</span>
+                  <span className="track-sub">
+                    <span className="font-mono">{l.action}</span>
+                    {l.entity_type && <> · {auditEntityLabel(l.entity_type)}</>}
                   </span>
                 </span>
                 <span className="shrink-0 text-xs font-semibold text-muted">{formatDate(l.created_at)}</span>

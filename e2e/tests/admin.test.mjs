@@ -53,11 +53,13 @@ await page.waitForFunction(() => document.querySelector(".app-frame").dataset.na
 // ---- Buyurtmalar: nomlar resolve, approve → ruxsat
 await page.goto(`${BASE}/admin/orders`);
 await page.waitForSelector("text=Chek 777", { timeout: 10000 });
+check("Buyurtmalar: filtr default 'Barcha holatlar'", (await page.locator('[data-testid="filter-status"]').getAttribute("data-value")) === "");
 await page.waitForSelector("text=Test User", { timeout: 8000 });
 const logN = await mockGet("/__log");
 check("Buyurtmalar: user/book nomlari backend maydonlaridan (N+1 so'rov yo'q), chek, holat", (await bodyHas("Ruxsatsiz kitob")) && (await bodyHas("Tekshirilmoqda")) && !logN.some((l) => /^GET \/admin\/(users|books)\/[0-9a-f-]{36}$/.test(l)));
 await page.click("text=Tasdiqlash");
-await page.waitForFunction(() => document.body.innerText.includes("Ma'lumot yo'q"), null, { timeout: 8000 });
+// "Barchasi" filtrida buyurtma ro'yxatda qoladi — holati Tasdiqlangan bo'ladi, amal tugmalari yo'qoladi
+await page.waitForFunction(() => document.body.innerText.includes("Tasdiqlangan") && ![...document.querySelectorAll("button")].some((b) => b.textContent.trim() === "Tasdiqlash"), null, { timeout: 8000 });
 const accessAfter = await (await fetch(`${API}/admin/book-access?book_id=${BOOK2}`, { headers: { Authorization: "Bearer access-token-admin" } })).json();
 check("Approve → ruxsat yaratildi (book-access)", accessAfter.items.some((a) => a.user_id === USER_ID && a.status === "ACTIVE"));
 // reject flow

@@ -43,9 +43,30 @@ check("Tugmachada oy ko'rinadi, quyosh yashirin", await page.evaluate(() => {
   return Number(moon) > 0.9 && Number(sun) < 0.1;
 }));
 check("localStorage a365.theme=dark", (await page.evaluate(() => localStorage.getItem("a365.theme"))) === "dark");
+// Oq "flash" yo'q: hydration'dan oldin, birinchi kadrlardayoq html.dark bo'lishi kerak (head'dagi inline skript)
+await page.addInitScript(() => {
+  const log = [];
+  window.__paint = log;
+  const tick = () => {
+    log.push([document.documentElement.classList.contains("dark"), getComputedStyle(document.body).backgroundColor]);
+    if (log.length < 20) requestAnimationFrame(tick);
+  };
+  document.addEventListener("DOMContentLoaded", () => requestAnimationFrame(tick));
+});
 await page.reload();
 await page.waitForSelector("text=Test kitob");
 check("Reload'dan keyin dark saqlandi", (await page.evaluate(() => document.documentElement.classList.contains("dark"))) && (await sw.getAttribute("aria-checked")) === "true");
+const frames = await page.evaluate(() => window.__paint);
+check("Reload'da oq flash yo'q (barcha dastlabki kadrlar dark)", frames.length > 0 && frames.every((f) => f[0] === true), JSON.stringify(frames.slice(0, 4)));
+
+// Ketma-ket ikki marta tez bosish — ikkinchi to'lqin birinchisini bekor qiladi, atribut osilib qolmaydi
+const b2 = await sw.boundingBox();
+await page.mouse.click(b2.x + b2.width / 2, b2.y + b2.height / 2);
+await page.waitForFunction(() => !document.documentElement.classList.contains("dark"), null, { timeout: 3000 }); // 1-almashish qo'llandi, to'lqin davom etmoqda
+await page.mouse.click(b2.x + b2.width / 2, b2.y + b2.height / 2); // to'lqin paytida — brauzer yutadi, biz qayta yuboramiz
+await page.waitForFunction(() => document.documentElement.classList.contains("dark"), null, { timeout: 4000 }).then(() => check("To'lqin paytidagi bosish yo'qolmadi → 2-almashish (yana dark)", true)).catch(() => check("To'lqin paytidagi bosish yo'qolmadi → 2-almashish (yana dark)", false));
+await page.waitForFunction(() => !document.documentElement.hasAttribute("data-theme-wave"), null, { timeout: 4000 }).then(() => check("Ikki marta tez bosish: to'lqin tugadi, atribut tozalandi", true)).catch(() => check("Ikki marta tez bosish: to'lqin tugadi, atribut tozalandi", false));
+check("Switch holati mos (aria-checked=true)", (await sw.getAttribute("aria-checked")) === "true");
 
 // Klaviatura: fokus + Space → light (koordinatasiz ham ishlaydi)
 await sw.focus();

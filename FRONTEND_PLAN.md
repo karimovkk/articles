@@ -311,6 +311,22 @@ yo'llari haqida xato beradi — `rm -rf .next/types .next/dev/types` yoki `next 
       vizual: to'liq kenglik 1920px, bayroqlar (segment + menyu), switch ikkala holat, to'lqin kadrlari, sidebar
       tugmasi (2026-09-21)
 
+## 12. Tuzatishlar (2026-09-22, foydalanuvchi fikri)
+
+- [x] 12.1 Mavzu almashishdan keyingi bug'lar (tekshirib topildi va tuzatildi):
+      (a) dark saqlangan holda sahifa qayta yuklanganda ~100 ms **oq "flash"** — `<head>` dagi inline skript mavzuni
+      birinchi paint'dan oldin qo'llaydi (`src/app/layout.tsx`, `THEME_SCRIPT`); test: dastlabki kadrlar dark;
+      (b) to'lqin paytida (~0.75 s) brauzer **bosishlarni yutardi** (`::view-transition` qatlami, Chrome'da
+      `pointer-events` yordam bermaydi) — endi bosilsa to'lqin darhol tugatiladi va bosish asl elementga qayta
+      yuboriladi (`withWave` → `skipTransition` + `elementFromPoint`), davomiylik 600 ms;
+      (c) ketma-ket ikki bosish bir marta almashardi — yangi qiymat apply paytida joriy saqlangan mavzudan hisoblanadi,
+      atribut faqat oxirgi to'lqinda tozalanadi. Test: `theme` to'plami (15) Chrome ✅ Firefox ✅
+- [x] 12.2 Buyurtmalar: holat filtri default **"Barcha holatlar"** (avval "Tekshirilmoqda"); `admin` testida tekshiruv
+- [x] 12.3 Audit: 19 ta amal va 7 ta obyekt turi uz/ru/en'ga tarjima qilindi (`audit.action.*`, `audit.entity.*`,
+      `auditActionLabel`/`auditEntityLabel`): filtr Select'da tarjima + kod, jadvalda tarjima (kod ostida), dashboard'da
+      ham; obyekt filtri — matn o'rniga tarjimali qo'lbola Select. Test: `search` to'plami (audit qismi)
+- [x] 12.4 Tekshiruv: `tsc` ✅ · `eslint` ✅ · **production build 18/18 to'plam (272 tekshiruv) ✅**
+
 ### Backend uchun eslatmalar (jonli auditdan) — holat: B1 ✅(avvaldan) · B2 ✅ · B3 ✅ · B4 ✅ · B5 ✅ · B6 ✅(avvaldan) ·
 B7 ✅ · B8 ✅ (OpenAPI manba) · B9 ✅ · B10 ✅ · B11 ✅ · B12 ✅ · B13 ✅ — **ochiq savol yo'q**
 

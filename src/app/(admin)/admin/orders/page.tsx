@@ -16,7 +16,7 @@ const STATUSES: OrderStatus[] = ["PENDING", "AWAITING_REVIEW", "APPROVED", "REJE
 
 export default function AdminOrdersPage() {
   const { t } = useT();
-  const [status, setStatus] = useState<OrderStatus | "">("AWAITING_REVIEW");
+  const [status, setStatus] = useState<OrderStatus | "">(""); // default — barchasi
   const [rejecting, setRejecting] = useState<Order | null>(null);
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState<string | null>(null);

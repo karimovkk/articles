@@ -87,7 +87,7 @@ check("Kategoriyalar: status → 'faol'", await bodyHas("faol"));
 // ---- Audit (meta, action enum)
 await page.goto(`${BASE}/admin/audit-logs`);
 await page.waitForSelector("td:has-text(\"BOOK_\")", { timeout: 15000 });
-check("Audit: action enum, meta JSON, IP", (await bodyHas("book_access")) && (await bodyHas("144.124")));
+check("Audit: amal tarjimasi + kodi, obyekt, IP", (await bodyHas("Kitobga ruxsat")) && (await bodyHas("144.124")));
 const optCount = await selectOptionCount(page, '[data-testid="filter-action"]');
 check("Audit: action filtri (qo'lbola Select, 19 amal)", optCount >= 19, `${optCount}`);
 

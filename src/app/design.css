@@ -1147,6 +1147,10 @@ a.stat:hover {
 html[data-theme-wave] {
   view-transition-name: root;
 }
+/* To'lqin paytida sahifa bosishlarga javob bersin (aks holda ::view-transition qatlami ~0.75 s barcha bosishlarni yutadi) */
+html[data-theme-wave]::view-transition {
+  pointer-events: none;
+}
 html[data-theme-wave]::view-transition-old(root),
 html[data-theme-wave]::view-transition-new(root) {
   animation: none;

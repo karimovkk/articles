@@ -12,6 +12,12 @@ import { env } from "@/lib/env";
 const manrope = Manrope({ subsets: ["latin", "cyrillic"], variable: "--font-manrope", display: "swap" });
 const unbounded = Unbounded({ subsets: ["latin", "cyrillic"], variable: "--font-unbounded", display: "swap" });
 
+/**
+ * Mavzuni birinchi paint'dan OLDIN qo'llash (hydration'gacha oq "flash" bo'lmasin):
+ * localStorage `a365.theme` → bo'lmasa tizim afzalligi. ThemeProvider bilan bir xil mantiq.
+ */
+const THEME_SCRIPT = `(function(){try{var t=localStorage.getItem('a365.theme');if(t!=='dark'&&t!=='light'){t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'}var d=document.documentElement;d.classList.toggle('dark',t==='dark');d.style.colorScheme=t}catch(e){}})()`;
+
 export const metadata: Metadata = {
   title: { default: env.appName, template: `%s · ${env.appName}` },
   description: "Himoyalangan elektron kutubxona — kitoblar faqat web-reader ichida o'qiladi.",
@@ -21,6 +27,9 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="uz" suppressHydrationWarning className={`${manrope.variable} ${unbounded.variable}`}>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+      </head>
       <body className="min-h-dvh antialiased">
         <ThemeProvider>
           <LocaleEffect />

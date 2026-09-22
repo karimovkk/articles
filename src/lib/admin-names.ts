@@ -1,5 +1,7 @@
 "use client";
 
+import { hasKey, t } from "@/i18n";
+
 /**
  * `BookAccessResponse`/`OrderResponse` da user/book nomlari yo'q (B5) — id bo'yicha
  * `GET /admin/users/{id}` / `GET /admin/books/{id}` orqali olinadi, modul darajasida keshlanadi.
@@ -60,4 +62,16 @@ export function downloadBlob(blob: Blob, filename: string) {
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/** Audit amali nomi (tarjima; noma'lum kod — o'zi). */
+export function auditActionLabel(action: string): string {
+  const key = `audit.action.${action}`;
+  return hasKey(key) ? t(key) : action;
+}
+/** Audit obyekt turi nomi (tarjima; noma'lum — o'zi). */
+export function auditEntityLabel(entity: string | null | undefined): string {
+  if (!entity) return "—";
+  const key = `audit.entity.${entity}`;
+  return hasKey(key) ? t(key) : entity;
 }

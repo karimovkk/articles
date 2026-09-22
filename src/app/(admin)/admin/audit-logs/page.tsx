@@ -2,19 +2,20 @@
 
 import { useState } from "react";
 import { DataTable, Toolbar, usePaged, type Column } from "@/components/admin/data-table";
-import { Alert, Badge, Button, Input, PageHeader, Select, formatDate } from "@/components/ui";
+import { Alert, Button, PageHeader, Select, formatDate } from "@/components/ui";
 import * as I from "@/components/ui/icons";
 import { AUDIT_ACTIONS, adminApi, errorMessage, type AuditAction, type AuditLog } from "@/lib/api";
-import { downloadBlob } from "@/lib/admin-names";
-import { useDebounced } from "@/lib/use-debounce";
+import { auditActionLabel, auditEntityLabel, downloadBlob } from "@/lib/admin-names";
 import { useT } from "@/i18n";
+
+/** Backend audit `entity_type` qiymatlari (OpenAPI'da enum yo'q — kuzatilganlar) */
+const AUDIT_ENTITIES = ["book", "article", "user", "book_access", "category", "session", "order"] as const;
 
 export default function AdminAuditLogsPage() {
   const { t } = useT();
   const [action, setAction] = useState<AuditAction | "">("");
   const [entity, setEntity] = useState("");
-  const [entityQ, flush] = useDebounced(entity.trim(), 300); // jonli filtr
-  const filters = { action, entity_type: entityQ };
+  const filters = { action, entity_type: entity };
   const [exporting, setExporting] = useState(false);
   const [exportErr, setExportErr] = useState<string | null>(null);
 
@@ -42,9 +43,10 @@ export default function AdminAuditLogsPage() {
       key: "action",
       header: t("admin.audit.action"),
       render: (l) => (
-        <Badge tone="accent" className="font-mono">
-          {l.action}
-        </Badge>
+        <span className="flex flex-col gap-0.5">
+          <span className="font-bold text-text">{auditActionLabel(l.action)}</span>
+          <span className="font-mono text-[10.5px] text-muted">{l.action}</span>
+        </span>
       ),
     },
     {
@@ -52,7 +54,7 @@ export default function AdminAuditLogsPage() {
       header: t("admin.audit.entity"),
       render: (l) => (
         <span className="text-muted">
-          {l.entity_type ?? "—"}
+          {auditEntityLabel(l.entity_type)}
           {l.entity_id && <span className="ml-1 font-mono text-[11px]">{l.entity_id.slice(0, 8)}</span>}
         </span>
       ),
@@ -87,16 +89,23 @@ export default function AdminAuditLogsPage() {
         }
       />
       {exportErr && <Alert className="mb-4">{exportErr}</Alert>}
-      <Toolbar onSubmit={flush} meta={data ? `${t("common.total")}: ${data.total}` : undefined} busy={loading && !!data}>
+      <Toolbar meta={data ? `${t("common.total")}: ${data.total}` : undefined} busy={loading && !!data}>
         <Select
           value={action}
           onChange={(v) => setAction(v as AuditAction | "")}
-          options={[{ value: "", label: t("admin.audit.allActions") }, ...AUDIT_ACTIONS.map((a) => ({ value: a, label: a }))]}
+          options={[{ value: "", label: t("admin.audit.allActions") }, ...AUDIT_ACTIONS.map((a) => ({ value: a, label: auditActionLabel(a), description: a }))]}
           className="w-64"
           aria-label={t("admin.audit.action")}
           data-testid="filter-action"
         />
-        <Input placeholder={t("admin.audit.entityPlaceholder")} value={entity} onChange={(e) => setEntity(e.target.value)} className="max-w-xs" aria-label={t("admin.audit.entity")} />
+        <Select
+          value={entity}
+          onChange={setEntity}
+          options={[{ value: "", label: t("admin.audit.allEntities") }, ...AUDIT_ENTITIES.map((e) => ({ value: e, label: auditEntityLabel(e), description: e }))]}
+          className="w-56"
+          aria-label={t("admin.audit.entity")}
+          data-testid="filter-entity"
+        />
       </Toolbar>
       <DataTable data={data} columns={columns} loading={loading} error={error} onPage={setPage} minWidth={860} />
     </div>

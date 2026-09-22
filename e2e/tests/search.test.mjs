@@ -1,6 +1,6 @@
 // 11.2 — jonli qidiruv: tugmasiz, yozilayotganda (debounce), fokus saqlanadi, eskirgan javob yangisini bosmaydi,
 // URL sinxron (katalog), Enter darhol, admin ro'yxatlar va reader qidiruvi
-import { launch, BASE, reset, mockGet, makeCheck } from "../lib.mjs";
+import { launch, BASE, reset, mockGet, makeCheck, selectPick } from "../lib.mjs";
 const API_HOST = process.env.E2E_API ?? "http://localhost:8001";
 const ART = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const { check, done } = makeCheck();
@@ -113,11 +113,15 @@ await page.locator('form[role="search"] input[type="search"]').pressSequentially
 await page.waitForFunction(() => /Jami: (1|11)\b/.test(document.body.innerText) && !document.body.innerText.includes("Jami: 31"), null, { timeout: 8000 });
 check("Admin kitoblar: yozilgach filtrlandi", true);
 await page.goto(`${BASE}/admin/audit-logs`);
-await page.waitForSelector("text=BOOK_ACCESS_GRANTED", { timeout: 10000 });
+await page.waitForSelector("text=Kitobga ruxsat berildi", { timeout: 10000 });
 check("Audit: 'Filtrlash' tugmasi yo'q", (await page.locator('form[role="search"] button[type="submit"]').count()) === 0);
-await page.locator('form[role="search"] input:not([type="search"])').first().pressSequentially("user", { delay: 20 });
-await page.waitForFunction(() => document.body.innerText.includes("SUSPICIOUS_ACTIVITY") && !document.body.innerText.includes("BOOK_ACCESS_GRANTED"), null, { timeout: 8000 });
-check("Audit: entity jonli filtrlandi", true);
+check("Audit: amallar tarjima qilingan (kod ostida)", (await bodyHas("Shubhali faollik")) && (await bodyHas("SUSPICIOUS_ACTIVITY")) && (await bodyHas("Kitobga ruxsat")));
+await selectPick(page, '[data-testid="filter-entity"]', "user");
+await page.waitForFunction(() => document.body.innerText.includes("Shubhali faollik") && !document.body.innerText.includes("Kitobga ruxsat berildi"), null, { timeout: 8000 });
+check("Audit: obyekt filtri (qo'lbola Select, tarjima) ishladi", true);
+await selectPick(page, '[data-testid="filter-action"]', "BOOK_ACCESS_GRANTED");
+await page.waitForFunction(() => document.body.innerText.includes("Ma'lumot yo'q"), null, { timeout: 8000 });
+check("Audit: amal + obyekt filtri birga (user × BOOK_ACCESS_GRANTED → bo'sh)", true);
 
 check("Sahifa xatolari yo'q", pageErrors.length === 0, pageErrors.join(" | ").slice(0, 300));
 await done(browser);
