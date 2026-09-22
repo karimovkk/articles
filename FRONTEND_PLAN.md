@@ -349,6 +349,20 @@ yo'llari haqida xato beradi — `rm -rf .next/types .next/dev/types` yoki `next 
       qisqa sudrash, fon bosish, animatsiya), `mobile` (swipe → animatsiya); `tsc` ✅ · `eslint` ✅ · **production build
       19/19 to'plam (297 tekshiruv) ✅** · Firefox auth-ui/reader/mobile/theme ✅ (2026-09-22)
 
+- [x] 13.5 Varaq animatsiyasi tuzatildi (foydalanuvchi fikri): varaq kitob qoplamasidek 180° ag'darilmaydi — yupqa
+      sahifa umurtqa atrofida faqat 90° gacha buriladi, oxirgi chorakda so'nadi, orqa tomon (`.face.back`) olib tashlandi;
+      birinchi/oxirgi sahifalar ham bir xil (1↔2, 5↔6 da maks. 90° o'lchandi). `reader`/`reader-article`/`mobile` ✅,
+      Firefox ✅
+
+- [x] 13.6 Login chap paneli — yer shari va orbitadagi kitoblar (`src/components/auth/globe-orbit.tsx`): canvas'da
+      aylanuvchi nuqtali globus (Natural Earth 1:110m quruqlik → 7000 nuqtali Fibonacci sferasi, 1.2 KB bitset
+      `src/lib/land-mask.ts`; aksent "shahar chiroqlari", chekka nur, soya); `public/` dagi 5 ta kitob rasmi qayta
+      ishlandi → `public/auth/book-{1..5}.webp` (fon olib tashlandi — 2 tasida chizilgan shaxmat fon, kesildi,
+      520px, jami ~220 KB); og'ma ellips orbita — kitoblar **yuqori-o'ngdan** globus orqasidan chiqib, oldidan
+      o'tadi va **pastki-chapda** orqaga kiradi (orqada kichik/xira). Faqat ko'rinib turganda animatsiya
+      (IntersectionObserver), reduced-motion — statik, mobilda panel yashirin. Test: `auth-ui` (+6: rasmlar,
+      canvas, kirish/chiqish tomonlari o'lchab, reduced-motion, mobil); prod build 19/19 (303) ✅, Firefox ✅
+
 ### Backend uchun eslatmalar (jonli auditdan) — holat: B1 ✅(avvaldan) · B2 ✅ · B3 ✅ · B4 ✅ · B5 ✅ · B6 ✅(avvaldan) ·
 B7 ✅ · B8 ✅ (OpenAPI manba) · B9 ✅ · B10 ✅ · B11 ✅ · B12 ✅ · B13 ✅ — **ochiq savol yo'q**
 

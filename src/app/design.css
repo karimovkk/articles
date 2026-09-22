@@ -2217,10 +2217,10 @@ a.track:hover {
   border-radius: var(--radius-lg);
   background: var(--frame-2);
   color: var(--frame-text);
-  padding: 40px;
+  padding: 36px 40px;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  gap: 12px;
 }
 .auth-art::before {
   content: "";
@@ -2292,106 +2292,47 @@ a.track:hover {
   font-style: normal;
   color: var(--accent);
 }
-.auth-art > p {
-  color: var(--frame-text-2);
-  max-width: 440px;
-  margin-top: 14px;
-  font-size: 15px;
-}
-/* Kitob illyustratsiyasi: 3 ta varaq, suzib turadi */
-.book-illo {
+/* Yer shari + orbitadagi kitoblar (GlobeOrbit) */
+.globe-orbit {
   position: relative;
-  width: 220px;
-  height: 260px;
-  margin: 28px 0 8px;
-  perspective: 900px;
-  animation: illo-float 6s ease-in-out infinite;
+  flex: 1 1 auto;
+  min-height: 260px;
+  margin: 8px -40px;
+  isolation: isolate;
 }
-.book-illo .leaf {
+.globe-canvas {
   position: absolute;
   inset: 0;
-  border-radius: 14px 18px 18px 14px;
-  background: linear-gradient(160deg, #fbfaf6, #ebe8de);
-  box-shadow:
-    0 30px 60px -30px rgba(0, 0, 0, 0.7),
-    inset 0 0 0 1px rgba(0, 0, 0, 0.06);
-  transform-origin: left center;
+  z-index: 2;
+  pointer-events: none;
 }
-.book-illo .leaf:nth-child(1) {
-  transform: rotateY(-18deg) translateX(-14px) scale(0.96);
-  opacity: 0.55;
-}
-.book-illo .leaf:nth-child(2) {
-  transform: rotateY(-10deg) translateX(-7px) scale(0.98);
-  opacity: 0.8;
-}
-.book-illo .leaf:nth-child(3) {
-  transform: rotateY(-3deg);
-  padding: 26px 24px;
-  color: var(--ink);
-}
-.book-illo .leaf:nth-child(3)::before {
-  content: "";
-  display: block;
-  width: 26px;
-  height: 4px;
-  border-radius: 2px;
-  background: var(--accent);
-  margin-bottom: 18px;
-}
-.book-illo .line {
-  height: 6px;
-  border-radius: 3px;
-  background: rgba(15, 20, 18, 0.14);
-  margin-bottom: 10px;
-}
-.book-illo .line.w2 {
-  width: 62%;
-}
-.book-illo .line.w3 {
-  width: 84%;
-}
-.book-illo .line.hl {
-  background: color-mix(in srgb, var(--accent) 55%, transparent);
-  width: 70%;
-}
-.book-illo .wm {
+.globe-glow {
   position: absolute;
-  right: 18px;
-  bottom: 16px;
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: rgba(15, 20, 18, 0.28);
-  transform: rotate(-12deg);
+  left: 50%;
+  top: 50%;
+  width: calc(var(--globe-r, 140px) * 2.9);
+  height: calc(var(--globe-r, 140px) * 2.9);
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  z-index: 0;
+  background: radial-gradient(circle, color-mix(in srgb, var(--accent) 26%, transparent) 30%, transparent 68%);
+  filter: blur(8px);
+  pointer-events: none;
 }
-.book-illo .badge-lock {
+.orbit-book {
   position: absolute;
-  right: -14px;
-  top: 22px;
-  width: 44px;
-  height: 44px;
-  border-radius: 14px;
-  background: var(--accent);
-  color: var(--accent-contrast);
-  display: grid;
-  place-items: center;
-  box-shadow: 0 14px 30px -12px rgba(0, 0, 0, 0.6);
-  transform: translateZ(40px);
-}
-@keyframes illo-float {
-  0%,
-  100% {
-    transform: translateY(0) rotate(-1deg);
-  }
-  50% {
-    transform: translateY(-10px) rotate(1deg);
-  }
+  left: 0;
+  top: 0;
+  height: auto;
+  visibility: hidden;
+  transform-origin: 50% 50%;
+  will-change: transform, opacity, filter;
+  pointer-events: none;
+  user-select: none;
 }
 /* Karusel */
 .auth-slides {
-  margin-top: 24px;
+  margin-top: 20px;
   max-width: 460px;
 }
 .auth-slide {

@@ -55,7 +55,9 @@ export interface PdfViewerProps {
 const RENDER_MARGIN = "150% 0px";
 const PAGE_GAP = 16;
 const MAX_PAGE_WIDTH = 1100;
-const FLIP_MS = 480;
+const FLIP_MS = 420;
+/** Varaq burilish chegarasi (gradus): 90° — sahifa umurtqada qirrasiga keladi va yo'qoladi (qoplamadek 180° ag'darilmaydi) */
+const FLIP_DEG = 90;
 /** Sahifaning chekka ulushi (chap/o'ng) — sichqoncha bilan "varaq burchagidan" ushlab sudrash zonasi */
 const GRAB_EDGE = 0.14;
 
@@ -331,7 +333,7 @@ type FlipState = {
   dir: 1 | -1;
   from: number;
   to: number;
-  /** Ag'darilayotgan varaqning burchagi: oldinga 0 → -180, orqaga -180 → 0 */
+  /** Burilayotgan varaqning burchagi: oldinga 0 → -FLIP_DEG, orqaga -FLIP_DEG → 0 (orqa tomon hech qachon ko'rinmaydi) */
   angle: number;
   /** CSS transition bilan yakuniga yetkazilmoqda (sudrash tugagan yoki avtomatik) */
   settling: boolean;
@@ -343,7 +345,8 @@ type FlipState = {
 
 /**
  * Varaqlash sahnasi: joriy va qo'shni sahifalar bir joyda ustma-ust turadi (qo'shnilar oldindan render qilinadi),
- * varaq almashishi 3D `rotateY` bilan (kitob varag'i kabi, orqa tomoni oq). Boshqaruv:
+ * varaq almashishi 3D `rotateY` bilan — yupqa sahifa umurtqa atrofida 90° gacha buriladi va so'nadi (qoplamadek
+ * 180° ag'darilmaydi, orqa tomoni ko'rinmaydi; birinchi/oxirgi sahifalar ham bir xil). Boshqaruv:
  *  - tashqaridan `current` o'zgarsa (tugma, klaviatura, sahifa raqami, TOC) — avtomatik animatsiya;
  *  - sichqoncha: sahifaning chap/o'ng chekkasidan yoki fondan ushlab sudrash (varaq kursorga ergashadi, yarmidan
  *    o'tsa/tez tortilsa varaqlanadi, aks holda qaytadi); fonning chap/o'ng qismini bosish — oldingi/keyingi;
@@ -380,19 +383,19 @@ function FlipStage({
   // yakuniy burchak keyingi kadrda — transition ishlashi uchun)
   if (current !== displayed && !flip) {
     const dir: 1 | -1 = current > displayed ? 1 : -1;
-    setFlip({ dir, from: displayed, to: current, angle: dir === 1 ? 0 : -180, settling: false, dragging: false, auto: true });
+    setFlip({ dir, from: displayed, to: current, angle: dir === 1 ? 0 : -FLIP_DEG, settling: false, dragging: false, auto: true });
   }
   useEffect(() => {
     if (!flip?.auto || flip.settling) return;
-    const raf = requestAnimationFrame(() => requestAnimationFrame(() => setFlip((f) => (f?.auto && !f.settling ? { ...f, angle: f.dir === 1 ? -180 : 0, settling: true } : f))));
+    const raf = requestAnimationFrame(() => requestAnimationFrame(() => setFlip((f) => (f?.auto && !f.settling ? { ...f, angle: f.dir === 1 ? -FLIP_DEG : 0, settling: true } : f))));
     return () => cancelAnimationFrame(raf);
   }, [flip]);
 
   // Animatsiya yakuni: transition tugagach (yoki zaxira taymer) holatni yopamiz
   const finish = useCallback(
     (f: FlipState) => {
-      const done = f.dir === 1 ? f.angle <= -180 : f.angle >= 0;
-      const cancelled = f.dir === 1 ? f.angle >= 0 : f.angle <= -180;
+      const done = f.dir === 1 ? f.angle <= -FLIP_DEG : f.angle >= 0;
+      const cancelled = f.dir === 1 ? f.angle >= 0 : f.angle <= -FLIP_DEG;
       if (done) {
         setDisplayed(f.to);
         if (f.to !== current) onCommit(f.to);
@@ -448,12 +451,12 @@ function FlipStage({
       } catch {
         /* sintetik pointer (test) — capture shart emas */
       }
-      setFlip({ dir, from: displayed, to: targetOf(dir), angle: dir === 1 ? 0 : -180, settling: false, dragging: true });
+      setFlip({ dir, from: displayed, to: targetOf(dir), angle: dir === 1 ? 0 : -FLIP_DEG, settling: false, dragging: true });
     }
     d.lastX = e.clientX;
     d.lastT = performance.now();
-    const frac = Math.max(0, Math.min(1, (d.dir === 1 ? -dx : dx) / Math.max(200, width * 0.85)));
-    const angle = d.dir === 1 ? -180 * frac : -180 + 180 * frac;
+    const frac = Math.max(0, Math.min(1, (d.dir === 1 ? -dx : dx) / Math.max(160, width * 0.6)));
+    const angle = d.dir === 1 ? -FLIP_DEG * frac : -FLIP_DEG + FLIP_DEG * frac;
     setFlip((f) => (f && f.dragging ? { ...f, angle } : f));
   };
   const endDrag = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -475,10 +478,10 @@ function FlipStage({
     if (!f) return;
     const dt = Math.max(1, performance.now() - d.lastT);
     const vx = (e.clientX - d.lastX) / dt; // px/ms
-    const progress = f.dir === 1 ? -f.angle / 180 : (f.angle + 180) / 180;
+    const progress = f.dir === 1 ? -f.angle / FLIP_DEG : (f.angle + FLIP_DEG) / FLIP_DEG;
     const fast = f.dir === 1 ? vx < -0.4 : vx > 0.4;
     const complete = progress > 0.45 || (fast && progress > 0.08);
-    const endAngle = complete ? (f.dir === 1 ? -180 : 0) : f.dir === 1 ? 0 : -180;
+    const endAngle = complete ? (f.dir === 1 ? -FLIP_DEG : 0) : f.dir === 1 ? 0 : -FLIP_DEG;
     setFlip({ ...f, angle: endAngle, settling: true, dragging: false });
   };
 
@@ -486,10 +489,10 @@ function FlipStage({
   const pages = Array.from(new Set([displayed - 1, displayed, displayed + 1, flip?.to ?? displayed])).filter((n) => n >= 1 && n <= pageCount).sort((a, b) => a - b);
   const flipping = flip ? (flip.dir === 1 ? flip.from : flip.to) : null; // ag'darilayotgan varaq
   const under = flip ? (flip.dir === 1 ? flip.to : flip.from) : null; // ostida ko'rinadigan varaq
-  // Ag'darilish darajasi (0 — tekis, 180 — to'liq ag'darilgan): soya va 90° dan keyin xiralashish
-  const turned = flip ? Math.min(180, Math.abs(flip.dir === 1 ? flip.angle : flip.angle + 180)) : 0;
-  const shade = Math.sin((turned / 180) * Math.PI);
-  const leafOpacity = turned <= 90 ? 1 : Math.max(0.04, 1 - ((turned - 90) / 90) * 0.96);
+  // Burilish darajasi (0 — tekis, FLIP_DEG — qirrasiga kelgan): soya kuchayadi, oxirgi chorakda varaq so'nadi
+  const turned = flip ? Math.min(FLIP_DEG, Math.abs(flip.dir === 1 ? flip.angle : flip.angle + FLIP_DEG)) / FLIP_DEG : 0;
+  const shade = Math.sin(turned * (Math.PI / 2));
+  const leafOpacity = turned <= 0.7 ? 1 : Math.max(0.05, 1 - ((turned - 0.7) / 0.3) * 0.95);
 
   return (
     <div
@@ -529,9 +532,8 @@ function FlipStage({
             >
               <div className="face front">
                 {renderPage(n)}
-                {isFlipping && <div className="flip-shade" style={{ opacity: shade * 0.45 }} />}
+                {isFlipping && <div className="flip-shade" style={{ opacity: shade * 0.5 }} />}
               </div>
-              <div className="face back" />
             </div>
           );
         })}

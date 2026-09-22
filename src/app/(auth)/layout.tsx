@@ -1,7 +1,8 @@
 "use client";
 
 /**
- * Auth qobig'i (13.2): chapda brend paneli — "aurora" fon, suzuvchi kitob illyustratsiyasi, 3 slaydli karusel;
+ * Auth qobig'i (13.2): chapda brend paneli — "aurora" fon, aylanuvchi yer shari va uning orbitasidagi kitoblar
+ * (`GlobeOrbit`), 3 slaydli karusel;
  * o'ngda karta: Kirish / Ro'yxatdan o'tish segment-tab, sarlavha + microcopy, forma.
  */
 import { useEffect, useState, type ReactNode } from "react";
@@ -13,6 +14,7 @@ import { LocaleSwitcher } from "@/i18n/locale-switcher";
 import { ThemeSwitch } from "@/components/ui/theme-switch";
 import { cn } from "@/components/ui";
 import * as I from "@/components/ui/icons";
+import { GlobeOrbit } from "@/components/auth/globe-orbit";
 
 const SLIDES: Array<{ icon: (p: { size?: number }) => ReactNode; title: DictKey; text: DictKey }> = [
   { icon: I.ShieldCheck, title: "auth.slide1.title", text: "auth.slide1.text" },
@@ -71,27 +73,14 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
             <span className="brand-sub">{t("app.tagline")}</span>
           </span>
         </Link>
+        <GlobeOrbit />
         <div>
-          <div className="book-illo" aria-hidden>
-            <div className="leaf" />
-            <div className="leaf" />
-            <div className="leaf">
-              <div className="line w3" />
-              <div className="line" />
-              <div className="line hl" />
-              <div className="line w2" />
-              <div className="line w3" />
-              <div className="line w2" />
-              <span className="wm">{env.appName} · ID-0042</span>
-            </div>
-            <span className="badge-lock">
-              <I.Lock size={20} />
-            </span>
-          </div>
           <h2>
             {t("auth.heroTitle1")} <em>{t("auth.heroTitle2")}</em>
           </h2>
-          <p>{t("auth.heroText")}</p>
+          <p className="mt-3.5 max-w-[440px] text-[15px]" style={{ color: "var(--frame-text-2)" }}>
+            {t("auth.heroText")}
+          </p>
           <Slides />
         </div>
         <p className="text-xs font-semibold" style={{ color: "var(--frame-muted)" }}>

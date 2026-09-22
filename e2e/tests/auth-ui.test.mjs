@@ -12,9 +12,40 @@ process.on("unhandledRejection", async (e) => {
   process.exit(1);
 });
 
-// ---- Login: ko'z tugmasi
+// ---- Chap panel: yer shari + orbitadagi kitoblar
 await page.goto(`${BASE}/login`);
 await page.waitForSelector('[data-testid="login-form"]');
+await page.waitForFunction(() => { const b = [...document.querySelectorAll(".orbit-book")]; return b.length === 5 && b.every((x) => x.complete && x.naturalWidth > 0 && x.style.visibility === "visible"); }, null, { timeout: 15000 });
+check("Globus: 5 ta kitob rasmi yuklandi va joylashtirildi", true);
+check("Globus: canvas chizilgan (markazda shaffof emas)", await page.evaluate(() => {
+  const c = document.querySelector(".globe-canvas"); const d = c.getContext("2d").getImageData(c.width / 2, c.height / 2, 1, 1).data; return d[3] > 200;
+}));
+// Orbita yo'nalishi: kitob globus oldiga o'tishi (z 1→3) — yuqori-o'ngda, orqaga kirishi (3→1) — pastki-chapda
+const samples = await page.evaluate(async () => {
+  const wrap = document.querySelector(".globe-orbit").getBoundingClientRect();
+  const cx = wrap.left + wrap.width / 2, cy = wrap.top + wrap.height / 2;
+  const books = [...document.querySelectorAll(".orbit-book")];
+  const prev = books.map((b) => b.style.zIndex);
+  const events = [];
+  const t0 = performance.now();
+  while (performance.now() - t0 < 7000) {
+    await new Promise((r) => requestAnimationFrame(r));
+    books.forEach((b, i) => {
+      const z = b.style.zIndex;
+      if (z !== prev[i]) {
+        const r = b.getBoundingClientRect();
+        events.push({ kind: z === "3" ? "enter" : "exit", dx: Math.round(r.left + r.width / 2 - cx), dy: Math.round(r.top + r.height / 2 - cy) });
+        prev[i] = z;
+      }
+    });
+  }
+  return events;
+});
+const enters = samples.filter((e) => e.kind === "enter"), exits = samples.filter((e) => e.kind === "exit");
+check("Orbita: kitoblar yuqori-o'ngdan (globus orqasidan) chiqadi", enters.length > 0 && enters.every((e) => e.dx > 0 && e.dy < 0), JSON.stringify(enters));
+check("Orbita: pastki-chapda globus orqasiga kiradi", exits.length > 0 && exits.every((e) => e.dx < 0 && e.dy > 0), JSON.stringify(exits));
+
+// ---- Login: ko'z tugmasi
 check("Login: Kirish/Ro'yxat tablar, Kirish faol", (await page.locator('[data-testid="tab-login"][aria-current="page"]').count()) === 1);
 check("Login: karusel (3 slayd, 1 ta faol)", (await page.locator(".auth-slide").count()) === 3 && (await page.locator(".auth-slide.active").count()) === 1);
 const pw = page.locator('input[autocomplete="current-password"]');
@@ -73,6 +104,20 @@ check("Ko'rsatilgan parol bilan kirish ishladi", true);
 await page.goto(`${BASE}/profile`);
 await page.waitForSelector("text=Parolni o'zgartirish", { timeout: 10000 });
 check("Profil: 3 ta parol maydonida ko'z", (await page.locator('[data-testid="pw-eye"]').count()) === 3);
+
+// prefers-reduced-motion: statik kadr (kitoblar joyida turadi)
+const rm = await (await browser.newContext({ viewport: { width: 1280, height: 800 }, reducedMotion: "reduce" })).newPage();
+await rm.goto(`${BASE}/login`);
+await rm.waitForFunction(() => [...document.querySelectorAll(".orbit-book")].every((x) => x.style.visibility === "visible"), null, { timeout: 15000 });
+const pos1 = await rm.evaluate(() => [...document.querySelectorAll(".orbit-book")].map((b) => b.style.transform).join("|"));
+await rm.waitForTimeout(800);
+const pos2 = await rm.evaluate(() => [...document.querySelectorAll(".orbit-book")].map((b) => b.style.transform).join("|"));
+check("Reduced motion: kitoblar harakatsiz (statik kadr)", pos1 === pos2 && pos1.length > 0);
+// Mobil: chap panel yashirin — globus ko'rinmaydi
+const mob = await (await browser.newContext({ viewport: { width: 390, height: 844 } })).newPage();
+await mob.goto(`${BASE}/login`);
+await mob.waitForSelector('[data-testid="login-form"]');
+check("Mobil: globus paneli yashirin, forma ko'rinadi", !(await mob.locator(".globe-orbit").isVisible()));
 
 check("Sahifa xatolari yo'q", pageErrors.length === 0, pageErrors.join(" | ").slice(0, 300));
 await done(browser);

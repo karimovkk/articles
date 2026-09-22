@@ -123,32 +123,19 @@ html {
 .flip-leaf .face {
   position: absolute;
   inset: 0;
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
-}
-.flip-leaf .face.back {
-  transform: rotateY(180deg);
-  background:
-    linear-gradient(90deg, rgba(0, 0, 0, 0.18), transparent 18%),
-    #f7f6f2;
-  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.45);
-}
-.reader-night .flip-leaf .face.back {
-  background:
-    linear-gradient(90deg, rgba(0, 0, 0, 0.5), transparent 18%),
-    #1a1d24;
 }
 .flip-leaf.is-flipping {
   pointer-events: none;
 }
 .flip-leaf.is-flipping .face.front {
-  box-shadow: -18px 0 40px -18px rgba(0, 0, 0, 0.55);
+  box-shadow: 14px 0 40px -14px rgba(0, 0, 0, 0.5);
 }
+/* Burilayotgan varaqdagi soya: umurtqadan (chapdan) qorayadi — yupqa qog'oz egilgandek */
 .flip-shade {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: linear-gradient(90deg, rgba(0, 0, 0, 0.55), transparent 60%);
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.12) 45%, transparent 100%);
 }
 /* Sahifa chekkalari — "varaq burchagi" (sichqoncha bilan ushlash) */
 .flip-leaf .reader-page::before,
