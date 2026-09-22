@@ -1,21 +1,38 @@
 "use client";
 
 /**
- * "To'ladim" formasi (buyurtma oqimi v1.0): chek **rasmi** (tavsiya — JPEG/PNG/WebP, ≤ 10 MB, magic-bayt tekshiruvi)
- * + ixtiyoriy izoh → `POST /orders/{id}/receipt` (multipart). Rasmni tanlash yoki sudrab tashlash, oldindan ko'rish,
- * yuklash progressi. Rasmsiz (faqat izoh) yuborish ham mumkin — backend fallback'i.
+ * "To'ladim" formasi (buyurtma oqimi v1.0): chek **rasmi yoki PDF** (tavsiya — JPEG/PNG/WebP/PDF, ≤ 10 MB, magic-bayt
+ * tekshiruvi; HEIC → JPEG, brauzer uddalasa) + ixtiyoriy izoh → `POST /orders/{id}/receipt` (multipart). Tanlash yoki
+ * sudrab tashlash, oldindan ko'rish (rasm — kichik rasm, PDF — fayl kartochkasi), yuklash progressi.
+ * Rasmsiz (faqat izoh) yuborish ham mumkin — backend fallback'i. `replace` — AWAITING_REVIEW'da chekni almashtirish.
  */
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Alert, Button, Textarea, cn } from "@/components/ui";
 import * as I from "@/components/ui/icons";
-import { errorMessage, ordersApi, type Order } from "@/lib/api";
-import { RECEIPT_MAX_MB, formatMb, validateReceipt } from "@/lib/uploads";
+import { errorMessage, isApiError, ordersApi, type Order } from "@/lib/api";
+import { RECEIPT_MAX_MB, formatMb, heicToJpeg, receiptKind, validateReceipt } from "@/lib/uploads";
 import { useT } from "@/i18n";
 
-export function ReceiptForm({ orderId, onDone, onCancel, compact }: { orderId: string; onDone: (o: Order) => void; onCancel: () => void; compact?: boolean }) {
+export function ReceiptForm({
+  orderId,
+  onDone,
+  onCancel,
+  onStale,
+  compact,
+  replace,
+}: {
+  orderId: string;
+  onDone: (o: Order) => void;
+  onCancel: () => void;
+  /** 409 INVALID_ORDER_STATE — buyurtma boshqa joyda (Telegram) hal qilingan: ota komponent holatni yangilaydi */
+  onStale?: () => void;
+  compact?: boolean;
+  replace?: boolean;
+}) {
   const { t } = useT();
   const inputRef = useRef<HTMLInputElement>(null);
-  const [picked, setPicked] = useState<{ file: File; url: string } | null>(null);
+  const [picked, setPicked] = useState<{ file: File; url: string; pdf: boolean } | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
   const file = picked?.file ?? null;
   const preview = picked?.url ?? null;
   const urlRef = useRef<string | null>(null);
@@ -25,10 +42,10 @@ export function ReceiptForm({ orderId, onDone, onCancel, compact }: { orderId: s
   const [drag, setDrag] = useState(false);
 
   // Oldindan ko'rish URL'i — almashtirilganda (setImage) va yopilganda bo'shatiladi
-  const setImage = (f: File | null) => {
+  const setImage = (f: File | null, pdf = false) => {
     if (urlRef.current) URL.revokeObjectURL(urlRef.current);
     urlRef.current = f ? URL.createObjectURL(f) : null;
-    setPicked(f && urlRef.current ? { file: f, url: urlRef.current } : null);
+    setPicked(f && urlRef.current ? { file: f, url: urlRef.current, pdf } : null);
   };
   useEffect(
     () => () => {
@@ -40,12 +57,23 @@ export function ReceiptForm({ orderId, onDone, onCancel, compact }: { orderId: s
   async function pick(f: File | undefined | null) {
     if (!f) return;
     setError(null);
+    setInfo(null);
+    // HEIC (iPhone) — backend qabul qilmaydi: brauzer uddalasa JPEG'ga o'giramiz
+    if ((await receiptKind(f)) === "heic") {
+      const jpeg = await heicToJpeg(f);
+      if (!jpeg) {
+        setError(t("upload.receiptHeic"));
+        return;
+      }
+      f = jpeg;
+      setInfo(t("orders.heicConverted"));
+    }
     const problem = await validateReceipt(f);
     if (problem) {
       setError(problem);
       return;
     }
-    setImage(f);
+    setImage(f, (await receiptKind(f)) === "pdf");
   }
 
   function clear() {
@@ -62,6 +90,7 @@ export function ReceiptForm({ orderId, onDone, onCancel, compact }: { orderId: s
       onDone(o);
     } catch (err) {
       setError(errorMessage(err));
+      if (isApiError(err) && err.code === "INVALID_ORDER_STATE") onStale?.();
     } finally {
       setProgress(null);
     }
@@ -70,21 +99,28 @@ export function ReceiptForm({ orderId, onDone, onCancel, compact }: { orderId: s
   const busy = progress !== null;
   return (
     <form onSubmit={(e) => void submit(e)} className="space-y-3" data-testid="receipt-form">
-      {!compact && <p className="text-sm font-bold text-text">{t("orders.receiptTitle")}</p>}
+      {!compact && <p className="text-sm font-bold text-text">{replace ? t("orders.replaceReceipt") : t("orders.receiptTitle")}</p>}
       {error && <Alert>{error}</Alert>}
+      {info && <Alert tone="info">{info}</Alert>}
 
       <input
         ref={inputRef}
         type="file"
-        accept="image/jpeg,image/png,image/webp"
+        accept="image/jpeg,image/png,image/webp,application/pdf"
         className="hidden"
         onChange={(e) => void pick(e.target.files?.[0])}
         data-testid="receipt-file"
       />
       {file && preview ? (
         <div className="flex items-center gap-3 rounded-[14px] border border-border bg-surface-2 p-2.5" data-testid="receipt-preview">
-          {/* eslint-disable-next-line @next/next/no-img-element -- lokal blob oldindan ko'rish */}
-          <img src={preview} alt="" className="size-16 shrink-0 rounded-[10px] object-cover" />
+          {picked?.pdf ? (
+            <span className="grid size-16 shrink-0 place-items-center rounded-[10px] bg-surface text-danger" aria-label={t("orders.receiptPdf")} data-testid="receipt-pdf">
+              <I.FileText size={26} />
+            </span>
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element -- lokal blob oldindan ko'rish
+            <img src={preview} alt="" className="size-16 shrink-0 rounded-[10px] object-cover" />
+          )}
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold text-text">{file.name}</p>
             <p className="text-xs text-muted">{formatMb(file.size)}</p>

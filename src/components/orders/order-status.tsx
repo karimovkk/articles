@@ -9,12 +9,14 @@ const TONE: Record<OrderStatus, "neutral" | "success" | "warning" | "danger" | "
   AWAITING_REVIEW: "info",
   APPROVED: "success",
   REJECTED: "danger",
+  CANCELLED: "neutral",
 };
 const KEY: Record<OrderStatus, DictKey> = {
   PENDING: "orders.status.PENDING",
   AWAITING_REVIEW: "orders.status.AWAITING_REVIEW",
   APPROVED: "orders.status.APPROVED",
   REJECTED: "orders.status.REJECTED",
+  CANCELLED: "orders.status.CANCELLED",
 };
 
 export function OrderStatusBadge({ status }: { status: OrderStatus }) {

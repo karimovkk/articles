@@ -163,6 +163,17 @@ export async function api<T = unknown>(path: string, opts: RequestOptions = {}):
   return (await res.json()) as T;
 }
 
+/** Muvaffaqiyatsiz `apiRaw` javobidan ApiError (backend `{error:{code,message,details}}` konverti bo'lsa — uning kodi). */
+export async function apiErrorFrom(res: Response): Promise<ApiError> {
+  let err: ApiErrorBody["error"] | undefined;
+  try {
+    err = ((await res.json()) as ApiErrorBody).error;
+  } catch {
+    /* JSON emas */
+  }
+  return new ApiError(res.status, err?.code ?? `HTTP_${res.status}`, err?.message ?? `HTTP ${res.status}`, err?.details);
+}
+
 export function isApiError(e: unknown): e is ApiError {
   return e instanceof ApiError;
 }

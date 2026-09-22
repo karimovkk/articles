@@ -1,6 +1,9 @@
 "use client";
 
-/** Admin: buyurtmalar (PM S-16) — ro'yxat, holat filtri, tasdiqlash / rad etish (sabab). */
+/**
+ * Admin: buyurtmalar (oqim v1.0) — ro'yxat, holat filtri (+ CANCELLED), chekni ko'rish (rasm/PDF, B15), tasdiqlash /
+ * rad etish (sabab majburiy). Telegram'da allaqachon hal qilingan bo'lsa 409 `INVALID_ORDER_STATE` → xabar + yangilash.
+ */
 import { useState } from "react";
 import Link from "next/link";
 import { DataTable, Toolbar, usePaged, type Column } from "@/components/admin/data-table";
@@ -8,11 +11,12 @@ import * as I from "@/components/ui/icons";
 import { OrderStatusBadge } from "@/components/orders/order-status";
 import { Price } from "@/components/catalog/price";
 import { Alert, Button, Field, Modal, PageHeader, Select, Textarea, formatDate } from "@/components/ui";
-import { adminApi, errorMessage, type Order, type OrderStatus } from "@/lib/api";
+import { adminApi, errorMessage, isApiError, type Order, type OrderStatus } from "@/lib/api";
 import { useEntityNames } from "@/lib/admin-names";
+import { ReceiptViewer } from "@/components/admin/receipt-viewer";
 import { useT } from "@/i18n";
 
-const STATUSES: OrderStatus[] = ["PENDING", "AWAITING_REVIEW", "APPROVED", "REJECTED"];
+const STATUSES: OrderStatus[] = ["PENDING", "AWAITING_REVIEW", "APPROVED", "REJECTED", "CANCELLED"];
 
 export default function AdminOrdersPage() {
   const { t } = useT();
@@ -21,6 +25,7 @@ export default function AdminOrdersPage() {
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [actionErr, setActionErr] = useState<string | null>(null);
+  const [viewing, setViewing] = useState<Order | null>(null);
   const { data, loading, error, setPage, reload } = usePaged<Order>((page) => adminApi.orders({ page, status: status || undefined }), [status]);
   // B5: backend nomlarni qo'shib beradi; eski javobda bo'lmasa — id bo'yicha resolve
   const names = useEntityNames(
@@ -38,6 +43,11 @@ export default function AdminOrdersPage() {
       reload();
     } catch (e) {
       setActionErr(errorMessage(e));
+      // Telegram'da hal qilingan — ro'yxat va oynani yangilaymiz
+      if (isApiError(e) && e.code === "INVALID_ORDER_STATE") {
+        setRejecting(null);
+        reload();
+      }
     } finally {
       setBusy(null);
     }
@@ -69,10 +79,17 @@ export default function AdminOrdersPage() {
       key: "note",
       header: t("admin.orders.receipt"),
       render: (o) => (
-        <span className="block max-w-[260px] truncate text-xs text-muted" title={o.receipt_note ?? undefined}>
-          {o.receipt_note ?? "—"}
-          {o.reject_reason && <span className="block truncate text-danger">{o.reject_reason}</span>}
-        </span>
+        <div className="flex max-w-[300px] items-start gap-2">
+          {o.has_receipt_file && (
+            <button type="button" className="icon-btn sm shrink-0" onClick={() => setViewing(o)} aria-label={t("admin.orders.viewReceipt")} title={t("admin.orders.viewReceipt")} data-testid="view-receipt">
+              <I.Image size={15} />
+            </button>
+          )}
+          <span className="block min-w-0 truncate text-xs text-muted" title={o.receipt_note ?? undefined}>
+            {o.receipt_note ?? (o.has_receipt_file ? "" : "—")}
+            {o.reject_reason && <span className="block truncate text-danger">{o.reject_reason}</span>}
+          </span>
+        </div>
       ),
     },
     {
@@ -108,6 +125,8 @@ export default function AdminOrdersPage() {
       </Toolbar>
       {actionErr && <Alert className="mb-4">{actionErr}</Alert>}
       <DataTable data={data} columns={columns} loading={loading} error={error} onPage={setPage} minWidth={900} />
+
+      <ReceiptViewer key={viewing?.id ?? "none"} order={viewing} onClose={() => setViewing(null)} />
 
       <Modal open={!!rejecting} onClose={() => setRejecting(null)} title={t("admin.orders.rejectTitle")} icon={<I.XCircle size={18} />} size="sm">
         <form

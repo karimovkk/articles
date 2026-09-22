@@ -14,6 +14,7 @@ const o = await (await fetch(`${API}/orders`, { method: "POST", headers: uh, bod
 // Chek — multipart/form-data (buyurtma oqimi v1.0)
 const receiptForm = new FormData();
 receiptForm.append("receipt_note", "Chek 777");
+receiptForm.append("file", new Blob([Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==", "base64")], { type: "image/png" }), "chek.png");
 await fetch(`${API}/orders/${o.id}/receipt`, { method: "POST", headers: { Authorization: uh.Authorization }, body: receiptForm });
 
 const browser = await launch();
@@ -60,6 +61,22 @@ check("Buyurtmalar: filtr default 'Barcha holatlar'", (await page.locator('[data
 await page.waitForSelector("text=Test User", { timeout: 8000 });
 const logN = await mockGet("/__log");
 check("Buyurtmalar: user/book nomlari backend maydonlaridan (N+1 so'rov yo'q), chek, holat", (await bodyHas("Ruxsatsiz kitob")) && (await bodyHas("Tekshirilmoqda")) && !logN.some((l) => /^GET \/admin\/(users|books)\/[0-9a-f-]{36}$/.test(l)));
+// ---- Chekni ko'rish (GET /admin/orders/{id}/receipt, Bearer → blob): faqat has_receipt_file bo'lsa tugma
+check("Chek fayli bor → 'Chekni ko'rish' tugmasi", (await page.locator('[data-testid="view-receipt"]').count()) === 1);
+await page.click('[data-testid="view-receipt"]');
+await page.waitForSelector('[data-testid="receipt-viewer-img"]', { timeout: 8000 });
+check("Chek oynasi: rasm (blob URL) + izoh + yangi oynada ochish", (await page.getAttribute('[data-testid="receipt-viewer-img"]', "src"))?.startsWith("blob:") && (await page.locator('[data-testid="receipt-viewer"] >> text=Chek 777').count()) === 1 && (await page.locator('[data-testid="receipt-viewer"] a:has-text("Yangi oynada ochish")').count()) === 1 && (await mockGet("/__log")).includes(`GET /admin/orders/${o.id}/receipt`));
+await page.screenshot({ path: OUT + "63-admin-receipt.png" });
+await page.keyboard.press("Escape");
+await page.waitForSelector('[data-testid="receipt-viewer"]', { state: "detached", timeout: 5000 });
+// Fayl topilmasa (404 RECEIPT_NOT_FOUND) — tushunarli xabar
+await page.route("**/api/v1/admin/orders/*/receipt", (r) => r.fulfill({ status: 404, contentType: "application/json", body: JSON.stringify({ error: { code: "RECEIPT_NOT_FOUND", message: "x", details: null } }) }));
+await page.click('[data-testid="view-receipt"]');
+await page.waitForSelector("text=Bu buyurtmada chek fayli yo'q", { timeout: 5000 });
+check("404 RECEIPT_NOT_FOUND → 'chek fayli yo'q'", (await page.locator('[data-testid="receipt-viewer-img"]').count()) === 0);
+await page.unroute("**/api/v1/admin/orders/*/receipt");
+await page.keyboard.press("Escape");
+await page.waitForSelector('[data-testid="receipt-viewer"]', { state: "detached", timeout: 5000 });
 await page.click("text=Tasdiqlash");
 // "Barchasi" filtrida buyurtma ro'yxatda qoladi — holati Tasdiqlangan bo'ladi, amal tugmalari yo'qoladi
 await page.waitForFunction(() => document.body.innerText.includes("Tasdiqlangan") && ![...document.querySelectorAll("button")].some((b) => b.textContent.trim() === "Tasdiqlash"), null, { timeout: 8000 });
@@ -77,6 +94,23 @@ await page.click('button[type="submit"]:has-text("Rad etish")');
 await page.waitForFunction(() => document.body.innerText.includes("Ma'lumot yo'q"), null, { timeout: 8000 });
 const ord = (await mockGet("/__orders")).find((x) => x.id === o2.id);
 check("Reject → REJECTED + sabab", ord?.status === "REJECTED" && ord?.reject_reason === "To'lov kelmadi");
+// Bo'sh sabab API'da ham 422
+const emptyReason = await fetch(`${API}/admin/orders/${o2.id}/reject`, { method: "POST", headers: { Authorization: "Bearer access-token-admin", "Content-Type": "application/json" }, body: JSON.stringify({ reason: " " }) });
+check("Mock: bo'sh sabab → 422 (backend bilan bir xil)", emptyReason.status === 422);
+// ---- CANCELLED filtri + 409 INVALID_ORDER_STATE (foydalanuvchi bekor qildi / Telegram'da hal qilindi) → xabar + yangilash
+const o3 = await (await fetch(`${API}/orders`, { method: "POST", headers: uh, body: JSON.stringify({ book_id: "22222222-2222-4222-8222-000000000001" }) })).json();
+await selectPick(page, '[data-testid="filter-status"]', "CANCELLED");
+await page.waitForFunction(() => document.body.innerText.includes("Ma'lumot yo'q"), null, { timeout: 8000 });
+await selectPick(page, '[data-testid="filter-status"]', "PENDING");
+await page.waitForSelector("button:has-text('Tasdiqlash')", { timeout: 8000 });
+await fetch(`${API}/orders/${o3.id}/cancel`, { method: "POST", headers: uh });
+await page.click("button:has-text('Tasdiqlash')");
+await page.waitForSelector("text=Buyurtma holati allaqachon o'zgargan", { timeout: 8000 });
+await page.waitForFunction(() => document.body.innerText.includes("Ma'lumot yo'q"), null, { timeout: 8000 });
+check("409 INVALID_ORDER_STATE → xabar + ro'yxat yangilandi (ruxsat berilmadi)", (await mockGet("/__orders")).find((x) => x.id === o3.id)?.status === "CANCELLED");
+await selectPick(page, '[data-testid="filter-status"]', "CANCELLED");
+await page.waitForSelector("tbody tr:has-text('Bekor qilingan')", { timeout: 8000 });
+check("Filtr 'Bekor qilingan' → CANCELLED buyurtma", (await page.locator('[data-testid="view-receipt"]').count()) === 0);
 
 // ---- Maqolalar: yaratish → fayl yuklash → PROCESSING → READY (polling) → TOC → rename → o'chirish
 await page.goto(`${BASE}/admin/books/${BOOK}`);

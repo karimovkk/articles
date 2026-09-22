@@ -42,3 +42,6 @@ next-env.d.ts
 
 # e2e skrinshotlar/yuklamalar
 e2e/out/
+
+# Asl (qayta ishlanmagan) rasmlar — saytda public/auth/*.webp nusxalari ishlatiladi, asllari repoga kirmaydi
+/public/ChatGPT Image*.png

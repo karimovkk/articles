@@ -4,7 +4,7 @@ import { useEffect, useLayoutEffect, useRef } from "react";
 
 /**
  * Buyurtma holatini kuzatish (oqim v1.0): admin chekni Telegram'da tasdiqlaydi/rad etadi, frontend esa
- * `GET /orders` orqali yangilanadi. `enabled` (AWAITING_REVIEW bor) bo'lsa — har `ms` da, sahifaga qaytilganda
+ * `GET /orders/{id}` (panel) yoki `GET /orders` (ro'yxat) orqali yangilanadi. `enabled` (AWAITING_REVIEW bor) bo'lsa — har `ms` da, sahifaga qaytilganda
  * (focus/visibility) va bildirishnomalar o'zgarganda `refresh` chaqiriladi.
  */
 export function useOrderPoll(enabled: boolean, refresh: () => void, ms = 20_000) {

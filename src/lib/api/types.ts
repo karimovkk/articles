@@ -12,7 +12,7 @@ export type CategoryStatus = "ACTIVE" | "INACTIVE";
 export type ProcessingStatus = "UPLOADING" | "PROCESSING" | "READY" | "FAILED";
 export type AccessStatus = "ACTIVE" | "REVOKED";
 export type AnnotationType = "HIGHLIGHT" | "BOOKMARK" | "NOTE";
-export type OrderStatus = "PENDING" | "AWAITING_REVIEW" | "APPROVED" | "REJECTED";
+export type OrderStatus = "PENDING" | "AWAITING_REVIEW" | "APPROVED" | "REJECTED" | "CANCELLED";
 export type NotificationType = "ACCESS_GRANTED" | "ACCESS_REVOKED" | "ORDER_CREATED" | "ORDER_APPROVED" | "ORDER_REJECTED" | "GENERAL";
 export type AuditAction =
   | "BOOK_CREATED"
@@ -272,8 +272,17 @@ export interface Order {
   user_email?: string | null;
   user_full_name?: string | null;
   book_title?: string | null;
+  /** Chek fayli (rasm/PDF) yuklanganmi — admin `GET /admin/orders/{id}/receipt` bilan ko'radi */
+  has_receipt_file?: boolean;
   created_at: string;
   updated_at: string;
+}
+
+/** GET /payment-info — to'lov rekvizitlari (backend config'dan; bo'sh satr = sozlanmagan) */
+export interface PaymentInfo {
+  card_number: string;
+  recipient: string;
+  instructions: string;
 }
 
 export interface Notification {

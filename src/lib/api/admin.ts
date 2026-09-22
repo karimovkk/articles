@@ -1,5 +1,5 @@
 /** Admin API — barcha yo'llar ADMIN rolini talab qiladi (server tomonda tekshiriladi). Manba: OpenAPI 2026-09-21. */
-import { api, apiRaw, apiUpload, type UploadOptions } from "./client";
+import { api, apiErrorFrom, apiRaw, apiUpload, type UploadOptions } from "./client";
 import type {
   AdminStats,
   Article,
@@ -141,8 +141,9 @@ export const adminApi = {
   approveOrder(id: string) {
     return api<Order>(`/admin/orders/${id}/approve`, { method: "POST" });
   },
-  rejectOrder(id: string, reason?: string) {
-    return api<Order>(`/admin/orders/${id}/reject`, { method: "POST", body: { reason: reason || null } });
+  /** Rad etish — sabab majburiy (bo'sh → 422), foydalanuvchiga ko'rsatiladi */
+  rejectOrder(id: string, reason: string) {
+    return api<Order>(`/admin/orders/${id}/reject`, { method: "POST", body: { reason } });
   },
 
   // ---- Audit
@@ -151,6 +152,12 @@ export const adminApi = {
   },
 
   // ---- Export (XLSX; fayl nomi `Content-Disposition` dan, bo'lmasa FE default)
+  /** Chek fayli (rasm yoki PDF) — blob; yo'q bo'lsa 404 `RECEIPT_NOT_FOUND` (ApiError) */
+  async orderReceipt(id: string, signal?: AbortSignal): Promise<Blob> {
+    const res = await apiRaw(`/admin/orders/${id}/receipt`, { headers: { Accept: "image/*, application/pdf" }, signal });
+    if (!res.ok) throw await apiErrorFrom(res);
+    return res.blob();
+  },
   async exportBlob(kind: "users" | "audit-logs"): Promise<{ blob: Blob; filename: string | null }> {
     const res = await apiRaw(`/admin/export/${kind}`, { headers: { Accept: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, */*" } });
     if (!res.ok) throw new Error(`HTTP_${res.status}`);

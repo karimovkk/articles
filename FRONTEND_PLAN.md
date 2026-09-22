@@ -386,6 +386,28 @@ tasdiqlash/rad etish asosan admin Telegram chatida (bot) bo'ladi. Frontend JSON 
       kuzatuv), `admin` (sabab majburiy, multipart tayyorlov). **Prod build 19/19 (314) ✅**, Firefox orders/profile/admin ✅
 - [x] 14.7 Backend savollari — pastda B15–B25
 
+## 15. Backend javoblari bo'yicha (2026-09-22, `articlesdoc/Articles365_Buyurtma_Savollar_Javoblar_v1.0.md`)
+
+Backend B15–B25 ning hammasini javobladi va deploy qildi (69 endpoint): `GET /orders/{id}`, `POST /orders/{id}/cancel`
+(`CANCELLED`), `GET /payment-info`, `GET /admin/orders/{id}/receipt`, `OrderResponse.has_receipt_file`, reject `reason`
+majburiy, 409 `ORDER_ALREADY_PENDING` / `INVALID_ORDER_STATE`, 404 `RECEIPT_NOT_FOUND`, chek PDF ham, AWAITING'da qayta yuborish.
+
+- [x] 15.1 Tiplar va API: `Order.has_receipt_file`, `OrderStatus` + `CANCELLED`; `ordersApi.get/cancel/paymentInfo`,
+      `adminApi.orderReceipt` (blob); xato kodlari + `CANCELLED` holati uz/ru/en
+- [x] 15.2 Buyurtma paneli va "Buyurtmalarim": 409 `ORDER_ALREADY_PENDING` → mavjud buyurtmaga o'tish; AWAITING'da
+      "Chekni almashtirish"; "Bekor qilish" (tasdiqlash oynasi) → CANCELLED (qayta buyurtma mumkin); kuzatuv
+      `GET /orders/{id}` bilan
+- [x] 15.3 Chek formasi: PDF (magic `%PDF`, fayl kartochkasi), HEIC → JPEG (brauzer dekodlay olsa canvas orqali,
+      aks holda aniq xabar)
+- [x] 15.4 To'lov rekvizitlari `GET /payment-info`: karta raqami (guruhlab, nusxalash tugmasi), qabul qiluvchi,
+      ko'rsatma; bo'sh bo'lsa env'dagi `NEXT_PUBLIC_PAYMENT_INSTRUCTIONS` zaxira
+- [x] 15.5 Admin buyurtmalar: "chek bor" belgisi + "Chekni ko'rish" oynasi (rasm yoki PDF, blob URL),
+      `RECEIPT_NOT_FOUND`; `INVALID_ORDER_STATE` → xabar + ro'yxat yangilanadi; filtrga `CANCELLED`
+- [x] 15.6 Mock + e2e (orders, profile, admin), prod build, Firefox — mock: `ORDER_ALREADY_PENDING` (details), `GET/cancel
+      /orders/{id}`, PDF chek + `has_receipt_file`, `/payment-info` (`/__payment?empty=1`), admin chek fayli, approve
+      idempotent / 409, bo'sh sabab 422. Natija: `--prod` 19/19 (334 tekshiruv), Firefox orders/profile/admin 3/3.
+      ⚠️ Prod'da `/payment-info` qiymatlari hozircha bo'sh — rekvizitlar bloki yashirin, backend `.env` ga karta kiritilsin.
+
 ### Backend uchun eslatmalar (jonli auditdan) — holat: B1 ✅(avvaldan) · B2 ✅ · B3 ✅ · B4 ✅ · B5 ✅ · B6 ✅(avvaldan) ·
 B7 ✅ · B8 ✅ (OpenAPI manba) · B9 ✅ · B10 ✅ · B11 ✅ · B12 ✅ · B13 ✅ — **ochiq savol yo'q**
 
@@ -411,6 +433,8 @@ B7 ✅ · B8 ✅ (OpenAPI manba) · B9 ✅ · B10 ✅ · B11 ✅ · B12 ✅ · B
   keshi yoki public katalogdan oladi (INACTIVE kitob katalogda ko'rinmaydi → ma'lumot topilmasligi mumkin).
 - B11 `GET /library?sort=` faqat `granted|title`; registrdagi "So'nggi o'qilgan" (`recent`, `last_read_at` bo'yicha)
   tartibi yo'q — qo'shilsa FE'da tayyor.
+
+Holat: B15–B25 ✅ hammasi javoblandi va deploy qilindi (15-bo'lim) — B21: PDF ✅, HEIC ❌ (FE JPEG'ga o'giradi).
 
 - B15 ❗ Web admin chek rasmini ko'ra olmaydi: `GET /admin/orders/{id}/receipt` (himoyalangan rasm oqimi) va
   `OrderResponse.has_receipt_file` kerak — hozir web'dan tasdiqlagan admin chekni ko'rmaydi.

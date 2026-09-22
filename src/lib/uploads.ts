@@ -40,13 +40,48 @@ export async function validateCover(file: File): Promise<string | null> {
   return null;
 }
 
-/** To'lov cheki rasmi (buyurtma oqimi v1.0): JPEG/PNG/WebP, ≤ 10 MB — backend chegarasi */
+/** To'lov cheki (buyurtma oqimi v1.0): JPEG/PNG/WebP rasm yoki PDF, ≤ 10 MB — backend chegarasi */
 export const RECEIPT_MAX_MB = 10;
+export type ReceiptKind = "image" | "pdf" | "heic";
+
+/** Fayl turi magic baytlar bo'yicha: rasm, PDF (`%PDF-`) yoki HEIC/HEIF (`....ftyp` + heic/heix/mif1/...) */
+export async function receiptKind(file: File): Promise<ReceiptKind | null> {
+  if (await isImage(file)) return "image";
+  const b = await head(file, 12);
+  if (startsWith(b, [0x25, 0x50, 0x44, 0x46, 0x2d])) return "pdf";
+  const box = String.fromCharCode(...b.slice(4, 8));
+  const brand = String.fromCharCode(...b.slice(8, 12));
+  if (box === "ftyp" && /^(heic|heix|hevc|hevx|mif1|msf1|heim|heis)$/.test(brand)) return "heic";
+  return null;
+}
+
 export async function validateReceipt(file: File): Promise<string | null> {
   if (file.size === 0) return t("upload.empty");
   if (file.size > RECEIPT_MAX_MB * MB) return t("upload.receiptTooBig", { max: RECEIPT_MAX_MB, size: formatMb(file.size) });
-  if (!(await isImage(file))) return t("upload.receiptNotImage");
+  const kind = await receiptKind(file);
+  if (kind === "heic") return t("upload.receiptHeic");
+  if (!kind) return t("upload.receiptNotImage");
   return null;
+}
+
+/**
+ * HEIC → JPEG (backend HEIC qabul qilmaydi): brauzer dekodlay olsa (Safari) canvas orqali JPEG'ga o'giriladi;
+ * dekodlay olmasa (Chrome/Firefox) — null (foydalanuvchiga aniq xabar ko'rsatiladi). iOS'da tanlashda o'zi JPEG qiladi.
+ */
+export async function heicToJpeg(file: File): Promise<File | null> {
+  try {
+    const bmp = await createImageBitmap(file);
+    const canvas = document.createElement("canvas");
+    canvas.width = bmp.width;
+    canvas.height = bmp.height;
+    canvas.getContext("2d")?.drawImage(bmp, 0, 0);
+    bmp.close();
+    const blob = await new Promise<Blob | null>((ok) => canvas.toBlob(ok, "image/jpeg", 0.9));
+    if (!blob) return null;
+    return new File([blob], file.name.replace(/\.(heic|heif)$/i, "") + ".jpg", { type: "image/jpeg" });
+  } catch {
+    return null;
+  }
 }
 
 export function formatMb(bytes: number): string {

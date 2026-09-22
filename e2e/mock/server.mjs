@@ -41,7 +41,7 @@ const freshArticles = () => [
   { id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd", book_id: BOOK2_ID, title: "Boshqa kitob maqolasi", order_index: 0, mime_type: "application/pdf", file_size: PDF.length, format: "pdf", page_count: 6, processing_status: "READY", processing_error: null, text_extractable: true, file_version: 1, content_updated_at: null, article_metadata: {}, created_at: now(), updated_at: now(), has_source_file: true },
 ];
 
-let books, articles, access, progress, annotations, orders, receipts, notifications, uploads, categories, users, sessions, twofaEnabled;
+let books, articles, access, progress, annotations, orders, receipts, receiptFiles, paymentInfo, notifications, uploads, categories, users, sessions, twofaEnabled;
 const log = [];
 const headersSeen = [];
 let audit500 = false;
@@ -58,6 +58,8 @@ function reset(opts = {}) {
     : [];
   orders = [];
   receipts = [];
+  receiptFiles = {}; // order_id → { data, type } (admin `/admin/orders/{id}/receipt` uchun)
+  paymentInfo = { card_number: "8600123412345678", recipient: "Articles365 MChJ", instructions: "To'lov izohiga buyurtma raqamini yozing." };
   notifications = [];
   uploads = [];
   categories = [CAT];
@@ -108,7 +110,9 @@ function parseMultipart(buf, contentType) {
   }
   return { fields, files };
 }
+const isPdfBytes = (b) => b.slice(0, 5).toString() === "%PDF-";
 const isImageBytes = (b) => (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) || (b[0] === 0x89 && b.slice(1, 4).toString() === "PNG") || (b.slice(0, 4).toString() === "RIFF" && b.slice(8, 12).toString() === "WEBP");
+const isOpen = (o) => o.status === "PENDING" || o.status === "AWAITING_REVIEW";
 const withNames = (x) => { const u = users.find((y) => y.id === x.user_id); const b = books.find((y) => y.id === x.book_id); return { ...x, user_email: u?.email ?? null, user_full_name: u?.full_name ?? null, book_title: b?.title ?? null }; };
 const hasAccess = (userId, bookId) => access.some((a) => a.user_id === userId && a.book_id === bookId && a.status === "ACTIVE");
 const progKey = (u, a) => `${u}:${a}`;
@@ -137,6 +141,8 @@ createServer(async (req, res) => {
   if (path === "/__uploads") return json(res, 200, uploads);
   if (path === "/__orders") return json(res, 200, orders);
   if (path === "/__receipts") return json(res, 200, receipts);
+  // /__payment?empty=1 — prod'dagidek bo'sh rekvizitlar (B21); parametrsiz — to'ldirilgan
+  if (path === "/__payment") { if (q.get("empty") === "1") paymentInfo = { card_number: "", recipient: "", instructions: "" }; return json(res, 200, paymentInfo); }
   if (path === "/__notify") { notifications.unshift({ id: randomUUID(), type: "GENERAL", title: q.get("title") ?? "Xabar", body: q.get("body") ?? null, is_read: false, meta: {}, created_at: now(), _user: USER.id }); return json(res, 200, { ok: true }); }
   if (path === "/__articles") return json(res, 200, articles);
   if (path === "/__set500") { audit500 = q.get("on") === "1"; return json(res, 200, { audit500 }); }
@@ -297,11 +303,21 @@ createServer(async (req, res) => {
 
   // ---- orders / notifications
   if (path === "/orders" && m === "GET") return json(res, 200, orders.filter((o) => o.user_id === me.id).map(withNames));
-  if (path === "/orders" && m === "POST") { const b = await readBody(req); const bk = books.find((x) => x.id === b.book_id); if (!bk) return err(res, 404, "BOOK_NOT_FOUND", "Book not found"); if (hasAccess(me.id, bk.id)) return err(res, 409, "ALREADY_HAS_ACCESS", "You already have access to this book"); const o = { id: randomUUID(), user_id: me.id, book_id: bk.id, amount: bk.price, status: "PENDING", receipt_note: null, reviewed_by_admin_id: null, reviewed_at: null, reject_reason: null, created_at: now(), updated_at: now() }; orders.unshift(o); return json(res, 201, o); }
+  if (path === "/orders" && m === "POST") { const b = await readBody(req); const bk = books.find((x) => x.id === b.book_id); if (!bk) return err(res, 404, "BOOK_NOT_FOUND", "Book not found"); if (hasAccess(me.id, bk.id)) return err(res, 409, "ALREADY_HAS_ACCESS", "You already have access to this book"); const open = orders.find((x) => x.user_id === me.id && x.book_id === bk.id && isOpen(x)); if (open) return err(res, 409, "ORDER_ALREADY_PENDING", "You already have an open order for this book", { order_id: open.id, status: open.status }); const o = { id: randomUUID(), user_id: me.id, book_id: bk.id, amount: bk.price, status: "PENDING", receipt_note: null, has_receipt_file: false, reviewed_by_admin_id: null, reviewed_at: null, reject_reason: null, created_at: now(), updated_at: now() }; orders.unshift(o); return json(res, 201, o); }
+  // Bitta buyurtma (polling) va bekor qilish — boshqa foydalanuvchiniki 404 (IDOR)
+  const og = /^\/orders\/([^/]+)(\/cancel)?$/.exec(path);
+  if (og && (og[2] ? m === "POST" : m === "GET")) {
+    const o = orders.find((x) => x.id === og[1] && x.user_id === me.id); if (!o) return err(res, 404, "ORDER_NOT_FOUND", "Not found");
+    if (og[2]) { if (!isOpen(o)) return err(res, 409, "INVALID_ORDER_STATE", `Order is ${o.status}`); Object.assign(o, { status: "CANCELLED", updated_at: now() }); }
+    return json(res, 200, withNames(o));
+  }
+  if (path === "/payment-info" && m === "GET") return json(res, 200, paymentInfo);
   const om = /^\/orders\/([^/]+)\/receipt$/.exec(path);
   if (om && m === "POST") {
-    // Oqim v1.0: multipart/form-data — `file` (JPEG/PNG/WebP, ≤ 10 MB, tavsiya) + `receipt_note` (ixtiyoriy)
+    // Oqim v1.0: multipart/form-data — `file` (JPEG/PNG/WebP/PDF, ≤ 10 MB, tavsiya) + `receipt_note` (ixtiyoriy).
+    // Faqat ochiq (PENDING / AWAITING_REVIEW) buyurtmaga — AWAITING'da chek almashtiriladi; aks holda 409.
     const o = orders.find((x) => x.id === om[1] && x.user_id === me.id); if (!o) return err(res, 404, "ORDER_NOT_FOUND", "Not found");
+    if (!isOpen(o)) return err(res, 409, "INVALID_ORDER_STATE", `Order is ${o.status}`);
     const ct = req.headers["content-type"] ?? "";
     if (!ct.startsWith("multipart/form-data")) return err(res, 422, "VALIDATION_ERROR", "Expected multipart/form-data");
     const form = parseMultipart(await readRaw(req), ct);
@@ -309,10 +325,11 @@ createServer(async (req, res) => {
     const f = form.files.file;
     if (f) {
       if (f.data.length > 10 * 1024 * 1024) return err(res, 413, "PAYLOAD_TOO_LARGE", "Receipt image exceeds 10 MB");
-      if (!isImageBytes(f.data)) return err(res, 422, "INVALID_FILE", "Receipt must be a JPEG, PNG or WebP image");
+      if (!isImageBytes(f.data) && !isPdfBytes(f.data)) return err(res, 422, "INVALID_FILE", "Receipt must be a JPEG, PNG, WebP image or PDF");
+      receiptFiles[o.id] = { data: f.data, type: isPdfBytes(f.data) ? "application/pdf" : f.type };
     }
     receipts.push({ order_id: o.id, note: form.fields.receipt_note ?? null, file: f ? { filename: f.filename, type: f.type, size: f.data.length } : null });
-    Object.assign(o, { status: "AWAITING_REVIEW", receipt_note: form.fields.receipt_note ?? null, updated_at: now() });
+    Object.assign(o, { status: "AWAITING_REVIEW", receipt_note: form.fields.receipt_note ?? null, has_receipt_file: !!receiptFiles[o.id], updated_at: now() });
     return json(res, 200, o);
   }
   if (path === "/notifications" && m === "GET") { const mine = notifications.filter((n) => n._user === me.id).filter((n) => q.get("unread_only") !== "true" || !n.is_read).map(({ _user, ...n }) => n); return json(res, 200, paged(mine, Number(q.get("page") ?? 1), Number(q.get("page_size") ?? 20))); }
@@ -372,8 +389,11 @@ createServer(async (req, res) => {
     const am = /^\/admin\/book-access\/([^/]+)(\/revoke)?$/.exec(path);
     if (am) { const a = access.find((x) => x.id === am[1]); if (!a) return err(res, 404, "ACCESS_NOT_FOUND", "Not found"); Object.assign(a, { status: "REVOKED", revoked_at: now(), revoked_by_admin_id: me.id, updated_at: now() }); return json(res, 200, a); }
     if (path === "/admin/orders" && m === "GET") return json(res, 200, paged(orders.filter((o) => !q.get("status") || o.status === q.get("status")).map(withNames), Number(q.get("page") ?? 1), Number(q.get("page_size") ?? 20)));
+    const arm = /^\/admin\/orders\/([^/]+)\/receipt$/.exec(path);
+    if (arm && m === "GET") { const o = orders.find((x) => x.id === arm[1]); if (!o) return err(res, 404, "ORDER_NOT_FOUND", "Not found"); const f = receiptFiles[o.id]; if (!f) return err(res, 404, "RECEIPT_NOT_FOUND", "Receipt not found"); res.writeHead(200, { "Content-Type": f.type, "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff" }); return res.end(f.data); }
     const aom = /^\/admin\/orders\/([^/]+)\/(approve|reject)$/.exec(path);
-    if (aom && m === "POST") { const o = orders.find((x) => x.id === aom[1]); if (!o) return err(res, 404, "ORDER_NOT_FOUND", "Not found"); if (aom[2] === "approve") { Object.assign(o, { status: "APPROVED", reviewed_by_admin_id: me.id, reviewed_at: now(), updated_at: now() }); access.push({ id: randomUUID(), user_id: o.user_id, book_id: o.book_id, status: "ACTIVE", granted_at: now(), granted_by_admin_id: me.id, revoked_at: null, revoked_by_admin_id: null, created_at: now(), updated_at: now() }); notifications.unshift({ id: randomUUID(), type: "ORDER_APPROVED", title: "Buyurtma tasdiqlandi", body: null, is_read: false, meta: { order_id: o.id, book_id: o.book_id }, created_at: now(), _user: o.user_id }); } else { const b = await readBody(req); Object.assign(o, { status: "REJECTED", reject_reason: b.reason ?? null, reviewed_by_admin_id: me.id, reviewed_at: now(), updated_at: now() }); notifications.unshift({ id: randomUUID(), type: "ORDER_REJECTED", title: "Buyurtma rad etildi", body: b.reason ?? null, is_read: false, meta: { order_id: o.id, book_id: o.book_id }, created_at: now(), _user: o.user_id }); } return json(res, 200, o); }
+    // Approve idempotent (APPROVED → 200 o'zgarishsiz); boshqa yopiq holat → 409 (Telegram'da hal qilingan); sabab majburiy
+    if (aom && m === "POST") { const o = orders.find((x) => x.id === aom[1]); if (!o) return err(res, 404, "ORDER_NOT_FOUND", "Not found"); const b = aom[2] === "reject" ? await readBody(req) : {}; if (aom[2] === "reject" && !String(b.reason ?? "").trim()) return err(res, 422, "VALIDATION_ERROR", "reason: String should have at least 1 character"); if (aom[2] === "approve" && o.status === "APPROVED") return json(res, 200, o); if (!isOpen(o)) return err(res, 409, "INVALID_ORDER_STATE", `Order is ${o.status}`); if (aom[2] === "approve") { Object.assign(o, { status: "APPROVED", reviewed_by_admin_id: me.id, reviewed_at: now(), updated_at: now() }); access.push({ id: randomUUID(), user_id: o.user_id, book_id: o.book_id, status: "ACTIVE", granted_at: now(), granted_by_admin_id: me.id, revoked_at: null, revoked_by_admin_id: null, created_at: now(), updated_at: now() }); notifications.unshift({ id: randomUUID(), type: "ORDER_APPROVED", title: "Buyurtma tasdiqlandi", body: null, is_read: false, meta: { order_id: o.id, book_id: o.book_id }, created_at: now(), _user: o.user_id }); } else { Object.assign(o, { status: "REJECTED", reject_reason: b.reason ?? null, reviewed_by_admin_id: me.id, reviewed_at: now(), updated_at: now() }); notifications.unshift({ id: randomUUID(), type: "ORDER_REJECTED", title: "Buyurtma rad etildi", body: b.reason ?? null, is_read: false, meta: { order_id: o.id, book_id: o.book_id }, created_at: now(), _user: o.user_id }); } return json(res, 200, o); }
     if (path === "/admin/export/users" || path === "/admin/export/audit-logs") { res.writeHead(200, { "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "Content-Disposition": `attachment; filename="${path.split("/").pop()}.xlsx"` }); return res.end(Buffer.from("PK\x03\x04fake-xlsx")); }
     return err(res, 404, "NOT_FOUND", `No admin route ${m} ${path}`);
   }

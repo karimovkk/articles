@@ -21,6 +21,11 @@ A365_EMAIL=... A365_PASS=... E2E_BASE=http://localhost:3200 node e2e/prod/smoke-
 A365_EMAIL=... A365_PASS=... E2E_BASE=http://localhost:3200 node e2e/prod/smoke-features.test.mjs   # faqat o'qish
 A365_EMAIL=... A365_PASS=... E2E_BASE=http://localhost:3200 node e2e/prod/smoke-reader.test.mjs     # admin'ga vaqtinchalik
                                                                                                    # ruxsat beradi, oxirida bekor qiladi
+A365_EMAIL=... A365_PASS=... E2E_BASE=http://localhost:3200 node e2e/prod/smoke-orders.test.mjs     # 1 ta buyurtma yaratadi va
+                                                                                                   # bekor qiladi (CANCELLED qoladi);
+                                                                                                   # chek yubormaydi (Telegram'ga
+                                                                                                   # xabar ketmaydi); qurilma limitida
+                                                                                                   # 1 ta bo'sh joy kerak
 ```
 
 Parolni env orqali bering — faylga yozmang.

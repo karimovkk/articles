@@ -1,6 +1,8 @@
-// Task 7.5 / 14 — buyurtma oqimi v1.0 (katalog): chek RASMI (multipart), validatsiya, kuzatuv (APPROVED/REJECTED),
+// Task 7.5 / 14 / 15 — buyurtma oqimi v1.0 (katalog): to'lov rekvizitlari (/payment-info), chek RASMI yoki PDF
+// (multipart), HEIC, validatsiya, chekni almashtirish (AWAITING), 409 INVALID_ORDER_STATE, bekor qilish (CANCELLED),
+// 409 ORDER_ALREADY_PENDING → mavjud buyurtma, kuzatuv GET /orders/{id} (APPROVED/REJECTED),
 // 409 ALREADY_HAS_ACCESS, bildirishnoma havolasi + 2FA login
-import { launch, BASE, API, reset, mockGet } from "../lib.mjs";
+import { launch, BASE, API, reset, mockGet, confirmDialog, IS_CHROMIUM } from "../lib.mjs";
 import { mkdirSync, writeFileSync } from "node:fs";
 const BOOK2 = "33333333-3333-4333-8333-333333333333";
 const OUT = new URL("../out/", import.meta.url).pathname;
@@ -10,13 +12,17 @@ const check = (name, ok, extra = "") => { console.log(`${ok ? "✅" : "❌"} ${n
 await reset("");
 const ah = { Authorization: "Bearer access-token-admin", "Content-Type": "application/json" };
 const browser = await launch();
-const page = await (await browser.newContext({ viewport: { width: 1280, height: 900 } })).newPage();
+const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+if (IS_CHROMIUM) await ctx.grantPermissions(["clipboard-read", "clipboard-write"], { origin: BASE });
+const page = await ctx.newPage();
 const pageErrors = [];
 page.on("pageerror", (e) => pageErrors.push(e.message));
 process.on("unhandledRejection", async (e) => { console.log("❌ XATO:", e.message.split("\n")[0]); await page.screenshot({ path: OUT + "99-orders-failure.png" }).catch(() => {}); await browser.close(); process.exit(1); });
 const bodyHas = async (text) => page.evaluate((t) => document.body.innerText.replace(/ /g, " ").includes(t), text);
-// Test fayllari: haqiqiy 1×1 PNG, matn fayli, 10 MB dan katta "JPEG"
-const PNG = OUT + "receipt.png", TXT = OUT + "receipt.txt", BIG = OUT + "receipt-big.jpg";
+// Test fayllari: haqiqiy 1×1 PNG, kichik PDF, HEIC sarlavhali fayl, matn fayli, 10 MB dan katta "JPEG"
+const PNG = OUT + "receipt.png", PDFR = OUT + "receipt.pdf", HEIC = OUT + "receipt.heic", TXT = OUT + "receipt.txt", BIG = OUT + "receipt-big.jpg";
+writeFileSync(PDFR, "%PDF-1.4\n1 0 obj<</Type/Catalog>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n");
+writeFileSync(HEIC, Buffer.concat([Buffer.from([0, 0, 0, 0x18]), Buffer.from("ftypheic"), Buffer.alloc(64, 0)]));
 writeFileSync(PNG, Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==", "base64"));
 writeFileSync(TXT, "bu rasm emas");
 writeFileSync(BIG, Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(10 * 1024 * 1024 + 10, 1)]));
@@ -43,16 +49,30 @@ await page.click("text=Buyurtma berish");
 await page.waitForSelector("text=Buyurtma yaratildi", { timeout: 5000 });
 check("POST /orders → PENDING + ko'rsatma", await bodyHas("To'lov kutilmoqda"));
 let orders = await mockGet("/__orders");
-check("Buyurtma summasi kitob narxidan", orders[0]?.amount === "70000.00" && orders[0]?.status === "PENDING");
+check("Buyurtma summasi kitob narxidan", orders[0]?.amount === "70000.00" && orders[0]?.status === "PENDING" && orders[0]?.has_receipt_file === false);
+// To'lov rekvizitlari (GET /payment-info): karta 4 talik guruhlarda, qabul qiluvchi, ko'rsatma, nusxalash
+await page.waitForSelector('[data-testid="payment-details"]', { timeout: 5000 });
+check("Rekvizitlar: karta '8600 1234 1234 5678' + qabul qiluvchi + ko'rsatma", (await page.textContent('[data-testid="payment-card"]'))?.trim() === "8600 1234 1234 5678" && (await page.textContent('[data-testid="payment-recipient"]')) === "Articles365 MChJ" && (await bodyHas("buyurtma raqamini yozing")));
+await page.click('[data-testid="payment-copy"]');
+await page.waitForSelector('[data-testid="payment-copy"]:has-text("Nusxalandi")', { timeout: 3000 });
+check("Nusxalash: karta raqami (bo'shliqsiz) buferda", IS_CHROMIUM ? (await page.evaluate(() => navigator.clipboard.readText())) === "8600123412345678" : true);
+await page.screenshot({ path: OUT + "81-order-payment.png" });
 await page.click("text=To'ladim — chek yuborish");
 await page.waitForSelector('[data-testid="receipt-form"]');
-check("Chek formasi: rasm tanlash zonasi + tavsiya matni", (await page.locator('[data-testid="receipt-drop"]').count()) === 1 && (await bodyHas("JPEG, PNG yoki WebP")));
-// Klient tekshiruvi: rasm emas / 10 MB dan katta — so'rov ketmaydi
+check("Chek formasi: tanlash zonasi + tavsiya (rasm yoki PDF)", (await page.locator('[data-testid="receipt-drop"]').count()) === 1 && (await bodyHas("JPEG, PNG, WebP yoki PDF")));
+check("Fayl tanlash: accept rasm + PDF", (await page.getAttribute('[data-testid="receipt-file"]', "accept")) === "image/jpeg,image/png,image/webp,application/pdf");
+// Klient tekshiruvi: rasm/PDF emas / 10 MB dan katta / dekodlanmaydigan HEIC — so'rov ketmaydi
 await pickReceipt(TXT);
-await page.waitForSelector("text=Chek rasmi JPEG, PNG yoki WebP bo'lishi kerak", { timeout: 3000 });
+await page.waitForSelector("text=Chek JPEG, PNG, WebP rasm yoki PDF bo'lishi kerak", { timeout: 3000 });
 await pickReceipt(BIG);
 await page.waitForSelector("text=Chek rasmi 10 MB dan oshmasligi kerak", { timeout: 3000 });
-check("Klient: rasm emas va > 10 MB — xato, serverga so'rov yo'q", (await mockGet("/__receipts")).length === 0);
+await pickReceipt(HEIC);
+await page.waitForSelector("text=HEIC rasmni bu brauzer o'qiy olmadi", { timeout: 3000 });
+check("Klient: noto'g'ri tur, > 10 MB, HEIC (brauzer o'qiy olmaydi) — xato, serverga so'rov yo'q", (await mockGet("/__receipts")).length === 0);
+// PDF chek → fayl kartochkasi (rasm emas)
+await pickReceipt(PDFR);
+await page.waitForSelector('[data-testid="receipt-pdf"]', { timeout: 3000 });
+check("PDF chek: kartochka + fayl nomi (rasm preview yo'q)", (await page.locator('[data-testid="receipt-preview"] img').count()) === 0 && (await bodyHas("receipt.pdf")));
 // Yaroqli PNG → oldindan ko'rish → olib tashlash → qayta tanlash
 await pickReceipt(PNG);
 await page.waitForSelector('[data-testid="receipt-preview"] img', { timeout: 3000 });
@@ -72,8 +92,29 @@ await page.click('[data-testid="receipt-submit"]');
 await page.waitForSelector('[data-testid="awaiting-hint"]', { timeout: 5000 });
 const rc = await mockGet("/__receipts");
 check("Chek multipart yuborildi: file (image/png) + receipt_note", rc.length === 1 && rc[0].file?.type === "image/png" && rc[0].file.size > 0 && rc[0].note === "Payme 555", JSON.stringify(rc));
-check("AWAITING_REVIEW: kutish matni", await bodyHas("Chek administrator tekshiruvida"));
+check("AWAITING_REVIEW: kutish matni, rekvizitlar yashirildi", (await bodyHas("Chek administrator tekshiruvida")) && (await page.locator('[data-testid="payment-details"]').count()) === 0);
+check("has_receipt_file = true", (await mockGet("/__orders"))[0]?.has_receipt_file === true);
 await page.screenshot({ path: OUT + "80-order-awaiting.png" });
+
+// ---- AWAITING_REVIEW'da chekni almashtirish (PDF) — holat o'zgarmaydi
+await page.click('[data-testid="replace-receipt"]');
+await page.waitForSelector('[data-testid="receipt-form"]:has-text("Chekni almashtirish")', { timeout: 3000 });
+await pickReceipt(PDFR);
+await page.waitForSelector('[data-testid="receipt-pdf"]', { timeout: 3000 });
+await page.click('[data-testid="receipt-submit"]');
+await page.waitForSelector('[data-testid="receipt-form"]', { state: "detached", timeout: 5000 });
+const rc2 = await mockGet("/__receipts");
+check("Chek almashtirildi: PDF multipart, holat AWAITING_REVIEW", rc2.length === 2 && rc2[1].file?.type === "application/pdf" && (await mockGet("/__orders"))[0]?.status === "AWAITING_REVIEW" && (await page.locator('[data-testid="awaiting-hint"]').count()) === 1, JSON.stringify(rc2[1]));
+
+// ---- 409 INVALID_ORDER_STATE (Telegram'da hal qilingan) → tushunarli xabar, forma yopiladi, holat yangilanadi
+await page.route("**/api/v1/orders/*/receipt", (r) => r.fulfill({ status: 409, contentType: "application/json", body: JSON.stringify({ error: { code: "INVALID_ORDER_STATE", message: "x", details: null } }) }));
+await page.click('[data-testid="replace-receipt"]');
+await pickReceipt(PNG);
+await page.waitForSelector('[data-testid="receipt-preview"] img', { timeout: 3000 });
+await page.click('[data-testid="receipt-submit"]');
+await page.waitForSelector("text=Buyurtma holati allaqachon o'zgargan", { timeout: 5000 });
+check("409 INVALID_ORDER_STATE → xabar + forma yopildi", (await page.locator('[data-testid="receipt-form"]').count()) === 0);
+await page.unroute("**/api/v1/orders/*/receipt");
 
 // ---- Reload: holat saqlangan (ordersApi.mine dan)
 await page.reload();
@@ -87,18 +128,36 @@ await nudge();
 await page.waitForSelector('[data-testid="reject-reason"]', { timeout: 10000 });
 check("Kuzatuv: REJECTED reload'siz ko'rindi — sabab + 'Qayta buyurtma berish'", (await bodyHas("To'lov rad etildi")) && (await bodyHas("Chek topilmadi")) && (await page.locator("text=Qayta buyurtma berish").count()) === 1);
 
-// ---- Qayta buyurtma → chek RASMSIZ (faqat izoh, fallback) → admin tasdiqlaydi → kuzatuv → APPROVED
+// ---- Qayta buyurtma → bekor qilish (tasdiqlash oynasi) → CANCELLED → yana "Buyurtma berish"
 await page.click("text=Qayta buyurtma berish");
 await page.waitForSelector("text=To'lov kutilmoqda", { timeout: 5000 });
+await page.click('[data-testid="cancel-order"]');
+await confirmDialog(page, false);
+check("Bekor qilish: 'Yo'q' → buyurtma o'zgarmadi", (await mockGet("/__orders"))[0]?.status === "PENDING");
+await page.click('[data-testid="cancel-order"]');
+await confirmDialog(page, true);
+await page.waitForSelector("text=Buyurtma bekor qilindi", { timeout: 5000 });
+orders = await mockGet("/__orders");
+check("POST /orders/{id}/cancel → CANCELLED, 'Buyurtma berish' qaytdi", orders[0]?.status === "CANCELLED" && (await page.locator("button:has-text('Buyurtma berish')").count()) === 1);
+
+// ---- 409 ORDER_ALREADY_PENDING: boshqa joyda (boshqa tab / Telegram) ochiq buyurtma bor → o'sha buyurtma ochiladi
+const other = await (await fetch(`${API}/orders`, { method: "POST", headers: { Authorization: "Bearer access-token-1", "Content-Type": "application/json" }, body: JSON.stringify({ book_id: BOOK2 }) })).json();
+await page.click("button:has-text('Buyurtma berish')");
+await page.waitForSelector("text=ochiq buyurtmangiz bor", { timeout: 5000 });
+const log = await mockGet("/__log");
+check("409 ORDER_ALREADY_PENDING → GET /orders/{details.order_id}, mavjud PENDING ko'rsatildi (xato emas)", log.includes(`GET /orders/${other.id}`) && (await page.getAttribute('[data-testid="order-panel"]', "data-status")) === "PENDING" && (await mockGet("/__orders")).filter((o) => o.status === "PENDING").length === 1);
+
+// ---- Chek RASMSIZ (faqat izoh, fallback) → admin tasdiqlaydi → kuzatuv (GET /orders/{id}) → APPROVED
 await page.click("text=To'ladim — chek yuborish");
 await page.fill('textarea[placeholder^="Chek raqami"]', "Naqd to'landi");
 await page.click('[data-testid="receipt-submit"]');
 await page.waitForSelector('[data-testid="awaiting-hint"]', { timeout: 5000 });
-check("Rasmsiz chek (faqat izoh) → AWAITING_REVIEW", (await mockGet("/__receipts"))[1]?.file === null);
+check("Rasmsiz chek (faqat izoh) → AWAITING_REVIEW", (await mockGet("/__receipts")).at(-1)?.file === null);
 orders = await mockGet("/__orders");
 await fetch(`${API}/admin/orders/${orders[0].id}/approve`, { method: "POST", headers: ah });
 await nudge();
 await page.waitForSelector("text=To'lov tasdiqlandi", { timeout: 10000 });
+check("Kuzatuv yengil GET /orders/{id} orqali", (await mockGet("/__log")).includes(`GET /orders/${orders[0].id}`));
 check("Kuzatuv: APPROVED reload'siz — 'Kitob kutubxonangizda' + kitobni ochish/kutubxona", (await page.locator(`a[href="/books/${BOOK2}"]`).count()) >= 1 && (await page.locator('a[href="/library"]:has-text("Kutubxonaga o\'tish")').count()) === 1);
 await page.reload();
 await page.waitForSelector("text=Bu kitob kutubxonangizda bor", { timeout: 10000 });

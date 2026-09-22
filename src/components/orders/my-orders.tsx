@@ -1,20 +1,22 @@
 "use client";
 
 /**
- * Buyurtmalarim (buyurtma oqimi v1.0): PENDING → "To'ladim" (chek rasmi + izoh, multipart) → AWAITING_REVIEW →
- * admin (Telegram yoki web) APPROVED/REJECTED. AWAITING_REVIEW bo'lsa holat `GET /orders` bilan kuzatiladi.
+ * Buyurtmalarim (buyurtma oqimi v1.0): PENDING → rekvizitlar + "To'ladim" (chek rasmi/PDF + izoh, multipart) →
+ * AWAITING_REVIEW (chekni almashtirish mumkin) → admin (Telegram yoki web) APPROVED/REJECTED; ochiq buyurtmani
+ * bekor qilish → CANCELLED. AWAITING_REVIEW bo'lsa ro'yxat `GET /orders` bilan kuzatiladi.
  * Kitob nomi `OrderResponse` da bo'lmasa (eski backend) — katalogdan olinadi (kesh).
  */
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Alert, Button, Card, Spinner, formatDate } from "@/components/ui";
+import { Alert, Button, Card, Spinner, formatDate, useConfirm } from "@/components/ui";
+import * as I from "@/components/ui/icons";
 import { Price } from "@/components/catalog/price";
 import { OrderStatusBadge } from "./order-status";
 import { ReceiptForm } from "./receipt-form";
+import { PaymentDetails } from "./payment-info";
 import { useOrderPoll } from "./use-order-poll";
-import { catalogApi, ordersApi } from "@/lib/api";
+import { catalogApi, errorMessage, ordersApi, type Order } from "@/lib/api";
 import { useAsync } from "@/lib/use-async";
-import { env } from "@/lib/env";
 import { useT } from "@/i18n";
 
 export function MyOrders() {
@@ -22,6 +24,9 @@ export function MyOrders() {
   const { data: orders, error, reload } = useAsync(() => ordersApi.mine(), []);
   const [titles, setTitles] = useState<Record<string, string>>({});
   const [receiptFor, setReceiptFor] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [cancelling, setCancelling] = useState<string | null>(null);
+  const confirm = useConfirm();
   useOrderPoll(!!orders?.some((o) => o.status === "AWAITING_REVIEW"), reload);
 
   // Kitob nomlari (public katalog, keshlanadi)
@@ -38,10 +43,26 @@ export function MyOrders() {
     };
   }, [orders, titles]);
 
+  async function cancel(o: Order) {
+    const ok = await confirm({ title: t("orders.cancel"), message: t("orders.cancelConfirm"), confirmLabel: t("orders.cancel"), tone: "danger" });
+    if (!ok) return;
+    setCancelling(o.id);
+    setActionError(null);
+    try {
+      await ordersApi.cancel(o.id);
+      setReceiptFor(null);
+    } catch (e) {
+      setActionError(errorMessage(e));
+    } finally {
+      setCancelling(null);
+      reload();
+    }
+  }
+
   return (
     <Card title={t("orders.title")}>
       <p className="mb-4 text-xs text-muted">{t("orders.description")}</p>
-      {error && <Alert className="mb-3">{error}</Alert>}
+      {(error ?? actionError) && <Alert className="mb-3">{error ?? actionError}</Alert>}
       {!orders ? (
         <Spinner />
       ) : orders.length === 0 ? (
@@ -66,31 +87,42 @@ export function MyOrders() {
                 </div>
                 <OrderStatusBadge status={o.status} />
               </div>
-              {o.status === "PENDING" && (
-                <div className="mt-2">
-                  {env.paymentInstructions && <p className="mb-2 whitespace-pre-wrap text-xs text-muted">{env.paymentInstructions}</p>}
+              {(o.status === "PENDING" || o.status === "AWAITING_REVIEW") && (
+                <div className="mt-2 space-y-2">
+                  {o.status === "PENDING" && <PaymentDetails />}
+                  {o.status === "AWAITING_REVIEW" && (
+                    <p className="flex items-start gap-1.5 text-xs text-muted">
+                      <Spinner className="mt-0.5 size-3 shrink-0" />
+                      {t("orders.awaitingHint")}
+                    </p>
+                  )}
                   {receiptFor === o.id ? (
                     <ReceiptForm
                       orderId={o.id}
                       compact
+                      replace={o.status === "AWAITING_REVIEW"}
                       onDone={() => {
                         setReceiptFor(null);
                         reload();
                       }}
                       onCancel={() => setReceiptFor(null)}
+                      onStale={() => {
+                        setReceiptFor(null);
+                        setActionError(t("error.INVALID_ORDER_STATE"));
+                        reload();
+                      }}
                     />
                   ) : (
-                    <Button size="sm" variant="secondary" onClick={() => setReceiptFor(o.id)}>
-                      {t("orders.paid")}
-                    </Button>
+                    <div className="flex flex-wrap gap-2">
+                      <Button size="sm" variant="secondary" onClick={() => setReceiptFor(o.id)} icon={o.status === "AWAITING_REVIEW" ? <I.Upload size={14} /> : undefined}>
+                        {o.status === "PENDING" ? t("orders.paid") : t("orders.replaceReceipt")}
+                      </Button>
+                      <Button size="sm" variant="danger-ghost" loading={cancelling === o.id} onClick={() => void cancel(o)} data-testid="cancel-order">
+                        {t("orders.cancel")}
+                      </Button>
+                    </div>
                   )}
                 </div>
-              )}
-              {o.status === "AWAITING_REVIEW" && (
-                <p className="mt-1 flex items-start gap-1.5 text-xs text-muted">
-                  <Spinner className="mt-0.5 size-3 shrink-0" />
-                  {t("orders.awaitingHint")}
-                </p>
               )}
               {o.status === "APPROVED" && (
                 <Link href={`/books/${o.book_id}`} className="mt-1 inline-block text-xs font-bold text-accent-ink hover:underline">

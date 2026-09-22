@@ -1,5 +1,6 @@
-// Task 7.4 — profil: parol o'zgartirish, 2FA (QR, enable/disable), buyurtmalarim (receipt → admin approve)
-import { launch, BASE, API, reset, mockGet } from "../lib.mjs";
+// Task 7.4 / 15 — profil: parol o'zgartirish, 2FA (QR, enable/disable), buyurtmalarim (rekvizitlar, receipt → admin
+// approve, bekor qilish → CANCELLED)
+import { launch, BASE, API, reset, mockGet, confirmDialog } from "../lib.mjs";
 import { mkdirSync } from "node:fs";
 const BOOK2 = "33333333-3333-4333-8333-333333333333";
 const OUT = new URL("../out/", import.meta.url).pathname;
@@ -68,6 +69,8 @@ check("2FA: o'chirildi", true);
 // ---- Buyurtmalarim: PENDING → To'ladim → AWAITING_REVIEW → admin approve → APPROVED
 await page.waitForSelector("text=Ruxsatsiz kitob", { timeout: 8000 });
 check("Buyurtma: kitob nomi (katalogdan), narx, holat 'To'lov kutilmoqda'", (await bodyHas("70 000 so'm")) && (await bodyHas("To'lov kutilmoqda")));
+await page.waitForSelector('[data-testid="payment-details"]', { timeout: 5000 });
+check("Buyurtmalarim: PENDING'da to'lov rekvizitlari (karta)", (await page.textContent('[data-testid="payment-card"]'))?.trim() === "8600 1234 1234 5678");
 await page.click("text=To'ladim — chek yuborish");
 // Chek rasmi (1×1 PNG) + izoh — multipart
 await page.setInputFiles('[data-testid="receipt-file"]', { name: "chek.png", mimeType: "image/png", buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==", "base64") });
@@ -84,6 +87,16 @@ await fetch(`${API}/admin/orders/${order.id}/approve`, { method: "POST", headers
 await page.evaluate(() => window.dispatchEvent(new Event("focus")));
 await page.waitForSelector("text=Tasdiqlangan", { timeout: 10000 });
 check("Admin tasdiqladi → kuzatuv (reload'siz) APPROVED + 'Kitobni ochish' havolasi", (await page.locator(`a[href="/books/${BOOK2}"]`).count()) >= 1);
+
+// ---- Bekor qilish: yangi PENDING buyurtma → "Buyurtmani bekor qilish" → tasdiqlash → CANCELLED
+const order2 = await (await fetch(`${API}/orders`, { method: "POST", headers: uh, body: JSON.stringify({ book_id: "22222222-2222-4222-8222-000000000001" }) })).json();
+await page.reload();
+await page.waitForSelector('[data-testid="cancel-order"]', { timeout: 10000 });
+check("Faqat ochiq buyurtmada bekor qilish tugmasi", (await page.locator('[data-testid="cancel-order"]').count()) === 1);
+await page.click('[data-testid="cancel-order"]');
+await confirmDialog(page, true);
+await page.waitForSelector("text=Bekor qilingan", { timeout: 5000 });
+check("POST /orders/{id}/cancel → 'Bekor qilingan', tugmalar yo'qoldi", (await mockGet("/__orders")).find((x) => x.id === order2.id)?.status === "CANCELLED" && (await page.locator('[data-testid="cancel-order"]').count()) === 0 && (await page.locator('[data-testid="payment-details"]').count()) === 0);
 
 check("Sahifa xatolari yo'q", pageErrors.length === 0, pageErrors.join(" | ").slice(0, 300));
 await browser.close();
