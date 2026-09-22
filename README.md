@@ -53,7 +53,7 @@ src/
   app/design.css     Dizayn tizimi: tokenlar (light/dark), tugma/chip/karta/jadval/forma/menyu/kalendar/modal sinflari
   proxy.ts           Next 16 Proxy (sobiq middleware): cookie bayrog'i bo'yicha optimistik redirect
   components/
-    reader/          PdfViewer (Range transport, scroll/varaqlash, highlight overlay), ReaderView, sidebar, watermark
+    reader/          PdfViewer (Range transport, scroll/varaqlash — FlipStage: 3D varaq, sudrab varaqlash), ReaderView, sidebar, watermark
     admin/           AdminShell (sidebar/topbar/crumbs), DataTable/Toolbar/usePaged, user/book detail, guard
     layout/          SiteHeader (foydalanuvchi/public qobiq), AppShell (auth guard), PublicShell
     ui/              Bazaviy to'plam + qo'lbola boshqaruv elementlari (quyida)
@@ -82,6 +82,7 @@ Brauzerning native elementlari o'rniga hammasi qo'lda yozilgan (`src/components/
 | `ConfirmProvider` / `useConfirm` | `confirm.tsx` | `window.confirm()` o'rniga Promise qaytaruvchi modal (`confirm-ok` / `confirm-cancel`) |
 | `Modal` | `modal.tsx` | portal, Esc, fokus, body scroll bloklash |
 | `DropdownPanel` | `dropdown.tsx` | umumiy joylashuv (viewport'ga sig'masa yuqoriga), scroll/resize'ga ergashadi, tashqariga bosish |
+| `PasswordInput` | `password-input.tsx` | ko'z (ko'rsatish/yashirish, fokus/kursor saqlanadi), Caps Lock, `strength` indikatori |
 | `ThemeSwitch` | `theme-switch.tsx` | oy ⇄ quyosh, `role=switch`; `ThemeProvider.toggle(origin)` bosilgan nuqtadan "to'lqin" (View Transitions API, fallback — oddiy) |
 | bayroqlar | `flags.tsx` | UZ/RU/GB inline SVG (til almashtirgich) |
 | ikonkalar | `icons.tsx` | inline SVG (`import * as I from "@/components/ui/icons"`) |

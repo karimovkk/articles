@@ -89,6 +89,139 @@ html {
   opacity: 0.35;
 }
 
+/* ---- Varaqlash rejimi (FlipStage): 3D varaq, sudrash zonalari ---- */
+.flip-stage {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px 0;
+  perspective: 2000px;
+  perspective-origin: 50% 50%;
+  touch-action: pan-y pinch-zoom;
+  cursor: grab;
+}
+.flip-stage.is-dragging {
+  cursor: grabbing;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.flip-stage.is-dragging .textLayer {
+  pointer-events: none;
+}
+.flip-book {
+  position: relative;
+  transform-style: preserve-3d;
+}
+.flip-leaf {
+  position: absolute;
+  inset: 0;
+  transform-origin: left center;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+.flip-leaf .face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.flip-leaf .face.back {
+  transform: rotateY(180deg);
+  background:
+    linear-gradient(90deg, rgba(0, 0, 0, 0.18), transparent 18%),
+    #f7f6f2;
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.45);
+}
+.reader-night .flip-leaf .face.back {
+  background:
+    linear-gradient(90deg, rgba(0, 0, 0, 0.5), transparent 18%),
+    #1a1d24;
+}
+.flip-leaf.is-flipping {
+  pointer-events: none;
+}
+.flip-leaf.is-flipping .face.front {
+  box-shadow: -18px 0 40px -18px rgba(0, 0, 0, 0.55);
+}
+.flip-shade {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0.55), transparent 60%);
+}
+/* Sahifa chekkalari — "varaq burchagi" (sichqoncha bilan ushlash) */
+.flip-leaf .reader-page::before,
+.flip-leaf .reader-page::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 14%;
+  z-index: 2;
+  cursor: grab;
+}
+.flip-leaf .reader-page::before {
+  left: 0;
+}
+.flip-leaf .reader-page::after {
+  right: 0;
+}
+.flip-stage.is-dragging .reader-page::before,
+.flip-stage.is-dragging .reader-page::after {
+  cursor: grabbing;
+}
+/* Fon zonalari: chap/o'ng yarmi — bosish = oldingi/keyingi; hover'da yo'nalish ko'rsatkichi */
+.flip-zone {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 50%;
+  display: flex;
+  align-items: center;
+  opacity: 0;
+  transition: opacity 160ms ease;
+  pointer-events: none;
+}
+.flip-zone.left {
+  left: 0;
+  justify-content: flex-start;
+  padding-left: 28px;
+}
+.flip-zone.right {
+  right: 0;
+  justify-content: flex-end;
+  padding-right: 28px;
+}
+.flip-zone::after {
+  content: "";
+  width: 14px;
+  height: 14px;
+  border-top: 3px solid currentColor;
+  border-right: 3px solid currentColor;
+  color: rgba(0, 0, 0, 0.35);
+}
+.reader-night .flip-zone::after {
+  color: rgba(255, 255, 255, 0.4);
+}
+.flip-zone.left::after {
+  transform: rotate(-135deg);
+}
+.flip-zone.right::after {
+  transform: rotate(45deg);
+}
+.flip-zone[data-can="0"] {
+  display: none;
+}
+.flip-stage:hover .flip-zone {
+  opacity: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .flip-leaf {
+    transition: none !important;
+  }
+}
+
 /* ---- Chop etish cheklovi (TZ §4, FE-4.6): reader chop etilmaydi ---- */
 @media print {
   .print-protected {

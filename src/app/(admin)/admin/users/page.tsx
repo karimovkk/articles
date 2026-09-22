@@ -4,7 +4,7 @@ import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { DataTable, Toolbar, usePaged, type Column } from "@/components/admin/data-table";
-import { Alert, Avatar, Badge, Button, Field, Input, Modal, PageHeader, SearchInput, Select, formatDate, statusTone } from "@/components/ui";
+import { Alert, Avatar, Badge, Button, Field, Input, Modal, PageHeader, PasswordInput, SearchInput, Select, formatDate, passwordStrength, statusTone } from "@/components/ui";
 import * as I from "@/components/ui/icons";
 import { adminApi, errorMessage, type User, type UserStatus } from "@/lib/api";
 import { downloadBlob } from "@/lib/admin-names";
@@ -143,7 +143,7 @@ function CreateUserModal({ open, onClose, onCreated }: { open: boolean; onClose:
           <Input value={identifier} onChange={(e) => setIdentifier(e.target.value)} placeholder={t("auth.identifierPlaceholder")} />
         </Field>
         <Field label={t("auth.password")} hint={t("admin.users.passwordHint")}>
-          <Input type="text" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} autoComplete="off" />
+          <PasswordInput value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} autoComplete="off" strength={passwordStrength(password)} />
         </Field>
         <div className="flex justify-end gap-2">
           <Button type="button" variant="ghost" onClick={onClose}>

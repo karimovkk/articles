@@ -3,7 +3,8 @@
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Alert, Button, Field, Input } from "@/components/ui";
+import { Alert, Button, Field, PasswordInput, passwordStrength } from "@/components/ui";
+import * as I from "@/components/ui/icons";
 import { authApi, errorMessage } from "@/lib/api";
 import { useT } from "@/i18n";
 
@@ -39,23 +40,41 @@ export default function RegisterPage() {
     }
   }
 
+  const match = confirm.length > 0 && confirm === password;
+  const mismatch = confirm.length > 0 && confirm !== password;
   return (
-    <form onSubmit={onSubmit} className="space-y-4">
-      <h2 className="text-lg font-semibold text-text">{t("auth.register")}</h2>
+    <form onSubmit={onSubmit} className="space-y-4" data-testid="register-form">
       {error && <Alert>{error}</Alert>}
       <Field label={t("auth.fullName")}>
-        <Input autoComplete="name" value={fullName} onChange={(e) => setFullName(e.target.value)} />
+        <div className="input-wrap">
+          <I.User size={16} />
+          <input className="input" autoComplete="name" value={fullName} onChange={(e) => setFullName(e.target.value)} autoFocus />
+        </div>
       </Field>
       <Field label={t("auth.identifier")} hint={t("auth.identifierHint")}>
-        <Input autoComplete="username" value={identifier} onChange={(e) => setIdentifier(e.target.value)} required />
+        <div className="input-wrap">
+          <I.Mail size={16} />
+          <input className="input" autoComplete="username" placeholder={t("auth.identifierPlaceholder")} value={identifier} onChange={(e) => setIdentifier(e.target.value)} required />
+        </div>
       </Field>
       <Field label={t("auth.password")}>
-        <Input type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} />
+        <PasswordInput withIcon autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} strength={passwordStrength(password)} />
       </Field>
       <Field label={t("auth.confirmPassword")}>
-        <Input type="password" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} required />
+        <PasswordInput withIcon autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} required aria-invalid={mismatch || undefined} />
+        {match && (
+          <span className="flex items-center gap-1.5 text-xs font-semibold text-success" data-testid="pw-match">
+            <I.CheckCircle size={13} /> {t("auth.passwordsMatch")}
+          </span>
+        )}
+        {mismatch && (
+          <span className="flex items-center gap-1.5 text-xs font-semibold text-danger" data-testid="pw-mismatch">
+            <I.XCircle size={13} /> {t("auth.passwordMismatch")}
+          </span>
+        )}
       </Field>
-      <Button type="submit" className="w-full" loading={loading}>
+      <p className="text-xs text-muted">{t("auth.terms")}</p>
+      <Button type="submit" size="lg" loading={loading} icon={<I.Sparkles size={17} />}>
         {t("auth.createAccount")}
       </Button>
       <p className="text-center text-sm text-muted">

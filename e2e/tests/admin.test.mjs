@@ -133,7 +133,7 @@ await page.waitForSelector("text=Foydalanuvchi yaratish", { timeout: 10000 });
 await page.click("text=Foydalanuvchi yaratish");
 await page.fill('div[role="dialog"] input[placeholder^="user@example"]', "yangi@articles365.local");
 await page.locator('div[role="dialog"] input').nth(0).fill("Yangi Foydalanuvchi");
-await page.locator('div[role="dialog"] input[type="text"]').last().fill("Parol12345");
+await page.locator('div[role="dialog"] input[type="password"]').fill("Parol12345");
 await page.click('div[role="dialog"] button[type="submit"]');
 await page.waitForURL((u) => /\/admin\/users\/[0-9a-f-]{36}$/.test(u.pathname), { timeout: 10000 });
 await page.waitForSelector("text=Yangi Foydalanuvchi", { timeout: 8000 });

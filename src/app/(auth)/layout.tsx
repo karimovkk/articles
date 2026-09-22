@@ -1,18 +1,69 @@
 "use client";
 
-/** Auth qobig'i: qora ramka, chapda "art" panel (brend + tagline), o'ngda forma varag'i. */
-import type { ReactNode } from "react";
+/**
+ * Auth qobig'i (13.2): chapda brend paneli — "aurora" fon, suzuvchi kitob illyustratsiyasi, 3 slaydli karusel;
+ * o'ngda karta: Kirish / Ro'yxatdan o'tish segment-tab, sarlavha + microcopy, forma.
+ */
+import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { env } from "@/lib/env";
-import { useT } from "@/i18n";
+import { useT, type DictKey } from "@/i18n";
 import { LocaleSwitcher } from "@/i18n/locale-switcher";
+import { ThemeSwitch } from "@/components/ui/theme-switch";
+import { cn } from "@/components/ui";
 import * as I from "@/components/ui/icons";
+
+const SLIDES: Array<{ icon: (p: { size?: number }) => ReactNode; title: DictKey; text: DictKey }> = [
+  { icon: I.ShieldCheck, title: "auth.slide1.title", text: "auth.slide1.text" },
+  { icon: I.Highlighter, title: "auth.slide2.title", text: "auth.slide2.text" },
+  { icon: I.Smartphone, title: "auth.slide3.title", text: "auth.slide3.text" },
+];
+const SLIDE_MS = 4500;
+
+function Slides() {
+  const { t } = useT();
+  const [i, setI] = useState(0);
+  const [paused, setPaused] = useState(false);
+  useEffect(() => {
+    if (paused) return;
+    const id = window.setInterval(() => setI((n) => (n + 1) % SLIDES.length), SLIDE_MS);
+    return () => window.clearInterval(id);
+  }, [paused]);
+  return (
+    <div className="auth-slides" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)} data-testid="auth-slides">
+      {SLIDES.map((s, n) => (
+        <div key={s.title} className={cn("auth-slide", n === i && "active")} aria-hidden={n !== i}>
+          <span className="ic">
+            <s.icon size={20} />
+          </span>
+          <span>
+            <span className="ttl block">{t(s.title)}</span>
+            <span className="txt block">{t(s.text)}</span>
+          </span>
+        </div>
+      ))}
+      <div className="auth-dots" role="tablist" aria-label="slides">
+        {SLIDES.map((s, n) => (
+          <button key={s.title} type="button" role="tab" aria-selected={n === i} aria-label={t(s.title)} className={cn(n === i && "active")} onClick={() => setI(n)} />
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function AuthLayout({ children }: { children: ReactNode }) {
   const { t } = useT();
+  const pathname = usePathname();
+  const isLogin = pathname === "/login";
   return (
-    <div className="auth max-[900px]:grid-cols-1">
-      <aside className="auth-art max-[900px]:hidden">
+    <div className="auth">
+      <aside className="auth-art">
+        <div className="aurora" aria-hidden>
+          <span />
+          <span />
+          <span />
+        </div>
         <Link href="/catalog" className="brand">
           <span className="brand-mark">A</span>
           <span className="brand-text">
@@ -21,36 +72,36 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
           </span>
         </Link>
         <div>
-          <h2>{t("auth.heroTitle")}</h2>
+          <div className="book-illo" aria-hidden>
+            <div className="leaf" />
+            <div className="leaf" />
+            <div className="leaf">
+              <div className="line w3" />
+              <div className="line" />
+              <div className="line hl" />
+              <div className="line w2" />
+              <div className="line w3" />
+              <div className="line w2" />
+              <span className="wm">{env.appName} · ID-0042</span>
+            </div>
+            <span className="badge-lock">
+              <I.Lock size={20} />
+            </span>
+          </div>
+          <h2>
+            {t("auth.heroTitle1")} <em>{t("auth.heroTitle2")}</em>
+          </h2>
           <p>{t("auth.heroText")}</p>
-          <ul className="mt-8 space-y-3 text-sm font-semibold" style={{ color: "var(--frame-text-2)" }}>
-            <li className="flex items-center gap-3">
-              <span className="grid size-8 place-items-center rounded-[10px]" style={{ background: "var(--accent)", color: "var(--accent-contrast)" }}>
-                <I.ShieldCheck size={16} />
-              </span>
-              {t("auth.heroPoint1")}
-            </li>
-            <li className="flex items-center gap-3">
-              <span className="grid size-8 place-items-center rounded-[10px]" style={{ background: "var(--accent)", color: "var(--accent-contrast)" }}>
-                <I.Highlighter size={16} />
-              </span>
-              {t("auth.heroPoint2")}
-            </li>
-            <li className="flex items-center gap-3">
-              <span className="grid size-8 place-items-center rounded-[10px]" style={{ background: "var(--accent)", color: "var(--accent-contrast)" }}>
-                <I.Smartphone size={16} />
-              </span>
-              {t("auth.heroPoint3")}
-            </li>
-          </ul>
+          <Slides />
         </div>
         <p className="text-xs font-semibold" style={{ color: "var(--frame-muted)" }}>
           © {new Date().getFullYear()} {env.appName}
         </p>
       </aside>
+
       <div className="auth-panel">
         <div className="auth-form">
-          <div className="mb-6 flex items-center justify-between gap-3">
+          <div className="mb-5 flex items-center justify-between gap-3">
             <Link href="/catalog" className="brand min-[901px]:hidden">
               <span className="brand-mark">A</span>
               <span className="brand-text">
@@ -63,9 +114,24 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
               <I.ArrowLeft size={15} />
               {t("catalog.back")}
             </Link>
-            <LocaleSwitcher />
+            <div className="flex items-center gap-2">
+              <LocaleSwitcher />
+              <ThemeSwitch />
+            </div>
           </div>
-          <div className="card p-6">{children}</div>
+          <div className="auth-card">
+            <nav className="auth-tabs" aria-label={t("auth.login")}>
+              <Link href="/login" className={cn(isLogin && "active")} aria-current={isLogin ? "page" : undefined} data-testid="tab-login">
+                {t("auth.login")}
+              </Link>
+              <Link href="/register" className={cn(!isLogin && "active")} aria-current={!isLogin ? "page" : undefined} data-testid="tab-register">
+                {t("auth.register")}
+              </Link>
+            </nav>
+            <h1 className="auth-title">{isLogin ? t("auth.welcomeBack") : t("auth.createTitle")}</h1>
+            <p className="auth-sub mb-6">{isLogin ? t("auth.loginSubtitle") : t("auth.createSubtitle")}</p>
+            {children}
+          </div>
         </div>
       </div>
     </div>

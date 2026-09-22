@@ -158,21 +158,46 @@ await page.keyboard.press("ArrowRight"); // 2-sahifa (scroll)
 await page.keyboard.press("ArrowRight"); // 3-sahifa
 await page.waitForFunction(() => document.querySelector('input[aria-label="Sahifa"]').value === "3", null, { timeout: 5000 });
 await page.click('button[aria-label="O\'qish rejimi"]');
-await page.waitForFunction(() => document.querySelectorAll(".reader-page").length === 1, null, { timeout: 5000 });
-const pageModeNo = await page.$eval(".reader-page", (e) => e.dataset.page);
-check("Varaqlash rejimi: bitta sahifa, joriy (3) saqlandi", pageModeNo === "3", `page=${pageModeNo}`);
+// FlipStage: qo'shni sahifalar yashirin oldindan render qilinadi — faqat bitta varaq ko'rinadi
+await page.waitForFunction(() => document.querySelector('[data-testid="flip-stage"]') && [...document.querySelectorAll(".flip-leaf")].filter((l) => getComputedStyle(l).visibility === "visible").length === 1, null, { timeout: 5000 });
+const visibleLeaf = () => page.evaluate(() => [...document.querySelectorAll(".flip-leaf")].find((l) => getComputedStyle(l).visibility === "visible")?.dataset.leaf);
+const pageModeNo = await visibleLeaf();
+check("Varaqlash rejimi: bitta ko'rinadigan varaq, joriy (3) saqlandi; qo'shnilar oldindan render", pageModeNo === "3" && (await page.locator(".flip-leaf").count()) === 3, `page=${pageModeNo}`);
 const fits = await page.evaluate(() => {
-  const r = document.querySelector(".reader-page").getBoundingClientRect();
+  const r = [...document.querySelectorAll(".flip-leaf")].find((l) => getComputedStyle(l).visibility === "visible").getBoundingClientRect();
   return r.height <= window.innerHeight && r.width <= window.innerWidth;
 });
 check("Varaqlash: sahifa ekranga sig'adi", fits);
 await waitRendered(3);
 check("Prev/Next tugmalari bor", (await page.locator('button[aria-label="Keyingi sahifa"]').count()) === 1);
 await page.click('button[aria-label="Keyingi sahifa"]');
-await page.waitForFunction(() => document.querySelector(".reader-page")?.dataset.page === "4", null, { timeout: 5000 });
+await page.waitForFunction(() => !!document.querySelector(".flip-leaf.is-flipping"), null, { timeout: 2000 }).then(() => check("Next: varaq animatsiyasi boshlandi (3D rotateY)", true)).catch(() => check("Next: varaq animatsiyasi boshlandi (3D rotateY)", false));
+await page.waitForFunction(() => !document.querySelector('[data-testid="flip-stage"]').dataset.flipping && [...document.querySelectorAll(".flip-leaf")].find((l) => getComputedStyle(l).visibility === "visible")?.dataset.leaf === "4", null, { timeout: 5000 });
 await page.keyboard.press("ArrowLeft");
-await page.waitForFunction(() => document.querySelector(".reader-page")?.dataset.page === "3", null, { timeout: 5000 });
-check("Next tugma / ArrowLeft navigatsiyasi ishlaydi", true);
+await page.waitForFunction(() => !document.querySelector('[data-testid="flip-stage"]').dataset.flipping && [...document.querySelectorAll(".flip-leaf")].find((l) => getComputedStyle(l).visibility === "visible")?.dataset.leaf === "3", null, { timeout: 5000 });
+check("Next tugma / ArrowLeft navigatsiyasi ishlaydi (animatsiya bilan)", true);
+// Sichqoncha bilan sudrab varaqlash: o'ng chekkadan chapga tortish → 4-sahifa; qisqa tortish → qaytadi
+const pr = await page.locator(".flip-leaf[data-leaf='3'] .reader-page").boundingBox();
+await page.mouse.move(pr.x + pr.width * 0.95, pr.y + pr.height / 2);
+await page.mouse.down();
+for (let i = 1; i <= 10; i++) { await page.mouse.move(pr.x + pr.width * 0.95 - (pr.width * 0.6 * i) / 10, pr.y + pr.height / 2); await page.waitForTimeout(16); }
+const dragAngle = await page.evaluate(() => document.querySelector(".flip-leaf.is-flipping")?.style.transform ?? "");
+await page.mouse.up();
+await page.waitForFunction(() => !document.querySelector('[data-testid="flip-stage"]').dataset.flipping, null, { timeout: 4000 });
+check("Sudrash: varaq kursorga ergashdi va yarmidan o'tgach varaqlandi (3→4)", /rotateY\(-\d/.test(dragAngle) && (await visibleLeaf()) === "4", `${dragAngle} → ${await visibleLeaf()}`);
+const pr2 = await page.locator(".flip-leaf[data-leaf='4'] .reader-page").boundingBox();
+await page.mouse.move(pr2.x + pr2.width * 0.95, pr2.y + pr2.height / 2);
+await page.mouse.down();
+await page.mouse.move(pr2.x + pr2.width * 0.95 - 30, pr2.y + pr2.height / 2); await page.waitForTimeout(40);
+await page.mouse.move(pr2.x + pr2.width * 0.95 - 50, pr2.y + pr2.height / 2); await page.waitForTimeout(300);
+await page.mouse.up();
+await page.waitForFunction(() => !document.querySelector('[data-testid="flip-stage"]').dataset.flipping, null, { timeout: 4000 });
+check("Qisqa sudrash → varaq joyiga qaytdi (4)", (await visibleLeaf()) === "4");
+// Fonning chap yarmini bosish → oldingi sahifa (3)
+const st = await page.locator('[data-testid="flip-stage"]').boundingBox();
+await page.mouse.click(st.x + 24, st.y + st.height / 2);
+await page.waitForFunction(() => !document.querySelector('[data-testid="flip-stage"]').dataset.flipping && [...document.querySelectorAll(".flip-leaf")].find((l) => getComputedStyle(l).visibility === "visible")?.dataset.leaf === "3", null, { timeout: 4000 });
+check("Fon chap yarmi bosildi → oldingi sahifa (3)", true);
 await page.screenshot({ path: OUT + "05-page-mode.png" });
 
 // Varaqlash rejimida highlight (sahifa 3)
@@ -184,7 +209,7 @@ check("Varaqlash rejimida highlight ishlaydi", true);
 
 // Reload → rejim eslab qolinadi
 await page.reload();
-await page.waitForFunction(() => document.querySelectorAll(".reader-page").length === 1 && document.querySelector(".reader-page canvas")?.width > 0, null, { timeout: 20000 });
+await page.waitForFunction(() => document.querySelector('[data-testid="flip-stage"]') && ([...document.querySelectorAll(".flip-leaf")].find((l) => getComputedStyle(l).visibility === "visible"))?.querySelector("canvas")?.width > 0, null, { timeout: 20000 });
 check("Reload'dan keyin varaqlash rejimi saqlandi", (await page.$eval("button[aria-label=\"O'qish rejimi\"]", (b) => b.textContent)).includes("Varaq"));
 
 // Scroll'ga qaytish → 6 sahifa, joriy sahifa saqlanadi

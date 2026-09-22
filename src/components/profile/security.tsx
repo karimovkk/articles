@@ -6,7 +6,7 @@
  */
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import QRCode from "qrcode";
-import { Alert, Badge, Button, Card, Field, Input } from "@/components/ui";
+import { Alert, Badge, Button, Card, Field, Input, PasswordInput, passwordStrength } from "@/components/ui";
 import { authApi, errorMessage, type TwoFactorSetup } from "@/lib/api";
 import { useAuth } from "@/providers/auth-provider";
 import { useT } from "@/i18n";
@@ -43,13 +43,13 @@ export function PasswordCard() {
       <form onSubmit={submit} className="space-y-4">
         {msg && <Alert tone={msg.tone}>{msg.text}</Alert>}
         <Field label={t("profile.password.old")}>
-          <Input type="password" autoComplete="current-password" value={oldPw} onChange={(e) => setOldPw(e.target.value)} required />
+          <PasswordInput autoComplete="current-password" value={oldPw} onChange={(e) => setOldPw(e.target.value)} required />
         </Field>
         <Field label={t("profile.password.new")}>
-          <Input type="password" autoComplete="new-password" value={newPw} onChange={(e) => setNewPw(e.target.value)} required minLength={8} />
+          <PasswordInput autoComplete="new-password" value={newPw} onChange={(e) => setNewPw(e.target.value)} required minLength={8} strength={passwordStrength(newPw)} />
         </Field>
         <Field label={t("auth.confirmPassword")}>
-          <Input type="password" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} required />
+          <PasswordInput autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} required />
         </Field>
         <Button type="submit" loading={busy}>
           {t("profile.password.submit")}

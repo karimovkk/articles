@@ -4,8 +4,8 @@
  * PDF.js asosidagi reader.
  *  - Hujjat `openProtectedPdf` orqali ochiladi: bo'laklar Range so'rovlari bilan,
  *    Bearer + avtomatik refresh (lib/reader/range-transport.ts).
- *  - Ikki rejim (S-29=C): "scroll" — uzluksiz; "page" — varaqlash (bitta sahifa,
- *    ekranga sig'adi, oldingi/keyingi, swipe).
+ *  - Ikki rejim (S-29=C): "scroll" — uzluksiz; "page" — varaqlash (bitta sahifa, ekranga sig'adi;
+ *    `FlipStage`: 3D varaq animatsiyasi, sichqoncha bilan sudrab varaqlash, chekka zonalar, swipe).
  *  - Sahifalar IntersectionObserver bilan faqat ko'rinish yaqinida render qilinadi.
  *  - Har sahifada matn qatlami (tanlash, highlight) va highlight overlay qatlami.
  *  - Nusxalash cheklovi (S-41): copy/cut/drag hodisalari bloklanadi; tanlash
@@ -55,8 +55,9 @@ export interface PdfViewerProps {
 const RENDER_MARGIN = "150% 0px";
 const PAGE_GAP = 16;
 const MAX_PAGE_WIDTH = 1100;
-const SWIPE_MIN_X = 60;
-const SWIPE_MAX_Y = 50;
+const FLIP_MS = 480;
+/** Sahifaning chekka ulushi (chap/o'ng) — sichqoncha bilan "varaq burchagidan" ushlab sudrash zonasi */
+const GRAB_EDGE = 0.14;
 
 interface PageHighlight {
   id: string;
@@ -257,25 +258,6 @@ export const PdfViewer = forwardRef<PdfViewerHandle, PdfViewerProps>(function Pd
     };
   }, [onTextSelected]);
 
-  // ---- Swipe (page rejimi, mobil)
-  const touchStart = useRef<{ x: number; y: number } | null>(null);
-  const onTouchStart = (e: React.TouchEvent) => {
-    const t = e.touches[0];
-    touchStart.current = t ? { x: t.clientX, y: t.clientY } : null;
-  };
-  const onTouchEnd = (e: React.TouchEvent) => {
-    const s = touchStart.current;
-    touchStart.current = null;
-    if (!s || mode !== "page") return;
-    if (window.getSelection()?.toString()) return; // matn tanlanayotgan bo'lsa varaqlanmaydi
-    const t = e.changedTouches[0];
-    if (!t) return;
-    const dx = t.clientX - s.x;
-    const dy = t.clientY - s.y;
-    if (Math.abs(dx) < SWIPE_MIN_X || Math.abs(dy) > SWIPE_MAX_Y) return;
-    goToPage(currentPageRef.current + (dx < 0 ? 1 : -1));
-  };
-
   const block = (e: React.SyntheticEvent) => e.preventDefault();
   // Progress'dagi sahifa hujjatdan katta bo'lsa (fayl almashtirilgan) — oxirgi sahifa
   const shownPage = Math.min(pageNo, pageCount || pageNo);
@@ -287,8 +269,6 @@ export const PdfViewer = forwardRef<PdfViewerHandle, PdfViewerProps>(function Pd
       onCopy={block}
       onCut={block}
       onDragStart={block}
-      onTouchStart={onTouchStart}
-      onTouchEnd={onTouchEnd}
     >
       <div ref={containerRef} className="h-full w-full overflow-auto">
         {pageCount === 0 && (
@@ -319,19 +299,17 @@ export const PdfViewer = forwardRef<PdfViewerHandle, PdfViewerProps>(function Pd
         )}
 
         {pageCount > 0 && mode === "page" && (
-          <div className="flex min-h-full items-center justify-center py-4">
-            {/* key — sahifa almashganda toza render (rendered=false) */}
-            <PdfPage
-              key={shownPage}
-              pageNumber={shownPage}
-              docRef={docRef}
-              scale={scale}
-              width={pageWidth}
-              height={pageHeight}
-              highlights={highlightsByPage.get(shownPage)}
-              label={t("common.pageN", { n: shownPage })}
-            />
-          </div>
+          <FlipStage
+            current={shownPage}
+            pageCount={pageCount}
+            width={pageWidth}
+            height={pageHeight}
+            onCommit={goToPage}
+            renderPage={(n) => (
+              <PdfPage pageNumber={n} docRef={docRef} scale={scale} width={pageWidth} height={pageHeight} highlights={highlightsByPage.get(n)} label={t("common.pageN", { n })} />
+            )}
+            labels={{ prev: t("reader.prevPage"), next: t("reader.nextPage") }}
+          />
         )}
       </div>
 
@@ -345,7 +323,222 @@ export const PdfViewer = forwardRef<PdfViewerHandle, PdfViewerProps>(function Pd
   );
 });
 
+
 /* ------------------------------------------------------------------ */
+
+type FlipState = {
+  /** 1 — oldinga (joriy varaq chapga ag'dariladi), -1 — orqaga (oldingi varaq chapdan qaytadi) */
+  dir: 1 | -1;
+  from: number;
+  to: number;
+  /** Ag'darilayotgan varaqning burchagi: oldinga 0 → -180, orqaga -180 → 0 */
+  angle: number;
+  /** CSS transition bilan yakuniga yetkazilmoqda (sudrash tugagan yoki avtomatik) */
+  settling: boolean;
+  /** Sudrash bilan boshqarilmoqda — transition yo'q */
+  dragging: boolean;
+  /** Tashqi navigatsiyadan (avtomatik) — keyingi kadrda yakuniga yuboriladi */
+  auto?: boolean;
+};
+
+/**
+ * Varaqlash sahnasi: joriy va qo'shni sahifalar bir joyda ustma-ust turadi (qo'shnilar oldindan render qilinadi),
+ * varaq almashishi 3D `rotateY` bilan (kitob varag'i kabi, orqa tomoni oq). Boshqaruv:
+ *  - tashqaridan `current` o'zgarsa (tugma, klaviatura, sahifa raqami, TOC) — avtomatik animatsiya;
+ *  - sichqoncha: sahifaning chap/o'ng chekkasidan yoki fondan ushlab sudrash (varaq kursorga ergashadi, yarmidan
+ *    o'tsa/tez tortilsa varaqlanadi, aks holda qaytadi); fonning chap/o'ng qismini bosish — oldingi/keyingi;
+ *  - sensor: istalgan joydan swipe (matn tanlanmagan bo'lsa).
+ * Matn tanlash (highlight) sahifa o'rtasida oddiy ishlaydi — u yerda sudrash boshlanmaydi.
+ */
+function FlipStage({
+  current,
+  pageCount,
+  width,
+  height,
+  onCommit,
+  renderPage,
+  labels,
+}: {
+  current: number;
+  pageCount: number;
+  width: number;
+  height: number;
+  onCommit: (page: number) => void;
+  renderPage: (n: number) => React.ReactNode;
+  labels: { prev: string; next: string };
+}) {
+  const [displayed, setDisplayed] = useState(current);
+  const [flip, setFlip] = useState<FlipState | null>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const drag = useRef<{ id: number; x: number; y: number; t: number; lastX: number; lastT: number; dir: 0 | 1 | -1; type: string } | null>(null);
+  const flipRef = useRef(flip);
+  useLayoutEffect(() => {
+    flipRef.current = flip;
+  });
+
+  // Tashqi navigatsiya: `current` o'zgardi, animatsiya yo'q → avtomatik varaqlash (boshlang'ich burchak render'da,
+  // yakuniy burchak keyingi kadrda — transition ishlashi uchun)
+  if (current !== displayed && !flip) {
+    const dir: 1 | -1 = current > displayed ? 1 : -1;
+    setFlip({ dir, from: displayed, to: current, angle: dir === 1 ? 0 : -180, settling: false, dragging: false, auto: true });
+  }
+  useEffect(() => {
+    if (!flip?.auto || flip.settling) return;
+    const raf = requestAnimationFrame(() => requestAnimationFrame(() => setFlip((f) => (f?.auto && !f.settling ? { ...f, angle: f.dir === 1 ? -180 : 0, settling: true } : f))));
+    return () => cancelAnimationFrame(raf);
+  }, [flip]);
+
+  // Animatsiya yakuni: transition tugagach (yoki zaxira taymer) holatni yopamiz
+  const finish = useCallback(
+    (f: FlipState) => {
+      const done = f.dir === 1 ? f.angle <= -180 : f.angle >= 0;
+      const cancelled = f.dir === 1 ? f.angle >= 0 : f.angle <= -180;
+      if (done) {
+        setDisplayed(f.to);
+        if (f.to !== current) onCommit(f.to);
+      }
+      if (done || cancelled) setFlip(null);
+    },
+    [current, onCommit],
+  );
+  useEffect(() => {
+    if (!flip?.settling) return;
+    const f = flip;
+    const t = window.setTimeout(() => finish(f), FLIP_MS + 60); // transitionend kelmasa ham (masalan, reduced motion)
+    return () => window.clearTimeout(t);
+  }, [flip, finish]);
+
+  const targetOf = (dir: 1 | -1) => displayed + dir;
+  const canGo = (dir: 1 | -1) => targetOf(dir) >= 1 && targetOf(dir) <= pageCount;
+
+  // ---- Sudrash (pointer events: sichqoncha, sensor, qalam)
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0 || flipRef.current) return;
+    const stage = stageRef.current;
+    if (!stage) return;
+    const target = e.target as HTMLElement;
+    if (target.closest("button, a")) return;
+    if (e.pointerType === "mouse") {
+      // Sahifa o'rtasi — matn tanlash uchun; chekka ulushi yoki fon — varaq ushlash zonasi
+      const pageEl = target.closest<HTMLElement>(".reader-page");
+      if (pageEl) {
+        const r = pageEl.getBoundingClientRect();
+        const fx = (e.clientX - r.left) / r.width;
+        if (fx > GRAB_EDGE && fx < 1 - GRAB_EDGE) return;
+      }
+      e.preventDefault(); // matn tanlash boshlanmasin
+    } else if (window.getSelection()?.toString()) return;
+    drag.current = { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now(), lastX: e.clientX, lastT: performance.now(), dir: 0, type: e.pointerType };
+  };
+  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const d = drag.current;
+    if (!d || d.id !== e.pointerId) return;
+    const dx = e.clientX - d.x;
+    const dy = e.clientY - d.y;
+    if (d.dir === 0) {
+      if (Math.abs(dx) < 8 || Math.abs(dx) < Math.abs(dy)) return;
+      const dir: 1 | -1 = dx < 0 ? 1 : -1;
+      if (!canGo(dir)) {
+        drag.current = null;
+        return;
+      }
+      d.dir = dir;
+      try {
+        stageRef.current?.setPointerCapture(e.pointerId);
+      } catch {
+        /* sintetik pointer (test) — capture shart emas */
+      }
+      setFlip({ dir, from: displayed, to: targetOf(dir), angle: dir === 1 ? 0 : -180, settling: false, dragging: true });
+    }
+    d.lastX = e.clientX;
+    d.lastT = performance.now();
+    const frac = Math.max(0, Math.min(1, (d.dir === 1 ? -dx : dx) / Math.max(200, width * 0.85)));
+    const angle = d.dir === 1 ? -180 * frac : -180 + 180 * frac;
+    setFlip((f) => (f && f.dragging ? { ...f, angle } : f));
+  };
+  const endDrag = (e: React.PointerEvent<HTMLDivElement>) => {
+    const d = drag.current;
+    if (!d || d.id !== e.pointerId) return;
+    drag.current = null;
+    if (d.dir === 0) {
+      // Bosish (sudrashsiz): fonning chap/o'ng qismi — oldingi/keyingi (faqat sichqoncha)
+      if (d.type === "mouse" && !(e.target as HTMLElement).closest(".reader-page")) {
+        const r = stageRef.current?.getBoundingClientRect();
+        if (r) {
+          const dir: 1 | -1 = e.clientX < r.left + r.width / 2 ? -1 : 1;
+          if (canGo(dir)) onCommit(targetOf(dir));
+        }
+      }
+      return;
+    }
+    const f = flipRef.current;
+    if (!f) return;
+    const dt = Math.max(1, performance.now() - d.lastT);
+    const vx = (e.clientX - d.lastX) / dt; // px/ms
+    const progress = f.dir === 1 ? -f.angle / 180 : (f.angle + 180) / 180;
+    const fast = f.dir === 1 ? vx < -0.4 : vx > 0.4;
+    const complete = progress > 0.45 || (fast && progress > 0.08);
+    const endAngle = complete ? (f.dir === 1 ? -180 : 0) : f.dir === 1 ? 0 : -180;
+    setFlip({ ...f, angle: endAngle, settling: true, dragging: false });
+  };
+
+  // Ko'rsatiladigan sahifalar: joriy ± 1 (oldindan render) + animatsiya nishoni
+  const pages = Array.from(new Set([displayed - 1, displayed, displayed + 1, flip?.to ?? displayed])).filter((n) => n >= 1 && n <= pageCount).sort((a, b) => a - b);
+  const flipping = flip ? (flip.dir === 1 ? flip.from : flip.to) : null; // ag'darilayotgan varaq
+  const under = flip ? (flip.dir === 1 ? flip.to : flip.from) : null; // ostida ko'rinadigan varaq
+  // Ag'darilish darajasi (0 — tekis, 180 — to'liq ag'darilgan): soya va 90° dan keyin xiralashish
+  const turned = flip ? Math.min(180, Math.abs(flip.dir === 1 ? flip.angle : flip.angle + 180)) : 0;
+  const shade = Math.sin((turned / 180) * Math.PI);
+  const leafOpacity = turned <= 90 ? 1 : Math.max(0.04, 1 - ((turned - 90) / 90) * 0.96);
+
+  return (
+    <div
+      ref={stageRef}
+      className={`flip-stage ${flip?.dragging ? "is-dragging" : ""}`}
+      style={{ minHeight: "100%", ["--page-w" as string]: `${width}px` }}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={endDrag}
+      onPointerCancel={endDrag}
+      data-testid="flip-stage"
+      data-flipping={flip ? "1" : undefined}
+    >
+      <div className="flip-zone left" aria-hidden data-can={canGo(-1) ? "1" : "0"} title={labels.prev} />
+      <div className="flip-zone right" aria-hidden data-can={canGo(1) ? "1" : "0"} title={labels.next} />
+      <div className="flip-book" style={{ width, height }}>
+        {pages.map((n) => {
+          const isFlipping = n === flipping;
+          const isUnder = n === under;
+          const visible = n === displayed || isFlipping || isUnder;
+          const style: React.CSSProperties = {
+            zIndex: isFlipping ? 3 : n === displayed && !flip ? 2 : isUnder ? 1 : 0,
+            visibility: visible ? "visible" : "hidden",
+            transform: isFlipping ? `rotateY(${flip!.angle}deg)` : "none",
+            opacity: isFlipping ? leafOpacity : 1,
+            transition: isFlipping && flip!.settling ? `transform ${FLIP_MS}ms cubic-bezier(0.22, 0.61, 0.36, 1), opacity ${FLIP_MS}ms ease-in` : "none",
+          };
+          return (
+            <div
+              key={n}
+              className={`flip-leaf ${isFlipping ? "is-flipping" : ""}`}
+              style={style}
+              data-leaf={n}
+              onTransitionEnd={(e) => {
+                if (e.propertyName === "transform" && isFlipping && flip?.settling) finish(flip);
+              }}
+            >
+              <div className="face front">
+                {renderPage(n)}
+                {isFlipping && <div className="flip-shade" style={{ opacity: shade * 0.45 }} />}
+              </div>
+              <div className="face back" />
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 function PageNavButton({ side, disabled, onClick, label }: { side: "left" | "right"; disabled: boolean; onClick: () => void; label: string }) {
   return (

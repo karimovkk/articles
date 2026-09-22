@@ -106,7 +106,7 @@ await page.keyboard.press("Control+p");
 await page.waitForSelector("text=chop etib bo'lmaydi", { timeout: 3000 });
 check("Ctrl+P bloklangan", true);
 await page.click('button[aria-label="O\'qish rejimi"]');
-await page.waitForFunction(() => document.querySelectorAll(".reader-page").length === 1, null, { timeout: 5000 });
+await page.waitForFunction(() => document.querySelector('[data-testid="flip-stage"]') && [...document.querySelectorAll(".flip-leaf")].filter((l) => getComputedStyle(l).visibility === "visible").length === 1, null, { timeout: 5000 });
 check("Varaqlash rejimi ishlaydi", true);
 await page.screenshot({ path: OUT + "60-reader-article.png" });
 

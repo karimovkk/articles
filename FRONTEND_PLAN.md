@@ -327,6 +327,28 @@ yo'llari haqida xato beradi — `rm -rf .next/types .next/dev/types` yoki `next 
       ham; obyekt filtri — matn o'rniga tarjimali qo'lbola Select. Test: `search` to'plami (audit qismi)
 - [x] 12.4 Tekshiruv: `tsc` ✅ · `eslint` ✅ · **production build 18/18 to'plam (272 tekshiruv) ✅**
 
+## 13. Auth dizayni, parol ko'rsatish, varaqlash animatsiyasi (2026-09-22, foydalanuvchi fikri)
+
+- [x] 13.1 `PasswordInput` (`src/components/ui/password-input.tsx`): ko'z tugmasi — `type` almashganda fokus va kursor
+      joyi saqlanadi (`mousedown` preventDefault + `setSelectionRange`), `aria-pressed`/yorliq, Caps Lock ogohlantirishi,
+      `strength` (0–4, `passwordStrength`) indikatori. Qo'llanildi: login, ro'yxat (parol + tasdiqlash), profil (3 maydon),
+      admin (foydalanuvchi yaratish, parol tiklash)
+- [x] 13.2 Login/Register (tadqiqot: eleken.co "50+ login page examples", muz.li login screens, AND Academy —
+      split-screen + brend paneli, feature karuseli, "Welcome back" microcopy, ikonkali maydonlar, ko'rsatish/yashirish,
+      parol kuchi, real-vaqt tekshiruv, katta CTA): chap panel — "aurora" animatsiyali fon + nuqtali to'r, CSS kitob
+      illyustratsiyasi (3 varaq, suzadi, qulf belgisi, suv belgisi), 3 slaydli avto-karusel (hover'da to'xtaydi, nuqtalar);
+      o'ng karta — Kirish/Ro'yxat segment-tab, "Xush kelibsiz!"/"Hisob yarating" + microcopy, ikonkali maydonlar,
+      parol kuchi, mos kelish ✓/✗, rozilik matni, `lg` CTA; mobil — brend + karta
+- [x] 13.3 Reader varaqlash (`FlipStage`, `pdf-viewer.tsx`): joriy ± 1 sahifa oldindan render (yashirin), varaq
+      almashishi 3D `rotateY` (orqa tomon oq, soya, 90° dan keyin xiralashadi, 480 ms); sichqoncha bilan sudrash —
+      sahifaning chap/o'ng 14% chekkasidan yoki fondan (kursor `grab`), varaq kursorga ergashadi, yarmidan o'tsa yoki
+      tez tortilsa varaqlanadi, aks holda qaytadi; fonning chap/o'ng yarmini bosish — oldingi/keyingi (hover'da
+      ko'rsatkich); tugma/klaviatura/sahifa raqami/TOC — avtomatik animatsiya; sensor swipe pointer events'da;
+      sahifa o'rtasida matn tanlash (highlight) o'zgarmagan
+- [x] 13.4 Testlar: `auth-ui` (19: ko'z/fokus/kursor/Caps Lock/kuch/mos kelish/tablar/karusel/profil), `reader` (sudrash,
+      qisqa sudrash, fon bosish, animatsiya), `mobile` (swipe → animatsiya); `tsc` ✅ · `eslint` ✅ · **production build
+      19/19 to'plam (297 tekshiruv) ✅** · Firefox auth-ui/reader/mobile/theme ✅ (2026-09-22)
+
 ### Backend uchun eslatmalar (jonli auditdan) — holat: B1 ✅(avvaldan) · B2 ✅ · B3 ✅ · B4 ✅ · B5 ✅ · B6 ✅(avvaldan) ·
 B7 ✅ · B8 ✅ (OpenAPI manba) · B9 ✅ · B10 ✅ · B11 ✅ · B12 ✅ · B13 ✅ — **ochiq savol yo'q**
 

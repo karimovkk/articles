@@ -3,7 +3,8 @@
 import { Suspense, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Alert, Button, Field, Input, formatDate } from "@/components/ui";
+import { Alert, Button, Field, PasswordInput, formatDate } from "@/components/ui";
+import * as I from "@/components/ui/icons";
 import { authApi, errorMessage, isApiError } from "@/lib/api";
 import { useT } from "@/i18n";
 
@@ -82,8 +83,7 @@ function LoginForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-4">
-      <h2 className="text-lg font-semibold text-text">{t("auth.login")}</h2>
+    <form onSubmit={onSubmit} className="space-y-4" data-testid="login-form">
       {expired && <Alert tone="info">{t("auth.expired")}</Alert>}
       {error && error.code === "DEVICE_LIMIT_REACHED" ? (
         // FE-1.7: qurilma limiti — aniq yo'l-yo'riq
@@ -110,24 +110,25 @@ function LoginForm() {
         <Alert>{error.text}</Alert>
       ) : null}
       <Field label={t("auth.identifier")}>
-        <Input
-          autoComplete="username"
-          placeholder={t("auth.identifierPlaceholder")}
-          value={identifier}
-          onChange={(e) => setIdentifier(e.target.value)}
-          required
-        />
+        <div className="input-wrap">
+          <I.User size={16} />
+          <input className="input" autoComplete="username" placeholder={t("auth.identifierPlaceholder")} value={identifier} onChange={(e) => setIdentifier(e.target.value)} required autoFocus />
+        </div>
       </Field>
       <Field label={t("auth.password")}>
-        <Input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+        <PasswordInput withIcon autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
       </Field>
       {needTotp && (
         <Field label={t("auth.totp")} hint={t("auth.totpHint")}>
-          <Input value={totp} onChange={(e) => setTotp(e.target.value)} inputMode="numeric" autoComplete="one-time-code" placeholder="123456" required autoFocus className="font-mono tracking-widest" />
+          <div className="input-wrap">
+            <I.ShieldCheck size={16} />
+            <input className="input font-mono tracking-widest" value={totp} onChange={(e) => setTotp(e.target.value)} inputMode="numeric" autoComplete="one-time-code" placeholder="123456" required autoFocus />
+          </div>
         </Field>
       )}
-      <Button type="submit" className="w-full" loading={loading}>
+      <Button type="submit" size="lg" loading={loading}>
         {t("auth.login")}
+        <I.ArrowRight size={17} />
       </Button>
       <p className="text-center text-sm text-muted">
         {t("auth.noAccount")}{" "}

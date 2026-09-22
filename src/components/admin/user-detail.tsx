@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Alert, Avatar, Badge, Button, Card, Field, Input, Modal, Select, Spinner, buttonClass, cn, formatDate, statusTone, useConfirm } from "@/components/ui";
+import { Alert, Avatar, Badge, Button, Card, Field, Modal, PasswordInput, Select, Spinner, buttonClass, cn, formatDate, passwordStrength, statusTone, useConfirm } from "@/components/ui";
 import * as I from "@/components/ui/icons";
 import { adminApi, errorMessage, type Book, type User, type UserStatus } from "@/lib/api";
 import { shortAgent } from "@/lib/agent";
@@ -243,7 +243,7 @@ export function AdminUserDetail({ userId }: { userId: string }) {
         >
           <p className="text-xs text-muted">{t("admin.users.resetHint")}</p>
           <Field label={t("profile.password.new")}>
-            <Input type="text" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required minLength={8} autoComplete="off" />
+            <PasswordInput value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required minLength={8} autoComplete="off" strength={passwordStrength(newPassword)} />
           </Field>
           <div className="flex justify-end gap-2">
             <Button type="button" variant="ghost" onClick={() => setResetOpen(false)}>

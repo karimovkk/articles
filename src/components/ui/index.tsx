@@ -18,6 +18,7 @@ export { Menu, MenuItem, MenuSep, MenuLabel } from "./menu";
 export { Switch } from "./switch";
 export { ConfirmProvider, useConfirm, type ConfirmOptions } from "./confirm";
 export { Modal, type ModalProps } from "./modal";
+export { PasswordInput, passwordStrength } from "./password-input";
 
 /* ---------- Button ---------- */
 type Variant = "primary" | "secondary" | "ghost" | "danger" | "soft" | "dark" | "danger-ghost";
