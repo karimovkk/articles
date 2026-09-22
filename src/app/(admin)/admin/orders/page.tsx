@@ -113,18 +113,19 @@ export default function AdminOrdersPage() {
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            if (rejecting) void act(rejecting, () => adminApi.rejectOrder(rejecting.id, reason.trim()));
+            // Sabab majburiy (oqim v1.0): foydalanuvchiga ko'rsatiladi
+            if (rejecting && reason.trim()) void act(rejecting, () => adminApi.rejectOrder(rejecting.id, reason.trim()));
           }}
           className="space-y-3"
         >
           <Field label={t("orders.rejectReason")}>
-            <Textarea rows={3} value={reason} onChange={(e) => setReason(e.target.value)} placeholder={t("admin.orders.reasonPlaceholder")} />
+            <Textarea rows={3} value={reason} onChange={(e) => setReason(e.target.value)} placeholder={t("admin.orders.reasonPlaceholder")} required maxLength={500} autoFocus data-testid="reject-reason-input" />
           </Field>
           <div className="flex justify-end gap-2">
             <Button type="button" variant="ghost" onClick={() => setRejecting(null)}>
               {t("common.cancel")}
             </Button>
-            <Button type="submit" variant="danger" loading={!!rejecting && busy === rejecting.id}>
+            <Button type="submit" variant="danger" loading={!!rejecting && busy === rejecting.id} disabled={!reason.trim()}>
               {t("admin.orders.reject")}
             </Button>
           </div>

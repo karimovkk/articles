@@ -363,6 +363,29 @@ yo'llari haqida xato beradi — `rm -rf .next/types .next/dev/types` yoki `next 
       (IntersectionObserver), reduced-motion — statik, mobilda panel yashirin. Test: `auth-ui` (+6: rasmlar,
       canvas, kirish/chiqish tomonlari o'lchab, reduced-motion, mobil); prod build 19/19 (303) ✅, Firefox ✅
 
+## 14. Buyurtma oqimi v1.0 (2026-09-22, `articlesdoc/Articles365_Buyurtma_Oqimi_Frontend_v1.0.md`)
+
+Backend chekni endi **rasm** bilan qabul qiladi (`POST /orders/{id}/receipt` — `multipart/form-data`: `file` + `receipt_note`),
+tasdiqlash/rad etish asosan admin Telegram chatida (bot) bo'ladi. Frontend JSON yuborayotgan edi — rasm yetib bormaydi.
+
+- [x] 14.1 Chek rasm bilan: `ordersApi.submitReceipt(orderId, { file, note })` → `multipart/form-data` (XHR `apiUpload`,
+      progress, 401→refresh); umumiy `ReceiptForm` (`src/components/orders/receipt-form.tsx`): rasm tanlash/sudrab
+      tashlash, oldindan ko'rish (blob), almashtirish/olib tashlash, `validateReceipt` (JPEG/PNG/WebP magic-bayt, ≤ 10 MB),
+      izoh ≤ 1000, yuklash progressi; `OrderPanel` (katalog) va `MyOrders` (profil) da
+- [x] 14.2 Xato kodlari `ALREADY_HAS_ACCESS` (409 → "allaqachon kutubxonangizda" + kitobni ochish), `INVALID_FILE`,
+      `ORDER_NOT_FOUND` — uz/ru/en
+- [x] 14.3 Holat kuzatuvi `useOrderPoll`: AWAITING_REVIEW paytida 20 s, sahifaga qaytilganda (focus/visibility) va
+      bildirishnoma o'zgarganda `GET /orders`; APPROVED → "To'lov tasdiqlandi ✅ Kitob kutubxonangizda" + kitobni
+      ochish / kutubxonaga o'tish; REJECTED → "To'lov rad etildi ❌" + sabab + "Qayta buyurtma berish"
+- [x] 14.4 Admin (web): rad etish sababi majburiy (bo'sh bo'lsa tugma o'chiq, ≤ 500), placeholder "userga ko'rsatiladi"
+- [x] 14.5 Bildirishnomalar: `ORDER_APPROVED`/`ACCESS_GRANTED` → `/books/{meta.book_id}` (yo'q bo'lsa `/library`),
+      `ORDER_REJECTED` → `/catalog/{meta.book_id}` (yo'q bo'lsa `/profile`)
+- [x] 14.6 Mock: receipt faqat multipart (JSON → 422), fayl ≤ 10 MB (413), magic-bayt (422 `INVALID_FILE`), `/__receipts`;
+      409 `ALREADY_HAS_ACCESS`; bildirishnoma `meta.book_id`. e2e: `orders` (22 — rasm, rasm emas/katta fayl, server 422,
+      rasmsiz fallback, kuzatuv REJECTED/APPROVED reload'siz, 409, bildirishnoma havolasi), `profile` (rasm bilan chek,
+      kuzatuv), `admin` (sabab majburiy, multipart tayyorlov). **Prod build 19/19 (314) ✅**, Firefox orders/profile/admin ✅
+- [x] 14.7 Backend savollari — pastda B15–B25
+
 ### Backend uchun eslatmalar (jonli auditdan) — holat: B1 ✅(avvaldan) · B2 ✅ · B3 ✅ · B4 ✅ · B5 ✅ · B6 ✅(avvaldan) ·
 B7 ✅ · B8 ✅ (OpenAPI manba) · B9 ✅ · B10 ✅ · B11 ✅ · B12 ✅ · B13 ✅ — **ochiq savol yo'q**
 
@@ -388,6 +411,21 @@ B7 ✅ · B8 ✅ (OpenAPI manba) · B9 ✅ · B10 ✅ · B11 ✅ · B12 ✅ · B
   keshi yoki public katalogdan oladi (INACTIVE kitob katalogda ko'rinmaydi → ma'lumot topilmasligi mumkin).
 - B11 `GET /library?sort=` faqat `granted|title`; registrdagi "So'nggi o'qilgan" (`recent`, `last_read_at` bo'yicha)
   tartibi yo'q — qo'shilsa FE'da tayyor.
+
+- B15 ❗ Web admin chek rasmini ko'ra olmaydi: `GET /admin/orders/{id}/receipt` (himoyalangan rasm oqimi) va
+  `OrderResponse.has_receipt_file` kerak — hozir web'dan tasdiqlagan admin chekni ko'rmaydi.
+- B16 Web ↔ Telegram sinxronligi: web'da tasdiqlansa/rad etilsa Telegram'dagi tugmalar ham yopiladimi?
+- B17 Takroriy buyurtma va holat xatolari: bir kitobga PENDING/AWAITING buyurtma bor bo'lsa `POST /orders` nima qaytaradi;
+  PENDING bo'lmagan buyurtmaga chek yuborilsa qaysi kod (409 `INVALID_ORDER_STATE`?).
+- B18 Rad etish sababi API'da ixtiyoriy (`reason: null`), Telegram'da majburiy — API ham majburiy qilinsinmi?
+- B19 Bildirishnoma `meta` formati (`order_id`, `book_id`?) — FE `meta.book_id` bilan kitob sahifasiga olib boradi.
+- B20 AWAITING_REVIEW paytida chekni qayta yuborish (noto'g'ri rasm) mumkinmi?
+- B21 Chek formati: PDF (bank ilovasi kvitansiyasi) va HEIC qabul qilinadimi?
+- B22 To'lov rekvizitlari (karta, qabul qiluvchi, summa izohi) API'dan berilsinmi (hozir FE env'da)?
+- B23 Holat kuzatuvi: `GET /orders` 20 s da — rate-limit'ga to'g'ri keladimi; `GET /orders/{id}` bo'ladimi?
+- B24 Foydalanuvchi PENDING buyurtmani bekor qila oladimi (`POST /orders/{id}/cancel`)?
+- B25 Hujjatlar eskirgan: API.md/STORAGE.md/SECURITY.md/README kitob darajasidagi yo'llar; buyurtma/katalog/bildirishnoma/
+  2FA/eksport va yangi xato kodlari (`INVALID_FILE`, `ALREADY_HAS_ACCESS`, ...) yo'q.
 
 ## Backend bilan muloqot
 

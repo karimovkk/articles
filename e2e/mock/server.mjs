@@ -41,7 +41,7 @@ const freshArticles = () => [
   { id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd", book_id: BOOK2_ID, title: "Boshqa kitob maqolasi", order_index: 0, mime_type: "application/pdf", file_size: PDF.length, format: "pdf", page_count: 6, processing_status: "READY", processing_error: null, text_extractable: true, file_version: 1, content_updated_at: null, article_metadata: {}, created_at: now(), updated_at: now(), has_source_file: true },
 ];
 
-let books, articles, access, progress, annotations, orders, notifications, uploads, categories, users, sessions, twofaEnabled;
+let books, articles, access, progress, annotations, orders, receipts, notifications, uploads, categories, users, sessions, twofaEnabled;
 const log = [];
 const headersSeen = [];
 let audit500 = false;
@@ -57,6 +57,7 @@ function reset(opts = {}) {
     ? [{ id: "legacy-1", article_id: ART_ID, type: "HIGHLIGHT", page: 1, location_data: { page: 1, rects: [[0.1, 0.5, 0.3, 0.02]] }, selected_text: "legacy", note_text: null, color: "#93c5fd", label: null, created_at: now(), updated_at: now(), _user: USER.id }]
     : [];
   orders = [];
+  receipts = [];
   notifications = [];
   uploads = [];
   categories = [CAT];
@@ -82,6 +83,32 @@ const json = (res, status, body) => {
 const err = (res, status, code, message, details = null) => json(res, status, { error: { code, message, details } });
 const paged = (items, page = 1, size = 20) => ({ items: items.slice((page - 1) * size, page * size), page, page_size: size, total: items.length, pages: Math.max(0, Math.ceil(items.length / size)) });
 const readBody = (req) => new Promise((ok) => { let d = ""; req.on("data", (c) => (d += c)); req.on("end", () => ok(d ? JSON.parse(d) : {})); });
+const readRaw = (req) => new Promise((ok) => { const chunks = []; req.on("data", (c) => chunks.push(c)); req.on("end", () => ok(Buffer.concat(chunks))); });
+/** Oddiy multipart/form-data parser (mock uchun): { fields: {name: string}, files: {name: {filename, type, data}} } */
+function parseMultipart(buf, contentType) {
+  const m = /boundary=(?:"([^"]+)"|([^;]+))/i.exec(contentType ?? "");
+  if (!m) return null;
+  const boundary = Buffer.from(`--${m[1] ?? m[2]}`);
+  const fields = {}, files = {};
+  let pos = buf.indexOf(boundary);
+  while (pos !== -1) {
+    const start = pos + boundary.length;
+    if (buf.slice(start, start + 2).toString() === "--") break;
+    const next = buf.indexOf(boundary, start);
+    if (next === -1) break;
+    const part = buf.slice(start + 2, next - 2); // \r\n ... \r\n
+    const sep = part.indexOf("\r\n\r\n");
+    const head = part.slice(0, sep).toString();
+    const body = part.slice(sep + 4);
+    const name = /name="([^"]*)"/.exec(head)?.[1];
+    const filename = /filename="([^"]*)"/.exec(head)?.[1];
+    const type = /content-type:\s*([^\r\n]+)/i.exec(head)?.[1] ?? "application/octet-stream";
+    if (name) { if (filename !== undefined) files[name] = { filename, type, data: body }; else fields[name] = body.toString(); }
+    pos = next;
+  }
+  return { fields, files };
+}
+const isImageBytes = (b) => (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) || (b[0] === 0x89 && b.slice(1, 4).toString() === "PNG") || (b.slice(0, 4).toString() === "RIFF" && b.slice(8, 12).toString() === "WEBP");
 const withNames = (x) => { const u = users.find((y) => y.id === x.user_id); const b = books.find((y) => y.id === x.book_id); return { ...x, user_email: u?.email ?? null, user_full_name: u?.full_name ?? null, book_title: b?.title ?? null }; };
 const hasAccess = (userId, bookId) => access.some((a) => a.user_id === userId && a.book_id === bookId && a.status === "ACTIVE");
 const progKey = (u, a) => `${u}:${a}`;
@@ -109,6 +136,7 @@ createServer(async (req, res) => {
   if (path === "/__progress") return json(res, 200, progress);
   if (path === "/__uploads") return json(res, 200, uploads);
   if (path === "/__orders") return json(res, 200, orders);
+  if (path === "/__receipts") return json(res, 200, receipts);
   if (path === "/__notify") { notifications.unshift({ id: randomUUID(), type: "GENERAL", title: q.get("title") ?? "Xabar", body: q.get("body") ?? null, is_read: false, meta: {}, created_at: now(), _user: USER.id }); return json(res, 200, { ok: true }); }
   if (path === "/__articles") return json(res, 200, articles);
   if (path === "/__set500") { audit500 = q.get("on") === "1"; return json(res, 200, { audit500 }); }
@@ -269,9 +297,24 @@ createServer(async (req, res) => {
 
   // ---- orders / notifications
   if (path === "/orders" && m === "GET") return json(res, 200, orders.filter((o) => o.user_id === me.id).map(withNames));
-  if (path === "/orders" && m === "POST") { const b = await readBody(req); const bk = books.find((x) => x.id === b.book_id); if (!bk) return err(res, 404, "BOOK_NOT_FOUND", "Book not found"); if (hasAccess(me.id, bk.id)) return err(res, 409, "ALREADY_EXISTS", "Access already granted"); const o = { id: randomUUID(), user_id: me.id, book_id: bk.id, amount: bk.price, status: "PENDING", receipt_note: null, reviewed_by_admin_id: null, reviewed_at: null, reject_reason: null, created_at: now(), updated_at: now() }; orders.unshift(o); return json(res, 201, o); }
+  if (path === "/orders" && m === "POST") { const b = await readBody(req); const bk = books.find((x) => x.id === b.book_id); if (!bk) return err(res, 404, "BOOK_NOT_FOUND", "Book not found"); if (hasAccess(me.id, bk.id)) return err(res, 409, "ALREADY_HAS_ACCESS", "You already have access to this book"); const o = { id: randomUUID(), user_id: me.id, book_id: bk.id, amount: bk.price, status: "PENDING", receipt_note: null, reviewed_by_admin_id: null, reviewed_at: null, reject_reason: null, created_at: now(), updated_at: now() }; orders.unshift(o); return json(res, 201, o); }
   const om = /^\/orders\/([^/]+)\/receipt$/.exec(path);
-  if (om && m === "POST") { const o = orders.find((x) => x.id === om[1] && x.user_id === me.id); if (!o) return err(res, 404, "ORDER_NOT_FOUND", "Not found"); const b = await readBody(req); Object.assign(o, { status: "AWAITING_REVIEW", receipt_note: b.receipt_note ?? null, updated_at: now() }); return json(res, 200, o); }
+  if (om && m === "POST") {
+    // Oqim v1.0: multipart/form-data — `file` (JPEG/PNG/WebP, ≤ 10 MB, tavsiya) + `receipt_note` (ixtiyoriy)
+    const o = orders.find((x) => x.id === om[1] && x.user_id === me.id); if (!o) return err(res, 404, "ORDER_NOT_FOUND", "Not found");
+    const ct = req.headers["content-type"] ?? "";
+    if (!ct.startsWith("multipart/form-data")) return err(res, 422, "VALIDATION_ERROR", "Expected multipart/form-data");
+    const form = parseMultipart(await readRaw(req), ct);
+    if (!form) return err(res, 422, "VALIDATION_ERROR", "Bad multipart body");
+    const f = form.files.file;
+    if (f) {
+      if (f.data.length > 10 * 1024 * 1024) return err(res, 413, "PAYLOAD_TOO_LARGE", "Receipt image exceeds 10 MB");
+      if (!isImageBytes(f.data)) return err(res, 422, "INVALID_FILE", "Receipt must be a JPEG, PNG or WebP image");
+    }
+    receipts.push({ order_id: o.id, note: form.fields.receipt_note ?? null, file: f ? { filename: f.filename, type: f.type, size: f.data.length } : null });
+    Object.assign(o, { status: "AWAITING_REVIEW", receipt_note: form.fields.receipt_note ?? null, updated_at: now() });
+    return json(res, 200, o);
+  }
   if (path === "/notifications" && m === "GET") { const mine = notifications.filter((n) => n._user === me.id).filter((n) => q.get("unread_only") !== "true" || !n.is_read).map(({ _user, ...n }) => n); return json(res, 200, paged(mine, Number(q.get("page") ?? 1), Number(q.get("page_size") ?? 20))); }
   if (path === "/notifications/unread-count") return json(res, 200, { unread: notifications.filter((n) => n._user === me.id && !n.is_read).length });
   if (path === "/notifications/read-all" && m === "POST") { notifications.forEach((n) => { if (n._user === me.id) n.is_read = true; }); return json(res, 200, { message: "ok" }); }
@@ -330,7 +373,7 @@ createServer(async (req, res) => {
     if (am) { const a = access.find((x) => x.id === am[1]); if (!a) return err(res, 404, "ACCESS_NOT_FOUND", "Not found"); Object.assign(a, { status: "REVOKED", revoked_at: now(), revoked_by_admin_id: me.id, updated_at: now() }); return json(res, 200, a); }
     if (path === "/admin/orders" && m === "GET") return json(res, 200, paged(orders.filter((o) => !q.get("status") || o.status === q.get("status")).map(withNames), Number(q.get("page") ?? 1), Number(q.get("page_size") ?? 20)));
     const aom = /^\/admin\/orders\/([^/]+)\/(approve|reject)$/.exec(path);
-    if (aom && m === "POST") { const o = orders.find((x) => x.id === aom[1]); if (!o) return err(res, 404, "ORDER_NOT_FOUND", "Not found"); if (aom[2] === "approve") { Object.assign(o, { status: "APPROVED", reviewed_by_admin_id: me.id, reviewed_at: now(), updated_at: now() }); access.push({ id: randomUUID(), user_id: o.user_id, book_id: o.book_id, status: "ACTIVE", granted_at: now(), granted_by_admin_id: me.id, revoked_at: null, revoked_by_admin_id: null, created_at: now(), updated_at: now() }); notifications.unshift({ id: randomUUID(), type: "ORDER_APPROVED", title: "Buyurtma tasdiqlandi", body: null, is_read: false, meta: { order_id: o.id }, created_at: now(), _user: o.user_id }); } else { const b = await readBody(req); Object.assign(o, { status: "REJECTED", reject_reason: b.reason ?? null, reviewed_by_admin_id: me.id, reviewed_at: now(), updated_at: now() }); notifications.unshift({ id: randomUUID(), type: "ORDER_REJECTED", title: "Buyurtma rad etildi", body: b.reason ?? null, is_read: false, meta: { order_id: o.id }, created_at: now(), _user: o.user_id }); } return json(res, 200, o); }
+    if (aom && m === "POST") { const o = orders.find((x) => x.id === aom[1]); if (!o) return err(res, 404, "ORDER_NOT_FOUND", "Not found"); if (aom[2] === "approve") { Object.assign(o, { status: "APPROVED", reviewed_by_admin_id: me.id, reviewed_at: now(), updated_at: now() }); access.push({ id: randomUUID(), user_id: o.user_id, book_id: o.book_id, status: "ACTIVE", granted_at: now(), granted_by_admin_id: me.id, revoked_at: null, revoked_by_admin_id: null, created_at: now(), updated_at: now() }); notifications.unshift({ id: randomUUID(), type: "ORDER_APPROVED", title: "Buyurtma tasdiqlandi", body: null, is_read: false, meta: { order_id: o.id, book_id: o.book_id }, created_at: now(), _user: o.user_id }); } else { const b = await readBody(req); Object.assign(o, { status: "REJECTED", reject_reason: b.reason ?? null, reviewed_by_admin_id: me.id, reviewed_at: now(), updated_at: now() }); notifications.unshift({ id: randomUUID(), type: "ORDER_REJECTED", title: "Buyurtma rad etildi", body: b.reason ?? null, is_read: false, meta: { order_id: o.id, book_id: o.book_id }, created_at: now(), _user: o.user_id }); } return json(res, 200, o); }
     if (path === "/admin/export/users" || path === "/admin/export/audit-logs") { res.writeHead(200, { "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "Content-Disposition": `attachment; filename="${path.split("/").pop()}.xlsx"` }); return res.end(Buffer.from("PK\x03\x04fake-xlsx")); }
     return err(res, 404, "NOT_FOUND", `No admin route ${m} ${path}`);
   }

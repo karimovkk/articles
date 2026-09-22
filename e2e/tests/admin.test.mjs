@@ -11,7 +11,10 @@ const check = (name, ok, extra = "") => { console.log(`${ok ? "✅" : "❌"} ${n
 await reset("");
 const uh = { Authorization: "Bearer access-token-1", "Content-Type": "application/json" };
 const o = await (await fetch(`${API}/orders`, { method: "POST", headers: uh, body: JSON.stringify({ book_id: BOOK2 }) })).json();
-await fetch(`${API}/orders/${o.id}/receipt`, { method: "POST", headers: uh, body: JSON.stringify({ receipt_note: "Chek 777" }) });
+// Chek — multipart/form-data (buyurtma oqimi v1.0)
+const receiptForm = new FormData();
+receiptForm.append("receipt_note", "Chek 777");
+await fetch(`${API}/orders/${o.id}/receipt`, { method: "POST", headers: { Authorization: uh.Authorization }, body: receiptForm });
 
 const browser = await launch();
 const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 }, acceptDownloads: true });
@@ -67,6 +70,8 @@ const o2 = await (await fetch(`${API}/orders`, { method: "POST", headers: uh, bo
 await selectPick(page, '[data-testid="filter-status"]', "PENDING");
 await page.waitForSelector("text=Rad etish", { timeout: 8000 });
 await page.click("text=Rad etish");
+await page.waitForSelector('[data-testid="reject-reason-input"]');
+check("Rad etish: sabab bo'sh — tugma o'chiq (sabab majburiy, userga ko'rinadi)", await page.locator('div[role="dialog"] button[type="submit"]:has-text("Rad etish")').isDisabled());
 await page.fill('textarea[placeholder^="Sabab"]', "To'lov kelmadi");
 await page.click('button[type="submit"]:has-text("Rad etish")');
 await page.waitForFunction(() => document.body.innerText.includes("Ma'lumot yo'q"), null, { timeout: 8000 });

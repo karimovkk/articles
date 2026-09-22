@@ -20,13 +20,22 @@ const TYPE_KEY: Record<Notification["type"], DictKey> = {
   GENERAL: "notifications.type.GENERAL",
 };
 
-/** Bildirishnoma turi va `meta` bo'yicha ochiladigan sahifa. */
+/** Bildirishnoma turi va `meta` bo'yicha ochiladigan sahifa (buyurtma oqimi v1.0: tasdiq → kitob, rad → qayta urinish). */
 function linkFor(n: Notification): string | null {
   const bookId = typeof n.meta?.book_id === "string" ? n.meta.book_id : null;
-  if (n.type === "ACCESS_GRANTED" && bookId) return `/books/${bookId}`;
-  if (n.type === "ACCESS_REVOKED" && bookId) return `/catalog/${bookId}`;
-  if (n.type.startsWith("ORDER_")) return "/profile";
-  return null;
+  switch (n.type) {
+    case "ACCESS_GRANTED":
+    case "ORDER_APPROVED":
+      return bookId ? `/books/${bookId}` : "/library";
+    case "ACCESS_REVOKED":
+      return bookId ? `/catalog/${bookId}` : null;
+    case "ORDER_REJECTED":
+      return bookId ? `/catalog/${bookId}` : "/profile";
+    case "ORDER_CREATED":
+      return "/profile";
+    default:
+      return null;
+  }
 }
 
 export default function NotificationsPage() {

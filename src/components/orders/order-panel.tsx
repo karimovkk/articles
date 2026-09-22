@@ -1,16 +1,21 @@
 "use client";
 
 /**
- * Katalogdagi "Sotib olish" paneli (FE-2.3, PM S-16):
- *   mehmon → login; buyurtma yo'q → POST /orders; PENDING → to'lov ko'rsatmasi + "To'ladim";
- *   AWAITING_REVIEW → kutish; REJECTED → sabab + qayta buyurtma; APPROVED → kutubxona.
+ * Katalogdagi "Sotib olish" paneli (FE-2.3, buyurtma oqimi v1.0):
+ *   mehmon → login; buyurtma yo'q → POST /orders (409 ALREADY_HAS_ACCESS → "kutubxonangizda");
+ *   PENDING → to'lov ko'rsatmasi + "To'ladim" (chek rasmi + izoh, multipart);
+ *   AWAITING_REVIEW → kutish, holat `GET /orders` bilan kuzatiladi (admin Telegram'da tasdiqlaydi);
+ *   APPROVED → "Kitob kutubxonangizda"; REJECTED → sabab + qayta buyurtma.
  */
-import { useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/providers/auth-provider";
-import { Alert, Button, Spinner, Textarea, buttonClass, formatDate } from "@/components/ui";
+import { Alert, Button, Spinner, buttonClass, formatDate } from "@/components/ui";
+import * as I from "@/components/ui/icons";
 import { OrderStatusBadge } from "./order-status";
-import { errorMessage, ordersApi, type Order } from "@/lib/api";
+import { ReceiptForm } from "./receipt-form";
+import { useOrderPoll } from "./use-order-poll";
+import { errorMessage, isApiError, ordersApi, type Order } from "@/lib/api";
 import { env, purchaseLink } from "@/lib/env";
 import { useT } from "@/i18n";
 
@@ -22,24 +27,30 @@ export function OrderPanel({ bookId }: { bookId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [receiptOpen, setReceiptOpen] = useState(false);
-  const [note, setNote] = useState("");
+  const [owned, setOwned] = useState(false); // 409 ALREADY_HAS_ACCESS
 
+  const statusRef = useRef<string | undefined>(undefined);
+  useLayoutEffect(() => {
+    statusRef.current = order?.status;
+  });
+
+  // Shu kitob uchun eng so'nggi buyurtma (`GET /orders` — eng yangisi birinchi)
+  const load = useCallback(
+    () =>
+      ordersApi.mine().then((list) => {
+        const mine = list.filter((o) => o.book_id === bookId).sort((a, b) => b.created_at.localeCompare(a.created_at));
+        const next = mine[0] ?? null;
+        // Kuzatuv paytida tasdiqlandi — foydalanuvchiga darhol xabar
+        if (statusRef.current === "AWAITING_REVIEW" && next?.status === "APPROVED") setNotice(t("orders.approvedTitle"));
+        setOrder(next);
+      }),
+    [bookId, t],
+  );
   useEffect(() => {
     if (loading || !user) return;
-    let alive = true;
-    ordersApi
-      .mine()
-      .then((list) => {
-        if (!alive) return;
-        // Shu kitob uchun eng so'nggi buyurtma
-        const mine = list.filter((o) => o.book_id === bookId).sort((a, b) => b.created_at.localeCompare(a.created_at));
-        setOrder(mine[0] ?? null);
-      })
-      .catch(() => alive && setOrder(null));
-    return () => {
-      alive = false;
-    };
-  }, [user, loading, bookId]);
+    load().catch(() => setOrder(null));
+  }, [user, loading, load]);
+  useOrderPoll(order?.status === "AWAITING_REVIEW", () => void load().catch(() => undefined));
 
   async function create() {
     setBusy(true);
@@ -48,23 +59,8 @@ export function OrderPanel({ bookId }: { bookId: string }) {
       setOrder(await ordersApi.create(bookId));
       setNotice(t("orders.created"));
     } catch (e) {
-      setError(errorMessage(e));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function submitReceipt(e: FormEvent) {
-    e.preventDefault();
-    if (!order) return;
-    setBusy(true);
-    setError(null);
-    try {
-      setOrder(await ordersApi.submitReceipt(order.id, note.trim()));
-      setReceiptOpen(false);
-      setNotice(null);
-    } catch (err) {
-      setError(errorMessage(err));
+      if (isApiError(e) && e.code === "ALREADY_HAS_ACCESS") setOwned(true);
+      else setError(errorMessage(e));
     } finally {
       setBusy(false);
     }
@@ -87,21 +83,37 @@ export function OrderPanel({ bookId }: { bookId: string }) {
   const external = purchaseLink(bookId);
   const active = order && order.status !== "REJECTED" ? order : null;
 
+  if (owned) {
+    return (
+      <div className="space-y-3" data-testid="order-owned">
+        <Alert tone="success">{t("orders.alreadyOwned")}</Alert>
+        <Link href={`/books/${bookId}`} className={buttonClass("primary", "sm")}>
+          <I.BookOpen size={15} />
+          {t("orders.openBook")}
+        </Link>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-3">
+    <div className="space-y-3" data-testid="order-panel" data-status={order?.status ?? "NONE"}>
       {error && <Alert>{error}</Alert>}
       {notice && <Alert tone="success">{notice}</Alert>}
       {!active ? (
         <div className="space-y-2">
           {order?.status === "REJECTED" && (
             <Alert tone="danger">
-              {t("orders.status.REJECTED")}
-              {order.reject_reason ? ` — ${order.reject_reason}` : ""}
+              <span className="block font-bold">{t("orders.rejectedTitle")}</span>
+              {order.reject_reason && (
+                <span className="block" data-testid="reject-reason">
+                  {t("orders.rejectReason")}: {order.reject_reason}
+                </span>
+              )}
             </Alert>
           )}
           <div className="flex flex-wrap gap-2">
             <Button onClick={() => void create()} loading={busy}>
-              {t("orders.buyNow")}
+              {order?.status === "REJECTED" ? t("orders.retry") : t("orders.buyNow")}
             </Button>
             {external && (
               <a href={external} target="_blank" rel="noopener noreferrer" className={buttonClass("secondary")}>
@@ -121,17 +133,15 @@ export function OrderPanel({ bookId }: { bookId: string }) {
             <>
               {env.paymentInstructions && <p className="whitespace-pre-wrap text-sm text-text">{env.paymentInstructions}</p>}
               {receiptOpen ? (
-                <form onSubmit={(e) => void submitReceipt(e)} className="space-y-2">
-                  <Textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("orders.receiptPlaceholder")} />
-                  <div className="flex gap-2">
-                    <Button size="sm" type="submit" loading={busy}>
-                      {t("orders.sendReceipt")}
-                    </Button>
-                    <Button size="sm" type="button" variant="ghost" onClick={() => setReceiptOpen(false)}>
-                      {t("common.cancel")}
-                    </Button>
-                  </div>
-                </form>
+                <ReceiptForm
+                  orderId={active.id}
+                  onDone={(o) => {
+                    setOrder(o);
+                    setReceiptOpen(false);
+                    setNotice(null);
+                  }}
+                  onCancel={() => setReceiptOpen(false)}
+                />
               ) : (
                 <Button size="sm" onClick={() => setReceiptOpen(true)}>
                   {t("orders.paid")}
@@ -139,11 +149,25 @@ export function OrderPanel({ bookId }: { bookId: string }) {
               )}
             </>
           )}
-          {active.status === "AWAITING_REVIEW" && <p className="text-xs text-muted">{t("orders.awaitingHint")}</p>}
+          {active.status === "AWAITING_REVIEW" && (
+            <p className="flex items-start gap-2 text-xs text-muted" data-testid="awaiting-hint">
+              <Spinner className="mt-0.5 size-3.5 shrink-0" />
+              {t("orders.awaitingHint")}
+            </p>
+          )}
           {active.status === "APPROVED" && (
-            <Link href={`/books/${bookId}`} className={buttonClass("primary", "sm")}>
-              {t("orders.openBook")}
-            </Link>
+            <div className="space-y-2">
+              {!notice && <Alert tone="success">{t("orders.approvedTitle")}</Alert>}
+              <div className="flex flex-wrap gap-2">
+                <Link href={`/books/${bookId}`} className={buttonClass("primary", "sm")}>
+                  <I.BookOpen size={15} />
+                  {t("orders.openBook")}
+                </Link>
+                <Link href="/library" className={buttonClass("secondary", "sm")}>
+                  {t("orders.goLibrary")}
+                </Link>
+              </div>
+            </div>
           )}
           <Link href="/profile" className="block text-xs font-bold text-accent-ink hover:underline">
             {t("orders.viewOrders")} →

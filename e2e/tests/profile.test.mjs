@@ -69,16 +69,21 @@ check("2FA: o'chirildi", true);
 await page.waitForSelector("text=Ruxsatsiz kitob", { timeout: 8000 });
 check("Buyurtma: kitob nomi (katalogdan), narx, holat 'To'lov kutilmoqda'", (await bodyHas("70 000 so'm")) && (await bodyHas("To'lov kutilmoqda")));
 await page.click("text=To'ladim — chek yuborish");
+// Chek rasmi (1×1 PNG) + izoh — multipart
+await page.setInputFiles('[data-testid="receipt-file"]', { name: "chek.png", mimeType: "image/png", buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==", "base64") });
+await page.waitForSelector('[data-testid="receipt-preview"]', { timeout: 3000 });
 await page.fill('textarea[placeholder^="Chek raqami"]', "Chek #123");
-await page.click("text=Yuborish");
+await page.click('[data-testid="receipt-submit"]');
 await page.waitForSelector("text=Tekshirilmoqda", { timeout: 5000 });
 const o1 = (await mockGet("/__orders"))[0];
-check("Chek yuborildi → AWAITING_REVIEW, receipt_note", o1.status === "AWAITING_REVIEW" && o1.receipt_note === "Chek #123");
+const r1 = (await mockGet("/__receipts"))[0];
+check("Buyurtmalarim: chek rasmi + izoh (multipart) → AWAITING_REVIEW", o1.status === "AWAITING_REVIEW" && o1.receipt_note === "Chek #123" && r1?.file?.type === "image/png", JSON.stringify(r1));
 await page.screenshot({ path: OUT + "70-profile-orders.png" });
 await fetch(`${API}/admin/orders/${order.id}/approve`, { method: "POST", headers: ah });
-await page.reload();
+// Kuzatuv: reload'siz — sahifaga qaytish (focus) holatni yangilaydi
+await page.evaluate(() => window.dispatchEvent(new Event("focus")));
 await page.waitForSelector("text=Tasdiqlangan", { timeout: 10000 });
-check("Admin tasdiqladi → APPROVED + 'Kitobni ochish' havolasi", (await page.locator(`a[href="/books/${BOOK2}"]`).count()) >= 1);
+check("Admin tasdiqladi → kuzatuv (reload'siz) APPROVED + 'Kitobni ochish' havolasi", (await page.locator(`a[href="/books/${BOOK2}"]`).count()) >= 1);
 
 check("Sahifa xatolari yo'q", pageErrors.length === 0, pageErrors.join(" | ").slice(0, 300));
 await browser.close();
