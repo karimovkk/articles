@@ -1,6 +1,8 @@
 @import "tailwindcss";
 /* Dizayn tizimi (tokenlar + komponent sinflari) — src/app/design.css */
 @import "./design.css" layer(components);
+/* Mijoz tomoni qobig'i (16): fon, header, sidebar, katalog hero, kartalar — src/app/client.css */
+@import "./client.css" layer(components);
 
 @custom-variant dark (&:where(.dark, .dark *));
 

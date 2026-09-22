@@ -4,7 +4,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Alert, Badge, Button, Card, EmptyState, PageHeader, Pagination, Spinner, Switch, cn, formatDate } from "@/components/ui";
+import { Alert, Badge, Button, Card, EmptyState, PageHeader, RoundPagination, Spinner, Switch, cn, formatDate } from "@/components/ui";
 import * as I from "@/components/ui/icons";
 import { emitNotificationsChanged } from "@/components/notifications/bell";
 import { errorMessage, notificationsApi, type Notification } from "@/lib/api";
@@ -141,7 +141,7 @@ export default function NotificationsPage() {
       )}
       {data && data.pages > 1 && (
         <div className="mt-4">
-          <Pagination page={data.page} pages={data.pages} onChange={setPage} />
+          <RoundPagination page={data.page} pages={data.pages} onChange={setPage} />
         </div>
       )}
     </div>

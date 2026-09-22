@@ -45,3 +45,6 @@ e2e/out/
 
 # Asl (qayta ishlanmagan) rasmlar — saytda public/auth/*.webp nusxalari ishlatiladi, asllari repoga kirmaydi
 /public/ChatGPT Image*.png
+
+# Dizayn namunasi (16-bo'lim uchun foydalanuvchi yuborgan rasm) — repoga kirmaydi
+/image.png

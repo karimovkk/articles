@@ -1,17 +1,12 @@
 "use client";
 
 /**
- * Public qobiq (katalog): mehmon uchun Kirish/Ro'yxat, kirgan foydalanuvchi uchun
- * Kutubxona/Profil/(Admin). Auth tekshiruvi sahifani bloklamaydi.
+ * Public qobiq (katalog): mijoz qobig'i — mehmon uchun Kirish/Ro'yxat, kirgan foydalanuvchi uchun to'liq nav.
+ * Auth tekshiruvi sahifani bloklamaydi.
  */
 import type { ReactNode } from "react";
-import { SiteHeader, SiteMain } from "./site-header";
+import { ClientShell } from "./client-shell";
 
 export function PublicShell({ children }: { children: ReactNode }) {
-  return (
-    <div className="min-h-dvh">
-      <SiteHeader />
-      <SiteMain>{children}</SiteMain>
-    </div>
-  );
+  return <ClientShell>{children}</ClientShell>;
 }

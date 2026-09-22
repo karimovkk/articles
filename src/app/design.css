@@ -1908,57 +1908,8 @@ html[data-theme-wave]::view-transition-new(root) {
   display: none;
 }
 
-/* ---------- Foydalanuvchi qobig'i (yengil header) ---------- */
+/* ---------- Foydalanuvchi chipi (mijoz header'i — client.css) ---------- */
 
-.site-header {
-  position: sticky;
-  top: 0;
-  z-index: 40;
-  border-bottom: 1px solid var(--border);
-  background: color-mix(in srgb, var(--bg) 88%, transparent);
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
-}
-.site-header-inner {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  height: 64px;
-  padding: 0 20px;
-}
-.site-nav {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  background: var(--surface-2);
-  border-radius: 999px;
-  padding: 4px;
-}
-.site-nav a {
-  height: 32px;
-  padding: 0 14px;
-  border-radius: 999px;
-  display: inline-flex;
-  align-items: center;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--text-2);
-  text-decoration: none;
-  white-space: nowrap;
-  transition:
-    background 140ms var(--ease),
-    color 140ms var(--ease);
-}
-.site-nav a:hover {
-  color: var(--text);
-}
-.site-nav a.active {
-  background: var(--pill-bg);
-  color: var(--pill-text);
-}
-.site-main {
-  padding: 24px 24px 72px;
-}
 .user-chip {
   display: flex;
   align-items: center;
@@ -2007,21 +1958,8 @@ html[data-theme-wave]::view-transition-new(root) {
   color: var(--muted);
 }
 
-/* ---------- Kitob kartalari (kutubxona / katalog) ---------- */
+/* ---------- Kitob muqovasi (kartalar — client.css `.bcard`) ---------- */
 
-.book-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: 20px 18px;
-}
-.book-card {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  min-width: 0;
-  color: inherit;
-  text-decoration: none;
-}
 .book-cover {
   position: relative;
   aspect-ratio: 3 / 4;
@@ -2037,12 +1975,6 @@ html[data-theme-wave]::view-transition-new(root) {
   transition:
     transform 180ms var(--ease),
     box-shadow 180ms var(--ease);
-}
-.book-card:hover .book-cover {
-  transform: translateY(-2px);
-  box-shadow:
-    inset 0 0 0 1px var(--border-strong),
-    0 18px 32px -16px rgba(9, 12, 10, 0.55);
 }
 .book-cover img {
   width: 100%;
@@ -2083,27 +2015,6 @@ html[data-theme-wave]::view-transition-new(root) {
   top: 8px;
   right: 8px;
 }
-.book-title {
-  font-size: 13.5px;
-  font-weight: 750;
-  line-height: 1.3;
-  color: var(--text);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-.book-card:hover .book-title {
-  color: var(--accent-ink);
-}
-.book-meta {
-  font-size: 12px;
-  color: var(--muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
 /* Hero (kitob sahifasi / katalog batafsil) */
 .book-hero {
   display: grid;
@@ -2570,17 +2481,6 @@ a.track:hover {
   }
   .page-actions {
     justify-content: flex-start;
-  }
-  .site-header-inner {
-    padding: 0 12px;
-    gap: 8px;
-  }
-  .site-main {
-    padding: 16px 12px 56px;
-  }
-  .book-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 14px 12px;
   }
   .book-hero {
     grid-template-columns: minmax(0, 1fr);

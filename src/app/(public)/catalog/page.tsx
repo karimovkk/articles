@@ -1,26 +1,36 @@
 "use client";
 
-/** Public katalog (FE-2.1): GET /catalog — qidiruv, kategoriya filtri (`GET /categories`), pagination, public muqova. */
-import { Suspense, useState } from "react";
-import Link from "next/link";
+/**
+ * Public katalog (FE-2.1, dizayn 16.3): hero (eyebrow, serif sarlavha, jonli qidiruv "pill"), kategoriya chip'lari
+ * (`GET /categories` + kitoblar soni), gorizontal kartalar (kutubxonadagi kitob — "O'qish"), dumaloq pagination.
+ * URL — yagona manba: `?q=&category=&page=`.
+ */
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { BookCover } from "@/components/book-cover";
+import { BookCardH } from "@/components/catalog/book-card";
 import { Price } from "@/components/catalog/price";
-import { Alert, Badge, EmptyState, PageHeader, Pagination, SearchInput, Select, Spinner } from "@/components/ui";
+import { Alert, EmptyState, Menu, MenuItem, RoundPagination, Spinner, cn } from "@/components/ui";
 import * as I from "@/components/ui/icons";
-import { catalogApi } from "@/lib/api";
+import { catalogApi, libraryApi } from "@/lib/api";
+import { useCatalogCategories } from "@/lib/catalog-categories";
 import { useAsync } from "@/lib/use-async";
 import { useDebouncedCallback } from "@/lib/use-debounce";
+import { useAuth } from "@/providers/auth-provider";
 import { useT } from "@/i18n";
+
+/** Chip qatorida ko'rinadigan kategoriyalar soni — qolganlari "Yana" menyusida */
+const CHIPS = 5;
 
 function CatalogList() {
   const { t } = useT();
+  const { user } = useAuth();
   const router = useRouter();
   const params = useSearchParams();
   const query = params.get("q") ?? "";
   const category = params.get("category") ?? "";
   const page = Math.max(1, Number(params.get("page")) || 1);
   const [search, setSearch] = useState(query);
+  const inputRef = useRef<HTMLInputElement>(null);
   // O'zimiz URL'ga yozgan oxirgi q — tashqi o'zgarish (orqaga/oldinga, havola) dan farqlash uchun
   const [pushed, setPushed] = useState(query);
   const [prevQuery, setPrevQuery] = useState(query);
@@ -33,7 +43,18 @@ function CatalogList() {
   }
 
   const { data, loading, error, reload } = useAsync(() => catalogApi.list({ search: query || undefined, category_id: category || undefined, page, page_size: 24 }), [query, category, page]);
-  const { data: categories } = useAsync(() => catalogApi.categories().catch(() => []), []);
+  const categories = useCatalogCategories();
+  // Kirgan foydalanuvchi: kutubxonadagi kitoblar — kartada "Kutubxonada" + "O'qish"
+  const userId = user?.id;
+  const { data: owned } = useAsync(() => (userId ? libraryApi.list({ page_size: 100 }).then((r) => new Set(r.items.map((i) => i.book_id))) : Promise.resolve(null)), [userId]);
+
+  // Header'dagi qidiruv tugmasi: `/catalog#search` yoki shu sahifada — `a365:focus-search`
+  useEffect(() => {
+    const focus = () => inputRef.current?.focus();
+    if (window.location.hash === "#search") focus();
+    window.addEventListener("a365:focus-search", focus);
+    return () => window.removeEventListener("a365:focus-search", focus);
+  }, []);
 
   const href = (q: string, cat: string, p: number) => {
     const sp = new URLSearchParams();
@@ -54,44 +75,92 @@ function CatalogList() {
     router.replace(href(q, category, 1));
   }, 300);
 
+  const cats = categories ?? [];
+  const shown = cats.slice(0, CHIPS);
+  const activeHidden = cats.slice(CHIPS).find((c) => c.id === category);
+  if (activeHidden) shown.push(activeHidden);
+  const more = cats.slice(CHIPS).filter((c) => c !== activeHidden);
+
   return (
     <div>
-      <PageHeader eyebrow={t("nav.catalog")} title={t("catalog.title")} description={t("catalog.description")} icon={<I.Grid size={26} />} />
-      <form
-        className="table-toolbar"
-        role="search"
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (search.trim() === query) {
-            live.cancel();
-            reload();
-          } else live.flush();
-        }}
-      >
-        <SearchInput
-          placeholder={t("catalog.searchPlaceholder")}
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            live.call(e.target.value.trim());
-          }}
-          className="w-full max-w-sm"
-          aria-label={t("common.search")}
-          data-testid="catalog-search"
-        />
-        {categories && categories.length > 0 && (
-          <Select
-            value={category}
-            onChange={(v) => navigate(search.trim(), v, 1)}
-            options={[{ value: "", label: t("catalog.allCategories") }, ...categories.map((c) => ({ value: c.id, label: c.name }))]}
-            className="w-52"
-            aria-label={t("admin.books.category")}
-            data-testid="catalog-category"
-          />
+      <section className="catalog-hero">
+        <div className="min-w-0">
+          <p className="hero-eyebrow">{t("catalog.heroEyebrow")}</p>
+          <h1 className="hero-title">
+            {t("catalog.heroTitle")} <em>{t("catalog.heroAccent")}</em>
+          </h1>
+          <p className="hero-sub">{t("catalog.heroSub")}</p>
+          <form
+            className="hero-search"
+            role="search"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (search.trim() === query) {
+                live.cancel();
+                reload();
+              } else live.flush();
+            }}
+          >
+            <I.Search size={18} />
+            <input
+              ref={inputRef}
+              id="search"
+              type="search"
+              placeholder={t("catalog.searchPlaceholder")}
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                live.call(e.target.value.trim());
+              }}
+              aria-label={t("common.search")}
+              autoComplete="off"
+              data-testid="catalog-search"
+            />
+            {/* Qidiruv tugmasi yo'q (11.2) — yozilayotganda ishlaydi; Enter — kutmasdan */}
+            {loading && data && <Spinner className="mr-3 size-4 shrink-0 text-[rgba(246,242,232,0.6)]" />}
+          </form>
+        </div>
+        <p className="hero-script" aria-hidden>
+          {t("catalog.heroScript")}
+        </p>
+      </section>
+
+      <div className="cat-chips" data-testid="catalog-categories">
+        {cats.length > 0 && (
+          <>
+            <button type="button" className={cn("cat-chip", !category && "active")} aria-pressed={!category} data-value="" onClick={() => navigate(search.trim(), "", 1)}>
+              <I.Grid size={16} />
+              {t("catalog.allCategories")}
+            </button>
+            {shown.map((c) => (
+              <button key={c.id} type="button" className={cn("cat-chip", category === c.id && "active")} aria-pressed={category === c.id} data-value={c.id} onClick={() => navigate(search.trim(), c.id, 1)}>
+                <I.Tag size={15} />
+                {c.name}
+              </button>
+            ))}
+            {more.length > 0 && (
+              <Menu
+                align="start"
+                aria-label={t("catalog.more")}
+                trigger={(p) => (
+                  <button {...p} type="button" className="cat-chip">
+                    {t("catalog.more")}
+                    <I.ChevronDown size={15} />
+                  </button>
+                )}
+              >
+                {more.map((c) => (
+                  <MenuItem key={c.id} onSelect={() => navigate(search.trim(), c.id, 1)}>
+                    {c.name}
+                    {c.count !== null && <span className="ml-auto pl-3 text-xs text-muted">{c.count}</span>}
+                  </MenuItem>
+                ))}
+              </Menu>
+            )}
+          </>
         )}
-        {loading && data && <Spinner className="size-4 text-muted" />}
-        {data && <div className="toolbar-meta">{t("common.total")}: {data.total}</div>}
-      </form>
+        {data && <span className="cat-chips-meta">{t("catalog.found", { n: data.total })}</span>}
+      </div>
 
       {error && <Alert className="mb-4">{error}</Alert>}
 
@@ -103,34 +172,45 @@ function CatalogList() {
         <EmptyState title={t("catalog.empty")} icon={<I.Search size={22} />} />
       ) : (
         <div className={loading ? "opacity-60 transition-opacity" : ""}>
-          <div className="book-grid" data-testid="book-grid">
-            {data.items.map((item) => (
-              <Link key={item.book_id} href={`/catalog/${item.book_id}`} className="book-card">
-                <BookCover bookId={item.book_id} title={item.title} hasCover={item.has_cover} source="catalog">
-                  {!!item.article_count && (
-                    <span className="badge-tr">
-                      <Badge className="bg-[rgba(15,20,18,0.72)] text-white backdrop-blur-sm">{t("catalog.articles", { n: item.article_count })}</Badge>
-                    </span>
-                  )}
-                </BookCover>
-                <div className="min-w-0">
-                  <p className="book-title">{item.title}</p>
-                  {item.author && <p className="book-meta">{item.author}</p>}
-                  <p className="mt-1.5 text-[13.5px] font-extrabold text-text">
-                    <Price value={item.price} />
-                  </p>
-                  {item.category_name && (
-                    <div className="mt-1.5">
-                      <Badge>{item.category_name}</Badge>
-                    </div>
-                  )}
-                </div>
-              </Link>
-            ))}
+          <div className="bgrid" data-testid="book-grid">
+            {data.items.map((item) => {
+              const has = !!owned?.has(item.book_id);
+              return (
+                <BookCardH
+                  key={item.book_id}
+                  bookId={item.book_id}
+                  title={item.title}
+                  hasCover={item.has_cover}
+                  coverSource="catalog"
+                  href={`/catalog/${item.book_id}`}
+                  tags={
+                    (item.category_name || has) && (
+                      <>
+                        {item.category_name && <span className="bcard-tag">{item.category_name}</span>}
+                        {has && (
+                          <span className="bcard-tag owned">
+                            <I.Check size={11} />
+                            {t("catalog.owned")}
+                          </span>
+                        )}
+                      </>
+                    )
+                  }
+                  description={item.description}
+                  meta={
+                    <>
+                      {item.author && <span>{item.author}</span>}
+                      {item.author && !!item.article_count && <span aria-hidden>·</span>}
+                      {!!item.article_count && <span>{t("catalog.articles", { n: item.article_count })}</span>}
+                    </>
+                  }
+                  footer={<Price value={item.price} className="bcard-price" />}
+                  cta={has ? { href: `/books/${item.book_id}`, label: t("catalog.read"), icon: <I.BookOpen size={15} /> } : { href: `/catalog/${item.book_id}`, label: t("catalog.buy"), icon: <I.ShoppingBag size={15} /> }}
+                />
+              );
+            })}
           </div>
-          <div className="mt-6">
-            <Pagination page={data.page} pages={data.pages} onChange={(p) => navigate(query, category, p)} />
-          </div>
+          <RoundPagination page={data.page} pages={data.pages} onChange={(p) => navigate(query, category, p)} />
         </div>
       )}
     </div>

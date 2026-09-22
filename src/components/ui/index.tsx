@@ -203,6 +203,48 @@ export function Pagination({ page, pages, total, onChange }: { page: number; pag
   );
 }
 
+/** Sahifa raqamlari: 1 … 4 5 6 … 12 (7 tadan ko'p bo'lsa oraliq qisqaradi). */
+function pageList(page: number, pages: number): Array<number | "gap"> {
+  if (pages <= 7) return Array.from({ length: pages }, (_, i) => i + 1);
+  const set = new Set([1, pages, page - 1, page, page + 1].filter((p) => p >= 1 && p <= pages));
+  if (page <= 3) [2, 3, 4].forEach((p) => set.add(p));
+  if (page >= pages - 2) [pages - 3, pages - 2, pages - 1].forEach((p) => set.add(p));
+  const sorted = [...set].sort((a, b) => a - b);
+  const out: Array<number | "gap"> = [];
+  sorted.forEach((p, i) => {
+    if (i && p - sorted[i - 1] > 1) out.push("gap");
+    out.push(p);
+  });
+  return out;
+}
+
+/** Dumaloq pagination (mijoz tomoni): strelkalar + sahifa raqamlari, joriy — oltin doira. */
+export function RoundPagination({ page, pages, onChange }: { page: number; pages: number; onChange: (p: number) => void }) {
+  const { t } = useT();
+  if (pages <= 1) return null;
+  return (
+    <nav className="pager-round" aria-label={t("common.pages")} data-testid="pager">
+      <button type="button" className="arrow" aria-label={t("common.prev")} disabled={page <= 1} onClick={() => onChange(page - 1)}>
+        <I.ChevronLeft size={16} />
+      </button>
+      {pageList(page, pages).map((p, i) =>
+        p === "gap" ? (
+          <span key={`gap-${i}`} className="gap" aria-hidden>
+            …
+          </span>
+        ) : (
+          <button key={p} type="button" className={cn(p === page && "active")} aria-current={p === page ? "page" : undefined} onClick={() => p !== page && onChange(p)}>
+            {p}
+          </button>
+        ),
+      )}
+      <button type="button" className="arrow" aria-label={t("common.next")} disabled={page >= pages} onClick={() => onChange(page + 1)}>
+        <I.ChevronRight size={16} />
+      </button>
+    </nav>
+  );
+}
+
 export function PageHeader({ title, description, eyebrow, actions, icon, className }: { title: ReactNode; description?: ReactNode; eyebrow?: ReactNode; actions?: ReactNode; icon?: ReactNode; className?: string }) {
   return (
     <div className={cn("page-head", className)}>

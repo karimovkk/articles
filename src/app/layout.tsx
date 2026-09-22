@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { Manrope, Unbounded } from "next/font/google";
+import { Caveat, Manrope, Playfair_Display, Unbounded } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/providers/auth-provider";
 import { ThemeProvider } from "@/providers/theme-provider";
@@ -11,6 +11,10 @@ import { env } from "@/lib/env";
 // Shriftlar: matn — Manrope, sarlavha/raqam — Unbounded (self-hosted, next/font)
 const manrope = Manrope({ subsets: ["latin", "cyrillic"], variable: "--font-manrope", display: "swap" });
 const unbounded = Unbounded({ subsets: ["latin", "cyrillic"], variable: "--font-unbounded", display: "swap" });
+// Mijoz tomoni (16): hero/sarlavhalar — serif (Playfair Display), bezak yozuvi — Caveat. Faqat mijoz sahifalarida
+// ishlatiladi — preload qilinmaydi (admin sahifalari ularni yuklamaydi)
+const playfair = Playfair_Display({ subsets: ["latin", "cyrillic"], weight: ["600", "700"], style: ["normal", "italic"], variable: "--font-playfair", display: "swap", preload: false });
+const caveat = Caveat({ subsets: ["latin", "cyrillic"], weight: ["600"], variable: "--font-caveat", display: "swap", preload: false });
 
 /**
  * Mavzuni birinchi paint'dan OLDIN qo'llash (hydration'gacha oq "flash" bo'lmasin):
@@ -26,7 +30,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="uz" suppressHydrationWarning className={`${manrope.variable} ${unbounded.variable}`}>
+    <html lang="uz" suppressHydrationWarning className={`${manrope.variable} ${unbounded.variable} ${playfair.variable} ${caveat.variable}`}>
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
       </head>

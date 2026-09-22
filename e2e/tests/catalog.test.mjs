@@ -1,5 +1,5 @@
 // Task 5/6 tekshiruvi: public katalog, batafsil, sotib olish, /admin/stats dashboard, location_data + eski location
-import { launch, BASE, reset, mockGet, selectPick, selectOptionCount } from "../lib.mjs";
+import { launch, BASE, reset, mockGet } from "../lib.mjs";
 import { mkdirSync } from "node:fs";
 
 const BOOK = "11111111-1111-4111-8111-111111111111";
@@ -36,13 +36,19 @@ check("Katalog: '0' narx → '0 so'm' (API'da price doim string)", await bodyHas
 check("Mehmon qobig'i: Kirish/Ro'yxatdan o'tish", await has("Kirish"));
 const hdrs0 = await mockGet("/__headers");
 check("Katalog so'rovi Authorization'siz ketdi (public)", hdrs0.some((h) => h.path === "/catalog"));
-check("Pagination bor (31 ta kitob / 24)", await has("1 / 2"));
-check("Kategoriya filtri (GET /categories) ko'rsatildi — qo'lbola Select", (await selectOptionCount(page, '[data-testid="catalog-category"]')) === 2);
-await selectPick(page, '[data-testid="catalog-category"]', "c1c1c1c1-c1c1-4c1c-8c1c-c1c1c1c1c1c1");
-await page.waitForURL((u) => u.searchParams.get("category") === "c1c1c1c1-c1c1-4c1c-8c1c-c1c1c1c1c1c1");
+check("Dumaloq pagination (31 ta kitob / 24): joriy 1, keyingi 2", (await page.textContent('[data-testid="pager"] button[aria-current="page"]'))?.trim() === "1" && (await page.locator('[data-testid="pager"] button:text-is("2")').count()) === 1);
+check("Hero: serif sarlavha + jonli qidiruv pill", (await bodyHas("kuchli maqolalar")) && (await page.locator('.hero-search [data-testid="catalog-search"]').count()) === 1);
+const CAT = "c1c1c1c1-c1c1-4c1c-8c1c-c1c1c1c1c1c1";
+await page.waitForSelector('[data-testid="catalog-categories"] .cat-chip', { timeout: 8000 });
+check("Kategoriya chip'lari (GET /categories): 'Barcha' + 'Fan', 'Barcha' faol", (await page.locator('[data-testid="catalog-categories"] .cat-chip').count()) === 2 && (await page.getAttribute('[data-testid="catalog-categories"] [data-value=""]', "aria-pressed")) === "true");
+await page.waitForSelector('[data-testid="side-category"]', { timeout: 8000 });
+check("Sidebar: kategoriya + kitoblar soni (12)", (await page.locator('[data-testid="side-category"]').count()) === 1 && (await page.textContent('[data-testid="side-category"] .count'))?.trim() === "12");
+await page.click(`[data-testid="catalog-categories"] [data-value="${CAT}"]`);
+await page.waitForURL((u) => u.searchParams.get("category") === CAT);
 await page.waitForFunction(() => document.body.innerText.includes("Test kitob") && !document.body.innerText.includes("Kitob 2\n"), null, { timeout: 8000 });
-check("Kategoriya filtri: URL ?category= va so'rov category_id bilan", (await mockGet("/__log")).some((l) => l.includes("/catalog") ) );
-await selectPick(page, '[data-testid="catalog-category"]', "");
+check("Kategoriya chip'i: URL ?category=, ro'yxat filtrlandi, chip faol", (await page.getAttribute(`[data-testid="catalog-categories"] [data-value="${CAT}"]`, "aria-pressed")) === "true");
+check("Sidebar: faol kategoriya belgilandi", (await page.getAttribute('[data-testid="side-category"]', "aria-current")) === "page");
+await page.click('[data-testid="catalog-categories"] [data-value=""]');
 await page.waitForURL((u) => !u.searchParams.get("category"));
 await page.screenshot({ path: OUT + "30-catalog.png" });
 

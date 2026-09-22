@@ -1,39 +1,28 @@
 "use client";
 
-/** Header qo'ng'irog'i: o'qilmagan soni (`/notifications/unread-count`, 60 s + fokusda yangilanadi). */
-import { useEffect, useState } from "react";
+/** Header qo'ng'irog'i: o'qilmagan soni (umumiy store — `useUnreadCount`; marshrut o'zgarganda ham yangilanadi). */
+import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/providers/auth-provider";
-import { notificationsApi } from "@/lib/api";
 import { useT } from "@/i18n";
 import { cn } from "@/components/ui";
 import * as I from "@/components/ui/icons";
-
-const POLL_MS = 60_000;
+import { refreshUnreadCount, useUnreadCount } from "./use-unread-count";
 
 export function NotificationBell({ className }: { className?: string }) {
   const { user } = useAuth();
   const { t } = useT();
   const pathname = usePathname();
-  const [count, setCount] = useState<number | null>(null);
+  const count = useUnreadCount(!!user);
 
+  // Marshrut o'zgarganda qayta so'rash (birinchi so'rovni store o'zi yuboradi)
+  const lastPath = useRef(pathname);
   useEffect(() => {
-    if (!user) return;
-    let alive = true;
-    const load = () => notificationsApi.unreadCount().then((n) => alive && setCount(n)).catch(() => undefined);
-    load();
-    const timer = window.setInterval(load, POLL_MS);
-    const onFocus = () => document.visibilityState === "visible" && load();
-    document.addEventListener("visibilitychange", onFocus);
-    window.addEventListener("a365:notifications-changed", load);
-    return () => {
-      alive = false;
-      window.clearInterval(timer);
-      document.removeEventListener("visibilitychange", onFocus);
-      window.removeEventListener("a365:notifications-changed", load);
-    };
-  }, [user, pathname]);
+    if (lastPath.current === pathname) return;
+    lastPath.current = pathname;
+    refreshUnreadCount();
+  }, [pathname]);
 
   if (!user) return null;
   const active = pathname === "/notifications";

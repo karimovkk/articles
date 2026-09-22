@@ -1,5 +1,5 @@
 // Backend B-yangilanishlari prod'da UI orqali (faqat o'qish): /categories filtri, /catalog/{id}, 2FA holati, sort=recent, nomlar
-import { launch, selectPick, selectOptionCount } from "../lib.mjs";
+import { launch, selectOptionCount } from "../lib.mjs";
 const BASE = process.env.E2E_BASE ?? "http://localhost:3200";
 const EMAIL = process.env.A365_EMAIL, PASS = process.env.A365_PASS;
 let failures = 0;
@@ -15,9 +15,9 @@ const bodyHas = async (text) => page.evaluate((t) => document.body.innerText.rep
 // mehmon: katalog + kategoriya filtri + detail
 await page.goto(`${BASE}/catalog`);
 await page.waitForSelector("text=Psychology", { timeout: 45000 });
-await page.waitForSelector('[data-testid="catalog-category"]', { timeout: 15000 });
-check("Katalog: kategoriya filtri (GET /categories) — 'Jurnal maqolalari'", (await selectOptionCount(page, '[data-testid="catalog-category"]')) === 2);
-await selectPick(page, '[data-testid="catalog-category"]', { label: "Jurnal maqolalari" });
+await page.waitForSelector('[data-testid="catalog-categories"] .cat-chip', { timeout: 15000 });
+check("Katalog: kategoriya chip'lari (GET /categories) — 'Jurnal maqolalari'", (await page.locator('[data-testid="catalog-categories"] .cat-chip', { hasText: "Jurnal maqolalari" }).count()) === 1);
+await page.locator('[data-testid="catalog-categories"] .cat-chip', { hasText: "Jurnal maqolalari" }).click();
 await page.waitForURL((u) => !!u.searchParams.get("category"), { timeout: 15000 });
 await page.waitForSelector("text=Psychology", { timeout: 15000 });
 check("Kategoriya bo'yicha filtr ishladi", apiCalls.some((c) => c.includes("/catalog") && c.startsWith("200")));

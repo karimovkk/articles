@@ -2,12 +2,13 @@
 
 /**
  * Kutubxona (foydalanuvchi): page-head + statistika, "Davom ettirish" bloki (oxirgi o'qilgan kitob),
- * muqova kartalari (progress, o'qilgan maqolalar), qo'lbola Select bilan saralash.
+ * gorizontal kartalar (16.4: progress, o'qilgan maqolalar, "Davom ettirish"), qo'lbola Select bilan saralash.
  */
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { BookCover } from "@/components/book-cover";
-import { Alert, Badge, EmptyState, PageHeader, Pagination, SearchInput, Select, Spinner, buttonClass } from "@/components/ui";
+import { BookCardH } from "@/components/catalog/book-card";
+import { Alert, Badge, EmptyState, PageHeader, RoundPagination, SearchInput, Select, Spinner, buttonClass } from "@/components/ui";
 import * as I from "@/components/ui/icons";
 import { clampPercent, libraryApi, libraryCache, type LibraryItem } from "@/lib/api";
 import type { LibrarySort } from "@/lib/api/library";
@@ -132,45 +133,52 @@ export default function LibraryPage() {
         />
       ) : (
         <div className={loading ? "opacity-60 transition-opacity" : ""}>
-          <div className="book-grid" data-testid="book-grid">
+          <div className="bgrid" data-testid="book-grid">
             {data.items.map((item) => {
               const pct = clampPercent(item.overall_percentage);
               return (
-                <Link key={item.book_id} href={`/books/${item.book_id}`} onClick={() => libraryCache.put(item)} className="book-card">
-                  <BookCover bookId={item.book_id} title={item.title} hasCover={item.has_cover}>
-                    {pct >= 100 && (
-                      <span className="badge-tl">
-                        <Badge tone="success">
-                          <I.Check size={12} /> {t("book.read")}
-                        </Badge>
-                      </span>
-                    )}
-                    {item.article_count > 0 && (
-                      <span className="badge-tr">
-                        <Badge className="bg-[rgba(15,20,18,0.72)] text-white backdrop-blur-sm">
-                          {item.read_count}/{item.article_count}
-                        </Badge>
-                      </span>
-                    )}
-                  </BookCover>
-                  <div className="min-w-0">
-                    <p className="book-title">{item.title}</p>
-                    {item.author && <p className="book-meta">{item.author}</p>}
-                    <div className="progress thin mt-2">
-                      <i style={{ width: `${pct}%` }} />
+                <BookCardH
+                  key={item.book_id}
+                  bookId={item.book_id}
+                  title={item.title}
+                  hasCover={item.has_cover}
+                  href={`/books/${item.book_id}`}
+                  onOpen={() => libraryCache.put(item)}
+                  tags={
+                    (item.category_name || pct >= 100) && (
+                      <>
+                        {item.category_name && <span className="bcard-tag">{item.category_name}</span>}
+                        {pct >= 100 && (
+                          <span className="bcard-tag owned">
+                            <I.Check size={11} />
+                            {t("book.read")}
+                          </span>
+                        )}
+                      </>
+                    )
+                  }
+                  description={item.description}
+                  meta={
+                    <>
+                      {item.author && <span>{item.author}</span>}
+                      {item.author && !!item.article_count && <span aria-hidden>·</span>}
+                      {!!item.article_count && <span>{t("library.articlesRead", { read: item.read_count, total: item.article_count })}</span>}
+                    </>
+                  }
+                  footer={
+                    <div className="bcard-progress">
+                      <div className="progress thin flex-1">
+                        <i style={{ width: `${pct}%` }} />
+                      </div>
+                      <span>{pct > 0 ? t("library.readPercent", { n: pct }) : t("library.notStarted")}</span>
                     </div>
-                    <p className="mt-1.5 text-[11.5px] font-semibold text-muted">
-                      {pct > 0 ? t("library.readPercent", { n: pct }) : t("library.notStarted")}
-                      {item.article_count ? ` · ${t("library.articlesRead", { read: item.read_count, total: item.article_count })}` : ""}
-                    </p>
-                  </div>
-                </Link>
+                  }
+                  cta={{ href: `/books/${item.book_id}`, label: pct > 0 && pct < 100 ? t("book.continue") : t("catalog.read"), icon: <I.Play size={13} /> }}
+                />
               );
             })}
           </div>
-          <div className="mt-6">
-            <Pagination page={data.page} pages={data.pages} onChange={setPage} />
-          </div>
+          <RoundPagination page={data.page} pages={data.pages} onChange={setPage} />
         </div>
       )}
     </div>

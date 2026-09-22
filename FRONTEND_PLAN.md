@@ -408,6 +408,29 @@ majburiy, 409 `ORDER_ALREADY_PENDING` / `INVALID_ORDER_STATE`, 404 `RECEIPT_NOT_
       idempotent / 409, bo'sh sabab 422. Natija: `--prod` 19/19 (334 tekshiruv), Firefox orders/profile/admin 3/3.
       ⚠️ Prod'da `/payment-info` qiymatlari hozircha bo'sh — rekvizitlar bloki yashirin, backend `.env` ga karta kiritilsin.
 
+## 16. Mijoz tomoni yangi dizayni (2026-09-22, foydalanuvchi namunasi + `~/Desktop/article.png` fon)
+
+Namuna: qora-oltin uslub — chapda sidebar (nav + kategoriyalar soni bilan + promo karta), tepada header (logo, markazda
+nav, qidiruv/qo'ng'iroq/profil), hero (eyebrow, serif sarlavha + oltin kursiv urg'u, qidiruv "pill"), kategoriya
+chip'lari, gorizontal kitob kartalari, dumaloq pagination. Backend'da yo'q narsalar (reyting yulduzlari, sevimlilar,
+savat, katalog saralash) — qo'shilmaydi (soxta ma'lumot ko'rsatilmaydi); o'rniga maqola soni, narx, "Batafsil"/"O'qish".
+
+- [x] 16.1 Fon: `article.png` → `public/bg/article-*.webp` (desktop + mobil o'lcham, asl fayl repoga kirmaydi);
+      qobiq ortida `position: fixed` qatlam + qoraytiruvchi gradient (qorong'i mavzu); yorug' mavzuda rasm hero bannerda
+- [x] 16.2 Mijoz qobig'i (`ClientShell`): header (365 emblema, markazda nav, qidiruv, til, mavzu, qo'ng'iroq, profil) +
+      sidebar (nav + o'qilmagan soni, "Kategoriyalar" — kitoblar soni bilan, "Barchasi →", promo karta) + mobil drawer;
+      katalog/kutubxona/kitob/bildirishnoma/profil shu qobiqda, reader va auth — o'zgarmaydi
+- [x] 16.3 Katalog: hero (eyebrow, serif sarlavha, qidiruv pill + oltin tugma, "kichik qadamlar" yozuvi), kategoriya
+      chip'lari (+ "Yana"), gorizontal kartalar (muqova, kategoriya, nom, tavsif, maqola soni, narx, "Batafsil";
+      kutubxonada bo'lsa "O'qish"), dumaloq pagination
+- [x] 16.4 Qolgan sahifalar: kutubxona (xuddi shu kartalar + progress, "Davom ettirish"), kitob sahifasi, katalog
+      tafsiloti, bildirishnomalar, profil — yangi sirtlar (shaffof-qora kartalar, oltin chegara), serif sarlavhalar
+- [x] 16.5 i18n (uz/ru/en), e2e (katalog chip'lari, mobil drawer, visual 360/1280 × light/dark), `--prod`, Firefox,
+      brauzer skrinshotlari — `--prod` 19/19 (337 tekshiruv, visual 360/1280 × light/dark), Firefox (catalog, search,
+      notifications, book, orders) 5/5. Qidiruv "pill"ida tugma yo'q (11.2 talabi: yozilayotganda ishlaydi).
+- B26 (backend uchun) `GET /categories` javobida `book_count` (hozir FE har kategoriya uchun `/catalog?page_size=1`
+  so'raydi); katalogda `sort` (mashhur / yangi / narx) bo'lsa FE'da saralash qo'shiladi.
+
 ### Backend uchun eslatmalar (jonli auditdan) — holat: B1 ✅(avvaldan) · B2 ✅ · B3 ✅ · B4 ✅ · B5 ✅ · B6 ✅(avvaldan) ·
 B7 ✅ · B8 ✅ (OpenAPI manba) · B9 ✅ · B10 ✅ · B11 ✅ · B12 ✅ · B13 ✅ — **ochiq savol yo'q**
 
