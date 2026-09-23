@@ -263,6 +263,7 @@ export const en: Dict = {
   "reader.noCopy": "Protected book text cannot be copied",
   "reader.highlightUpdated": "Highlight updated",
   "reader.highlightMenu": "Highlighted text",
+  "reader.removeHighlight": "Remove highlight",
   "reader.printNotice": "Protected content — printing is not allowed.",
   "reader.prevPage": "Previous page",
   "reader.nextPage": "Next page",

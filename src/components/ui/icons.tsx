@@ -93,6 +93,7 @@ export const Activity = make("Activity", <path d="M22 12h-4l-3 9L9 3l-3 9H2" />)
 export const Sparkles = make("Sparkles", <><path d="m12 3 1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z" /><path d="M19 17v4M17 19h4" /></>);
 export const Star = make("Star", <path d="m12 2 3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1z" />);
 export const Bookmark = make("Bookmark", <path d="M19 21 12 16l-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />);
+export const Eraser = make("Eraser", <><path d="M19.4 12.6 12 20H7.5L4 16.5a2 2 0 0 1 0-2.8l7.6-7.6a2 2 0 0 1 2.8 0l5 5a2 2 0 0 1 0 2.8z" /><path d="m8.5 9.5 6 6" /><path d="M12 20h9" /></>);
 export const Highlighter = make("Highlighter", <><path d="m9 11-6 6v3h9l3-3" /><path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4z" /></>);
 export const ZoomIn = make("ZoomIn", <><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /><path d="M11 8v6M8 11h6" /></>);
 export const ZoomOut = make("ZoomOut", <><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /><path d="M8 11h6" /></>);

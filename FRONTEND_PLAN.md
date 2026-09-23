@@ -568,6 +568,14 @@ mayda shriftlar (9.5–10.5px → 11–11.5px: admin yon panel yorliqlari, jadva
 audit amal kodi, watermark trace); televizor uchun (≥2200px va ≥3200px) o'lchamlar kattalashtirildi va kontent
 kengligi cheklandi; suv belgisi ikki qavat bo'lgani uchun DOM qatlami yengillashtirildi.
 
+## 24. Belgilashni tanlov panelidan o'chirish (2026-09-23, foydalanuvchi fikri)
+
+- [x] 24.1 "O'chirg'ich" ikonkasi qo'shiladi; tepadagi tanlov panelida (ranglar yonida) o'chirish tugmasi —
+      tanlangan joy allaqachon belgilangan bo'lsa chiqadi va o'sha belgilashni o'chiradi
+- [x] 24.2 Sahifadagi belgilash panelida ham xuddi shu o'chirg'ich ikonkasi (bir xil uslub)
+- [x] 24.3 Test: `reader-protect` da uch tekshiruv (o'chirg'ich chiqishi, o'chirishi, belgilanmagan matnda
+      chiqmasligi) — `--prod` 20/20 (357 tekshiruv)
+
 ### Backend uchun eslatmalar (jonli auditdan) — holat: B1 ✅(avvaldan) · B2 ✅ · B3 ✅ · B4 ✅ · B5 ✅ · B6 ✅(avvaldan) ·
 B7 ✅ · B8 ✅ (OpenAPI manba) · B9 ✅ · B10 ✅ · B11 ✅ · B12 ✅ · B13 ✅ — **ochiq savol yo'q**
 

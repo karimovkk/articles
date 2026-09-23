@@ -26,7 +26,7 @@ import {
   type SearchMatch,
   type TocEntry,
 } from "@/lib/api";
-import { HIGHLIGHT_COLORS, getHighlightRects, normalizeColor, sameRects } from "@/lib/reader/highlights";
+import { HIGHLIGHT_COLORS, getHighlightRects, normalizeColor, overlappingHighlight, sameRects } from "@/lib/reader/highlights";
 import { useT } from "@/i18n";
 import * as I from "@/components/ui/icons";
 import { PdfViewer, type PdfViewerHandle, type TextSelection, type ViewMode } from "./pdf-viewer";
@@ -297,6 +297,8 @@ export function ReaderView({ articleId }: { articleId: string }) {
   }, [page, showToast, t]);
 
   const hlAnnotation = hlMenu ? (annotations.find((x) => x.id === hlMenu.id) ?? null) : null;
+  // 24.1: tanlangan joy allaqachon belgilangan bo'lsa — panelda o'chirg'ich chiqadi
+  const selectionHighlight = selection ? overlappingHighlight(annotations, selection.page, selection.rects) : null;
 
   const toggleNight = () => {
     setNight((n) => {
@@ -601,6 +603,22 @@ export function ReaderView({ articleId }: { articleId: string }) {
                     style={{ background: c.hex }}
                   />
                 ))}
+                {selectionHighlight && (
+                  <IconButton
+                    size="sm"
+                    variant="danger"
+                    label={t("reader.removeHighlight")}
+                    data-testid="selection-erase"
+                    onClick={() => {
+                      const a = selectionHighlight;
+                      setSelection(null);
+                      viewerRef.current?.clearSelection();
+                      void onDelete(a);
+                    }}
+                  >
+                    <I.Eraser size={15} />
+                  </IconButton>
+                )}
                 <IconButton size="sm" variant="plain" onClick={() => setSelection(null)} label={t("common.close")}>
                   <I.X size={15} />
                 </IconButton>
@@ -677,8 +695,8 @@ function HighlightMenu({
           style={{ background: c.hex }}
         />
       ))}
-      <IconButton size="sm" variant="danger" label={t("common.delete")} data-testid="highlight-delete" onClick={onDelete}>
-        <I.Trash size={15} />
+      <IconButton size="sm" variant="danger" label={t("reader.removeHighlight")} data-testid="highlight-delete" onClick={onDelete}>
+        <I.Eraser size={15} />
       </IconButton>
       <IconButton size="sm" variant="plain" label={t("common.close")} onClick={onClose}>
         <I.X size={15} />

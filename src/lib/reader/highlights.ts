@@ -115,3 +115,21 @@ export function sameRects(a: HighlightRect[], b: HighlightRect[], tol = 0.006): 
   if (!a.length || a.length !== b.length) return false;
   return a.every((r, i) => r.every((v, j) => Math.abs(v - b[i][j]) <= tol));
 }
+
+/** Tanlangan joy qaysi belgilash ustiga tushdi? (24.1 — tanlov panelidan o'chirish uchun) */
+export function overlappingHighlight(list: Annotation[], page: number, rects: HighlightRect[]): Annotation | null {
+  if (!rects.length) return null;
+  const area = (r: HighlightRect) => r[2] * r[3];
+  for (const a of list) {
+    if (a.type !== "HIGHLIGHT" || a.page !== page) continue;
+    const other = getHighlightRects(a);
+    for (const r of rects) {
+      for (const o of other) {
+        const w = Math.min(r[0] + r[2], o[0] + o[2]) - Math.max(r[0], o[0]);
+        const h = Math.min(r[1] + r[3], o[1] + o[3]) - Math.max(r[1], o[1]);
+        if (w > 0 && h > 0 && w * h > Math.min(area(r), area(o)) * 0.3) return a;
+      }
+    }
+  }
+  return null;
+}

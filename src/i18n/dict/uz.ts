@@ -273,6 +273,7 @@ export const uz = {
   "reader.noCopy": "Himoyalangan kitob matnini nusxalab bo'lmaydi",
   "reader.highlightUpdated": "Belgilash yangilandi",
   "reader.highlightMenu": "Belgilangan joy",
+  "reader.removeHighlight": "Belgilashni o'chirish",
   "reader.printNotice": "Himoyalangan kontent — chop etish mumkin emas.",
   "reader.prevPage": "Oldingi sahifa",
   "reader.nextPage": "Keyingi sahifa",

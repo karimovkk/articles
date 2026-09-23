@@ -263,6 +263,7 @@ export const ru: Dict = {
   "reader.noCopy": "Текст защищённой книги нельзя копировать",
   "reader.highlightUpdated": "Выделение обновлено",
   "reader.highlightMenu": "Выделенное место",
+  "reader.removeHighlight": "Удалить выделение",
   "reader.printNotice": "Защищённый контент — печать запрещена.",
   "reader.prevPage": "Предыдущая страница",
   "reader.nextPage": "Следующая страница",

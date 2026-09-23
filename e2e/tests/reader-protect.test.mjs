@@ -158,6 +158,20 @@ await page.waitForFunction(() => document.body.innerText.includes("Belgilash yan
 const hl = await mockGet("/__annotations");
 check("Bir joyni qayta belgilash: dublikat yo'q, rang yangilandi", (await page.locator('[data-page="1"] .highlightLayer > div').count()) === 1 && hl.filter((a) => a.type === "HIGHLIGHT").length === 1, `server=${hl.filter((a) => a.type === "HIGHLIGHT").length}`);
 
+// 24.1: belgilangan joyni qayta tanlaganda tepadagi panelda o'chirg'ich chiqadi
+await selectSpan(1);
+await page.waitForSelector('[data-testid="selection-erase"]', { timeout: 5000 });
+check("Tanlov panelida o'chirg'ich (belgilangan joy ustida)", true);
+await page.click('[data-testid="selection-erase"]');
+await page.waitForFunction(() => !document.querySelector('[data-page="1"] .highlightLayer > div'), null, { timeout: 8000 });
+check("Paneldagi o'chirg'ich belgilashni o'chirdi", (await mockGet("/__annotations")).filter((a) => a.type === "HIGHLIGHT").length === 0);
+// Belgilanmagan matnda o'chirg'ich chiqmaydi
+await selectSpan(3);
+await page.waitForSelector('button[aria-label="Ko\'k rang bilan belgilash"]', { timeout: 5000 });
+check("Belgilanmagan matnda o'chirg'ich yo'q", (await page.locator('[data-testid="selection-erase"]').count()) === 0);
+await page.click('button[aria-label="Ko\'k rang bilan belgilash"]');
+await page.waitForSelector('[data-page="1"] .highlightLayer > div', { timeout: 8000 });
+
 const box = await page.evaluate(() => {
   const d = document.querySelector('[data-page="1"] .highlightLayer > div').getBoundingClientRect();
   return { x: d.left + d.width / 2, y: d.top + d.height / 2 };
