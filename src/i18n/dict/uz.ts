@@ -253,6 +253,7 @@ export const uz = {
   "notifications.type.GENERAL": "Xabar",
   "reader.loading": "Kitob yuklanmoqda…",
   "reader.openFailed": "Kitobni ochib bo'lmadi",
+  "reader.browserUnsupported": "Kitobni bu brauzerda ochib bo'lmadi. Brauzeringizni (iPhone/iPad'da — iOS'ni) yangilang yoki boshqa brauzerda urinib ko'ring.",
   "reader.accessDenied": "Bu kitobga ruxsatingiz yo'q yoki ruxsat bekor qilingan.",
   "reader.notFound": "Kitob topilmadi.",
   "reader.panel": "Panel",

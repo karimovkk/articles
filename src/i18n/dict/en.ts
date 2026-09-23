@@ -243,6 +243,7 @@ export const en: Dict = {
   "notifications.type.GENERAL": "Message",
   "reader.loading": "Loading book…",
   "reader.openFailed": "Could not open the book",
+  "reader.browserUnsupported": "This browser could not open the book. Please update your browser (on iPhone/iPad — update iOS) or try another browser.",
   "reader.accessDenied": "You do not have access to this book, or access was revoked.",
   "reader.notFound": "Book not found.",
   "reader.panel": "Panel",

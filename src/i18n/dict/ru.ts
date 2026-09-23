@@ -243,6 +243,7 @@ export const ru: Dict = {
   "notifications.type.GENERAL": "Сообщение",
   "reader.loading": "Загрузка книги…",
   "reader.openFailed": "Не удалось открыть книгу",
+  "reader.browserUnsupported": "Не удалось открыть книгу в этом браузере. Обновите браузер (на iPhone/iPad — iOS) или попробуйте другой браузер.",
   "reader.accessDenied": "У вас нет доступа к этой книге или доступ был отозван.",
   "reader.notFound": "Книга не найдена.",
   "reader.panel": "Панель",

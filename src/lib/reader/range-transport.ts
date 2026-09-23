@@ -19,10 +19,16 @@ export const RANGE_CHUNK_SIZE = 512 * 1024; // 512 KB
 
 let pdfjsPromise: Promise<PdfJs> | null = null;
 
-/** pdfjs-dist ni faqat brauzerda, bir marta yuklaydi va worker'ni sozlaydi. */
+/**
+ * pdfjs-dist ni faqat brauzerda, bir marta yuklaydi va worker'ni sozlaydi.
+ * 28: `legacy` build — pdf.js 6 ning oddiy build'i eng yangi JS imkoniyatlariga tayanadi (masalan,
+ * `Map.prototype.getOrInsertComputed`), iPhone/iPad Safari'da ular yo'q va reader "... is not a function" bilan
+ * yiqilardi. Legacy build'da shu imkoniyatlar uchun polyfill'lar bor (API bir xil; worker ham legacy —
+ * `scripts/copy-pdf-worker.mjs`).
+ */
 export function loadPdfJs(): Promise<PdfJs> {
   if (!pdfjsPromise) {
-    pdfjsPromise = import("pdfjs-dist").then((m) => {
+    pdfjsPromise = (import("pdfjs-dist/legacy/build/pdf.mjs") as Promise<PdfJs>).then((m) => {
       m.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
       return m;
     });

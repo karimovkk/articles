@@ -18,6 +18,7 @@ import { Alert, IconButton, Spinner, cn } from "@/components/ui";
 import {
   errorMessage,
   isApiError,
+  isNetworkError,
   readerApi,
   readingApi,
   type Annotation,
@@ -59,6 +60,18 @@ function writePref(key: string, value: string) {
 
 export function ReaderView({ articleId }: { articleId: string }) {
   const { t } = useT();
+  // 28: brauzerda JS imkoniyati yetishmasa (TypeError, pdf.js worker'dan `UnknownErrorException`) foydalanuvchiga
+  // "... is not a function" kabi xom xabar emas, tushunarli matn; texnik tafsilot konsolda qoladi.
+  const contentErrorMessage = (m: string, e?: unknown) => {
+    if (!e) return m;
+    if (isApiError(e) || isNetworkError(e)) return errorMessage(e, m);
+    const name = (e as { name?: string }).name;
+    if (e instanceof TypeError || e instanceof ReferenceError || name === "UnknownErrorException") {
+      console.error("[reader]", e);
+      return t("reader.browserUnsupported");
+    }
+    return errorMessage(e, m);
+  };
   const { user } = useAuth();
   const viewerRef = useRef<PdfViewerHandle>(null);
 
@@ -587,7 +600,7 @@ export function ReaderView({ articleId }: { articleId: string }) {
               watermarkText={meta.features?.watermark !== false ? (watermark?.watermark_text ?? null) : null}
               onReady={({ pageCount: n }) => setPageCount((c) => c || n)}
               onPageChange={onPageChange}
-              onError={(m, e) => setFatal({ code: isApiError(e) ? e.code : "CONTENT_ERROR", message: e ? errorMessage(e, m) : m })}
+              onError={(m, e) => setFatal({ code: isApiError(e) ? e.code : "CONTENT_ERROR", message: contentErrorMessage(m, e) })}
               onTextSelected={setSelection}
               onHighlightPick={(id, x, y) => {
                 const box = stageRef.current?.getBoundingClientRect();
