@@ -614,6 +614,9 @@ kengligi cheklandi; suv belgisi ikki qavat bo'lgani uchun DOM qatlami yengillash
       **290 KB → 123 KB** · `/library` oldindan yuklashlar **10 → 8** · katalogni ikkinchi marta ochish:
       API so'rovlari **6 → 3** (kesh) · reader'da 1-sahifa chizilishi **3262 → 3145 ms** · har sahifadagi shrift
       preload'i **121 KB → 88 KB**. Testlar: `npm run e2e -- --prod` → **20/20 to'plam, 358 tekshiruv o'tdi**.
+      **Jonli saytda (deploy'dan keyin o'lchandi):** `/catalog` FCP **1152 → 632 ms**, so'rovlar **48 → 31**,
+      hajm **614 → 526 KB**, RSC oldindan yuklash **2 ta** qoldi. Kitoblar ko'rinishi ≈1.9 s — qolgani backend:
+      `GET /catalog` 1247 ms, `GET /categories` 1260 ms (B28).
 
 ### Backend uchun eslatmalar (jonli auditdan) — holat: B1 ✅(avvaldan) · B2 ✅ · B3 ✅ · B4 ✅ · B5 ✅ · B6 ✅(avvaldan) ·
 B7 ✅ · B8 ✅ (OpenAPI manba) · B9 ✅ · B10 ✅ · B11 ✅ · B12 ✅ · B13 ✅ — **ochiq savol yo'q**
