@@ -79,7 +79,7 @@ export default function RegisterPage() {
       </Button>
       <p className="text-center text-sm text-muted">
         {t("auth.haveAccount")}{" "}
-        <Link href="/login" className="font-bold text-accent-ink hover:underline">
+        <Link href="/login" prefetch={false} className="font-bold text-accent-ink hover:underline">
           {t("auth.login")}
         </Link>
       </p>

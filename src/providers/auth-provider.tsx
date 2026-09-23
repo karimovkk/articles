@@ -7,6 +7,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { AUTH_EVENT, authApi, tokenStore, type AuthChangeReason, type User } from "@/lib/api";
+import { clearOwnedBooks } from "@/lib/owned-books";
+import { sessionGet, sessionSet } from "@/lib/session-cache";
 
 interface AuthState {
   user: User | null;
@@ -26,9 +28,32 @@ const AuthContext = createContext<AuthState | null>(null);
 async function fetchMe(): Promise<User | null> {
   if (!tokenStore.getAccess() && !tokenStore.getRefresh()) return null;
   try {
-    return await authApi.me();
+    const me = await authApi.me();
+    sessionSet(ME_KEY, me);
+    return me;
   } catch {
     return null;
+  }
+}
+
+/**
+ * 26.4: `GET /auth/me` javobi qisqa muddatga sessiyada saqlanadi. Har sahifa ochilganda interfeys (sarlavha,
+ * "mening kutubxonam") shu keshdan darhol chiziladi, so'rov esa fonda ketadi — sekin tarmoqda kutish yo'qoladi.
+ * Sessiya tugasa API qatlami `expired` hodisasini yuboradi va kesh tozalanadi.
+ */
+const ME_KEY = "a365.me";
+const ME_TTL = 5 * 60 * 1000;
+
+function cachedMe(): User | null {
+  if (!tokenStore.getAccess() && !tokenStore.getRefresh()) return null;
+  return sessionGet<User>(ME_KEY, ME_TTL);
+}
+
+function clearMe() {
+  try {
+    window.sessionStorage.removeItem(ME_KEY);
+  } catch {
+    /* kesh yo'q — muammo emas */
   }
 }
 
@@ -47,9 +72,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let alive = true;
+    const cached = cachedMe();
+    // Kesh hidratatsiyadan keyin qo'llanadi (mikrotask) — SSR HTML bilan farq qilmasin
+    if (cached)
+      queueMicrotask(() => {
+        if (!alive) return;
+        setUser(cached);
+        setLoading(false);
+      });
     fetchMe().then((me) => {
       if (!alive) return;
-      setUser(me);
+      // Fonda tekshirishda tarmoq uzilsa keshdagi foydalanuvchi saqlanib qoladi; haqiqiy 401 bo'lsa
+      // API qatlami `expired` hodisasini yuboradi va quyidagi tinglovchi uni tozalaydi.
+      if (me || !cached || (!tokenStore.getAccess() && !tokenStore.getRefresh())) setUser(me);
       setLoading(false);
     });
     return () => {
@@ -66,6 +101,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setExpired(false);
         void refresh();
       }
+      clearOwnedBooks(); // boshqa foydalanuvchi — katalog keshini tozalaymiz (26.4)
+      clearMe();
       if (reason === "logout" || reason === "expired") {
         setUser(null);
         setLoading(false);

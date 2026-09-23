@@ -18,6 +18,7 @@ import { ReceiptForm } from "./receipt-form";
 import { PaymentDetails } from "./payment-info";
 import { useOrderPoll } from "./use-order-poll";
 import { errorMessage, isApiError, ordersApi, type Order } from "@/lib/api";
+import { clearOwnedBooks } from "@/lib/owned-books";
 import { purchaseLink } from "@/lib/env";
 import { useT } from "@/i18n";
 
@@ -42,6 +43,8 @@ export function OrderPanel({ bookId }: { bookId: string }) {
     (next: Order | null) => {
       // Kuzatuv paytida tasdiqlandi — foydalanuvchiga darhol xabar
       if (statusRef.current === "AWAITING_REVIEW" && next?.status === "APPROVED") setNotice(t("orders.approvedTitle"));
+      // Kutubxona o'zgardi — katalogdagi "Kutubxonada" keshi eskirdi (26.4)
+      if (next?.status === "APPROVED" && statusRef.current !== "APPROVED") clearOwnedBooks();
       setOrder(next);
     },
     [t],

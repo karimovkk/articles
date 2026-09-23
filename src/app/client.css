@@ -51,8 +51,9 @@
 /* Yorug' mavzu (19.1): kunduzgi rasm butun ekran ortida va chindan ko'rinadi — parda yengil.
    Rasmning yorqin qismi (osmon/tog'/ko'l) ishlatiladi: to'q kitoblar ustida matn o'qilmay qolmasin. */
 .client-bg::before {
+  /* 26.3: butun ekranli `filter` olib tashlandi (ta'siri ko'zga ilinmas, lekin har sahifada
+     qo'shimcha kompozitsiya qatlami va telefonlarda ortiqcha xotira edi) */
   background: url("/bg/light-sky-1672.webp") center top / cover no-repeat;
-  filter: saturate(1.02) brightness(1.03);
 }
 .client-bg::after {
   background: linear-gradient(
@@ -1043,6 +1044,19 @@
 @media (max-width: 640px) {
   .client {
     --header-h: 60px;
+  }
+  /* 26.3: telefonlarda `backdrop-filter` har kadrda qayta hisoblanadi (sarlavha butun ekran kengligida) —
+     o'rniga qalinroq fon: ko'rinishi deyarli bir xil, aylantirish ravon. */
+  .client-header,
+  .hero-search {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  .client-header {
+    background: color-mix(in srgb, var(--surface) 97%, transparent);
+  }
+  .dark .client-header {
+    background: rgba(4, 4, 3, 0.95);
   }
   .client-header {
     padding: 0 10px 0 6px;

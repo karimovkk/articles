@@ -11,8 +11,9 @@ import { BookCardH } from "@/components/catalog/book-card";
 import { Price } from "@/components/catalog/price";
 import { Alert, EmptyState, Menu, MenuItem, RoundPagination, Spinner, cn } from "@/components/ui";
 import * as I from "@/components/ui/icons";
-import { catalogApi, libraryApi } from "@/lib/api";
+import { catalogApi } from "@/lib/api";
 import { useCatalogCategories } from "@/lib/catalog-categories";
+import { loadOwnedBookIds } from "@/lib/owned-books";
 import { useAsync } from "@/lib/use-async";
 import { useDebouncedCallback } from "@/lib/use-debounce";
 import { useAuth } from "@/providers/auth-provider";
@@ -46,7 +47,7 @@ function CatalogList() {
   const categories = useCatalogCategories();
   // Kirgan foydalanuvchi: kutubxonadagi kitoblar — kartada "Kutubxonada" + "O'qish"
   const userId = user?.id;
-  const { data: owned } = useAsync(() => (userId ? libraryApi.list({ page_size: 100 }).then((r) => new Set(r.items.map((i) => i.book_id))) : Promise.resolve(null)), [userId]);
+  const { data: owned } = useAsync(() => (userId ? loadOwnedBookIds() : Promise.resolve(null)), [userId]);
 
   // Header'dagi qidiruv tugmasi: `/catalog#search` yoki shu sahifada — `a365:focus-search`
   useEffect(() => {

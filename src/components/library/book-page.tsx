@@ -189,7 +189,7 @@ export function BookPage({ bookId }: { bookId: string }) {
               );
               const cls = cn("track", a.is_read && "done", current && "current", !ready && "disabled");
               return ready ? (
-                <Link key={a.article_id} href={`/reader/${a.article_id}`} className={cls}>
+                <Link key={a.article_id} href={`/reader/${a.article_id}`} prefetch={false} className={cls}>
                   {inner}
                 </Link>
               ) : (

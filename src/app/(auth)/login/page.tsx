@@ -132,7 +132,7 @@ function LoginForm() {
       </Button>
       <p className="text-center text-sm text-muted">
         {t("auth.noAccount")}{" "}
-        <Link href="/register" className="font-bold text-accent-ink hover:underline">
+        <Link href="/register" prefetch={false} className="font-bold text-accent-ink hover:underline">
           {t("auth.register")}
         </Link>
       </p>

@@ -586,6 +586,35 @@ kengligi cheklandi; suv belgisi ikki qavat bo'lgani uchun DOM qatlami yengillash
       `--prod` 20/20 (358 tekshiruv). Eslatma: `visual` to'liq qurilma ro'yxatini faqat `--prod` da yuritadi
       (dev serverda 126 ta sahifa yuklash juda sekin, timeout berardi).
 
+## 26. Ishlash tezligi (2026-09-23, "sayt sekin ishlayapti")
+
+- [x] 26.1 O'lchash: production build'da metrikalar (TTFB, FCP, LCP, JS hajmi, so'rovlar soni), dev bilan farqi
+      **Natija:** mahalliy production tez (TTFB < 70 ms, FCP 60–170 ms, scroll 61 FPS) — sekinlik **jonli saytda**:
+      `/catalog` FCP 1152 ms, 614 KB, 48 so'rov; `GET /categories` 1279 ms, `GET /catalog` 1325 ms (backend javobi),
+      Next'ning `/login` (863 ms) va `/register` (560 ms) oldindan yuklashi, shriftlar ≈231 KB, `/login` 586 KB.
+      Xulosa: asosiy yo'qotish — **ortiqcha va sekin API so'rovlari** hamda oldindan yuklashlar, JS bandle emas.
+- [x] 26.2 JS/shrift yuki: `Unbounded` faqat lotin qismida (kirill preload'i har sahifada ortiqcha edi),
+      `Playfair Display` faqat 700 (600 hech qayerda ishlatilmaydi) → **har sahifada preload 121 KB → 88 KB (−27%)**.
+      pdf.js (424 KB) faqat reader sahifasida yuklanadi — boshqa sahifalarga tegmaydi (tekshirildi).
+- [x] 26.3 Renderlash: telefonlarda (≤640px) sarlavha va qidiruv "pill"idagi `backdrop-filter` o'chirildi (har kadrda
+      qayta hisoblanardi), butun ekranli fon rasmidagi `filter: saturate/brightness` olib tashlandi (ko'zga ilinmas
+      effekt, lekin qo'shimcha kompozitsiya qatlami). Ishlatilmayotgan 2 ta fon rasmi repodan o'chirildi (208 KB).
+- [x] 26.4 Tarmoq: (a) kategoriyalar va ulardagi kitoblar soni sessiya keshiga olindi, sonlar endi asosiy ro'yxatdan
+      keyin, brauzer bo'sh turganda so'raladi; (b) katalogdagi "kutubxonada" so'rovi (`/library?page_size=100`)
+      keshlanadi (60 s, sotib olish/kirish-chiqishda tozalanadi); (c) `GET /auth/me` keshdan darhol ko'rsatiladi,
+      tekshiruv fonda ketadi; (d) past qiymatli havolalarda (`/login`, `/register`, `/admin`, promo, kategoriya
+      chip'lari, kitob kartalari, maqolalar ro'yxati) Next'ning oldindan yuklashi o'chirildi.
+      **Natija:** katalogda sahifa ochilishida 6 ta API so'rovi (ilgari 6 + har kategoriya uchun bittadan; jonlida
+      ≈12 ta edi), takroriy ochishlarda 3 ta.
+- [x] 26.5 Reader: pdf.js bo'lagi va worker endi metadata javobini kutmay, sahifa ochilishi bilan yuklana boshlaydi
+      (ilgari `GET /reader/articles/{id}` tugagachgina — jonlida ≈1 s yo'qotish).
+- [x] 26.6 Yakuniy o'lchash + `--prod` testlar
+      **Oldin → keyin** (bir xil sharoitda: production build, har API javobiga +700 ms kechikish qo'shilgan):
+      · `/catalog` jami so'rovlar **56 → 43**, Next'ning RSC oldindan yuklashlari **20 → 8**, o'tkazilgan hajm
+      **290 KB → 123 KB** · `/library` oldindan yuklashlar **10 → 8** · katalogni ikkinchi marta ochish:
+      API so'rovlari **6 → 3** (kesh) · reader'da 1-sahifa chizilishi **3262 → 3145 ms** · har sahifadagi shrift
+      preload'i **121 KB → 88 KB**. Testlar: `npm run e2e -- --prod` → **20/20 to'plam, 358 tekshiruv o'tdi**.
+
 ### Backend uchun eslatmalar (jonli auditdan) — holat: B1 ✅(avvaldan) · B2 ✅ · B3 ✅ · B4 ✅ · B5 ✅ · B6 ✅(avvaldan) ·
 B7 ✅ · B8 ✅ (OpenAPI manba) · B9 ✅ · B10 ✅ · B11 ✅ · B12 ✅ · B13 ✅ — **ochiq savol yo'q**
 
@@ -613,6 +642,13 @@ B7 ✅ · B8 ✅ (OpenAPI manba) · B9 ✅ · B10 ✅ · B11 ✅ · B12 ✅ · B
   tartibi yo'q — qo'shilsa FE'da tayyor.
 
 Holat: B15–B25 ✅ hammasi javoblandi va deploy qilindi (15-bo'lim) — B21: PDF ✅, HEIC ❌ (FE JPEG'ga o'giradi).
+
+- B28 ❗ (26-bo'lim, tezlik) Jonli backend javob vaqti katta: `GET /categories` **1279 ms**, `GET /catalog` **1325 ms**
+  (o'lchov: Vercel'dagi frontend, 2026-09-23). Frontend tomondan so'rovlar soni kamaytirildi, lekin bitta so'rovning
+  o'zi ~1.3 s bo'lsa sayt baribir sekin seziladi. Tavsiya: (a) `categories` va `catalog` uchun keshlash
+  (`Cache-Control: public, max-age=60` yoki server keshi), (b) `catalog` da `category_id` bo'yicha **kitoblar sonini
+  `GET /categories` javobining o'ziga qo'shish** (B26) — hozir FE har kategoriya uchun alohida so'rov yuboradi,
+  (c) sovuq start (cold start) bormi — birinchi so'rov keyingilaridan sezilarli sekinmi, shuni tekshirish.
 
 - B15 ❗ Web admin chek rasmini ko'ra olmaydi: `GET /admin/orders/{id}/receipt` (himoyalangan rasm oqimi) va
   `OrderResponse.has_receipt_file` kerak — hozir web'dan tasdiqlagan admin chekni ko'rmaydi.

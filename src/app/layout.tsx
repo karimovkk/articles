@@ -10,10 +10,13 @@ import { env } from "@/lib/env";
 
 // Shriftlar: matn — Manrope, sarlavha/raqam — Unbounded (self-hosted, next/font)
 const manrope = Manrope({ subsets: ["latin", "cyrillic"], variable: "--font-manrope", display: "swap" });
-const unbounded = Unbounded({ subsets: ["latin", "cyrillic"], variable: "--font-unbounded", display: "swap" });
+// 26.2: sarlavha shrifti faqat lotin qismida oldindan yuklanadi — interfeys lotin yozuvida; kirill matn
+// (kitob nomi bo'lsa) tizim shriftida chiqadi, lekin har sahifada ≈50 KB kam yuklanadi.
+const unbounded = Unbounded({ subsets: ["latin"], variable: "--font-unbounded", display: "swap" });
 // Mijoz tomoni (16): hero/sarlavhalar — serif (Playfair Display), bezak yozuvi — Caveat. Faqat mijoz sahifalarida
 // ishlatiladi — preload qilinmaydi (admin sahifalari ularni yuklamaydi)
-const playfair = Playfair_Display({ subsets: ["latin", "cyrillic"], weight: ["600", "700"], style: ["normal", "italic"], variable: "--font-playfair", display: "swap", preload: false });
+// 26.2: faqat ishlatiladigan qalinlik (700 + kursiv) — har ortiqcha qalinlik alohida fayl (≈30–50 KB)
+const playfair = Playfair_Display({ subsets: ["latin", "cyrillic"], weight: ["700"], style: ["normal", "italic"], variable: "--font-playfair", display: "swap", preload: false });
 const caveat = Caveat({ subsets: ["latin", "cyrillic"], weight: ["600"], variable: "--font-caveat", display: "swap", preload: false });
 
 /**

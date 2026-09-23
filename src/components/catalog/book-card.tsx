@@ -43,7 +43,7 @@ export function BookCardH({
       <div className="bcard-body">
         {tags && <div className="bcard-tags">{tags}</div>}
         <h3 className="bcard-title">
-          <Link href={href} onClick={onOpen} className="bcard-link">
+          <Link href={href} prefetch={false} onClick={onOpen} className="bcard-link">
             {title}
           </Link>
         </h3>
@@ -51,7 +51,7 @@ export function BookCardH({
         {meta && <div className="bcard-meta">{meta}</div>}
         {footer}
         <div className="bcard-cta">
-          <Link href={cta.href} onClick={onOpen} className={buttonClass(cta.variant ?? "primary", "sm")} {...(cta.href === href ? { tabIndex: -1, "aria-hidden": true } : {})}>
+          <Link href={cta.href} prefetch={false} onClick={onOpen} className={buttonClass(cta.variant ?? "primary", "sm")} {...(cta.href === href ? { tabIndex: -1, "aria-hidden": true } : {})}>
             {cta.icon}
             {cta.label}
           </Link>

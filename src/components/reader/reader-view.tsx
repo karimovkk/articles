@@ -30,6 +30,7 @@ import { HIGHLIGHT_COLORS, getHighlightRects, normalizeColor, overlappingHighlig
 import { useT } from "@/i18n";
 import * as I from "@/components/ui/icons";
 import { PdfViewer, type PdfViewerHandle, type TextSelection, type ViewMode } from "./pdf-viewer";
+import { loadPdfJs } from "@/lib/reader/range-transport";
 import { ReaderSidebar, type SidebarTab } from "./reader-sidebar";
 import { WatermarkOverlay, type WatermarkLike } from "./watermark-overlay";
 
@@ -100,6 +101,12 @@ export function ReaderView({ articleId }: { articleId: string }) {
     const i = list.findIndex((a) => a.article_id === articleId);
     return { prev: i > 0 ? list[i - 1] : null, next: i >= 0 && i < list.length - 1 ? list[i + 1] : null };
   }, [siblings, articleId]);
+
+  // 26.5: pdf.js bo'lagi (≈420 KB) va worker'i metadata javobini kutmasdan yuklana boshlaydi —
+  // ilgari `GET /reader/articles/{id}` tugagachgina so'ralar edi (sekin tarmoqda ~1 s yo'qotish).
+  useEffect(() => {
+    void loadPdfJs().catch(() => undefined);
+  }, []);
 
   // ---- Metadata + watermark + annotatsiyalar + progress + qo'shni maqolalar
   useEffect(() => {

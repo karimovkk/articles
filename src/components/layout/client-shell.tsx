@@ -90,7 +90,7 @@ function ClientHeader({ menuOpen, onMenu }: { menuOpen: boolean; onMenu: () => v
             </Link>
           ))}
         {isAdmin && (
-          <Link href="/admin">
+          <Link href="/admin" prefetch={false}>
             {t("nav.admin")}
             <I.ArrowUpRight size={13} />
           </Link>
@@ -152,10 +152,10 @@ function ClientHeader({ menuOpen, onMenu }: { menuOpen: boolean; onMenu: () => v
         ) : (
           !loading && (
             <>
-              <Link href="/login" className={buttonClass("secondary", "sm")}>
+              <Link href="/login" prefetch={false} className={buttonClass("secondary", "sm")}>
                 {t("auth.login")}
               </Link>
-              <Link href="/register" className={buttonClass("primary", "sm", "max-[640px]:hidden")}>
+              <Link href="/register" prefetch={false} className={buttonClass("primary", "sm", "max-[640px]:hidden")}>
                 {t("auth.register")}
               </Link>
             </>
@@ -195,14 +195,14 @@ function ClientSidebar({ open, onNavigate }: { open: boolean; onNavigate: () => 
             </Link>
           ))}
         {isAdmin && (
-          <Link href="/admin" onClick={onNavigate} className="side-link">
+          <Link href="/admin" prefetch={false} onClick={onNavigate} className="side-link">
             <I.Settings size={19} />
             <span>{t("nav.admin")}</span>
             <I.ArrowUpRight size={14} className="ml-auto opacity-60" />
           </Link>
         )}
         {!user && !loading && (
-          <Link href="/login" onClick={onNavigate} className={cn("side-link", isActive(pathname, "/login") && "active")}>
+          <Link href="/login" prefetch={false} onClick={onNavigate} className={cn("side-link", isActive(pathname, "/login") && "active")}>
             <I.LogOut size={19} className="rotate-180" />
             <span>{t("auth.login")}</span>
           </Link>
@@ -213,7 +213,7 @@ function ClientSidebar({ open, onNavigate }: { open: boolean; onNavigate: () => 
         <SidebarCategories onNavigate={onNavigate} />
       </Suspense>
 
-      <Link href={user ? "/library" : "/catalog"} onClick={onNavigate} className="client-promo" aria-label={t("client.promoText")}>
+      <Link href={user ? "/library" : "/catalog"} prefetch={false} onClick={onNavigate} className="client-promo" aria-label={t("client.promoText")}>
         <span className="client-promo-title">{t("client.promoTitle")}</span>
         <span className="client-promo-text">{t("client.promoText")}</span>
         <span className="client-promo-go" aria-hidden>
@@ -250,7 +250,7 @@ function SidebarCategories({ onNavigate }: { onNavigate: () => void }) {
           const on = active === c.id;
           return (
             <li key={c.id}>
-              <Link href={`/catalog?category=${c.id}`} onClick={onNavigate} className={cn("side-cat", on && "active")} aria-current={on ? "page" : undefined} data-testid="side-category">
+              <Link href={`/catalog?category=${c.id}`} prefetch={false} onClick={onNavigate} className={cn("side-cat", on && "active")} aria-current={on ? "page" : undefined} data-testid="side-category">
                 <Icon size={17} />
                 <span className="truncate">{c.name}</span>
                 {c.count !== null && <span className="count">{c.count}</span>}
