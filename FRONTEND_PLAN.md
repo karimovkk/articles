@@ -416,7 +416,8 @@ chip'lari, gorizontal kitob kartalari, dumaloq pagination. Backend'da yo'q narsa
 savat, katalog saralash) — qo'shilmaydi (soxta ma'lumot ko'rsatilmaydi); o'rniga maqola soni, narx, "Batafsil"/"O'qish".
 
 - [x] 16.1 Fon: `article.png` → `public/bg/article-*.webp` (desktop + mobil o'lcham, asl fayl repoga kirmaydi);
-      qobiq ortida `position: fixed` qatlam + qoraytiruvchi gradient (qorong'i mavzu); yorug' mavzuda rasm hero bannerda
+      qobiq ortida `position: fixed` qatlam + qoraytiruvchi gradient (qorong'i mavzu). Yorug' mavzu uchun alohida
+      kunduzgi rasm (`public/bg/light-*.webp` + promo kesimi): sahifa ortida oq parda bilan, hero va promo kartada banner
 - [x] 16.2 Mijoz qobig'i (`ClientShell`): header (365 emblema, markazda nav, qidiruv, til, mavzu, qo'ng'iroq, profil) +
       sidebar (nav + o'qilmagan soni, "Kategoriyalar" — kitoblar soni bilan, "Barchasi →", promo karta) + mobil drawer;
       katalog/kutubxona/kitob/bildirishnoma/profil shu qobiqda, reader va auth — o'zgarmaydi

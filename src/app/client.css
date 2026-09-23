@@ -1,8 +1,8 @@
 /* ============================================================
    Mijoz tomoni (16) — qora-oltin qobiq: fon rasmi, header, sidebar,
    katalog hero, gorizontal kitob kartalari, dumaloq pagination.
-   Qorong'i mavzu — `article` fon rasmi butun sahifa ortida (fixed);
-   yorug' mavzu — och sirtlar, rasm hero bannerda.
+   Qorong'i mavzu — `article` (qora-oltin) fon rasmi butun sahifa ortida (fixed);
+   yorug' mavzu — `light` (kunduzgi tog'/ko'l) rasmi, ustidan oq parda; hero — o'sha rasm banner sifatida.
    ============================================================ */
 
 .client {
@@ -38,8 +38,10 @@
   inset: 0;
   z-index: -1;
   pointer-events: none;
+  /* Yorug' mavzu: kunduzgi rasm + oq parda (matn o'qiladigan bo'lib qolsin) */
   background:
-    radial-gradient(1200px 500px at 85% -10%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 70%),
+    linear-gradient(180deg, rgba(248, 246, 240, 0.72) 0%, rgba(246, 244, 238, 0.88) 42%, rgba(244, 242, 236, 0.97) 78%, var(--bg) 100%),
+    url("/bg/light-1672.webp") center top / cover no-repeat,
     var(--bg);
 }
 .dark .client-bg {
@@ -50,6 +52,12 @@
     #050505;
 }
 @media (max-width: 900px) {
+  .client-bg {
+    background:
+      linear-gradient(180deg, rgba(248, 246, 240, 0.62) 0%, rgba(246, 244, 238, 0.9) 45%, var(--bg) 80%),
+      url("/bg/light-960.webp") 60% top / cover no-repeat,
+      var(--bg);
+  }
   .dark .client-bg {
     background:
       linear-gradient(180deg, rgba(0, 0, 0, 0.45) 0%, rgba(0, 0, 0, 0.6) 40%, #050505 85%),
@@ -348,6 +356,15 @@
   box-shadow: 0 18px 36px -24px rgba(0, 0, 0, 0.8);
   flex-shrink: 0;
 }
+/* Yorug' mavzu: promo kartada ham kunduzgi rasm */
+:root:not(.dark) .client-promo {
+  border-color: rgba(30, 58, 92, 0.18);
+  background:
+    linear-gradient(90deg, rgba(8, 20, 34, 0.9) 0%, rgba(8, 20, 34, 0.5) 58%, rgba(8, 20, 34, 0.14) 100%),
+    url("/bg/promo-light-480.webp") 70% center / cover no-repeat,
+    #0b1018;
+}
+
 .client-promo-title {
   font-family: var(--font-serif);
   font-size: 26px;
@@ -452,16 +469,16 @@
   border-bottom: 1px solid var(--border);
   color: #f6f2e8;
 }
-/* Yorug' mavzu: hero — rasmli banner (matn doim och) */
+/* Yorug' mavzu: hero — kunduzgi rasm banner (matn oq bo'lgani uchun chapdan to'q parda) */
 :root:not(.dark) .catalog-hero {
   padding: 44px 44px 40px;
   border: 0;
   border-radius: var(--radius-lg);
   overflow: hidden;
   background:
-    linear-gradient(90deg, rgba(0, 0, 0, 0.86) 0%, rgba(0, 0, 0, 0.55) 45%, rgba(0, 0, 0, 0.1) 100%),
-    url("/bg/article-1672.webp") right 30% / cover no-repeat,
-    #0b0a08;
+    linear-gradient(90deg, rgba(8, 14, 22, 0.88) 0%, rgba(8, 14, 22, 0.58) 42%, rgba(8, 14, 22, 0.16) 100%),
+    url("/bg/light-1672.webp") center 35% / cover no-repeat,
+    #0b1018;
   box-shadow: var(--shadow-lg);
 }
 .hero-eyebrow {
