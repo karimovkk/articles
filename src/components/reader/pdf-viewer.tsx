@@ -48,6 +48,8 @@ export interface PdfViewerProps {
   highlights?: Annotation[];
   /** Qidiruv natijasi (17.5): shu sahifadagi mosliklar vaqtincha bo'rttiriladi; `nonce` — qayta bosilganda yangilash */
   searchHit?: { page: number; query: string; nonce: number } | null;
+  /** Sahifadagi belgilangan joy bosildi (21.3) — rang almashtirish / o'chirish paneli uchun */
+  onHighlightPick?: (id: string, x: number, y: number) => void;
   onReady?: (info: { pageCount: number; size: number }) => void;
   onPageChange?: (page: number) => void;
   /** `error` — asl xato (ApiError bo'lsa kod bo'yicha xabar ko'rsatish uchun) */
@@ -71,7 +73,7 @@ interface PageHighlight {
 }
 
 export const PdfViewer = forwardRef<PdfViewerHandle, PdfViewerProps>(function PdfViewer(
-  { articleId, initialPage = 1, zoom, night, mode, highlights, searchHit, onReady, onPageChange, onError, onTextSelected, onProgress },
+  { articleId, initialPage = 1, zoom, night, mode, highlights, searchHit, onReady, onPageChange, onError, onTextSelected, onProgress, onHighlightPick },
   ref,
 ) {
   const { t } = useT();
@@ -311,6 +313,7 @@ export const PdfViewer = forwardRef<PdfViewerHandle, PdfViewerProps>(function Pd
                 searchQuery={searchHit?.page === i + 1 ? searchHit.query : undefined}
                 searchNonce={searchHit?.nonce}
                 onSearchRects={onSearchRects}
+                onHighlightPick={onHighlightPick}
                 label={t("common.pageN", { n: i + 1 })}
               />
             ))}
@@ -335,6 +338,7 @@ export const PdfViewer = forwardRef<PdfViewerHandle, PdfViewerProps>(function Pd
                 highlights={highlightsByPage.get(n)}
                 searchQuery={searchHit?.page === n ? searchHit.query : undefined}
                 searchNonce={searchHit?.nonce}
+                onHighlightPick={onHighlightPick}
                 label={t("common.pageN", { n })}
               />
             )}
@@ -671,6 +675,7 @@ function PdfPage({
   searchQuery,
   searchNonce,
   onSearchRects,
+  onHighlightPick,
   label,
 }: {
   pageNumber: number;
@@ -683,6 +688,8 @@ function PdfPage({
   searchQuery?: string;
   searchNonce?: number;
   onSearchRects?: (page: number, rects: HighlightRect[]) => void;
+  /** Belgilangan joy bosildi (21.3) */
+  onHighlightPick?: (id: string, x: number, y: number) => void;
   label: string;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -770,6 +777,25 @@ function PdfPage({
     return () => window.clearTimeout(timer);
   }, [rendered, searchQuery, searchNonce, pageNumber, onSearchRects, scale]);
 
+  /** Bosilgan nuqta belgilangan joyga tushdimi? (matn qatlami ustida bo'lgani uchun klik shu yerda tekshiriladi) */
+  function pickHighlight(e: React.MouseEvent<HTMLDivElement>) {
+    if (!onHighlightPick || !highlights?.length) return;
+    if (!window.getSelection()?.isCollapsed) return; // matn tanlanayotgan bo'lsa — tegmaymiz
+    const box = wrapRef.current?.getBoundingClientRect();
+    if (!box) return;
+    const fx = (e.clientX - box.left) / box.width;
+    const fy = (e.clientY - box.top) / box.height;
+    const pad = 0.004;
+    for (const h of highlights) {
+      for (const r of h.rects) {
+        if (fx >= r[0] - pad && fx <= r[0] + r[2] + pad && fy >= r[1] - pad && fy <= r[1] + r[3] + pad) {
+          onHighlightPick(h.id, e.clientX, e.clientY);
+          return;
+        }
+      }
+    }
+  }
+
   return (
     <div
       ref={wrapRef}
@@ -777,6 +803,7 @@ function PdfPage({
       className="reader-page relative shrink-0 bg-white shadow-md"
       style={{ width, height }}
       aria-label={label}
+      onClick={pickHighlight}
     >
       <canvas ref={canvasRef} className="block" />
       {highlights && highlights.length > 0 && (

@@ -94,6 +94,12 @@ html {
   filter: invert(0.92) hue-rotate(180deg);
 }
 
+/* Mobil: uzoq bosishdagi "Nusxalash/Ulashish" menyusi chiqmasin (21.2) */
+.reader-page,
+.reader-page .textLayer {
+  -webkit-touch-callout: none;
+}
+
 /* Himoyalangan kontent: kontekst menyu/drag oldini olish (ehtiyot chorasi) */
 .reader-page canvas {
   user-select: none;

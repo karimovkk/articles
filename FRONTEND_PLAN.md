@@ -491,6 +491,31 @@ chiroyliroq bo'lsin". Har vazifadan keyin test qilinadi.
 - [x] 20.3 Test: skrinshotlar (1440/1280/390, yorug' va qorong'i), `visual` + `catalog`, `--prod` 19/19 (339);
       yo'l-yo'lakay `auth-ui` dagi beqaror globus tekshiruvlari barqarorlashtirildi (canvas chizilishini kutish)
 
+## 21. Reader himoyasi va highlight tuzatishlari (2026-09-23, foydalanuvchi fikri)
+
+Talab: (a) Ctrl+C bilan matn olinmasin; (b) highlight qilingach uni sahifaning o'zidan o'chirish mumkin bo'lsin;
+(c) highlight paytida matn ustiga matn chiqmasin — oqimdagi buglar topilib tuzatilsin; (d) kitob matnini olishning
+boshqa yo'llari ham topilib yopilsin. Har vazifadan keyin test.
+
+- [x] 21.1 Audit: hozir matnni olishning qaysi yo'llari ochiq — brauzerda tekshirish (Ctrl+C/X, Ctrl+A, kontekst
+      menyu, sudrab tashlash, mobil long-press, chop etish, saqlash, highlight oqimidagi xatolar) va ro'yxat
+- [x] 21.2 Nusxalashni to'sish: hujjat darajasida `copy`/`cut` (clipboard'ga ogohlantirish matni), Ctrl+A/Ctrl+C/X,
+      kontekst menyu, `dragstart`, mobil `-webkit-touch-callout`; foydalanuvchiga tushunarli xabar
+- [x] 21.3 Highlight'ni sahifada boshqarish: belgilangan joyni bosish → kichik panel (rang almashtirish, o'chirish)
+- [x] 21.4 Highlight oqimidagi buglarni tuzatish (21.1 da topilganlar)
+- [x] 21.5 Testlar: yangi `reader-protect` to'plami (nusxalash bloklari, chop etish, highlight paneli/o'chirish,
+      dublikat), `--prod`, Firefox
+
+Audit natijasi (21.1): **ochiq teshik** — matn tanlab Ctrl+C bloklangan edi, lekin **Ctrl+A → Ctrl+C butun sahifani,
+jumladan kitob matnini nusxalar edi** (`copy` hodisasi himoyalangan blokdan tashqarida, `body` da ushlanmasdi).
+Tuzatildi. Highlight "matn ustiga matn" emas — u faqat rangli to'rtburchak; ilgari matn qatlami canvas bilan mos
+tushmagani (17.7) shunday taassurot bergan, u ham tuzatilgan. Yana bir bug: bir joyni qayta belgilaganda dublikat
+yaratilardi — endi mavjudining rangi yangilanadi.
+
+Bartaraf etilmaydigan yo'llar (brauzer darajasida, hujjat uchun): devtools/konsol, ekran surati, Linux'dagi
+"primary selection" (o'rta tugma bilan qo'yish), brauzer menyusidan sahifani saqlash (faqat ko'rinayotgan
+sahifalar matni tushadi — qolganlari render qilinmagan), ekran o'quvchi dasturlar.
+
 ### Backend uchun eslatmalar (jonli auditdan) — holat: B1 ✅(avvaldan) · B2 ✅ · B3 ✅ · B4 ✅ · B5 ✅ · B6 ✅(avvaldan) ·
 B7 ✅ · B8 ✅ (OpenAPI manba) · B9 ✅ · B10 ✅ · B11 ✅ · B12 ✅ · B13 ✅ — **ochiq savol yo'q**
 

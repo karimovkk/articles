@@ -26,7 +26,7 @@ import {
   type SearchMatch,
   type TocEntry,
 } from "@/lib/api";
-import { HIGHLIGHT_COLORS, normalizeColor } from "@/lib/reader/highlights";
+import { HIGHLIGHT_COLORS, getHighlightRects, normalizeColor, sameRects } from "@/lib/reader/highlights";
 import { useT } from "@/i18n";
 import * as I from "@/components/ui/icons";
 import { PdfViewer, type PdfViewerHandle, type TextSelection, type ViewMode } from "./pdf-viewer";
@@ -86,6 +86,9 @@ export function ReaderView({ articleId }: { articleId: string }) {
   const [searchAvailable, setSearchAvailable] = useState(true);
   const [toast, setToast] = useState<string | null>(null);
   const [selection, setSelection] = useState<TextSelection | null>(null);
+  // 21.3: sahifadagi belgilangan joy bosilganda ochiladigan panel (rang / o'chirish)
+  const [hlMenu, setHlMenu] = useState<{ id: string; x: number; y: number; w: number } | null>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
 
   const initialPage = useMemo(() => Math.max(1, meta?.current_page ?? 1), [meta]);
   const highlights = useMemo(() => annotations.filter((a) => a.type === "HIGHLIGHT"), [annotations]);
@@ -245,7 +248,29 @@ export function ReaderView({ articleId }: { articleId: string }) {
     void toggleRead(true);
   }, [page, pageCount, isRead, ready, toggleRead]);
 
-  // ---- Klaviatura: navigatsiya + chop etish/saqlash bloklash
+  // ---- Nusxalashni to'sish (S-41, 21.2): `copy`/`cut` hujjat darajasida ushlanadi — Ctrl+A bilan butun
+  // sahifa tanlanganda ham matn buferga tushmaydi. O'z matnini yozadigan maydonlar (input/textarea) tegilmaydi.
+  useEffect(() => {
+    const editable = (el: EventTarget | null) => {
+      const n = el as HTMLElement | null;
+      const tag = n?.tagName;
+      return tag === "INPUT" || tag === "TEXTAREA" || !!n?.isContentEditable;
+    };
+    const onCopy = (e: ClipboardEvent) => {
+      if (editable(e.target)) return;
+      e.preventDefault();
+      e.clipboardData?.setData("text/plain", t("reader.noCopy"));
+      showToast(t("reader.noCopy"));
+    };
+    document.addEventListener("copy", onCopy);
+    document.addEventListener("cut", onCopy);
+    return () => {
+      document.removeEventListener("copy", onCopy);
+      document.removeEventListener("cut", onCopy);
+    };
+  }, [showToast, t]);
+
+  // ---- Klaviatura: navigatsiya + chop etish/saqlash/hammasini tanlash bloklash
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const k = e.key.toLowerCase();
@@ -256,6 +281,12 @@ export function ReaderView({ articleId }: { articleId: string }) {
       }
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA") return;
+      // Ctrl+A — butun sahifani tanlash (keyin nusxalashga urinish) bloklanadi
+      if ((e.ctrlKey || e.metaKey) && k === "a") {
+        e.preventDefault();
+        showToast(t("reader.noCopy"));
+        return;
+      }
       if (e.key === "ArrowRight" || e.key === "PageDown") viewerRef.current?.goToPage(page + 1);
       if (e.key === "ArrowLeft" || e.key === "PageUp") viewerRef.current?.goToPage(page - 1);
       if (e.key === "+" || e.key === "=") setZoomIdx((z) => Math.min(ZOOMS.length - 1, z + 1));
@@ -264,6 +295,8 @@ export function ReaderView({ articleId }: { articleId: string }) {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [page, showToast, t]);
+
+  const hlAnnotation = hlMenu ? (annotations.find((x) => x.id === hlMenu.id) ?? null) : null;
 
   const toggleNight = () => {
     setNight((n) => {
@@ -323,6 +356,15 @@ export function ReaderView({ articleId }: { articleId: string }) {
     window.getSelection()?.removeAllRanges();
     setHlColor(color);
     writePref(COLOR_KEY, color);
+    // 21.4: bir xil joy qayta belgilansa — dublikat emas, mavjudining rangi yangilanadi
+    const same = annotations.find((a) => a.type === "HIGHLIGHT" && a.page === s.page && sameRects(getHighlightRects(a), s.rects));
+    if (same) {
+      if (normalizeColor(same.color) !== color) {
+        await onChangeColor(same, color);
+        showToast(t("reader.highlightUpdated"));
+      }
+      return;
+    }
     // Optimistik: server javobida location_data bo'lmasa ham lokal nusxada rects saqlanadi
     const location_data = { page: s.page, rects: s.rects };
     try {
@@ -522,7 +564,7 @@ export function ReaderView({ articleId }: { articleId: string }) {
             </div>
           )}
 
-          <div className="relative min-w-0 flex-1">
+          <div ref={stageRef} className="relative min-w-0 flex-1">
             <PdfViewer
               ref={viewerRef}
               articleId={articleId}
@@ -536,6 +578,10 @@ export function ReaderView({ articleId }: { articleId: string }) {
               onPageChange={onPageChange}
               onError={(m, e) => setFatal({ code: isApiError(e) ? e.code : "CONTENT_ERROR", message: e ? errorMessage(e, m) : m })}
               onTextSelected={setSelection}
+              onHighlightPick={(id, x, y) => {
+                const box = stageRef.current?.getBoundingClientRect();
+                setHlMenu({ id, x: x - (box?.left ?? 0), y: y - (box?.top ?? 0), w: box?.width ?? 0 });
+              }}
             />
             {meta.features?.watermark !== false && <WatermarkOverlay payload={watermark} night={night} />}
 
@@ -559,6 +605,23 @@ export function ReaderView({ articleId }: { articleId: string }) {
               </div>
             )}
 
+            {hlMenu && hlAnnotation && (
+              <HighlightMenu
+                annotation={hlAnnotation}
+                x={Math.min(Math.max(hlMenu.x, 150), Math.max(150, hlMenu.w - 150))}
+                y={Math.max(8, hlMenu.y - 52)}
+                onColor={(c) => {
+                  setHlMenu(null);
+                  void onChangeColor(hlAnnotation, c);
+                }}
+                onDelete={() => {
+                  setHlMenu(null);
+                  void onDelete(hlAnnotation);
+                }}
+                onClose={() => setHlMenu(null)}
+              />
+            )}
+
             {toast && (
               <div className="pointer-events-none absolute bottom-4 left-1/2 z-40 -translate-x-1/2 rounded-full bg-[var(--ink)] px-4 py-2 text-[13px] font-bold text-[var(--chalk)] shadow-lg">
                 {toast}
@@ -568,5 +631,56 @@ export function ReaderView({ articleId }: { articleId: string }) {
         </div>
       </div>
     </>
+  );
+}
+
+/** Sahifadagi belgilangan joy paneli (21.3): rangni almashtirish yoki o'chirish */
+function HighlightMenu({
+  annotation,
+  x,
+  y,
+  onColor,
+  onDelete,
+  onClose,
+}: {
+  annotation: Annotation;
+  x: number;
+  y: number;
+  onColor: (hex: string) => void;
+  onDelete: () => void;
+  onClose: () => void;
+}) {
+  const { t } = useT();
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  return (
+    <div
+      className="absolute z-40 flex -translate-x-1/2 items-center gap-1 rounded-full border border-border bg-surface p-1.5 pl-3 shadow-lg"
+      style={{ left: x, top: y }}
+      data-testid="highlight-menu"
+    >
+      <span className="px-1 text-xs text-muted">{t("reader.highlightMenu")}</span>
+      {HIGHLIGHT_COLORS.map((c) => (
+        <button
+          key={c.id}
+          type="button"
+          onClick={() => onColor(c.hex)}
+          title={t(c.labelKey)}
+          aria-label={t("reader.highlightWith", { color: t(c.labelKey) })}
+          className={cn("size-6 rounded-full border-2 transition-transform hover:scale-110", normalizeColor(annotation.color) === c.hex ? "border-text" : "border-transparent")}
+          style={{ background: c.hex }}
+        />
+      ))}
+      <IconButton size="sm" variant="danger" label={t("common.delete")} data-testid="highlight-delete" onClick={onDelete}>
+        <I.Trash size={15} />
+      </IconButton>
+      <IconButton size="sm" variant="plain" label={t("common.close")} onClick={onClose}>
+        <I.X size={15} />
+      </IconButton>
+    </div>
   );
 }

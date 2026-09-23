@@ -102,3 +102,9 @@ export function rectsFromSelection(sel: Selection, pageEl: HTMLElement): Highlig
       ] as HighlightRect,
   );
 }
+
+/** Ikki belgilash bir joydami? (21.4 — qayta belgilaganda dublikat yaratilmasligi uchun) */
+export function sameRects(a: HighlightRect[], b: HighlightRect[], tol = 0.006): boolean {
+  if (!a.length || a.length !== b.length) return false;
+  return a.every((r, i) => r.every((v, j) => Math.abs(v - b[i][j]) <= tol));
+}
