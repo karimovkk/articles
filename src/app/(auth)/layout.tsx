@@ -104,7 +104,9 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
               {t("catalog.back")}
             </Link>
             <div className="flex items-center gap-2">
-              <LocaleSwitcher />
+              {/* 23: tor ekranda til tanlagich brend nomini siqib qo'ymasin — ixcham menyu */}
+              <LocaleSwitcher className="max-[640px]:hidden" />
+              <LocaleSwitcher variant="menu" className="min-[641px]:hidden" />
               <ThemeSwitch />
             </div>
           </div>

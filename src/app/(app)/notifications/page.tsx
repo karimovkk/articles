@@ -72,7 +72,7 @@ export default function NotificationsPage() {
   return (
     <div>
       <PageHeader
-        eyebrow={t("nav.profile")}
+        eyebrow={t("client.nav")}
         title={t("notifications.title")}
         icon={<I.Bell size={26} />}
         actions={
