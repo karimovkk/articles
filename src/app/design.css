@@ -349,21 +349,78 @@ h3 {
   width: 32px;
   height: 32px;
 }
+/* Bildirishnoma nishoni (19.2): oltin gradient tomchi, fon rangidagi halqa bilan ajratilgan */
 .icon-btn .dot {
   position: absolute;
-  top: 6px;
-  right: 6px;
+  top: -1px;
+  right: -4px;
   min-width: 16px;
   height: 16px;
-  padding: 0 4px;
+  padding: 0 4.5px;
   border-radius: 999px;
-  background: var(--accent);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--accent) 55%, #fff5cc), var(--accent));
   color: var(--accent-contrast);
   font-size: 10px;
   font-weight: 800;
   line-height: 16px;
+  letter-spacing: -0.01em;
   text-align: center;
-  border: 2px solid var(--surface);
+  font-variant-numeric: tabular-nums;
+  box-shadow:
+    0 0 0 2px var(--badge-ring, var(--surface)),
+    0 3px 8px -2px color-mix(in srgb, var(--accent) 60%, transparent);
+  animation: badge-pop 360ms var(--ease);
+}
+.icon-btn.has-unread {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+/* Yangi xabar kelganda qo'ng'iroq bir chayqaladi */
+.bell-ic {
+  display: inline-flex;
+  transform-origin: 50% 12%;
+}
+.icon-btn.has-unread .bell-ic {
+  animation: bell-swing 900ms var(--ease);
+}
+@keyframes badge-pop {
+  0% {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.14);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+@keyframes bell-swing {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  12% {
+    transform: rotate(13deg);
+  }
+  28% {
+    transform: rotate(-11deg);
+  }
+  44% {
+    transform: rotate(7deg);
+  }
+  60% {
+    transform: rotate(-4deg);
+  }
+  76% {
+    transform: rotate(2deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .icon-btn .dot,
+  .icon-btn.has-unread .bell-ic {
+    animation: none;
+  }
 }
 
 /* ---------- Pill / segmented / tabs ---------- */

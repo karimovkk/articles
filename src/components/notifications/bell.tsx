@@ -29,12 +29,15 @@ export function NotificationBell({ className }: { className?: string }) {
   return (
     <Link
       href="/notifications"
-      className={cn("icon-btn plain", active && "bg-surface-2 text-text", className)}
+      className={cn("icon-btn plain", !!count && "has-unread", active && "bg-surface-2 text-text", className)}
       title={t("notifications.title")}
       aria-label={count ? t("notifications.unreadN", { n: count }) : t("notifications.title")}
       aria-current={active ? "page" : undefined}
     >
-      <I.Bell size={18} />
+      {/* `key` — soni o'zgarganda animatsiya qaytadan o'ynaydi */}
+      <span className="bell-ic" key={count ?? 0}>
+        <I.Bell size={18} />
+      </span>
       {!!count && (
         <span className="dot" data-testid="unread-count">
           {count > 99 ? "99+" : count}

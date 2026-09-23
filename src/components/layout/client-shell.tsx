@@ -42,7 +42,8 @@ export function ClientShell({ children }: { children: ReactNode }) {
   }, [open]);
 
   return (
-    <div className="client">
+    // `data-route` — fon rasmi katalogda keng band, ichki sahifalarda yupqa tasma (18.1)
+    <div className="client" data-route={pathname === "/catalog" ? "catalog" : undefined}>
       <div className="client-bg" aria-hidden />
       <ClientHeader menuOpen={open} onMenu={() => setOpenAt(open ? null : pathname)} />
       <div className="client-body">

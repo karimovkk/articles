@@ -454,6 +454,35 @@ egilgan holda chiziladi (matn qatlami shu paytda yashiriladi, tugagach qaytadi).
       pdfjs-dist 6 `--total-scale-factor` va span o'lchov o'zgaruvchilarini talab qiladi, bizdagi CSS eski
       formatda edi (span'lar ~2 barobar kichik). Endi matn tanlash, highlight va qidiruv aniq joyida.
 
+## 18. Yorug' mavzu foni (2026-09-23, foydalanuvchi fikri: "oq fonda background yaxshi ko'rinmayapti")
+
+Muammo: kunduzgi rasm butun sahifa ortiga qo'yilib, ustidan kuchli oq parda tortilgan — rasm ham ko'rinmaydi,
+ham matn ortida kulrang dog' bo'lib turadi. Yechim: rasm tasodifiy "fon" emas, ataylab qo'yilgan yuqori band
+bo'lsin — tepada aniq ko'rinadi, pastga qarab kremga silliq so'nadi; hero esa o'z rasmini takrorlamaydi
+(sahifa foni ko'rinib turadi), matn ustida oq parda bo'ladi va yorug' mavzuda **to'q rangda** yoziladi.
+
+- [x] 18.1 Fon qatlami qayta qurildi: rasm — `::before` (yuqori band, to'yinganlik/yorqinlik moslangan),
+      parda — `::after` (kremga silliq o'tish). Qorong'i mavzu ham shu tuzilmada (ko'rinishi o'zgarmaydi)
+- [x] 18.2 Hero: yorug' mavzuda o'z rasmi yo'q (ikki marta rasm chiqmasin) — sahifa foni ko'rinadi, matn
+      to'q rangda, chap tomonda oq parda; qidiruv maydoni ham och sirtda
+- [x] 18.3 Sirtlar: header va sidebar yorug' mavzuda zichroq (rasm ustida o'qilishi uchun), kartalar soyasi kuchliroq
+- [x] 18.4 Mobil: rasm bandi balandligi va parda kuchi kichik ekranga moslandi
+- [x] 18.5 Skrinshotlar (katalog, kutubxona, profil, kitob; 1440/390), `--prod`, Firefox — rasm endi katalogda
+      keng band, ichki sahifalarda sarlavha ortidagi yupqa osmon tasmasi; qorong'i mavzu o'zgarmadi
+
+## 19. Yorug' fon ko'rinishi va bildirishnoma nishoni (2026-09-23, foydalanuvchi fikri)
+
+Fikr: "yorug' mavzuda fon deyarli oppoq, rasm ko'rinmayapti" + "bildirishnoma ikonkasi va undagi sonlar dizayni
+chiroyliroq bo'lsin". Har vazifadan keyin test qilinadi.
+
+- [x] 19.1 Yorug' fon haqiqatan ko'rinsin: rasm butun ekran ortida (faqat yuqori band emas), parda ancha yengil;
+      o'qilishi uchun sahifa sarlavhalari ortida yumshoq oq parda, kartalar to'liq oq
+      → test: katalog/kutubxona/profil/kitob skrinshotlari (1440/390) + `visual` to'plami
+- [x] 19.2 Bildirishnoma nishoni: qo'ng'iroq ikonkasi va o'qilmaganlar soni (oltin gradient, halqa bilan ajratilgan,
+      99+ holati, yangi xabar kelganda yengil animatsiya); sidebar badge ham shu uslubda
+      → test: `notifications` to'plami + skrinshot (ikkala mavzu)
+- [x] 19.3 Yakuniy: `--prod` 19/19 (339 tekshiruv), Firefox (catalog, notifications) 2/2
+
 ### Backend uchun eslatmalar (jonli auditdan) — holat: B1 ✅(avvaldan) · B2 ✅ · B3 ✅ · B4 ✅ · B5 ✅ · B6 ✅(avvaldan) ·
 B7 ✅ · B8 ✅ (OpenAPI manba) · B9 ✅ · B10 ✅ · B11 ✅ · B12 ✅ · B13 ✅ — **ochiq savol yo'q**
 
