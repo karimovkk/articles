@@ -26,27 +26,44 @@ await page.waitForFunction(() => document.querySelectorAll('[data-page="1"] .tex
 
 const setClipboard = (v) => page.evaluate((t) => navigator.clipboard.writeText(t), v);
 const clipboard = () => page.evaluate(() => navigator.clipboard.readText());
-const selectSpan = (i) =>
-  page.evaluate((k) => {
-    const sp = [...document.querySelectorAll('[data-page="1"] .textLayer span')][k];
-    const r = document.createRange();
-    r.selectNodeContents(sp);
-    const s = getSelection();
-    s.removeAllRanges();
-    s.addRange(r);
-    document.querySelector(".reader-page")?.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
-    return s.toString();
+// 22.1: brauzer tanlovi yo'q — sichqonchani sudrab tanlaymiz (o'z mexanizmimiz)
+const selectSpan = async (i) => {
+  const box = await page.evaluate((k) => {
+    const sp = [...document.querySelectorAll('[data-page="1"] .textLayer span')][k].getBoundingClientRect();
+    return { x1: sp.left + 3, x2: sp.right - 3, y: sp.top + sp.height / 2 };
   }, i);
+  await page.mouse.move(box.x1, box.y);
+  await page.mouse.down();
+  for (let n = 1; n <= 6; n++) {
+    await page.mouse.move(box.x1 + ((box.x2 - box.x1) * n) / 6, box.y);
+    await page.waitForTimeout(16);
+  }
+  await page.mouse.up();
+  await page.waitForTimeout(150);
+  return page.evaluate(() => document.querySelectorAll('[data-testid="pick-rects"] > div').length);
+};
 
-// ---- Nusxalash: tanlangan matn + Ctrl+C
-const selected = await selectSpan(1);
-check("Matn qatlami tanlanadi (highlight uchun kerak)", selected.includes("page 1"), selected.slice(0, 40));
+// ---- Tanlash: brauzer tanlovi emas, o'z mexanizmimiz (22.1)
+const picked = await selectSpan(1);
+const browserSel = await page.evaluate(() => getSelection().toString());
+check("Sudrab tanlash: o'z qatlamimiz chizildi, brauzer tanlovi BO'SH", picked > 0 && browserSel === "", `rects=${picked} sel="${browserSel}"`);
 if (IS_CHROMIUM) {
   await setClipboard("__BOSH__");
   await page.keyboard.press("Control+c");
   await page.waitForTimeout(250);
   const after = await clipboard();
   check("Ctrl+C: kitob matni buferga tushmadi (ogohlantirish matni)", !after.includes("page 1") && after.includes("nusxalab"), after.slice(0, 40));
+  // macOS: Cmd+A / Cmd+C, Windows: Ctrl+Insert
+  await setClipboard("__MAC__");
+  await page.keyboard.press("Meta+a");
+  await page.keyboard.press("Meta+c");
+  await page.waitForTimeout(200);
+  const mac = await clipboard();
+  await setClipboard("__WIN__");
+  await page.keyboard.press("Control+Insert");
+  await page.waitForTimeout(200);
+  const win = await clipboard();
+  check("macOS (Cmd+A/Cmd+C) va Windows (Ctrl+Insert) ham bloklangan", !mac.includes("page 1") && !win.includes("page 1"), `${mac.slice(0, 20)} | ${win.slice(0, 20)}`);
   // Ctrl+A → Ctrl+C (eng keng tarqalgan yo'l)
   await setClipboard("__BOSH2__");
   await page.keyboard.press("Control+a");
@@ -54,7 +71,7 @@ if (IS_CHROMIUM) {
   await page.waitForTimeout(250);
   const all = await clipboard();
   check("Ctrl+A → Ctrl+C: sahifa matni buferga tushmadi", !all.includes("page 1") && !all.includes("Birinchi maqola"), all.slice(0, 50));
-  // Dastur orqali: execCommand('copy')
+  // Dastur orqali: matnni tanlab execCommand('copy') — hatto shunda ham matn chiqmaydi
   await setClipboard("__BOSH3__");
   await page.evaluate(() => {
     const sp = document.querySelector('[data-page="1"] .textLayer span');
@@ -109,6 +126,25 @@ await page.emulateMedia({ media: "screen" });
 check("Chop etishda kontent yashirin, ogohlantirish ko'rinadi", printState.reader === "none" && printState.notice !== "none", JSON.stringify(printState));
 // Chop etish rejimida sahifa yashirilgani uchun matn qatlami tozalangan — qayta render bo'lishini kutamiz
 await page.waitForFunction(() => document.querySelectorAll('[data-page="1"] .textLayer span').length > 0, null, { timeout: 20000 });
+
+// ---- Matn qatlami yordamchi texnologiyalardan yashirilgan (22.2) va suv belgisi canvas ichida (22.3)
+check("Matn qatlami aria-hidden (ekran o'quvchi kitob matnini o'qimaydi)", (await page.getAttribute('[data-page="1"] .textLayer', "aria-hidden")) === "true");
+const wmDrawn = await page
+  .waitForFunction(
+    () => {
+      const c = document.querySelector('[data-page="1"] canvas');
+      if (!c || !c.width) return false;
+      const d = c.getContext("2d").getImageData(0, 0, c.width, c.height).data;
+      let gray = 0;
+      for (let i = 0; i < d.length; i += 4) if (d[i] > 200 && d[i] < 245) gray++;
+      return gray > 500;
+    },
+    null,
+    { timeout: 15000 },
+  )
+  .then(() => true)
+  .catch(() => false);
+check("Suv belgisi canvas piksellarida (ekran suratida ham qoladi)", wmDrawn);
 
 // ---- Belgilash: yaratish → panel → rang → o'chirish; dublikat yaratilmaydi
 await selectSpan(1);

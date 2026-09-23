@@ -14,7 +14,7 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { PDFDocumentProxy, PDFPageProxy, RenderTask } from "pdfjs-dist";
 import { loadPdfJs, openProtectedPdf } from "@/lib/reader/range-transport";
-import { getHighlightRects, normalizeColor, rectsFromSelection, type HighlightRect } from "@/lib/reader/highlights";
+import { getHighlightRects, normalizeColor, rectsFromClientRects, type HighlightRect } from "@/lib/reader/highlights";
 import { drawCurl, edgeTable, progressForEdge } from "@/lib/reader/page-curl";
 import { findTextRects } from "@/lib/reader/find-text";
 import type { Annotation } from "@/lib/api";
@@ -25,6 +25,8 @@ export type ViewMode = "scroll" | "page";
 
 export interface PdfViewerHandle {
   goToPage: (page: number) => void;
+  /** Tanlovni bekor qilish (22.1 — o'z tanlov mexanizmi) */
+  clearSelection: () => void;
 }
 
 export interface TextSelection {
@@ -50,6 +52,8 @@ export interface PdfViewerProps {
   searchHit?: { page: number; query: string; nonce: number } | null;
   /** Sahifadagi belgilangan joy bosildi (21.3) — rang almashtirish / o'chirish paneli uchun */
   onHighlightPick?: (id: string, x: number, y: number) => void;
+  /** Suv belgisi matni — sahifa canvas'iga chiziladi (22.3: ekran suratida ham qoladi) */
+  watermarkText?: string | null;
   onReady?: (info: { pageCount: number; size: number }) => void;
   onPageChange?: (page: number) => void;
   /** `error` — asl xato (ApiError bo'lsa kod bo'yicha xabar ko'rsatish uchun) */
@@ -73,7 +77,7 @@ interface PageHighlight {
 }
 
 export const PdfViewer = forwardRef<PdfViewerHandle, PdfViewerProps>(function PdfViewer(
-  { articleId, initialPage = 1, zoom, night, mode, highlights, searchHit, onReady, onPageChange, onError, onTextSelected, onProgress, onHighlightPick },
+  { articleId, initialPage = 1, zoom, night, mode, highlights, searchHit, watermarkText, onReady, onPageChange, onError, onTextSelected, onProgress, onHighlightPick },
   ref,
 ) {
   const { t } = useT();
@@ -217,7 +221,13 @@ export const PdfViewer = forwardRef<PdfViewerHandle, PdfViewerProps>(function Pd
     [pageCount, stride, mode, setCurrent],
   );
 
-  useImperativeHandle(ref, () => ({ goToPage }), [goToPage]);
+  // O'z tanlov mexanizmi (22.1) holati
+  const [pick, setPick] = useState<{ page: number; rects: HighlightRect[] } | null>(null);
+  const clearSelection = useCallback(() => {
+    setPick(null);
+    onTextSelected?.(null);
+  }, [onTextSelected]);
+  useImperativeHandle(ref, () => ({ goToPage, clearSelection }), [goToPage, clearSelection]);
 
   // Chop etish dialogi (display:none) scroll holatini yo'qotadi — yopilgach joriy sahifa tiklanadi
   useEffect(() => {
@@ -244,35 +254,144 @@ export const PdfViewer = forwardRef<PdfViewerHandle, PdfViewerProps>(function Pd
     el.scrollTo({ top: mode === "scroll" ? (currentPageRef.current - 1) * stride : 0, behavior: "auto" });
   }, [mode, stride, pageCount]);
 
-  // ---- Matn tanlash → highlight taklifi
+  // ---- Matn tanlash (22.1): brauzer tanlovi ISHLATILMAYDI — o'z mexanizmimiz.
+  // Sabab: bufer (Ctrl/Cmd+C), Linux "primary selection", macOS "Look Up"/Services, sudrab tashlash va ekran
+  // o'quvchilar hammasi brauzer tanloviga tayanadi. Biz sudrash bo'yicha Range quramiz, uni ekranda o'z
+  // qatlamimizda ko'rsatamiz va faqat belgilash (highlight) uchun ishlatamiz — Selection bo'sh qoladi.
   useEffect(() => {
-    if (!onTextSelected) return;
     const el = containerRef.current;
-    if (!el) return;
-    const onUp = () => {
-      const sel = window.getSelection();
-      const text = sel?.toString().trim() ?? "";
-      if (!sel || sel.isCollapsed || !text) {
+    if (!el || !onTextSelected) return;
+
+    type Caret = { node: Node; offset: number };
+    const caretAt = (x: number, y: number, layer: Element): Caret | null => {
+      const doc = document as Document & {
+        caretRangeFromPoint?: (x: number, y: number) => Range | null;
+        caretPositionFromPoint?: (x: number, y: number) => { offsetNode: Node; offset: number } | null;
+      };
+      let c: Caret | null = null;
+      if (doc.caretRangeFromPoint) {
+        const r = doc.caretRangeFromPoint(x, y);
+        c = r ? { node: r.startContainer, offset: r.startOffset } : null;
+      } else {
+        const p = doc.caretPositionFromPoint?.(x, y);
+        c = p ? { node: p.offsetNode, offset: p.offset } : null;
+      }
+      if (c && layer.contains(c.node) && c.node.nodeType === Node.TEXT_NODE) return c;
+      // Zaxira: nuqta matn qatlamidan tashqarida (masalan, varaq ushlash zonasi ustida) — eng yaqin so'z
+      let best: { node: Node; rect: DOMRect } | null = null;
+      let bestD = Infinity;
+      for (const sp of Array.from(layer.querySelectorAll("span"))) {
+        const node = sp.firstChild;
+        if (!node || node.nodeType !== Node.TEXT_NODE) continue;
+        const r = sp.getBoundingClientRect();
+        if (r.width < 1 || r.height < 1) continue;
+        const dx = x < r.left ? r.left - x : x > r.right ? x - r.right : 0;
+        const dy = y < r.top ? r.top - y : y > r.bottom ? y - r.bottom : 0;
+        const d = dx * dx + dy * dy;
+        if (d < bestD) {
+          bestD = d;
+          best = { node, rect: r };
+        }
+      }
+      if (!best) return null;
+      const len = best.node.textContent?.length ?? 0;
+      const frac = Math.min(1, Math.max(0, (x - best.rect.left) / Math.max(1, best.rect.width)));
+      return { node: best.node, offset: Math.round(frac * len) };
+    };
+    const rangeBetween = (layer: Element, a: Caret, b: Caret): Range | null => {
+      if (!layer.contains(a.node) || !layer.contains(b.node)) return null;
+      const pa = document.createRange();
+      pa.setStart(a.node, a.offset);
+      const pb = document.createRange();
+      pb.setStart(b.node, b.offset);
+      const fwd = pa.compareBoundaryPoints(Range.START_TO_START, pb) <= 0;
+      const out = document.createRange();
+      try {
+        out.setStart(fwd ? a.node : b.node, fwd ? a.offset : b.offset);
+        out.setEnd(fwd ? b.node : a.node, fwd ? b.offset : a.offset);
+      } catch {
+        return null;
+      }
+      return out.collapsed ? null : out;
+    };
+
+    let startPt: { x: number; y: number; id: number; page: HTMLElement } | null = null;
+    let active = false;
+    let timer = 0;
+
+    const stop = () => {
+      window.clearTimeout(timer);
+      startPt = null;
+      active = false;
+      delete el.dataset.selecting;
+    };
+
+    const onDown = (e: PointerEvent) => {
+      if (e.button !== 0) return;
+      const pageEl = (e.target as HTMLElement)?.closest<HTMLElement>("[data-page]");
+      if (!pageEl) return;
+      startPt = { x: e.clientX, y: e.clientY, id: e.pointerId, page: pageEl };
+      if (e.pointerType === "mouse") active = true;
+      else {
+        // Sensor: uzoq bosishdan keyin tanlov rejimi (aks holda varaqlash/scroll ishlaydi)
+        timer = window.setTimeout(() => {
+          active = true;
+          el.dataset.selecting = "1";
+        }, 350);
+      }
+    };
+    const onMove = (e: PointerEvent) => {
+      if (!startPt || e.pointerId !== startPt.id) return;
+      if (!active) {
+        if (Math.abs(e.clientX - startPt.x) > 8 || Math.abs(e.clientY - startPt.y) > 8) stop();
+        return;
+      }
+      const layer = startPt.page.querySelector(".textLayer");
+      if (!layer) return;
+      const a = caretAt(startPt.x, startPt.y, layer);
+      const b = caretAt(e.clientX, e.clientY, layer);
+      if (!a || !b) return;
+      const range = rangeBetween(layer, a, b);
+      if (!range) return;
+      if (e.pointerType !== "mouse") e.preventDefault();
+      setPick({ page: Number(startPt.page.dataset.page), rects: rectsFromClientRects(Array.from(range.getClientRects()), startPt.page) });
+    };
+    const onUp = (e: PointerEvent) => {
+      if (!startPt || e.pointerId !== startPt.id) {
+        stop();
+        return;
+      }
+      const page = startPt.page;
+      const from = { x: startPt.x, y: startPt.y };
+      const wasActive = active;
+      stop();
+      if (!wasActive) return;
+      const layer = page.querySelector(".textLayer");
+      const a = layer ? caretAt(from.x, from.y, layer) : null;
+      const b = layer ? caretAt(e.clientX, e.clientY, layer) : null;
+      const range = layer && a && b ? rangeBetween(layer, a, b) : null;
+      const text = range?.toString().trim() ?? "";
+      if (!range || !text) {
+        setPick(null);
         onTextSelected(null);
         return;
       }
-      const node = sel.anchorNode instanceof Element ? sel.anchorNode : sel.anchorNode?.parentElement;
-      const pageEl = node?.closest<HTMLElement>("[data-page]");
-      if (!pageEl) return;
-      const rect = sel.getRangeAt(0).getBoundingClientRect();
-      onTextSelected({
-        page: Number(pageEl.dataset.page),
-        text: text.slice(0, 2000),
-        x: rect.left + rect.width / 2,
-        y: rect.top,
-        rects: rectsFromSelection(sel, pageEl),
-      });
+      const rects = rectsFromClientRects(Array.from(range.getClientRects()), page);
+      const box = range.getBoundingClientRect();
+      setPick({ page: Number(page.dataset.page), rects });
+      onTextSelected({ page: Number(page.dataset.page), text: text.slice(0, 2000), x: box.left + box.width / 2, y: box.top, rects });
     };
-    el.addEventListener("mouseup", onUp);
-    el.addEventListener("touchend", onUp);
+
+    el.addEventListener("pointerdown", onDown);
+    el.addEventListener("pointermove", onMove, { passive: false });
+    el.addEventListener("pointerup", onUp);
+    el.addEventListener("pointercancel", stop);
     return () => {
-      el.removeEventListener("mouseup", onUp);
-      el.removeEventListener("touchend", onUp);
+      el.removeEventListener("pointerdown", onDown);
+      el.removeEventListener("pointermove", onMove);
+      el.removeEventListener("pointerup", onUp);
+      el.removeEventListener("pointercancel", stop);
+      window.clearTimeout(timer);
     };
   }, [onTextSelected]);
 
@@ -314,6 +433,8 @@ export const PdfViewer = forwardRef<PdfViewerHandle, PdfViewerProps>(function Pd
                 searchNonce={searchHit?.nonce}
                 onSearchRects={onSearchRects}
                 onHighlightPick={onHighlightPick}
+                pickRects={pick?.page === i + 1 ? pick.rects : undefined}
+                watermarkText={watermarkText}
                 label={t("common.pageN", { n: i + 1 })}
               />
             ))}
@@ -339,6 +460,8 @@ export const PdfViewer = forwardRef<PdfViewerHandle, PdfViewerProps>(function Pd
                 searchQuery={searchHit?.page === n ? searchHit.query : undefined}
                 searchNonce={searchHit?.nonce}
                 onHighlightPick={onHighlightPick}
+                pickRects={pick?.page === n ? pick.rects : undefined}
+                watermarkText={watermarkText}
                 label={t("common.pageN", { n })}
               />
             )}
@@ -539,7 +662,7 @@ function FlipStage({
         if (fx > GRAB_EDGE && fx < 1 - GRAB_EDGE) return;
       }
       e.preventDefault(); // matn tanlash boshlanmasin
-    } else if (window.getSelection()?.toString()) return;
+    } else if (stageRef.current?.closest("[data-selecting]")) return; // sensorli tanlov faol
     drag.current = { id: e.pointerId, x: e.clientX, y: e.clientY, lastX: e.clientX, lastT: performance.now(), dir: 0, type: e.pointerType };
   };
 
@@ -553,6 +676,10 @@ function FlipStage({
   const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     const d = drag.current;
     if (!d || d.id !== e.pointerId) return;
+    if (stageRef.current?.closest("[data-selecting]")) {
+      drag.current = null; // matn tanlanmoqda — varaqlash boshlanmaydi
+      return;
+    }
     const dx = e.clientX - d.x;
     const dy = e.clientY - d.y;
     if (d.dir === 0) {
@@ -676,6 +803,8 @@ function PdfPage({
   searchNonce,
   onSearchRects,
   onHighlightPick,
+  pickRects,
+  watermarkText,
   label,
 }: {
   pageNumber: number;
@@ -690,6 +819,10 @@ function PdfPage({
   onSearchRects?: (page: number, rects: HighlightRect[]) => void;
   /** Belgilangan joy bosildi (21.3) */
   onHighlightPick?: (id: string, x: number, y: number) => void;
+  /** Foydalanuvchi sudrab tanlagan joy (22.1 — brauzer tanlovi o'rniga) */
+  pickRects?: HighlightRect[];
+  /** Canvas ichiga chiziladigan suv belgisi (22.3) */
+  watermarkText?: string | null;
   label: string;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -746,6 +879,9 @@ function PdfPage({
       task = page.render({ canvas, viewport, transform: dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] : undefined });
       await task.promise;
       if (cancelled) return;
+      // 22.3: suv belgisi sahifa piksellariga chiziladi — ekran suratida ham qoladi,
+      // DOM'dan o'chirib tashlab bo'lmaydi
+      if (watermarkText) drawWatermark(canvas, watermarkText, dpr);
       textDiv.replaceChildren();
       // pdfjs-dist 6: matn qatlami o'lchamlari shu o'zgaruvchidan hisoblanadi (bo'lmasa matn canvas bilan mos kelmaydi)
       textDiv.style.setProperty("--total-scale-factor", String(viewport.scale));
@@ -762,7 +898,7 @@ function PdfPage({
       task?.cancel();
       page?.cleanup();
     };
-  }, [visible, docRef, pageNumber, scale]);
+  }, [visible, docRef, pageNumber, scale, watermarkText]);
 
   // ---- Qidiruv natijasi: matn qatlamidan mosliklarni topib, vaqtincha bo'rttiramiz (CSS bilan so'nadi)
   useEffect(() => {
@@ -780,7 +916,7 @@ function PdfPage({
   /** Bosilgan nuqta belgilangan joyga tushdimi? (matn qatlami ustida bo'lgani uchun klik shu yerda tekshiriladi) */
   function pickHighlight(e: React.MouseEvent<HTMLDivElement>) {
     if (!onHighlightPick || !highlights?.length) return;
-    if (!window.getSelection()?.isCollapsed) return; // matn tanlanayotgan bo'lsa — tegmaymiz
+    if (pickRects?.length) return; // matn tanlangan — avval tanlov paneli
     const box = wrapRef.current?.getBoundingClientRect();
     if (!box) return;
     const fx = (e.clientX - box.left) / box.width;
@@ -818,6 +954,13 @@ function PdfPage({
           )}
         </div>
       )}
+      {pickRects && pickRects.length > 0 && (
+        <div className="pickLayer pointer-events-none absolute inset-0" aria-hidden data-testid="pick-rects">
+          {pickRects.map((r, i) => (
+            <div key={i} style={{ left: `${r[0] * 100}%`, top: `${r[1] * 100}%`, width: `${r[2] * 100}%`, height: `${r[3] * 100}%` }} />
+          ))}
+        </div>
+      )}
       {found && (
         <div className="searchLayer pointer-events-none absolute inset-0" aria-hidden data-testid="search-hits" key={searchNonce}>
           {found.map((r, i) => (
@@ -825,10 +968,39 @@ function PdfPage({
           ))}
         </div>
       )}
-      <div ref={textRef} className="textLayer" />
+      {/* Matn qatlami faqat tanlash/qidiruv geometriyasi uchun — ekran o'quvchilarga berilmaydi (22.2) */}
+      <div ref={textRef} className="textLayer" aria-hidden="true" role="presentation" />
       {!rendered && (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-xs text-gray-400">{pageNumber}</div>
       )}
     </div>
   );
+}
+
+/** Sahifa canvas'iga diagonal plitka ko'rinishidagi suv belgisi (22.3) */
+function drawWatermark(canvas: HTMLCanvasElement, text: string, dpr: number) {
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+  const w = canvas.width / dpr;
+  const h = canvas.height / dpr;
+  ctx.save();
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.globalAlpha = 0.1;
+  ctx.fillStyle = "#101010";
+  // Canvas CSS o'zgaruvchilarini tushunmaydi — aniq shrift ro'yxati
+  ctx.font = `600 ${Math.max(11, Math.round(w / 62))}px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  const stepX = w / 2.2;
+  const stepY = h / 7;
+  for (let y = stepY / 2; y < h; y += stepY) {
+    for (let x = stepX / 2, i = 0; x < w + stepX; x += stepX, i++) {
+      ctx.save();
+      ctx.translate(x + (Math.floor(y / stepY) % 2 ? stepX / 2 : 0), y);
+      ctx.rotate((-22 * Math.PI) / 180);
+      ctx.fillText(text, 0, 0);
+      ctx.restore();
+    }
+  }
+  ctx.restore();
 }

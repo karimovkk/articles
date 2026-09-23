@@ -353,7 +353,7 @@ export function ReaderView({ articleId }: { articleId: string }) {
     if (!selection) return;
     const s = selection;
     setSelection(null);
-    window.getSelection()?.removeAllRanges();
+    viewerRef.current?.clearSelection();
     setHlColor(color);
     writePref(COLOR_KEY, color);
     // 21.4: bir xil joy qayta belgilansa — dublikat emas, mavjudining rangi yangilanadi
@@ -574,6 +574,7 @@ export function ReaderView({ articleId }: { articleId: string }) {
               mode={mode}
               highlights={highlights}
               searchHit={searchHit}
+              watermarkText={meta.features?.watermark !== false ? (watermark?.watermark_text ?? null) : null}
               onReady={({ pageCount: n }) => setPageCount((c) => c || n)}
               onPageChange={onPageChange}
               onError={(m, e) => setFatal({ code: isApiError(e) ? e.code : "CONTENT_ERROR", message: e ? errorMessage(e, m) : m })}

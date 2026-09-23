@@ -65,12 +65,19 @@ const round4 = (n: number) => Math.round(n * 10000) / 10000;
  */
 export function rectsFromSelection(sel: Selection, pageEl: HTMLElement): HighlightRect[] {
   if (sel.rangeCount === 0) return [];
+  const rects: DOMRect[] = [];
+  for (let i = 0; i < sel.rangeCount; i++) rects.push(...Array.from(sel.getRangeAt(i).getClientRects()));
+  return rectsFromClientRects(rects, pageEl);
+}
+
+/** Range'ning (yoki istalgan to'rtburchaklar ro'yxatining) sahifaga nisbatan ulush-koordinatalari (22.1) */
+export function rectsFromClientRects(rects: DOMRect[], pageEl: HTMLElement): HighlightRect[] {
   const page = pageEl.getBoundingClientRect();
   if (page.width <= 0 || page.height <= 0) return [];
 
   const merged: Array<{ l: number; t: number; r: number; b: number }> = [];
-  for (let i = 0; i < sel.rangeCount; i++) {
-    for (const cr of Array.from(sel.getRangeAt(i).getClientRects())) {
+  {
+    for (const cr of rects) {
       if (cr.width < 1 || cr.height < 1) continue;
       // Sahifa chegarasiga kesish; umuman kesishmasa — boshqa sahifa
       const l = Math.max(cr.left, page.left);

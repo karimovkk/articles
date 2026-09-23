@@ -106,7 +106,12 @@ check("Ruxsatsiz maqola: BOOK_ACCESS_DENIED", true);
 // ---- Regressiya: highlight (selected_text + location_data), varaqlash, print
 await page.goto(`${BASE}/reader/${ART2}`);
 await rendered();
-await page.evaluate(() => { const spans = [...document.querySelectorAll('[data-page="1"] .textLayer span')].filter((s) => s.textContent.trim()); const r = document.createRange(); r.setStart(spans[1].firstChild, 0); r.setEnd(spans[2].firstChild, spans[2].firstChild.length); const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r); document.querySelector('[data-page="1"]').dispatchEvent(new MouseEvent("mouseup", { bubbles: true })); });
+const selBox = await page.evaluate(() => { const sp = [...document.querySelectorAll('[data-page="1"] .textLayer span')].filter((x) => x.textContent.trim())[1].getBoundingClientRect(); return { x1: sp.left + 3, x2: sp.right - 3, y: sp.top + sp.height / 2 }; });
+await page.mouse.move(selBox.x1, selBox.y);
+await page.mouse.down();
+for (let i = 1; i <= 6; i++) { await page.mouse.move(selBox.x1 + ((selBox.x2 - selBox.x1) * i) / 6, selBox.y); await page.waitForTimeout(16); }
+await page.mouse.up();
+await page.waitForTimeout(150);
 await page.locator('button[aria-label="Yashil rang bilan belgilash"]').click();
 await page.waitForSelector('[data-page="1"] .highlightLayer > div', { timeout: 5000 });
 const anns = await mockGet("/__annotations");

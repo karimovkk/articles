@@ -106,16 +106,16 @@ await page.goto(`${BASE}/reader/${ART}`);
 await page.waitForFunction(() => document.querySelector('[data-page="1"] canvas')?.width > 0 && document.querySelectorAll('[data-page="1"] .textLayer span').length > 3, null, { timeout: 20000 });
 await page.waitForSelector('[data-page="1"] .highlightLayer > div', { timeout: 5000 });
 check("Seed highlight (`location_data`) chiziladi", true);
-await page.evaluate(() => {
-  const spans = [...document.querySelectorAll('[data-page="1"] .textLayer span')].filter((s) => s.textContent.trim());
-  const r = document.createRange();
-  r.setStart(spans[3].firstChild, 0);
-  r.setEnd(spans[3].firstChild, spans[3].firstChild.length);
-  const sel = window.getSelection();
-  sel.removeAllRanges();
-  sel.addRange(r);
-  document.querySelector('[data-page="1"]').dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
+// 22.1: brauzer tanlovi o'chirilgan — sichqonchani sudrab tanlaymiz
+const selBox = await page.evaluate(() => {
+  const sp = [...document.querySelectorAll('[data-page="1"] .textLayer span')].filter((s) => s.textContent.trim())[3].getBoundingClientRect();
+  return { x1: sp.left + 3, x2: sp.right - 3, y: sp.top + sp.height / 2 };
 });
+await page.mouse.move(selBox.x1, selBox.y);
+await page.mouse.down();
+for (let i = 1; i <= 6; i++) { await page.mouse.move(selBox.x1 + ((selBox.x2 - selBox.x1) * i) / 6, selBox.y); await page.waitForTimeout(16); }
+await page.mouse.up();
+await page.waitForTimeout(150);
 await page.locator('button[aria-label="Yashil rang bilan belgilash"]').click();
 await page.waitForFunction(() => document.querySelectorAll('[data-page="1"] .highlightLayer > div').length >= 2, null, { timeout: 5000 });
 const anns = await mockGet("/__annotations");

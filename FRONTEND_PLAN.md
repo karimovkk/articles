@@ -429,6 +429,10 @@ savat, katalog saralash) — qo'shilmaydi (soxta ma'lumot ko'rsatilmaydi); o'rni
 - [x] 16.5 i18n (uz/ru/en), e2e (katalog chip'lari, mobil drawer, visual 360/1280 × light/dark), `--prod`, Firefox,
       brauzer skrinshotlari — `--prod` 19/19 (337 tekshiruv, visual 360/1280 × light/dark), Firefox (catalog, search,
       notifications, book, orders) 5/5. Qidiruv "pill"ida tugma yo'q (11.2 talabi: yozilayotganda ishlaydi).
+- B27 ❗ Konsol/devtools orqali foydalanuvchi o'z tokeni bilan `GET /reader/articles/{id}/content` ni Range
+  so'rovlari bilan chaqirib butun PDF'ni yig'ib olishi mumkin (klient tomonda bartaraf etib bo'lmaydi). Tavsiya:
+  qisqa muddatli alohida "reader token", Range so'rovlari uchun rate-limit/anomaliya nazorati (bir sessiyada
+  butun faylni ketma-ket so'rash), server tomonda foydalanuvchi bo'yicha suv belgisi (PDF'ga chizilgan).
 - B26 (backend uchun) `GET /categories` javobida `book_count` (hozir FE har kategoriya uchun `/catalog?page_size=1`
   so'raydi); katalogda `sort` (mashhur / yangi / narx) bo'lsa FE'da saralash qo'shiladi.
 
@@ -515,6 +519,32 @@ yaratilardi — endi mavjudining rangi yangilanadi.
 Bartaraf etilmaydigan yo'llar (brauzer darajasida, hujjat uchun): devtools/konsol, ekran surati, Linux'dagi
 "primary selection" (o'rta tugma bilan qo'yish), brauzer menyusidan sahifani saqlash (faqat ko'rinayotgan
 sahifalar matni tushadi — qolganlari render qilinmagan), ekran o'quvchi dasturlar.
+
+## 22. Qolgan matn olish yo'llarini yopish (2026-09-23, "devtools/screenshot/primary selection/screen reader ham tekshirilsin")
+
+Asosiy g'oya: sanab o'tilgan yo'llarning aksariyati **brauzer tanlovi (selection)** ga tayanadi — Ctrl/Cmd+C,
+Linux'dagi "primary selection" (o'rta tugma), macOS "Look Up"/Services, sudrab tashlash, ekran o'quvchidagi
+"tanlangan matnni o'qish". Shuning uchun brauzer tanlovi butunlay o'chiriladi va o'rniga o'zimizning tanlov
+mexanizmi (faqat belgilash uchun) qo'yiladi.
+
+- [x] 22.1 O'z tanlov mexanizmi: `user-select: none`, sudrash bo'yicha tanlov (caret nuqtalaridan Range),
+      o'z overlay'i; brauzer Selection hech qachon to'ldirilmaydi (bufer, primary selection, Look Up — bo'sh)
+- [x] 22.2 Matn qatlami yordamchi texnologiyalardan yashiriladi (`aria-hidden`) — ekran o'quvchi kitob matnini
+      o'qib bera olmaydi (savdo qaroriga bog'liq, hujjatlanadi)
+- [x] 22.3 Suv belgisi canvas ichiga chiziladi: ekran suratida ham qoladi va devtools'dan o'chirib bo'lmaydi
+- [x] 22.4 Platformalar: Linux (primary selection), macOS (Cmd+C / Cmd+A / Cmd+Shift+4), Windows (Ctrl+Insert,
+      Win+Shift+S) — klaviatura kombinatsiyalari va tanlov holati testda tekshiriladi
+- [x] 22.5 B27 (backend): konsoldan token bilan butun PDF'ni yuklab olish mumkin — qisqa muddatli reader tokeni,
+      Range so'rovlari uchun rate-limit va server tomonda foydalanuvchi bo'yicha suv belgisi tavsiya etiladi
+- [x] 22.6 Testlar: `reader-protect` kengaytirildi (brauzer tanlovi bo'shligi, Cmd/Ctrl+C, Ctrl+Insert,
+      aria-hidden, canvas suv belgisi), reader/catalog to'plamlari sudrash bilan tanlashga moslandi —
+      `--prod` 20/20 (354 tekshiruv), Firefox 2/2
+
+Natija: **brauzer tanlovi umuman to'ldirilmaydi**, shuning uchun bufer (Ctrl/Cmd+C, Ctrl+Insert),
+Linux "primary selection", macOS "Look Up"/Services, sudrab tashlash va ekran o'quvchidagi "tanlangan matn"
+yo'llari ishlamaydi. Ekran surati oldini olib bo'lmaydi, lekin endi suv belgisi rasm piksellarida —
+DOM'dan o'chirib tashlab bo'lmaydi. DevTools/konsol orqali matn qatlamini o'qish yoki token bilan faylni
+yuklab olish brauzer darajasida bartaraf etib bo'lmaydi → B27 (backend).
 
 ### Backend uchun eslatmalar (jonli auditdan) — holat: B1 ✅(avvaldan) · B2 ✅ · B3 ✅ · B4 ✅ · B5 ✅ · B6 ✅(avvaldan) ·
 B7 ✅ · B8 ✅ (OpenAPI manba) · B9 ✅ · B10 ✅ · B11 ✅ · B12 ✅ · B13 ✅ — **ochiq savol yo'q**

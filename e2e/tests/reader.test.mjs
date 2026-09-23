@@ -62,17 +62,20 @@ check("Watermark ko'rinadi", (await page.locator("text=TRACE-42").count()) > 0);
 await page.screenshot({ path: OUT + "01-reader.png" });
 
 // ---- Matn tanlash → 8 rang paneli
+// 22.1: brauzer tanlovi o'chirilgan — tanlash sichqonchani sudrash bilan (o'z mexanizmimiz)
 const selectOnPage = async (n) => {
-  await page.evaluate((n) => {
-    const spans = [...document.querySelectorAll(`[data-page="${n}"] .textLayer span`)].filter((s) => s.textContent.trim());
-    const r = document.createRange();
-    r.setStart(spans[1].firstChild, 0);
-    r.setEnd(spans[2].firstChild, spans[2].firstChild.length);
-    const sel = window.getSelection();
-    sel.removeAllRanges();
-    sel.addRange(r);
-    document.querySelector(`[data-page="${n}"]`).dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
+  const box = await page.evaluate((k) => {
+    const sp = [...document.querySelectorAll(`[data-page="${k}"] .textLayer span`)].filter((s) => s.textContent.trim())[1].getBoundingClientRect();
+    return { x1: sp.left + 3, x2: sp.right - 3, y: sp.top + sp.height / 2 };
   }, n);
+  await page.mouse.move(box.x1, box.y);
+  await page.mouse.down();
+  for (let i = 1; i <= 6; i++) {
+    await page.mouse.move(box.x1 + ((box.x2 - box.x1) * i) / 6, box.y);
+    await page.waitForTimeout(16);
+  }
+  await page.mouse.up();
+  await page.waitForTimeout(150);
 };
 await selectOnPage(1);
 const swatches = page.locator('button[aria-label$="rang bilan belgilash"]');

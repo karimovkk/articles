@@ -59,7 +59,10 @@ html {
   white-space: pre;
   cursor: text;
   transform-origin: 0% 0%;
-  user-select: text;
+  /* 22.1: brauzer tanlovi umuman yo'q — bufer, "primary selection", Look Up va sudrab tashlash ishlamaydi.
+     Tanlash o'z mexanizmimiz bilan (pointer + Range) amalga oshiriladi. */
+  user-select: none;
+  -webkit-user-select: none;
 }
 .textLayer > :not(.markedContent),
 .textLayer .markedContent span:not(.markedContent) {
@@ -118,6 +121,22 @@ html {
 .reader-night .highlightLayer > div {
   mix-blend-mode: normal;
   opacity: 0.35;
+}
+
+/* ---- O'z tanlovimiz (22.1): sudrab tanlangan joy ---- */
+.pickLayer > div {
+  position: absolute;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--accent) 42%, transparent);
+  mix-blend-mode: multiply;
+}
+.reader-night .pickLayer > div {
+  background: color-mix(in srgb, var(--accent) 34%, transparent);
+  mix-blend-mode: screen;
+}
+/* Sensorli tanlov paytida sahifa siljimasin */
+[data-selecting] {
+  touch-action: none;
 }
 
 /* ---- Qidiruv natijasi (17.5): moslik vaqtincha sariq fon bilan yonadi va sekin so'nadi ---- */
