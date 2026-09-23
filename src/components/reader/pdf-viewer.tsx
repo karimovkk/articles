@@ -15,6 +15,8 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffec
 import type { PDFDocumentProxy, PDFPageProxy, RenderTask } from "pdfjs-dist";
 import { loadPdfJs, openProtectedPdf } from "@/lib/reader/range-transport";
 import { getHighlightRects, normalizeColor, rectsFromSelection, type HighlightRect } from "@/lib/reader/highlights";
+import { drawCurl, edgeTable, progressForEdge } from "@/lib/reader/page-curl";
+import { findTextRects } from "@/lib/reader/find-text";
 import type { Annotation } from "@/lib/api";
 import { Spinner } from "@/components/ui";
 import { useT } from "@/i18n";
@@ -44,6 +46,8 @@ export interface PdfViewerProps {
   mode: ViewMode;
   /** Sahifa ustida chiziladigan highlight'lar (type=HIGHLIGHT) */
   highlights?: Annotation[];
+  /** Qidiruv natijasi (17.5): shu sahifadagi mosliklar vaqtincha bo'rttiriladi; `nonce` — qayta bosilganda yangilash */
+  searchHit?: { page: number; query: string; nonce: number } | null;
   onReady?: (info: { pageCount: number; size: number }) => void;
   onPageChange?: (page: number) => void;
   /** `error` — asl xato (ApiError bo'lsa kod bo'yicha xabar ko'rsatish uchun) */
@@ -55,9 +59,8 @@ export interface PdfViewerProps {
 const RENDER_MARGIN = "150% 0px";
 const PAGE_GAP = 16;
 const MAX_PAGE_WIDTH = 1100;
-const FLIP_MS = 420;
-/** Varaq burilish chegarasi (gradus): 90° — sahifa umurtqada qirrasiga keladi va yo'qoladi (qoplamadek 180° ag'darilmaydi) */
-const FLIP_DEG = 90;
+/** Qidiruv moslikari qancha vaqt ko'rinib turadi (CSS animatsiyasi bilan bir xil) */
+const SEARCH_HIT_MS = 6000;
 /** Sahifaning chekka ulushi (chap/o'ng) — sichqoncha bilan "varaq burchagidan" ushlab sudrash zonasi */
 const GRAB_EDGE = 0.14;
 
@@ -68,7 +71,7 @@ interface PageHighlight {
 }
 
 export const PdfViewer = forwardRef<PdfViewerHandle, PdfViewerProps>(function PdfViewer(
-  { articleId, initialPage = 1, zoom, night, mode, highlights, onReady, onPageChange, onError, onTextSelected, onProgress },
+  { articleId, initialPage = 1, zoom, night, mode, highlights, searchHit, onReady, onPageChange, onError, onTextSelected, onProgress },
   ref,
 ) {
   const { t } = useT();
@@ -186,6 +189,17 @@ export const PdfViewer = forwardRef<PdfViewerHandle, PdfViewerProps>(function Pd
     };
   }, [pageCount, stride, mode, setCurrent]);
 
+  /** Scroll rejimida: topilgan birinchi moslik ekran o'rtasiga keltiriladi */
+  const onSearchRects = useCallback(
+    (page: number, rects: HighlightRect[]) => {
+      const el = containerRef.current;
+      if (!el || mode !== "scroll" || !rects.length) return;
+      const top = (page - 1) * stride + rects[0][1] * pageHeight;
+      el.scrollTo({ top: Math.max(0, top - el.clientHeight / 3), behavior: "smooth" });
+    },
+    [mode, stride, pageHeight],
+  );
+
   const goToPage = useCallback(
     (page: number) => {
       const el = containerRef.current;
@@ -294,6 +308,9 @@ export const PdfViewer = forwardRef<PdfViewerHandle, PdfViewerProps>(function Pd
                 width={pageWidth}
                 height={pageHeight}
                 highlights={highlightsByPage.get(i + 1)}
+                searchQuery={searchHit?.page === i + 1 ? searchHit.query : undefined}
+                searchNonce={searchHit?.nonce}
+                onSearchRects={onSearchRects}
                 label={t("common.pageN", { n: i + 1 })}
               />
             ))}
@@ -306,9 +323,20 @@ export const PdfViewer = forwardRef<PdfViewerHandle, PdfViewerProps>(function Pd
             pageCount={pageCount}
             width={pageWidth}
             height={pageHeight}
+            night={night}
             onCommit={goToPage}
             renderPage={(n) => (
-              <PdfPage pageNumber={n} docRef={docRef} scale={scale} width={pageWidth} height={pageHeight} highlights={highlightsByPage.get(n)} label={t("common.pageN", { n })} />
+              <PdfPage
+                pageNumber={n}
+                docRef={docRef}
+                scale={scale}
+                width={pageWidth}
+                height={pageHeight}
+                highlights={highlightsByPage.get(n)}
+                searchQuery={searchHit?.page === n ? searchHit.query : undefined}
+                searchNonce={searchHit?.nonce}
+                label={t("common.pageN", { n })}
+              />
             )}
             labels={{ prev: t("reader.prevPage"), next: t("reader.nextPage") }}
           />
@@ -328,36 +356,35 @@ export const PdfViewer = forwardRef<PdfViewerHandle, PdfViewerProps>(function Pd
 
 /* ------------------------------------------------------------------ */
 
-type FlipState = {
+type Flip = {
   /** 1 — oldinga (joriy varaq chapga ag'dariladi), -1 — orqaga (oldingi varaq chapdan qaytadi) */
   dir: 1 | -1;
   from: number;
   to: number;
-  /** Burilayotgan varaqning burchagi: oldinga 0 → -FLIP_DEG, orqaga -FLIP_DEG → 0 (orqa tomon hech qachon ko'rinmaydi) */
-  angle: number;
-  /** CSS transition bilan yakuniga yetkazilmoqda (sudrash tugagan yoki avtomatik) */
-  settling: boolean;
-  /** Sudrash bilan boshqarilmoqda — transition yo'q */
+  /** Sudrash bilan boshqarilmoqda */
   dragging: boolean;
-  /** Tashqi navigatsiyadan (avtomatik) — keyingi kadrda yakuniga yuboriladi */
+  /** Tashqi navigatsiyadan (tugma, klaviatura, TOC) — keyingi kadrda o'zi yakuniga boradi */
   auto?: boolean;
 };
 
 /**
- * Varaqlash sahnasi: joriy va qo'shni sahifalar bir joyda ustma-ust turadi (qo'shnilar oldindan render qilinadi),
- * varaq almashishi 3D `rotateY` bilan — yupqa sahifa umurtqa atrofida 90° gacha buriladi va so'nadi (qoplamadek
- * 180° ag'darilmaydi, orqa tomoni ko'rinmaydi; birinchi/oxirgi sahifalar ham bir xil). Boshqaruv:
+ * Varaqlash sahnasi (17): joriy va qo'shni sahifalar ustma-ust turadi (qo'shnilar oldindan render qilinadi).
+ * Varaqlash paytida burilayotgan sahifa DOM'da yashiriladi va uning o'rniga `canvas` qatlamiga **egilgan qog'oz**
+ * chiziladi (`drawCurl`): qog'oz umurtqadan tekis chiqadi, chekkasiga borib egiladi, 90° dan oshgan uchida orqa
+ * tomoni ko'rinadi, ostidagi sahifaga soya tushadi. Qoplamadek 180° ag'darilmaydi.
+ * Boshqaruv:
  *  - tashqaridan `current` o'zgarsa (tugma, klaviatura, sahifa raqami, TOC) — avtomatik animatsiya;
- *  - sichqoncha: sahifaning chap/o'ng chekkasidan yoki fondan ushlab sudrash (varaq kursorga ergashadi, yarmidan
- *    o'tsa/tez tortilsa varaqlanadi, aks holda qaytadi); fonning chap/o'ng qismini bosish — oldingi/keyingi;
+ *  - sichqoncha: sahifaning chekkasidan yoki fondan ushlab sudrash — varaq chekkasi kursorga aniq ergashadi,
+ *    qo'yib yuborilganda tezlik va masofaga qarab varaqlanadi yoki joyiga qaytadi; fonni bosish — oldingi/keyingi;
  *  - sensor: istalgan joydan swipe (matn tanlanmagan bo'lsa).
- * Matn tanlash (highlight) sahifa o'rtasida oddiy ishlaydi — u yerda sudrash boshlanmaydi.
+ * Matn tanlash sahifa o'rtasida oddiy ishlaydi — u yerda sudrash boshlanmaydi.
  */
 function FlipStage({
   current,
   pageCount,
   width,
   height,
+  night,
   onCommit,
   renderPage,
   labels,
@@ -366,50 +393,128 @@ function FlipStage({
   pageCount: number;
   width: number;
   height: number;
+  night: boolean;
   onCommit: (page: number) => void;
   renderPage: (n: number) => React.ReactNode;
   labels: { prev: string; next: string };
 }) {
   const [displayed, setDisplayed] = useState(current);
-  const [flip, setFlip] = useState<FlipState | null>(null);
+  const [flip, setFlip] = useState<Flip | null>(null);
   const stageRef = useRef<HTMLDivElement>(null);
-  const drag = useRef<{ id: number; x: number; y: number; t: number; lastX: number; lastT: number; dir: 0 | 1 | -1; type: string } | null>(null);
-  const flipRef = useRef(flip);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const progressRef = useRef(0);
+  const rafRef = useRef(0);
+  const flipRef = useRef<Flip | null>(null);
+  const drag = useRef<{ id: number; x: number; y: number; lastX: number; lastT: number; dir: 0 | 1 | -1; type: string } | null>(null);
+  // `progress` ↔ varaq chekkasi jadvali (kursor ergashuvi uchun), sahifa kengligiga bog'liq
+  const edgeTab = useMemo(() => (width > 0 ? edgeTable(width) : []), [width]);
   useLayoutEffect(() => {
     flipRef.current = flip;
   });
 
-  // Tashqi navigatsiya: `current` o'zgardi, animatsiya yo'q → avtomatik varaqlash (boshlang'ich burchak render'da,
-  // yakuniy burchak keyingi kadrda — transition ishlashi uchun)
+  const sheetOf = (f: Flip) => (f.dir === 1 ? f.from : f.to);
+  const sourceCanvas = useCallback((n: number) => stageRef.current?.querySelector<HTMLCanvasElement>(`.flip-leaf[data-leaf="${n}"] canvas`) ?? null, []);
+
+  // ---- Kadrni chizish
+  const draw = useCallback(() => {
+    const f = flipRef.current;
+    const cv = canvasRef.current;
+    if (!cv) return;
+    const ctx = cv.getContext("2d");
+    if (!ctx) return;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const pxW = Math.round(width * dpr);
+    const pxH = Math.round(height * dpr);
+    if (cv.width !== pxW || cv.height !== pxH) {
+      cv.width = pxW;
+      cv.height = pxH;
+    }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, width, height);
+    if (!f) return;
+    const src = sourceCanvas(sheetOf(f));
+    if (!src || !src.width) return;
+    drawCurl({ ctx, src, srcW: src.width, srcH: src.height, w: width, h: height, progress: progressRef.current, night });
+  }, [width, height, night, sourceCanvas]);
+
+  const setProgress = useCallback(
+    (p: number) => {
+      progressRef.current = Math.max(0, Math.min(1, p));
+      stageRef.current?.style.setProperty("--flip-progress", progressRef.current.toFixed(3));
+      if (stageRef.current) stageRef.current.dataset.progress = progressRef.current.toFixed(2);
+      draw();
+    },
+    [draw],
+  );
+
+  const stop = useCallback((f: Flip, done: boolean) => {
+    cancelAnimationFrame(rafRef.current);
+    if (done) {
+      setDisplayed(f.to);
+      if (f.to !== current) onCommit(f.to);
+    }
+    setFlip(null);
+    flipRef.current = null;
+    progressRef.current = 0;
+    const st = stageRef.current;
+    if (st) delete st.dataset.progress;
+    const cv = canvasRef.current;
+    const ctx = cv?.getContext("2d");
+    if (cv && ctx) ctx.clearRect(0, 0, cv.width, cv.height);
+  }, [current, onCommit]);
+
+  /** Varaqni tabiiy tugashga yuborish: masofa va tezlikka qarab davomiylik, easeOutCubic */
+  const animateTo = useCallback(
+    (target: 0 | 1, speed = 0) => {
+      const f = flipRef.current;
+      if (!f) return;
+      const start = progressRef.current;
+      const dist = target - start;
+      if (Math.abs(dist) < 0.002) {
+        stop(f, target === (f.dir === 1 ? 1 : 0));
+        return;
+      }
+      const dur = Math.max(170, Math.min(560, 200 + Math.abs(dist) * 420 - Math.min(180, speed * 260)));
+      const t0 = performance.now();
+      cancelAnimationFrame(rafRef.current);
+      const step = (now: number) => {
+        const k = Math.min(1, (now - t0) / dur);
+        setProgress(start + dist * (1 - Math.pow(1 - k, 3)));
+        if (k < 1) rafRef.current = requestAnimationFrame(step);
+        else stop(f, target === (f.dir === 1 ? 1 : 0));
+      };
+      rafRef.current = requestAnimationFrame(step);
+    },
+    [setProgress, stop],
+  );
+
+  const reduced = () => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // ---- Tashqi navigatsiya (tugma, klaviatura, TOC): avtomatik varaqlash — holat render fazasida boshlanadi
   if (current !== displayed && !flip) {
-    const dir: 1 | -1 = current > displayed ? 1 : -1;
-    setFlip({ dir, from: displayed, to: current, angle: dir === 1 ? 0 : -FLIP_DEG, settling: false, dragging: false, auto: true });
+    setFlip({ dir: current > displayed ? 1 : -1, from: displayed, to: current, dragging: false, auto: true });
   }
   useEffect(() => {
-    if (!flip?.auto || flip.settling) return;
-    const raf = requestAnimationFrame(() => requestAnimationFrame(() => setFlip((f) => (f?.auto && !f.settling ? { ...f, angle: f.dir === 1 ? -FLIP_DEG : 0, settling: true } : f))));
-    return () => cancelAnimationFrame(raf);
-  }, [flip]);
-
-  // Animatsiya yakuni: transition tugagach (yoki zaxira taymer) holatni yopamiz
-  const finish = useCallback(
-    (f: FlipState) => {
-      const done = f.dir === 1 ? f.angle <= -FLIP_DEG : f.angle >= 0;
-      const cancelled = f.dir === 1 ? f.angle >= 0 : f.angle <= -FLIP_DEG;
-      if (done) {
-        setDisplayed(f.to);
-        if (f.to !== current) onCommit(f.to);
-      }
-      if (done || cancelled) setFlip(null);
-    },
-    [current, onCommit],
-  );
-  useEffect(() => {
-    if (!flip?.settling) return;
+    if (!flip?.auto) return;
     const f = flip;
-    const t = window.setTimeout(() => finish(f), FLIP_MS + 60); // transitionend kelmasa ham (masalan, reduced motion)
-    return () => window.clearTimeout(t);
-  }, [flip, finish]);
+    const raf = requestAnimationFrame(() => {
+      const src = sourceCanvas(f.dir === 1 ? f.from : f.to);
+      if (reduced() || !src || !src.width) {
+        stop(f, true); // animatsiyasiz (reduced motion yoki sahifa hali render bo'lmagan)
+        return;
+      }
+      flipRef.current = f;
+      setProgress(f.dir === 1 ? 0 : 1);
+      animateTo(f.dir === 1 ? 1 : 0);
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [flip, animateTo, setProgress, sourceCanvas, stop]);
+
+  useEffect(() => () => cancelAnimationFrame(rafRef.current), []);
+  // O'lcham/mavzu o'zgarsa — joriy kadrni qayta chizamiz
+  useEffect(() => {
+    if (flipRef.current) draw();
+  }, [draw]);
 
   const targetOf = (dir: 1 | -1) => displayed + dir;
   const canGo = (dir: 1 | -1) => targetOf(dir) >= 1 && targetOf(dir) <= pageCount;
@@ -431,8 +536,16 @@ function FlipStage({
       }
       e.preventDefault(); // matn tanlash boshlanmasin
     } else if (window.getSelection()?.toString()) return;
-    drag.current = { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now(), lastX: e.clientX, lastT: performance.now(), dir: 0, type: e.pointerType };
+    drag.current = { id: e.pointerId, x: e.clientX, y: e.clientY, lastX: e.clientX, lastT: performance.now(), dir: 0, type: e.pointerType };
   };
+
+  /** Kursor x'idan varaq chekkasi → progress (varaq barmoq ortidan keladi) */
+  const progressFromPointer = (clientX: number) => {
+    const book = stageRef.current?.querySelector(".flip-book")?.getBoundingClientRect();
+    if (!book) return 0;
+    return progressForEdge(edgeTab, Math.max(0, Math.min(width, clientX - book.left)));
+  };
+
   const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     const d = drag.current;
     if (!d || d.id !== e.pointerId) return;
@@ -441,7 +554,8 @@ function FlipStage({
     if (d.dir === 0) {
       if (Math.abs(dx) < 8 || Math.abs(dx) < Math.abs(dy)) return;
       const dir: 1 | -1 = dx < 0 ? 1 : -1;
-      if (!canGo(dir)) {
+      const sheet = dir === 1 ? displayed : targetOf(dir);
+      if (!canGo(dir) || !sourceCanvas(sheet)?.width) {
         drag.current = null;
         return;
       }
@@ -451,14 +565,16 @@ function FlipStage({
       } catch {
         /* sintetik pointer (test) — capture shart emas */
       }
-      setFlip({ dir, from: displayed, to: targetOf(dir), angle: dir === 1 ? 0 : -FLIP_DEG, settling: false, dragging: true });
+      const f: Flip = { dir, from: displayed, to: targetOf(dir), dragging: true };
+      flipRef.current = f;
+      setFlip(f);
+      setProgress(dir === 1 ? 0 : 1);
     }
     d.lastX = e.clientX;
     d.lastT = performance.now();
-    const frac = Math.max(0, Math.min(1, (d.dir === 1 ? -dx : dx) / Math.max(160, width * 0.6)));
-    const angle = d.dir === 1 ? -FLIP_DEG * frac : -FLIP_DEG + FLIP_DEG * frac;
-    setFlip((f) => (f && f.dragging ? { ...f, angle } : f));
+    setProgress(progressFromPointer(e.clientX));
   };
+
   const endDrag = (e: React.PointerEvent<HTMLDivElement>) => {
     const d = drag.current;
     if (!d || d.id !== e.pointerId) return;
@@ -478,21 +594,20 @@ function FlipStage({
     if (!f) return;
     const dt = Math.max(1, performance.now() - d.lastT);
     const vx = (e.clientX - d.lastX) / dt; // px/ms
-    const progress = f.dir === 1 ? -f.angle / FLIP_DEG : (f.angle + FLIP_DEG) / FLIP_DEG;
+    const p = progressRef.current;
+    // Oldinga: progress 1 ga yaqinlashsa tugaydi; orqaga: 0 ga
+    const done = f.dir === 1 ? p : 1 - p;
     const fast = f.dir === 1 ? vx < -0.4 : vx > 0.4;
-    const complete = progress > 0.45 || (fast && progress > 0.08);
-    const endAngle = complete ? (f.dir === 1 ? -FLIP_DEG : 0) : f.dir === 1 ? 0 : -FLIP_DEG;
-    setFlip({ ...f, angle: endAngle, settling: true, dragging: false });
+    const slow = f.dir === 1 ? vx > 0.4 : vx < -0.4;
+    const complete = !slow && (done > 0.45 || (fast && done > 0.08));
+    setFlip({ ...f, dragging: false, auto: false });
+    animateTo(complete ? (f.dir === 1 ? 1 : 0) : f.dir === 1 ? 0 : 1, Math.abs(vx));
   };
 
   // Ko'rsatiladigan sahifalar: joriy ± 1 (oldindan render) + animatsiya nishoni
   const pages = Array.from(new Set([displayed - 1, displayed, displayed + 1, flip?.to ?? displayed])).filter((n) => n >= 1 && n <= pageCount).sort((a, b) => a - b);
-  const flipping = flip ? (flip.dir === 1 ? flip.from : flip.to) : null; // ag'darilayotgan varaq
-  const under = flip ? (flip.dir === 1 ? flip.to : flip.from) : null; // ostida ko'rinadigan varaq
-  // Burilish darajasi (0 — tekis, FLIP_DEG — qirrasiga kelgan): soya kuchayadi, oxirgi chorakda varaq so'nadi
-  const turned = flip ? Math.min(FLIP_DEG, Math.abs(flip.dir === 1 ? flip.angle : flip.angle + FLIP_DEG)) / FLIP_DEG : 0;
-  const shade = Math.sin(turned * (Math.PI / 2));
-  const leafOpacity = turned <= 0.7 ? 1 : Math.max(0.05, 1 - ((turned - 0.7) / 0.3) * 0.95);
+  const sheet = flip ? sheetOf(flip) : null; // canvas'da chiziladi — DOM'da yashirin
+  const under = flip ? (flip.dir === 1 ? flip.to : flip.from) : null;
 
   return (
     <div
@@ -508,35 +623,22 @@ function FlipStage({
     >
       <div className="flip-zone left" aria-hidden data-can={canGo(-1) ? "1" : "0"} title={labels.prev} />
       <div className="flip-zone right" aria-hidden data-can={canGo(1) ? "1" : "0"} title={labels.next} />
-      <div className="flip-book" style={{ width, height }}>
+      <div className="flip-book" style={{ width, height }} data-stack={pageCount > 1 ? "1" : undefined}>
         {pages.map((n) => {
-          const isFlipping = n === flipping;
-          const isUnder = n === under;
-          const visible = n === displayed || isFlipping || isUnder;
-          const style: React.CSSProperties = {
-            zIndex: isFlipping ? 3 : n === displayed && !flip ? 2 : isUnder ? 1 : 0,
-            visibility: visible ? "visible" : "hidden",
-            transform: isFlipping ? `rotateY(${flip!.angle}deg)` : "none",
-            opacity: isFlipping ? leafOpacity : 1,
-            transition: isFlipping && flip!.settling ? `transform ${FLIP_MS}ms cubic-bezier(0.22, 0.61, 0.36, 1), opacity ${FLIP_MS}ms ease-in` : "none",
-          };
+          const isSheet = n === sheet;
+          const visible = !flip ? n === displayed : n === under;
           return (
             <div
               key={n}
-              className={`flip-leaf ${isFlipping ? "is-flipping" : ""}`}
-              style={style}
+              className={`flip-leaf ${isSheet ? "is-flipping" : ""}`}
+              style={{ zIndex: visible ? 2 : 1, visibility: visible ? "visible" : "hidden" }}
               data-leaf={n}
-              onTransitionEnd={(e) => {
-                if (e.propertyName === "transform" && isFlipping && flip?.settling) finish(flip);
-              }}
             >
-              <div className="face front">
-                {renderPage(n)}
-                {isFlipping && <div className="flip-shade" style={{ opacity: shade * 0.5 }} />}
-              </div>
+              <div className="face front">{renderPage(n)}</div>
             </div>
           );
         })}
+        <canvas ref={canvasRef} className="flip-canvas" style={{ width, height, display: flip ? "block" : "none" }} aria-hidden data-testid="flip-canvas" />
       </div>
     </div>
   );
@@ -566,6 +668,9 @@ function PdfPage({
   width,
   height,
   highlights,
+  searchQuery,
+  searchNonce,
+  onSearchRects,
   label,
 }: {
   pageNumber: number;
@@ -574,6 +679,10 @@ function PdfPage({
   width: number;
   height: number;
   highlights?: PageHighlight[];
+  /** Vaqtincha bo'rttiriladigan qidiruv so'zi (17.5) */
+  searchQuery?: string;
+  searchNonce?: number;
+  onSearchRects?: (page: number, rects: HighlightRect[]) => void;
   label: string;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -581,6 +690,7 @@ function PdfPage({
   const textRef = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
   const [rendered, setRendered] = useState(false);
+  const [found, setFound] = useState<HighlightRect[] | null>(null);
 
   useEffect(() => {
     const el = wrapRef.current;
@@ -630,6 +740,8 @@ function PdfPage({
       await task.promise;
       if (cancelled) return;
       textDiv.replaceChildren();
+      // pdfjs-dist 6: matn qatlami o'lchamlari shu o'zgaruvchidan hisoblanadi (bo'lmasa matn canvas bilan mos kelmaydi)
+      textDiv.style.setProperty("--total-scale-factor", String(viewport.scale));
       textDiv.style.setProperty("--scale-factor", String(viewport.scale));
       const textLayer = new pdfjs.TextLayer({ textContentSource: await page.getTextContent(), container: textDiv, viewport });
       await textLayer.render();
@@ -644,6 +756,19 @@ function PdfPage({
       page?.cleanup();
     };
   }, [visible, docRef, pageNumber, scale]);
+
+  // ---- Qidiruv natijasi: matn qatlamidan mosliklarni topib, vaqtincha bo'rttiramiz (CSS bilan so'nadi)
+  useEffect(() => {
+    if (!rendered || !searchQuery || !textRef.current || !wrapRef.current) {
+      setFound(null);
+      return;
+    }
+    const rects = findTextRects(textRef.current, wrapRef.current, searchQuery);
+    setFound(rects.length ? rects : null);
+    if (rects.length) onSearchRects?.(pageNumber, rects);
+    const timer = window.setTimeout(() => setFound(null), SEARCH_HIT_MS + 400);
+    return () => window.clearTimeout(timer);
+  }, [rendered, searchQuery, searchNonce, pageNumber, onSearchRects, scale]);
 
   return (
     <div
@@ -664,6 +789,13 @@ function PdfPage({
               />
             )),
           )}
+        </div>
+      )}
+      {found && (
+        <div className="searchLayer pointer-events-none absolute inset-0" aria-hidden data-testid="search-hits" key={searchNonce}>
+          {found.map((r, i) => (
+            <div key={i} style={{ left: `${r[0] * 100}%`, top: `${r[1] * 100}%`, width: `${r[2] * 100}%`, height: `${r[3] * 100}%` }} />
+          ))}
         </div>
       )}
       <div ref={textRef} className="textLayer" />

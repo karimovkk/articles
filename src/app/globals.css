@@ -31,17 +31,27 @@ html {
   background: var(--bg);
 }
 
-/* ---- PDF.js text layer (matn tanlash / qidiruv uchun) ---- */
+/* ---- PDF.js matn qatlami (tanlash / qidiruv) — pdfjs-dist 6 talab qiladigan o'zgaruvchilar bilan ----
+   Muhim: span'larning o'lchami `--total-scale-factor`, `--font-height`, `--scale-x` orqali beriladi
+   (pdf.js o'zi inline yozadi). Bularsiz matn qatlami canvas'dagi matn bilan mos tushmaydi. */
 .textLayer {
   position: absolute;
   inset: 0;
-  overflow: hidden;
+  overflow: clip;
   line-height: 1;
+  letter-spacing: normal;
+  word-spacing: normal;
   text-align: initial;
   opacity: 1;
   forced-color-adjust: none;
+  text-size-adjust: none;
   transform-origin: 0 0;
+  caret-color: CanvasText;
   z-index: 1;
+
+  --min-font-size: 1;
+  --text-scale-factor: calc(var(--total-scale-factor) * var(--min-font-size));
+  --min-font-size-inv: calc(1 / var(--min-font-size));
 }
 .textLayer :is(span, br) {
   color: transparent;
@@ -49,10 +59,23 @@ html {
   white-space: pre;
   cursor: text;
   transform-origin: 0% 0%;
+  user-select: text;
 }
-.textLayer span.markedContent {
-  top: 0;
-  height: 0;
+.textLayer > :not(.markedContent),
+.textLayer .markedContent span:not(.markedContent) {
+  z-index: 1;
+  --font-height: 0;
+  font-size: calc(var(--text-scale-factor) * var(--font-height));
+  --scale-x: 1;
+  --rotate: 0deg;
+  transform: rotate(var(--rotate)) scaleX(var(--scale-x)) scale(var(--min-font-size-inv));
+}
+.textLayer .markedContent {
+  display: contents;
+}
+.textLayer span[role="img"] {
+  user-select: none;
+  cursor: default;
 }
 .textLayer ::selection {
   background: color-mix(in srgb, var(--accent) 45%, transparent);
@@ -89,6 +112,42 @@ html {
 .reader-night .highlightLayer > div {
   mix-blend-mode: normal;
   opacity: 0.35;
+}
+
+/* ---- Qidiruv natijasi (17.5): moslik vaqtincha sariq fon bilan yonadi va sekin so'nadi ---- */
+.searchLayer > div {
+  position: absolute;
+  border-radius: 2px;
+  background: rgba(250, 204, 21, 0.55);
+  box-shadow: 0 0 0 1.5px rgba(202, 138, 4, 0.45);
+  mix-blend-mode: multiply;
+  animation: search-hit 6s ease forwards;
+}
+.reader-night .searchLayer > div {
+  background: rgba(250, 204, 21, 0.42);
+  mix-blend-mode: screen;
+}
+@keyframes search-hit {
+  0% {
+    opacity: 0;
+    transform: scale(1.14);
+  }
+  8% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  72% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .searchLayer > div {
+    animation: none;
+    opacity: 1;
+  }
 }
 
 /* ---- Varaqlash rejimi (FlipStage): 3D varaq, sudrash zonalari ---- */
@@ -129,15 +188,43 @@ html {
 .flip-leaf.is-flipping {
   pointer-events: none;
 }
-.flip-leaf.is-flipping .face.front {
-  box-shadow: 14px 0 40px -14px rgba(0, 0, 0, 0.5);
-}
-/* Burilayotgan varaqdagi soya: umurtqadan (chapdan) qorayadi — yupqa qog'oz egilgandek */
-.flip-shade {
+/* Egilgan varaq shu canvas'da chiziladi (lib/reader/page-curl.ts) — DOM varaq shu paytda yashirin */
+.flip-canvas {
   position: absolute;
   inset: 0;
+  z-index: 5;
   pointer-events: none;
-  background: linear-gradient(90deg, rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.12) 45%, transparent 100%);
+}
+/* Umurtqa (gutter) soyasi — kitobning tikilgan cheti */
+.flip-book::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 26px;
+  z-index: 4;
+  pointer-events: none;
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0.22), rgba(0, 0, 0, 0.06) 45%, transparent);
+}
+.reader-night .flip-book::before {
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.14) 45%, transparent);
+}
+/* O'ng chetdagi varaqlar stacki — kitob qalinligi hissi */
+.flip-book[data-stack]::after {
+  content: "";
+  position: absolute;
+  top: 5px;
+  bottom: 5px;
+  right: -7px;
+  width: 7px;
+  z-index: 0;
+  border-radius: 0 3px 3px 0;
+  background: repeating-linear-gradient(90deg, rgba(120, 110, 90, 0.35) 0 1px, rgba(255, 255, 255, 0.85) 1px 3px);
+  box-shadow: 2px 4px 10px -5px rgba(0, 0, 0, 0.55);
+}
+.reader-night .flip-book[data-stack]::after {
+  background: repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.6) 0 1px, rgba(90, 88, 84, 0.7) 1px 3px);
 }
 /* Sahifa chekkalari — "varaq burchagi" (sichqoncha bilan ushlash) */
 .flip-leaf .reader-page::before,

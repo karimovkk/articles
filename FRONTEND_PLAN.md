@@ -431,6 +431,28 @@ savat, katalog saralash) — qo'shilmaydi (soxta ma'lumot ko'rsatilmaydi); o'rni
 - B26 (backend uchun) `GET /categories` javobida `book_count` (hozir FE har kategoriya uchun `/catalog?page_size=1`
   so'raydi); katalogda `sort` (mashhur / yangi / narx) bo'lsa FE'da saralash qo'shiladi.
 
+## 17. Haqiqiy varaqlash va qidiruv natijasini bo'rttirish (2026-09-23, foydalanuvchi fikri)
+
+Hozir varaq tekis holda umurtqa atrofida 90° buriladi — "qog'oz" hissi yo'q. Maqsad: qo'lda varaqlangandek —
+qog'oz egiladi, chekkasi kursor ortidan keladi, ostidagi sahifaga soya tushadi, qo'yib yuborilganda tabiiy tugaydi.
+Texnika: varaqlash paytida sahifa ustida `canvas` qatlami — sahifa rasmi tasmalarga bo'linib, silindr bo'ylab
+egilgan holda chiziladi (matn qatlami shu paytda yashiriladi, tugagach qaytadi).
+
+- [x] 17.1 Egiluvchi varaq (canvas): tasmali silindr geometriyasi, perspektiva, yorug'lik bo'yicha soyalash
+      (qorayish + yaltirash), 90° dan oshgan uchi — varaqning orqa tomoni (ko'zgu, oqartirilgan)
+- [x] 17.2 Soyalar va kitob hissi: ko'tarilgan varaqdan ostidagi sahifaga tushadigan soya, umurtqa (gutter)
+      qorayishi, varaqlar stacki qirralari
+- [x] 17.3 Tabiiy harakat: varaq chekkasi kursor/barmoq ortidan aniq ergashadi (progress ↔ chekka koordinatasi),
+      qo'yib yuborilganda tezlikka bog'liq tugash (spring), tugmalar/klaviatura ham shu animatsiyada
+- [x] 17.4 Ishlash va zaxira yo'l: rAF sikli, DPR, 40 ga yaqin tasma; `prefers-reduced-motion` va sahifa hali
+      render bo'lmagan holatda — animatsiyasiz o'tish
+- [x] 17.5 Qidiruv natijasi PDF'da: natija bosilganda o'sha sahifadagi barcha mosliklar sariq fon bilan
+      bo'rttiriladi (~6 s, keyin sekin so'nadi), scroll rejimida birinchi moslikka olib boradi
+- [x] 17.6 Testlar (reader, reader-article, mobil swipe), `--prod`, Firefox, kadrlar bo'yicha skrinshot
+- [x] 17.7 ❗ Yo'l-yo'lakay topilgan xato: matn qatlami (`textLayer`) canvas bilan mos tushmayotgan edi —
+      pdfjs-dist 6 `--total-scale-factor` va span o'lchov o'zgaruvchilarini talab qiladi, bizdagi CSS eski
+      formatda edi (span'lar ~2 barobar kichik). Endi matn tanlash, highlight va qidiruv aniq joyida.
+
 ### Backend uchun eslatmalar (jonli auditdan) — holat: B1 ✅(avvaldan) · B2 ✅ · B3 ✅ · B4 ✅ · B5 ✅ · B6 ✅(avvaldan) ·
 B7 ✅ · B8 ✅ (OpenAPI manba) · B9 ✅ · B10 ✅ · B11 ✅ · B12 ✅ · B13 ✅ — **ochiq savol yo'q**
 

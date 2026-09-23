@@ -39,6 +39,20 @@ await page.fill('input[placeholder="Kitob ichida qidirish…"]', "test");
 await page.press('input[placeholder="Kitob ichida qidirish…"]', "Enter");
 await page.waitForSelector("text=of page 2", { timeout: 5000 });
 check("Qidiruv: matches → natija (2-bet)", true);
+// 17.5: natija bosilganda PDF'da mosliklar vaqtincha sariq fon bilan bo'rttiriladi
+await page.click('[data-testid="search-hit"]');
+await page.waitForSelector('[data-page="2"] [data-testid="search-hits"] > div', { timeout: 8000 });
+const hitRects = await page.locator('[data-page="2"] [data-testid="search-hits"] > div').count();
+const onWord = await page.evaluate(() => {
+  const hit = document.querySelector('[data-page="2"] [data-testid="search-hits"] > div')?.getBoundingClientRect();
+  const span = [...document.querySelectorAll('[data-page="2"] .textLayer span')].find((s) => s.textContent.toLowerCase().includes("test"));
+  const r = span?.getBoundingClientRect();
+  return hit && r ? hit.left >= r.left - 2 && hit.right <= r.right + 2 && hit.height > 6 : false;
+});
+check("Qidiruv natijasi PDF'da bo'rttirildi (matn qatlami bilan aniq mos)", hitRects > 0 && onWord, `rects=${hitRects} onWord=${onWord}`);
+await page.screenshot({ path: OUT + "12-search-hits.png" });
+await page.waitForFunction(() => !document.querySelector('[data-page="2"] [data-testid="search-hits"]'), null, { timeout: 12000 });
+check("Bo'rttirish ~6 s dan keyin o'chdi", true);
 
 // ---- Mark-read: qo'lda
 await page.click('button[aria-label="O\'qib bo\'lindi deb belgilash"]');

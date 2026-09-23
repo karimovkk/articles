@@ -80,6 +80,8 @@ export function ReaderView({ articleId }: { articleId: string }) {
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [toc, setToc] = useState<TocEntry[] | null>(null);
   const [searchHits, setSearchHits] = useState<SearchMatch[] | null>(null);
+  // Natija bosilganda — PDF'da vaqtincha bo'rttiriladigan moslik (nonce: bir xil natija qayta bosilsa ham yonadi)
+  const [searchHit, setSearchHit] = useState<{ page: number; query: string; nonce: number } | null>(null);
   const [searching, setSearching] = useState(false);
   const [searchAvailable, setSearchAvailable] = useState(true);
   const [toast, setToast] = useState<string | null>(null);
@@ -503,6 +505,10 @@ export function ReaderView({ articleId }: { articleId: string }) {
                 toc={toc}
                 tocAvailable={tocAvailable}
                 searchAvailable={searchAvailable}
+                onSearchHit={(h) => {
+                  goToPage(h.page);
+                  setSearchHit({ ...h, nonce: Date.now() });
+                }}
                 searchHits={searchHits}
                 searching={searching}
                 onSearch={onSearch}
@@ -525,6 +531,7 @@ export function ReaderView({ articleId }: { articleId: string }) {
               night={night}
               mode={mode}
               highlights={highlights}
+              searchHit={searchHit}
               onReady={({ pageCount: n }) => setPageCount((c) => c || n)}
               onPageChange={onPageChange}
               onError={(m, e) => setFatal({ code: isApiError(e) ? e.code : "CONTENT_ERROR", message: e ? errorMessage(e, m) : m })}

@@ -24,6 +24,8 @@ interface Props {
   searchHits: SearchMatch[] | null;
   searching: boolean;
   onSearch: (q: string) => void;
+  /** Natija bosildi: o'sha sahifaga o'tib, mosliklarni PDF'da vaqtincha bo'rttiradi (17.5) */
+  onSearchHit: (hit: { page: number; query: string }) => void;
 
   annotations: Annotation[];
   onAddBookmark: () => void;
@@ -112,7 +114,7 @@ function TocPanel({ toc, available, goToPage }: { toc: TocEntry[] | null; availa
   );
 }
 
-function SearchPanel({ searchAvailable, searchHits, searching, onSearch, goToPage }: Props) {
+function SearchPanel({ searchAvailable, searchHits, searching, onSearch, onSearchHit }: Props) {
   const { t } = useT();
   const [q, setQ] = useState("");
   // Jonli qidiruv: ≥2 belgi yozilgach 350 ms dan keyin; Enter — darhol
@@ -144,7 +146,7 @@ function SearchPanel({ searchAvailable, searchHits, searching, onSearch, goToPag
       </form>
       {searchHits && searchHits.length === 0 && <p className="text-muted">{t("reader.noResults")}</p>}
       {searchHits?.map((h, i) => (
-        <button key={i} onClick={() => goToPage(h.page)} className="block w-full rounded-lg border border-border p-2 text-left hover:bg-bg">
+        <button key={i} onClick={() => onSearchHit({ page: h.page, query: q.trim() })} className="block w-full rounded-lg border border-border p-2 text-left hover:bg-bg" data-testid="search-hit">
           <p className="mb-1 text-xs text-muted">{t("common.pageN", { n: h.page })}</p>
           <p className="line-clamp-3 text-text [&_b]:bg-yellow-300/60 [&_mark]:bg-yellow-300/60" dangerouslySetInnerHTML={{ __html: sanitizeSnippet(h.snippet) }} />
         </button>
