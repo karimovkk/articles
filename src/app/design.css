@@ -121,6 +121,8 @@
 /* ---------- Baza ---------- */
 
 body {
+  /* 27.2: bo'shliqsiz uzun satr (email, havola, uzun nom) qatorga sig'masa — bo'lib ko'chiriladi, ekrandan chiqmaydi */
+  overflow-wrap: break-word;
   font-family: var(--font-sans);
   font-size: 14px;
   font-weight: 500;
@@ -525,6 +527,15 @@ h3 {
   color: var(--text-2);
   white-space: nowrap;
   max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+/* 27.2: chip matni (kategoriya nomi va h.k.) uzun bo'lsa — "…" bilan qisqaradi, konteynerdan chiqmaydi */
+.chip-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .chip-dot {
   width: 6px;
@@ -2052,6 +2063,14 @@ html[data-theme-wave]::view-transition-new(root) {
   color: var(--text-2);
   overflow-wrap: anywhere;
 }
+/* 27.3: uzun nom muqova tepasidan toshib ketmasin — ko'pi bilan 5 qator, oxiri "…" */
+.book-cover .ph > span {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 5;
+  line-clamp: 5;
+  overflow: hidden;
+}
 .book-cover .ph::before {
   content: "";
   position: absolute;
@@ -2682,4 +2701,14 @@ a.track:hover {
   .app-frame {
     grid-template-columns: 380px minmax(0, 1fr);
   }
+}
+
+/* 27.2: foydalanuvchi/backend matni chiqadigan sarlavha va izohlar — flex/grid ichida ham siqilib ko'chadi */
+.page-title,
+.page-sub,
+.track-sub,
+.card-title,
+.user-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }

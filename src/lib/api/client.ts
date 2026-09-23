@@ -140,9 +140,12 @@ export async function apiRaw(path: string, opts: RequestOptions = {}): Promise<R
     });
   };
 
+  const sentWith = tokenStore.getAccess();
   let res = await doFetch();
   if (res.status === 401 && auth && !noRefresh) {
-    const ok = await refreshTokens();
+    // So'rov ketgandan keyin boshqa so'rov tokenni allaqachon yangilagan bo'lsa (parallel so'rovlar) — qayta
+    // refresh qilinmaydi, yangi token bilan takrorlanadi. Aks holda ikkinchi rotatsiya birinchisini bekor qiladi.
+    const ok = tokenStore.getAccess() !== sentWith && !!tokenStore.getAccess() ? true : await refreshTokens();
     if (ok) {
       res = await doFetch();
     } else {
@@ -233,9 +236,10 @@ function xhrOnce(url: string, form: FormData, opts: UploadOptions): Promise<{ st
 /** Multipart yuklash: Bearer + 401 → refresh → bir marta qayta; xato konverti → ApiError. */
 export async function apiUpload<T = unknown>(path: string, form: FormData, opts: UploadOptions = {}): Promise<T> {
   const url = apiUrl(path);
+  const sentWith = tokenStore.getAccess();
   let res = await xhrOnce(url, form, opts);
   if (res.status === 401) {
-    const ok = await refreshTokens();
+    const ok = tokenStore.getAccess() !== sentWith && !!tokenStore.getAccess() ? true : await refreshTokens();
     if (ok) {
       res = await xhrOnce(url, form, opts);
     } else {

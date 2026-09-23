@@ -122,13 +122,12 @@ export default function ProfilePage() {
                   <li key={s.id} className="track">
                     <span className="track-num">{/mobile|android|iphone/i.test(s.user_agent ?? "") ? <I.Smartphone size={15} /> : <I.Monitor size={15} />}</span>
                     <span className="min-w-0">
-                      <span className="track-title" title={s.user_agent ?? undefined}>
-                        {shortAgent(s.user_agent) || s.id.slice(0, 8)}
-                        {s.is_current && (
-                          <span className="ml-2">
-                            <Badge tone="success">{t("profile.current")}</Badge>
-                          </span>
-                        )}
+                      {/* 27.3: uzun qurilma nomi qisqaradi, "joriy" belgisi esa doim ko'rinib turadi */}
+                      <span className="flex min-w-0 items-center gap-2">
+                        <span className="track-title min-w-0" title={s.user_agent ?? undefined}>
+                          {shortAgent(s.user_agent) || s.id.slice(0, 8)}
+                        </span>
+                        {s.is_current && <Badge tone="success" className="shrink-0">{t("profile.current")}</Badge>}
                       </span>
                       <span className="track-sub">
                         {s.ip_address ?? ""} · {formatDate(s.last_active_at ?? s.created_at)}

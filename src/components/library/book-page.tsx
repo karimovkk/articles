@@ -143,9 +143,11 @@ export function BookPage({ bookId }: { bookId: string }) {
 
           {next && (
             <div className="flex flex-wrap items-center gap-3 border-t border-border pt-4">
-              <Link href={`/reader/${next.article_id}`} className={buttonClass("primary", "lg")} data-testid="continue-reading">
-                <I.Play size={15} />
-                {next.current_page > 0 ? t("book.continue") : t("book.startReading")}: {next.title}
+              <Link href={`/reader/${next.article_id}`} className={buttonClass("primary", "lg", "min-w-0 max-w-full")} data-testid="continue-reading" title={next.title}>
+                <I.Play size={15} className="shrink-0" />
+                <span className="truncate">
+                  {next.current_page > 0 ? t("book.continue") : t("book.startReading")}: {next.title}
+                </span>
               </Link>
             </div>
           )}

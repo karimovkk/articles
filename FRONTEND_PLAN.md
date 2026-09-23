@@ -618,6 +618,48 @@ kengligi cheklandi; suv belgisi ikki qavat bo'lgani uchun DOM qatlami yengillash
       hajm **614 → 526 KB**, RSC oldindan yuklash **2 ta** qoldi. Kitoblar ko'rinishi ≈1.9 s — qolgani backend:
       `GET /catalog` 1247 ms, `GET /categories` 1260 ms (B28).
 
+## 27. Uzun matnlar kichik ekranlarda (2026-09-23, "email yoki kitob nomi uzun bo'lsa width'dan oshib ketyapti")
+
+Sabab: 23-bo'limdagi responsiv audit mock'dagi qisqa ma'lumotlar bilan o'tgan — uzun email/kitob nomi sinalmagan.
+
+- [x] 27.1 Qayta ishlab chiqarish: API javoblaridagi matnlar (email, ism, kitob nomi, muallif, kategoriya, maqola
+      nomi, bildirishnoma) bo'shliqsiz uzun satrlarga almashtirilib, har sahifa 320/360/390/430/768 px da tekshiriladi
+- [x] 27.2 Umumiy qoida: foydalanuvchi/backend matni chiqadigan joylarda `overflow-wrap: anywhere` + flex/grid
+      bolalarida `min-width: 0` (bitta joyda, dizayn tizimida)
+- [x] 27.3 Sahifama-sahifa qolgan joylar (profil, kutubxona, kitob, katalog, reader sarlavhasi, bildirishnomalar,
+      buyurtmalar, header'dagi foydalanuvchi chip'i, admin jadvallari) — kerak joyda qisqartirish (`…`) yoki ko'chirish
+- [x] 27.4 Doimiy e2e test: uzun ma'lumotlar bilan barcha sahifalar kichik ekranlarda (gorizontal scroll va chekkadan
+      chiqqan matn yo'qligi)
+      **Natija:** oldin 80 ta sahifa×ekran holatida matn chiqib ketgan/toshgan edi → 0. Tuzatilganlar: profil emaili
+      (ekrandan chiqib, sahifa 612px bo'lib ketardi), kitob/katalog/kutubxona kartalaridagi kategoriya teglari (`…`),
+      muqova o'rnidagi nom (tepadan toshardi → 5 qator + `…`), kitob sahifasidagi "O'qishni boshlash: <maqola>"
+      tugmasi, bildirishnoma sarlavhasi va havolali matni, admin foydalanuvchi sahifasidagi email, audit yozuvlari,
+      profildagi "joriy" sessiya belgisi (uzun qurilma nomi uni ekrandan surib chiqarardi), login/ro'yxat sahifasida
+      tor ekranda "Articles365" ustiga tushgan "kun/365" belgisi. Umumiy: `body { overflow-wrap: break-word }`,
+      `Badge` matni `.chip-text` (ellipsis), `.page-title/.page-sub/.track-sub/.card-title/.user-text` → `anywhere`.
+      Test: `e2e/tests/long-text.test.mjs`.
+- [x] 27.5 `--prod` to'liq testlar → **21/21 to'plam, 359 tekshiruv o'tdi**.
+      Yo'l-yo'lakay topilgan yashirin xato: parallel so'rovlardan biri eski token bilan 401 olib, boshqasi refresh'ni
+      tugatgandan keyin qaytsa, klient **ikkinchi marta** refresh qilardi (rotatsiya → birinchi yangi token bekor →
+      kutilmagan chiqib ketish xavfi). `session` to'plami 3 martadan 2 tasida yiqilardi. Tuzatildi (`client.ts`):
+      token so'rovdan keyin allaqachon yangilangan bo'lsa — refresh'siz, yangi token bilan takrorlanadi; 4/4 barqaror.
+
+## 28. iPhone Safari'da reader ochilmaydi (2026-09-24, skrinshot: "this._requestsByChunk.getOrInsertComputed is not a function")
+
+Sabab: pdf.js 6 ning oddiy build'i eng yangi JS imkoniyatlariga tayanadi (`Map.prototype.getOrInsertComputed`,
+`Promise.try` va h.k.) — iOS Safari'da ular yo'q, worker ichida yiqilib, reader xom JS xatosini ko'rsatardi.
+
+- [x] 28.1 pdf.js `legacy` build'ga o'tkazildi (kutubxona ham, `public/pdf.worker.min.mjs` ham — `copy-pdf-worker`
+      skripti legacy'dan nusxalaydi). API bir xil; legacy'da core-js polyfill'lari bor. Narxi: faqat reader'da
+      ≈+60 KB (kutubxona) va ≈+50 KB (worker).
+- [x] 28.2 Tushunarli xato: brauzer imkoniyati yetishmasa (TypeError / worker'dan `UnknownErrorException`) xom
+      xabar o'rniga "Kitobni bu brauzerda ochib bo'lmadi… brauzerni yangilang" (uz/en/ru); tafsilot konsolda.
+- [x] 28.3 Doimiy test `e2e/tests/reader-safari.test.mjs`: Chrome'da sahifadan **va worker ichidan** Safari'da yo'q
+      imkoniyatlar o'chiriladi, reader ochilib sahifa chizilishi tekshiriladi. Tekshirildi: eski build bilan test
+      yiqiladi (`Promise.try is not a function`), legacy bilan o'tadi. (WebKit bu mashinada ishga tushmaydi —
+      tizim kutubxonalari yo'q; haqiqiy iPhone'da deploy'dan keyin tekshiriladi.)
+- [x] 28.4 `--prod` to'liq testlar → **22/22 to'plam, 363 tekshiruv o'tdi**; Firefox'da reader to'plamlari 3/3
+
 ### Backend uchun eslatmalar (jonli auditdan) — holat: B1 ✅(avvaldan) · B2 ✅ · B3 ✅ · B4 ✅ · B5 ✅ · B6 ✅(avvaldan) ·
 B7 ✅ · B8 ✅ (OpenAPI manba) · B9 ✅ · B10 ✅ · B11 ✅ · B12 ✅ · B13 ✅ — **ochiq savol yo'q**
 

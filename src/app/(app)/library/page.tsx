@@ -147,7 +147,11 @@ export default function LibraryPage() {
                   tags={
                     (item.category_name || pct >= 100) && (
                       <>
-                        {item.category_name && <span className="bcard-tag">{item.category_name}</span>}
+                        {item.category_name && (
+                          <span className="bcard-tag" title={item.category_name}>
+                            <span className="chip-text">{item.category_name}</span>
+                          </span>
+                        )}
                         {pct >= 100 && (
                           <span className="bcard-tag owned">
                             <I.Check size={11} />

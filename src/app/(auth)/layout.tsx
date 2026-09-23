@@ -96,7 +96,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
       <div className="auth-panel">
         <div className="auth-form">
           <div className="mb-5 flex items-center justify-between gap-3">
-            <Link href="/catalog" className="brand min-[901px]:hidden">
+            <Link href="/catalog" className="brand shrink-0 min-[901px]:hidden">
               <span className="brand-mark">A</span>
               <span className="brand-text">
                 <span className="brand-name" style={{ color: "var(--text)" }}>
@@ -108,8 +108,9 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
               <I.ArrowLeft size={15} />
               {t("catalog.back")}
             </Link>
-            {/* chap panelda brend yonida ko'rinadi — bu yerda faqat tor ekranlarda */}
-            <YearDayChip className="ml-auto mr-1 min-[901px]:hidden" />
+            {/* chap panelda brend yonida ko'rinadi — bu yerda faqat tor ekranlarda; ≤420px da brend nomi ustiga
+                tushmasligi uchun yashiriladi (27.3) */}
+            <YearDayChip className="ml-auto mr-1 min-[901px]:hidden max-[420px]:hidden" />
             <div className="flex items-center gap-2">
               {/* 23: tor ekranda til tanlagich brend nomini siqib qo'ymasin — ixcham menyu */}
               <LocaleSwitcher className="max-[640px]:hidden" />

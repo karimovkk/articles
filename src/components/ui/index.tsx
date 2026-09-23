@@ -133,7 +133,8 @@ export function Badge({ children, tone = "neutral", dot, className }: { children
   return (
     <span className={cn("chip", tone !== "neutral" && tone, className)}>
       {dot && <span className="chip-dot" />}
-      {children}
+      {/* 27.2: oddiy matn (kategoriya nomi va h.k.) uzun bo'lsa "…" bilan qisqaradi; ikonkali tarkib o'z holicha */}
+      {typeof children === "string" || typeof children === "number" ? <span className="chip-text">{children}</span> : children}
     </span>
   );
 }

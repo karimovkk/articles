@@ -61,7 +61,9 @@ export function BookCover({
         // eslint-disable-next-line @next/next/no-img-element -- blob URL, next/image optimallashtira olmaydi
         <img src={url} alt={title} draggable={false} />
       ) : (
-        <div className="ph">{title}</div>
+        <div className="ph">
+          <span>{title}</span>
+        </div>
       )}
       {children}
     </div>

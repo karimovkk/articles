@@ -187,7 +187,11 @@ function CatalogList() {
                   tags={
                     (item.category_name || has) && (
                       <>
-                        {item.category_name && <span className="bcard-tag">{item.category_name}</span>}
+                        {item.category_name && (
+                          <span className="bcard-tag" title={item.category_name}>
+                            <span className="chip-text">{item.category_name}</span>
+                          </span>
+                        )}
                         {has && (
                           <span className="bcard-tag owned">
                             <I.Check size={11} />
