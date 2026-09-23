@@ -117,6 +117,7 @@ export const en: Dict = {
   "catalog.back": "Catalog",
   "catalog.noDescription": "No description.",
   "client.nav": "Sections",
+  "client.dayOfYear": "Day {n} of {total}",
   "client.categories": "Categories",
   "client.viewAll": "View all",
   "client.promoTitle": "Read\nLearn\nGrow",

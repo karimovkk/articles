@@ -18,6 +18,8 @@ const only = args.filter((a) => !a.startsWith("--"));
 const PORT = process.env.E2E_PORT ?? "3100";
 const MOCK_PORT = process.env.E2E_MOCK_PORT ?? "8001";
 const env = { ...process.env, BACKEND_URL: `http://localhost:${MOCK_PORT}`, E2E_BASE: `http://localhost:${PORT}`, E2E_API: `http://localhost:${MOCK_PORT}` };
+// Testlar dev/production farqini bilishi uchun (masalan, `visual` — production'da to'liq qurilmalar ro'yxati)
+if (args.includes("--prod")) env.E2E_PROD = "1";
 
 const procs = [];
 const start = (cmd, cmdArgs, opts = {}) => {

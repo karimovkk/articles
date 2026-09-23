@@ -124,6 +124,7 @@ export const uz = {
   "catalog.back": "Katalog",
   "catalog.noDescription": "Tavsif yo'q.",
   "client.nav": "Bo'limlar",
+  "client.dayOfYear": "Yilning {n}-kuni ({total} kundan)",
   "client.categories": "Kategoriyalar",
   "client.viewAll": "Barchasi",
   "client.promoTitle": "O'qing\nO'rganing\nO'sing",

@@ -34,6 +34,14 @@ check("Mehmon: / → /catalog (auth'siz)", true);
 check("Katalog: narx (bo'linmas bo'sh joy bilan), kategoriya, maqola soni", (await bodyHas("45 000 so'm")) && (await has("Fan")) && (await has("3 ta maqola")));
 check("Katalog: '0' narx → '0 so'm' (API'da price doim string)", await bodyHas("0 so'm"));
 check("Mehmon qobig'i: Kirish/Ro'yxatdan o'tish", await has("Kirish"));
+// 25: brend "365" — yilning nechanchi kuni header'da ko'rinadi
+const now = new Date();
+const expectedDay = Math.floor((now - new Date(now.getFullYear(), 0, 0)) / 86400000);
+const totalDays = (now.getFullYear() % 4 === 0 && now.getFullYear() % 100 !== 0) || now.getFullYear() % 400 === 0 ? 366 : 365;
+await page.waitForSelector('[data-testid="year-day"]', { timeout: 8000 });
+const chip = (await page.textContent('[data-testid="year-day"]'))?.replace(/\s/g, "");
+const ringYear = Number(await page.evaluate(() => getComputedStyle(document.querySelector('[data-testid="year-ring"]')).getPropertyValue("--year")));
+check("Yil kuni ko'rsatkichi: bugungi kun / jami va emblema halqasi", chip === `${expectedDay}/${totalDays}` && ringYear > 0 && Math.abs(ringYear - expectedDay / totalDays) < 0.01, `${chip} ring=${ringYear}`);
 const hdrs0 = await mockGet("/__headers");
 check("Katalog so'rovi Authorization'siz ketdi (public)", hdrs0.some((h) => h.path === "/catalog"));
 check("Dumaloq pagination (31 ta kitob / 24): joriy 1, keyingi 2", (await page.textContent('[data-testid="pager"] button[aria-current="page"]'))?.trim() === "1" && (await page.locator('[data-testid="pager"] button:text-is("2")').count()) === 1);

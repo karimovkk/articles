@@ -15,9 +15,14 @@ const PAGES = {
 };
 const creds = { user: ["user@articles365.local", "User12345!"], admin: ["admin@articles365.local", "Admin12345!"] };
 const problems = [];
+// Dev rejimida har marshrut birinchi murojaatda kompilyatsiya qilinadi — oldindan isitamiz
+// (aks holda ko'p o'lchamli yurishda birinchi sahifa timeout'ga uchraydi)
+for (const p of [...new Set(Object.values(PAGES).flat())]) await fetch(`${BASE}${p}`).catch(() => undefined);
 for (const [role, paths] of Object.entries(PAGES)) {
-  // 23.7: qurilmalar — telefon (320/360), planshet (768), kompyuter (1280), televizor (2560)
-  for (const width of [320, 360, 768, 1280, 2560]) {
+  // 23.7: qurilmalar — telefon (320/360), planshet (768), kompyuter (1280), televizor (2560).
+  // Dev rejimida har marshrut qayta kompilyatsiya qilinadi va bu juda sekin — to'liq ro'yxat `--prod` da.
+  const WIDTHS = process.env.E2E_PROD ? [320, 360, 768, 1280, 2560] : [360, 1280];
+  for (const width of WIDTHS) {
     // Har o'lchamda ikkala mavzu uzoq davom etadi: asosiylari (360/1280) ikkalasida, qolganlari yorug'da
     for (const theme of width === 360 || width === 1280 ? ["light", "dark"] : ["light"]) {
       const height = width <= 360 ? 640 : width === 768 ? 1024 : width === 2560 ? 1440 : 800;
@@ -34,7 +39,7 @@ for (const [role, paths] of Object.entries(PAGES)) {
       }
       for (const path of paths) {
         // uzoq to'plamdan keyin dev server sekinlashishi mumkin — kengroq timeout, DOM tayyor bo'lishi kifoya
-        await page.goto(`${BASE}${path}`, { waitUntil: "domcontentloaded", timeout: 90000 });
+        await page.goto(`${BASE}${path}`, { waitUntil: "domcontentloaded", timeout: 120000 });
         await page.waitForLoadState("networkidle", { timeout: 15000 }).catch(() => undefined);
         await page.waitForTimeout(path.startsWith("/reader") ? 3000 : 600);
         const m = await page.evaluate(() => {
@@ -71,7 +76,7 @@ for (const [role, paths] of Object.entries(PAGES)) {
     }
   }
 }
-const total = Object.values(PAGES).flat().length * 7; // 320,360×2,768,1280×2,2560
+const total = Object.values(PAGES).flat().length * (process.env.E2E_PROD ? 7 : 4);
 check(`${total} ta sahifa ko'rinishi (telefon/planshet/kompyuter/televizor): scroll, bo'shlik, chekka va xato yo'q`, problems.length === 0, problems.join(" | ").slice(0, 400));
 await browser.close();
 console.log(`Skrinshotlar: ${OUT}`);

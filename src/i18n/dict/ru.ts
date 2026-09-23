@@ -117,6 +117,7 @@ export const ru: Dict = {
   "catalog.back": "Каталог",
   "catalog.noDescription": "Описания нет.",
   "client.nav": "Разделы",
+  "client.dayOfYear": "{n}-й день года (из {total})",
   "client.categories": "Категории",
   "client.viewAll": "Все",
   "client.promoTitle": "Читайте\nУчитесь\nРастите",

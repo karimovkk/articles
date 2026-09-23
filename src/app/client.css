@@ -118,6 +118,13 @@
 .client-burger {
   display: none;
 }
+.client-brand-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  justify-self: start;
+}
 .client-brand {
   display: inline-flex;
   align-items: center;
@@ -125,7 +132,45 @@
   min-width: 0;
   color: var(--text);
   text-decoration: none;
-  justify-self: start;
+}
+/* 25: yil kuni — emblema atrofidagi halqa to'lib boradi */
+.year-ring {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  padding: 3px;
+  border-radius: 50%;
+  background: conic-gradient(var(--accent) calc(var(--year, 0) * 360deg), color-mix(in srgb, var(--accent) 16%, transparent) 0);
+  box-shadow: 0 0 18px -4px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+.year-ring .client-emblem {
+  border-color: transparent;
+  box-shadow: none;
+}
+.year-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid var(--gold-line);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent-ink);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.dark .year-chip {
+  color: var(--accent);
+}
+.year-chip b {
+  font-size: 13.5px;
+}
+.year-chip .sep {
+  opacity: 0.5;
 }
 .client-emblem {
   width: 46px;

@@ -15,6 +15,7 @@ import { Avatar, Menu, MenuItem, MenuLabel, MenuSep, buttonClass, cn } from "@/c
 import * as I from "@/components/ui/icons";
 import { ThemeSwitch } from "@/components/ui/theme-switch";
 import { NotificationBell } from "@/components/notifications/bell";
+import { YearDayChip, YearEmblem } from "./year-progress";
 import { useUnreadCount } from "@/components/notifications/use-unread-count";
 import { useCatalogCategories } from "@/lib/catalog-categories";
 import { env } from "@/lib/env";
@@ -71,12 +72,14 @@ function ClientHeader({ menuOpen, onMenu }: { menuOpen: boolean; onMenu: () => v
       <button type="button" className="icon-btn plain client-burger" onClick={onMenu} aria-expanded={menuOpen} aria-label={t(menuOpen ? "ui.nav.closeMenu" : "ui.nav.openMenu")} data-testid="client-menu">
         {menuOpen ? <I.X size={20} /> : <I.Menu size={20} />}
       </button>
-      <Link href={user ? "/library" : "/catalog"} className="client-brand" aria-label={env.appName}>
-        <span className="client-emblem" aria-hidden>
-          365
-        </span>
-        <span className="client-brand-name">{env.appName}</span>
-      </Link>
+      {/* 25: brend "365" — yilning nechanchi kuni ekani doim ko'rinib turadi */}
+      <div className="client-brand-wrap">
+        <Link href={user ? "/library" : "/catalog"} className="client-brand" aria-label={env.appName}>
+          <YearEmblem />
+          <span className="client-brand-name">{env.appName}</span>
+        </Link>
+        <YearDayChip className="max-[400px]:hidden" />
+      </div>
 
       <nav className="client-nav" aria-label={t("client.nav")}>
         {nav

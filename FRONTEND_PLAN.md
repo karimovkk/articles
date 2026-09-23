@@ -576,6 +576,16 @@ kengligi cheklandi; suv belgisi ikki qavat bo'lgani uchun DOM qatlami yengillash
 - [x] 24.3 Test: `reader-protect` da uch tekshiruv (o'chirg'ich chiqishi, o'chirishi, belgilanmagan matnda
       chiqmasligi) — `--prod` 20/20 (357 tekshiruv)
 
+## 25. Yil kuni ko'rsatkichi (2026-09-23, "brend 365 ustiga qurilgan")
+
+- [x] 25.1 `dayOfYear` yordamchisi (kabisa yilida 366) + `YearProgress` komponenti: emblema atrofida
+      to'ldiriladigan oltin halqa va yonida "266 / 365" nishoni; yarim tunda o'zi yangilanadi
+- [x] 25.2 Mijoz header'i va auth (login/ro'yxat) sahifalarida ko'rinadi; SSR/klient farqi bo'lmasligi uchun
+      qiymat mount'dan keyin hisoblanadi
+- [x] 25.3 i18n (uz/ru/en) + test: `catalog` to'plamida bugungi kun va halqa ulushi tekshiriladi —
+      `--prod` 20/20 (358 tekshiruv). Eslatma: `visual` to'liq qurilma ro'yxatini faqat `--prod` da yuritadi
+      (dev serverda 126 ta sahifa yuklash juda sekin, timeout berardi).
+
 ### Backend uchun eslatmalar (jonli auditdan) — holat: B1 ✅(avvaldan) · B2 ✅ · B3 ✅ · B4 ✅ · B5 ✅ · B6 ✅(avvaldan) ·
 B7 ✅ · B8 ✅ (OpenAPI manba) · B9 ✅ · B10 ✅ · B11 ✅ · B12 ✅ · B13 ✅ — **ochiq savol yo'q**
 

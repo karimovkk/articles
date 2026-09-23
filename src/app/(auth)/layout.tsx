@@ -11,6 +11,7 @@ import { usePathname } from "next/navigation";
 import { env } from "@/lib/env";
 import { useT, type DictKey } from "@/i18n";
 import { LocaleSwitcher } from "@/i18n/locale-switcher";
+import { YearDayChip } from "@/components/layout/year-progress";
 import { ThemeSwitch } from "@/components/ui/theme-switch";
 import { cn } from "@/components/ui";
 import * as I from "@/components/ui/icons";
@@ -66,13 +67,17 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
           <span />
           <span />
         </div>
-        <Link href="/catalog" className="brand">
-          <span className="brand-mark">A</span>
-          <span className="brand-text">
-            <span className="brand-name">{env.appName}</span>
-            <span className="brand-sub">{t("app.tagline")}</span>
-          </span>
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link href="/catalog" className="brand">
+            <span className="brand-mark">A</span>
+            <span className="brand-text">
+              <span className="brand-name">{env.appName}</span>
+              <span className="brand-sub">{t("app.tagline")}</span>
+            </span>
+          </Link>
+          {/* 25: brend "365" — yilning nechanchi kuni */}
+          <YearDayChip />
+        </div>
         <GlobeOrbit />
         <div>
           <h2>
@@ -103,6 +108,8 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
               <I.ArrowLeft size={15} />
               {t("catalog.back")}
             </Link>
+            {/* chap panelda brend yonida ko'rinadi — bu yerda faqat tor ekranlarda */}
+            <YearDayChip className="ml-auto mr-1 min-[901px]:hidden" />
             <div className="flex items-center gap-2">
               {/* 23: tor ekranda til tanlagich brend nomini siqib qo'ymasin — ixcham menyu */}
               <LocaleSwitcher className="max-[640px]:hidden" />
