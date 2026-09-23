@@ -455,25 +455,26 @@ export function ReaderView({ articleId }: { articleId: string }) {
 
       <div className={cn("print-protected flex h-dvh flex-col", night && "dark")}>
         {/* Toolbar */}
-        <header className="z-30 flex h-14 shrink-0 items-center gap-1 border-b border-border bg-surface px-1.5 text-text sm:gap-1.5 sm:px-3">
+        {/* 23.6: ≤420px — sarlavha ikkinchi qatorga tushadi (toolbar tor bo'lib qolmasin) */}
+        <header className="z-30 flex shrink-0 flex-wrap items-center gap-1 border-b border-border bg-surface px-1.5 py-1.5 text-text sm:h-14 sm:flex-nowrap sm:gap-1.5 sm:py-0 sm:px-3">
           <Link href={`/books/${meta.book_id}`} className="icon-btn plain" title={t("reader.backToBook")} aria-label={t("reader.backToBook")}>
             <I.ArrowLeft size={18} />
           </Link>
           <button type="button" onClick={() => setSidebarOpen((s) => !s)} className={cn("icon-btn plain", sidebarOpen && "bg-surface-2 text-text")} title={t("reader.panel")} aria-label={t("reader.panel")} aria-pressed={sidebarOpen}>
             <I.PanelLeft size={18} />
           </button>
-          <div className="min-w-0 flex-1 pl-1">
+          <div className="min-w-0 flex-1 pl-1 max-[420px]:order-last max-[420px]:w-full max-[420px]:basis-full max-[420px]:pb-0.5">
             <p className="truncate text-[13.5px] font-bold">{meta.title}</p>
             {(prev || next) && (
-              <p className="flex gap-3 text-[11px] font-semibold text-muted">
+              <p className="flex gap-2 text-[11.5px] font-semibold text-muted max-[420px]:hidden">
                 {prev && (
-                  <Link href={`/reader/${prev.article_id}`} className="inline-flex min-w-0 items-center gap-0.5 truncate hover:text-text" title={prev.title}>
-                    <I.ChevronLeft size={12} /> {t("reader.prevArticle")}
+                  <Link href={`/reader/${prev.article_id}`} className="inline-flex min-h-[28px] min-w-[32px] shrink-0 items-center justify-center gap-0.5 hover:text-text" title={prev.title} aria-label={t("reader.prevArticle")}>
+                    <I.ChevronLeft size={13} /> <span className="max-[420px]:hidden">{t("reader.prevArticle")}</span>
                   </Link>
                 )}
                 {next && (
-                  <Link href={`/reader/${next.article_id}`} className="inline-flex min-w-0 items-center gap-0.5 truncate hover:text-text" title={next.title}>
-                    {t("reader.nextArticle")} <I.ChevronRight size={12} />
+                  <Link href={`/reader/${next.article_id}`} className="inline-flex min-h-[28px] min-w-[32px] shrink-0 items-center justify-center gap-0.5 hover:text-text" title={next.title} aria-label={t("reader.nextArticle")}>
+                    <span className="max-[420px]:hidden">{t("reader.nextArticle")}</span> <I.ChevronRight size={13} />
                   </Link>
                 )}
               </p>

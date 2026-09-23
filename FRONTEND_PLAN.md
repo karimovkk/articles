@@ -546,6 +546,28 @@ yo'llari ishlamaydi. Ekran surati oldini olib bo'lmaydi, lekin endi suv belgisi 
 DOM'dan o'chirib tashlab bo'lmaydi. DevTools/konsol orqali matn qatlamini o'qish yoki token bilan faylni
 yuklab olish brauzer darajasida bartaraf etib bo'lmaydi → B27 (backend).
 
+## 23. Responsivlik: har bir sahifa × har bir qurilma (2026-09-23, foydalanuvchi talabi)
+
+Qurilmalar: telefon (320 / 360 / 390 / 430), planshet (768 portret, 1024 landshaft), kompyuter (1280 / 1440 /
+1920), televizor (2560 / 3840). Sahifalar: mehmon (login, ro'yxat, katalog, kitob tafsiloti), foydalanuvchi
+(kutubxona, kitob, profil, bildirishnomalar, reader), admin (9 sahifa). Har vazifadan keyin test.
+
+- [x] 23.1 Audit asbobi: har sahifa × har qurilma — gorizontal scroll, chekkadan chiqqan elementlar,
+      kichik bosish maydonlari (<32px), juda kichik shrift (<12px), kesilgan matn; hisobot
+- [x] 23.2 Telefon (320–430) topilgan muammolar tuzatiladi
+- [x] 23.3 Planshet (768 / 1024) tuzatiladi
+- [x] 23.4 Kompyuter (1280 / 1440 / 1920) tuzatiladi
+- [x] 23.5 Televizor (2560 / 3840): maksimal kenglik, o'lcham va masshtab
+- [x] 23.6 Reader alohida: varaqlash, yon panel, toolbar — har qurilmada
+- [x] 23.7 Yakuniy: `visual` to'plami endi 320 / 360 / 768 / 1280 / 2560 da ishlaydi (126 ta sahifa ko'rinishi,
+      chekkadan chiqqan element tekshiruvi ham qo'shildi) — `--prod` 20/20 (354), Firefox visual+mobile 2/2
+
+Tuzatilgan muammolar: reader sarlavhasi 320px da kesilardi (endi ikkinchi qatorda, maqola o'tish havolalari
+yashiriladi); sensorli qurilmalarda jadval/breadcrumb havolalari va tab/pill bosish maydoni kichik edi (≥28px);
+mayda shriftlar (9.5–10.5px → 11–11.5px: admin yon panel yorliqlari, jadval sarlavhalari, eyebrow, user chip,
+audit amal kodi, watermark trace); televizor uchun (≥2200px va ≥3200px) o'lchamlar kattalashtirildi va kontent
+kengligi cheklandi; suv belgisi ikki qavat bo'lgani uchun DOM qatlami yengillashtirildi.
+
 ### Backend uchun eslatmalar (jonli auditdan) — holat: B1 ✅(avvaldan) · B2 ✅ · B3 ✅ · B4 ✅ · B5 ✅ · B6 ✅(avvaldan) ·
 B7 ✅ · B8 ✅ (OpenAPI manba) · B9 ✅ · B10 ✅ · B11 ✅ · B12 ✅ · B13 ✅ — **ochiq savol yo'q**
 

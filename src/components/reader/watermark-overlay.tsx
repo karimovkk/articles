@@ -21,14 +21,14 @@ export function WatermarkOverlay({ payload, night }: { payload: WatermarkLike | 
           <span
             key={i}
             className="-rotate-[22deg] whitespace-nowrap text-[13px] font-medium tracking-wide"
-            style={{ color: night ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.10)" }}
+            style={{ color: night ? "rgba(255,255,255,0.055)" : "rgba(0,0,0,0.055)" }}
           >
             {label}
           </span>
         ))}
       </div>
       {payload.trace_id && (
-        <span className="absolute bottom-1 right-2 text-[10px]" style={{ color: night ? "rgba(255,255,255,0.25)" : "rgba(0,0,0,0.25)" }}>
+        <span className="absolute bottom-1 right-2 text-[11px]" style={{ color: night ? "rgba(255,255,255,0.25)" : "rgba(0,0,0,0.25)" }}>
           {payload.trace_id}
         </span>
       )}

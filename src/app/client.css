@@ -1027,8 +1027,8 @@
     padding: 28px 20px 26px;
   }
   .hero-eyebrow {
-    font-size: 10.5px;
-    letter-spacing: 0.22em;
+    font-size: 11.5px;
+    letter-spacing: 0.18em;
     margin-bottom: 12px;
   }
   .hero-title {
@@ -1064,5 +1064,130 @@
   .bcard,
   .client-promo-go {
     transition: none;
+  }
+}
+
+/* ---------- 23.5: televizor — mijoz qobig'i kattalashadi, kontent kengligi cheklanadi ---------- */
+@media (min-width: 2200px) {
+  .client {
+    --header-h: 92px;
+    --side-w: 330px;
+    --client-pad: 48px;
+  }
+  .client-main {
+    max-width: 2400px;
+    margin-inline: auto;
+    width: 100%;
+  }
+  .client-emblem {
+    width: 60px;
+    height: 60px;
+    font-size: 22px;
+  }
+  .client-brand-name {
+    font-size: 18px;
+  }
+  .client-nav a {
+    font-size: 19px;
+    padding: 0 22px;
+  }
+  .side-link {
+    height: 58px;
+    font-size: 18px;
+  }
+  .side-cat {
+    height: 50px;
+    font-size: 17px;
+  }
+  .client-cats-head {
+    font-size: 21px;
+  }
+  .hero-title {
+    font-size: 72px;
+  }
+  .hero-sub {
+    font-size: 21px;
+    max-width: 640px;
+  }
+  .hero-search {
+    height: 70px;
+    max-width: 620px;
+  }
+  .hero-search input {
+    font-size: 19px;
+  }
+  .bgrid {
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 400px), 1fr));
+    gap: 22px;
+  }
+  .bcard {
+    grid-template-columns: 150px minmax(0, 1fr);
+    padding: 22px;
+  }
+  .bcard-title {
+    font-size: 21px;
+  }
+  .bcard-desc {
+    font-size: 16px;
+  }
+  .bcard-meta {
+    font-size: 14.5px;
+  }
+  .bcard-price {
+    font-size: 21px;
+  }
+  .cat-chip {
+    height: 54px;
+    font-size: 16.5px;
+  }
+  .client-promo-title {
+    font-size: 34px;
+  }
+  .pager-round button {
+    min-width: 48px;
+    height: 48px;
+    font-size: 16px;
+  }
+}
+@media (min-width: 3200px) {
+  .client-main {
+    max-width: 3000px;
+  }
+  .client {
+    --header-h: 110px;
+    --side-w: 400px;
+    --client-pad: 64px;
+  }
+  .client-nav a {
+    font-size: 23px;
+  }
+  .side-link {
+    height: 68px;
+    font-size: 22px;
+  }
+  .side-cat {
+    height: 58px;
+    font-size: 20px;
+  }
+  .hero-title {
+    font-size: 96px;
+  }
+  .hero-sub {
+    font-size: 26px;
+    max-width: 780px;
+  }
+  .bgrid {
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 520px), 1fr));
+  }
+  .bcard-title {
+    font-size: 26px;
+  }
+  .bcard-desc {
+    font-size: 19px;
+  }
+  .client-emblem {
+    width: 76px;
+    height: 76px;
+    font-size: 28px;
   }
 }
