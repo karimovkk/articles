@@ -483,6 +483,14 @@ chiroyliroq bo'lsin". Har vazifadan keyin test qilinadi.
       → test: `notifications` to'plami + skrinshot (ikkala mavzu)
 - [x] 19.3 Yakuniy: `--prod` 19/19 (339 tekshiruv), Firefox (catalog, notifications) 2/2
 
+## 20. Hero matni rasm ustida (2026-09-23, foydalanuvchi fikri: "textlar orqasidagi oq rang olinsin, rasm tursin")
+
+- [x] 20.1 Katalog hero: yorug' mavzudagi oq panel olib tashlanadi — matn to'g'ridan-to'g'ri rasm ustida turadi;
+      o'qilishi uchun matnga yumshoq oq "nur" (text-shadow) va juda yengil parda; qidiruv maydoni och sirtda qoladi
+- [x] 20.2 Ichki sahifalar sarlavhasi (kutubxona/profil/kitob) ham shu uslubda — katta oq panel yo'q
+- [x] 20.3 Test: skrinshotlar (1440/1280/390, yorug' va qorong'i), `visual` + `catalog`, `--prod` 19/19 (339);
+      yo'l-yo'lakay `auth-ui` dagi beqaror globus tekshiruvlari barqarorlashtirildi (canvas chizilishini kutish)
+
 ### Backend uchun eslatmalar (jonli auditdan) — holat: B1 ✅(avvaldan) · B2 ✅ · B3 ✅ · B4 ✅ · B5 ✅ · B6 ✅(avvaldan) ·
 B7 ✅ · B8 ✅ (OpenAPI manba) · B9 ✅ · B10 ✅ · B11 ✅ · B12 ✅ · B13 ✅ — **ochiq savol yo'q**
 

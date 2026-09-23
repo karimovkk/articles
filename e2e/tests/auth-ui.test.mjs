@@ -17,9 +17,17 @@ await page.goto(`${BASE}/login`);
 await page.waitForSelector('[data-testid="login-form"]');
 await page.waitForFunction(() => { const b = [...document.querySelectorAll(".orbit-book")]; return b.length === 5 && b.every((x) => x.complete && x.naturalWidth > 0 && x.style.visibility === "visible"); }, null, { timeout: 15000 });
 check("Globus: 5 ta kitob rasmi yuklandi va joylashtirildi", true);
-check("Globus: canvas chizilgan (markazda shaffof emas)", await page.evaluate(() => {
-  const c = document.querySelector(".globe-canvas"); const d = c.getContext("2d").getImageData(c.width / 2, c.height / 2, 1, 1).data; return d[3] > 200;
-}));
+// Canvas quruqlik maskasi yuklangach chiziladi — kutamiz (aks holda test beqaror)
+const globeDrawn = await page
+  .waitForFunction(() => {
+    const c = document.querySelector(".globe-canvas");
+    if (!c || !c.width) return false;
+    const d = c.getContext("2d").getImageData(Math.floor(c.width / 2), Math.floor(c.height / 2), 1, 1).data;
+    return d[3] > 200;
+  }, null, { timeout: 15000 })
+  .then(() => true)
+  .catch(() => false);
+check("Globus: canvas chizilgan (markazda shaffof emas)", globeDrawn);
 // Orbita yo'nalishi: kitob globus oldiga o'tishi (z 1→3) — yuqori-o'ngda, orqaga kirishi (3→1) — pastki-chapda
 const samples = await page.evaluate(async () => {
   const wrap = document.querySelector(".globe-orbit").getBoundingClientRect();
@@ -109,6 +117,7 @@ check("Profil: 3 ta parol maydonida ko'z", (await page.locator('[data-testid="pw
 const rm = await (await browser.newContext({ viewport: { width: 1280, height: 800 }, reducedMotion: "reduce" })).newPage();
 await rm.goto(`${BASE}/login`);
 await rm.waitForFunction(() => [...document.querySelectorAll(".orbit-book")].every((x) => x.style.visibility === "visible"), null, { timeout: 15000 });
+await rm.waitForTimeout(600); // statik kadr joylashib bo'lsin
 const pos1 = await rm.evaluate(() => [...document.querySelectorAll(".orbit-book")].map((b) => b.style.transform).join("|"));
 await rm.waitForTimeout(800);
 const pos2 = await rm.evaluate(() => [...document.querySelectorAll(".orbit-book")].map((b) => b.style.transform).join("|"));

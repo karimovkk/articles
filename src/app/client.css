@@ -438,15 +438,22 @@
 /* ---------- Sahifa sarlavhasi (mijoz) — shaffof, serif ---------- */
 
 :root:not(.dark) .client .page-head {
-  padding: 18px var(--client-pad) 16px;
+  padding: 16px var(--client-pad) 14px;
   margin-inline: calc(var(--client-pad) * -1);
   background: linear-gradient(
     100deg,
-    rgba(252, 251, 247, 0.96) 0%,
-    rgba(252, 251, 247, 0.88) 46%,
-    rgba(252, 251, 247, 0.4) 76%,
+    rgba(252, 251, 247, 0.38) 0%,
+    rgba(252, 251, 247, 0.24) 48%,
+    rgba(252, 251, 247, 0.04) 78%,
     rgba(252, 251, 247, 0) 100%
   );
+}
+:root:not(.dark) .client .page-title,
+:root:not(.dark) .client .page-eyebrow,
+:root:not(.dark) .client .page-sub {
+  text-shadow:
+    0 1px 2px rgba(255, 255, 255, 0.9),
+    0 2px 14px rgba(255, 255, 255, 0.7);
 }
 .client .page-head {
   background: transparent;
@@ -533,14 +540,23 @@
   /* Kontent chekkasidan tashqariga chiqadi (fon rasmi bilan bir tekis) — otstup bilan bir xil */
   margin-inline: calc(var(--client-pad) * -1);
   border-bottom: 0;
+  /* 20.1: oq panel yo'q — rasm ko'rinib turadi, faqat juda yengil parda */
   background: linear-gradient(
     100deg,
-    rgba(252, 251, 247, 0.97) 0%,
-    rgba(252, 251, 247, 0.9) 34%,
-    rgba(252, 251, 247, 0.55) 56%,
-    rgba(252, 251, 247, 0.12) 78%,
+    rgba(252, 251, 247, 0.34) 0%,
+    rgba(252, 251, 247, 0.22) 42%,
+    rgba(252, 251, 247, 0.06) 72%,
     rgba(252, 251, 247, 0) 100%
   );
+}
+/* Matn rasm ustida: yumshoq oq nur (kontur emas) — har xil yorqinlikdagi joyda ham o'qiladi */
+:root:not(.dark) .hero-eyebrow,
+:root:not(.dark) .hero-title,
+:root:not(.dark) .hero-sub {
+  text-shadow:
+    0 1px 2px rgba(255, 255, 255, 0.9),
+    0 2px 16px rgba(255, 255, 255, 0.75),
+    0 0 42px rgba(255, 255, 255, 0.6);
 }
 .hero-eyebrow {
   font-size: 12px;
