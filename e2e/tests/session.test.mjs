@@ -1,5 +1,5 @@
 // 9.3 — access token muddati tugashi: 401 → refresh (single-flight) → qayta so'rov; reader Range o'rtasida; refresh xatosi → login
-import { launch, BASE, API, reset, mockGet } from "../lib.mjs";
+import { launch, BASE, API, reset, mockGet, ignorablePageError } from "../lib.mjs";
 const ART1 = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const MOCK = API.replace("/api/v1", "");
 let failures = 0;
@@ -8,7 +8,7 @@ await reset("");
 const browser = await launch();
 const page = await (await browser.newContext({ viewport: { width: 1280, height: 800 } })).newPage();
 const pageErrors = [];
-page.on("pageerror", (e) => pageErrors.push(e.message));
+page.on("pageerror", (e) => !ignorablePageError(e.message) && pageErrors.push(e.message));
 process.on("unhandledRejection", async (e) => { console.log("❌ XATO:", e.message.split("\n")[0]); await browser.close(); process.exit(1); });
 const logSince = async (from) => (await mockGet("/__log")).slice(from);
 

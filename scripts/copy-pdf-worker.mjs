@@ -1,6 +1,6 @@
 // pdfjs-dist worker faylini public/ ga nusxalaydi (versiya mos bo'lishi uchun postinstall'da ishlaydi).
 // Legacy build — Safari (iPhone/iPad) uchun polyfill'lar bilan; `src/lib/reader/range-transport.ts` ham legacy'ni yuklaydi.
-import { copyFileSync, mkdirSync, existsSync } from "node:fs";
+import { mkdirSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -13,5 +13,7 @@ if (!existsSync(src)) {
   process.exit(0);
 }
 mkdirSync(dirname(dest), { recursive: true });
-copyFileSync(src, dest);
+// Safari 17/18: worker ichida ham ReadableStream async iteratori yo'q — polyfill worker boshiga qo'shiladi
+const polyfill = readFileSync(resolve(root, "src/lib/reader/stream-iterator-polyfill.js"), "utf8");
+writeFileSync(dest, polyfill + "\n" + readFileSync(src, "utf8"));
 console.log("[copy-pdf-worker] public/pdf.worker.min.mjs yangilandi");

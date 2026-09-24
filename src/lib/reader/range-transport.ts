@@ -11,6 +11,8 @@
  * bo'laklarni so'raydi (STORAGE.md: chunk-by-chunk streaming).
  */
 import type { PDFDataRangeTransport as PDFDataRangeTransportType } from "pdfjs-dist";
+// 29: Safari 17/18 — ReadableStream async iteratori (pdf.js 6 unga tayanadi); worker'ga ham qo'shiladi
+import "./stream-iterator-polyfill.js";
 import { readerApi } from "@/lib/api/reader";
 
 type PdfJs = typeof import("pdfjs-dist");

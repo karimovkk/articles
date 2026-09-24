@@ -1,5 +1,5 @@
 // Task 4 tekshiruvi: uz/ru/en — almashtirgich, saqlanish, <html lang>, sahifalar, xato matnlari, reader, admin
-import { launch, BASE, API, reset } from "../lib.mjs";
+import { launch, BASE, API, reset, ignorablePageError } from "../lib.mjs";
 import { mkdirSync } from "node:fs";
 
 const BOOK = "11111111-1111-4111-8111-111111111111";
@@ -16,7 +16,7 @@ await reset("");
 const browser = await launch();
 const page = await (await browser.newContext({ viewport: { width: 1280, height: 800 }, locale: "en-US" })).newPage();
 const pageErrors = [];
-page.on("pageerror", (e) => pageErrors.push(e.message));
+page.on("pageerror", (e) => !ignorablePageError(e.message) && pageErrors.push(e.message));
 page.on("console", (m) => m.type() === "error" && /hydrat|Warning/i.test(m.text()) && pageErrors.push(m.text()));
 process.on("unhandledRejection", async (e) => {
   console.log("❌ XATO:", e.message.split("\n")[0]);

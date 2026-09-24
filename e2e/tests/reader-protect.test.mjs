@@ -1,6 +1,6 @@
 // 21 — reader himoyasi: nusxalash bloklari (Ctrl+C, Ctrl+A, kontekst menyu, sudrash, execCommand), chop etish,
 // va sahifadagi belgilash paneli (rang almashtirish, o'chirish, dublikat yaratilmasligi).
-import { launch, BASE, reset, mockGet, IS_CHROMIUM } from "../lib.mjs";
+import { launch, BASE, reset, mockGet, IS_CHROMIUM, ignorablePageError } from "../lib.mjs";
 import { mkdirSync } from "node:fs";
 const ART = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const OUT = new URL("../out/", import.meta.url).pathname;
@@ -13,7 +13,7 @@ const browser = await launch();
 const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 }, ...(IS_CHROMIUM ? { permissions: ["clipboard-read", "clipboard-write"] } : {}) });
 const page = await ctx.newPage();
 const pageErrors = [];
-page.on("pageerror", (e) => pageErrors.push(e.message));
+page.on("pageerror", (e) => !ignorablePageError(e.message) && pageErrors.push(e.message));
 process.on("unhandledRejection", async (e) => { console.log("❌ XATO:", e.message.split("\n")[0]); await page.screenshot({ path: OUT + "99-reader-protect-failure.png" }).catch(() => {}); await browser.close(); process.exit(1); });
 
 await page.goto(`${BASE}/login`);

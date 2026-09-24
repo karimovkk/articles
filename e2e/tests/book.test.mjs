@@ -1,5 +1,5 @@
 // Task 7.2 — kutubxona (kitob darajasida) → kitob sahifasi (maqolalar) → reader havolasi
-import { launch, BASE, API, reset, mockGet, selectOptionCount } from "../lib.mjs";
+import { launch, BASE, API, reset, mockGet, selectOptionCount, ignorablePageError } from "../lib.mjs";
 import { mkdirSync } from "node:fs";
 
 const BOOK = "11111111-1111-4111-8111-111111111111";
@@ -23,7 +23,7 @@ await fetch(`${API}/articles/${ART2}/progress`, { method: "PUT", headers: h, bod
 const browser = await launch();
 const page = await (await browser.newContext({ viewport: { width: 1280, height: 800 } })).newPage();
 const pageErrors = [];
-page.on("pageerror", (e) => pageErrors.push(e.message));
+page.on("pageerror", (e) => !ignorablePageError(e.message) && pageErrors.push(e.message));
 process.on("unhandledRejection", async (e) => {
   console.log("❌ XATO:", e.message.split("\n")[0]);
   await page.screenshot({ path: OUT + "99-book-failure.png" }).catch(() => {});

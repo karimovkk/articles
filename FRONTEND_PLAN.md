@@ -660,6 +660,36 @@ Sabab: pdf.js 6 ning oddiy build'i eng yangi JS imkoniyatlariga tayanadi (`Map.p
       tizim kutubxonalari yo'q; haqiqiy iPhone'da deploy'dan keyin tekshiriladi.)
 - [x] 28.4 `--prod` to'liq testlar → **22/22 to'plam, 363 tekshiruv o'tdi**; Firefox'da reader to'plamlari 3/3
 
+## 29. MacBook Safari'da sayt ishlamaydi (2026-09-24)
+
+**Sabab (haqiqiy Safari 17.4 dvigatelida tasdiqlandi):** pdf.js 6 sahifa matnini `for await (… of ReadableStream)`
+bilan o'qiydi (`page.getTextContent()`). `ReadableStream` async iteratori Safari 17/18 da (macOS ham, iOS ham) yo'q —
+faqat Safari 26.x da qo'shilgan; legacy build ham uni polyfill qilmaydi. Natija: sahifa canvas'ga chiziladi, lekin
+matn qatlami bosqichida `TypeError: undefined is not a function` → reader bo'sh qoladi. Katalog, kirish, kutubxona,
+kitob, profil, bildirishnomalar, mavzu almashish Safari 17.4 da ishladi.
+
+- [x] 29.1 Safari dvigatelini mahalliy ishga tushirish (sudo'siz): WebKit 26.6 (joriy Playwright) va WebKit 17.4
+      (Playwright 1.41) — yetishmayotgan tizim kutubxonalari Ubuntu arxividan scratch'ga; `e2e/lib.mjs` endi
+      `WEBKIT_PATH` (o'z ishga tushirish o'rami) ni qo'llaydi. Eslatma: eski headless WPE bu hostda EGL yarata olmaydi
+      (rAF/IntersectionObserver ishlamaydi) — shuning uchun reader Safari 17.4 da pdf.js darajasida alohida sinaldi.
+- [x] 29.2 Barcha e2e WebKit 26.6 da: yiqilishlarning aksariyati WebKit "shovqini" edi — bekor qilingan so'rovlarni
+      "Fetch API cannot load … due to access control checks" deb `pageerror`ga yozadi → `ignorablePageError()`
+      (`e2e/lib.mjs`), 19 ta to'plamda. Haqiqiy topilma: 320px da login/ro'yxat sarlavha qatori Safari'da 6px
+      chiqib ketardi (shrift kengroq) → brend nomi `…` bilan qisqaradi, amallar `shrink-0`.
+- [x] 29.3 Jonli sayt WebKit 26.6 da: katalog/login/ro'yxat ochiladi, xato yo'q (kirish uchun `A365_EMAIL/A365_PASS`
+      muhitda yo'q edi — kirishdan keyingi oqimlar mock backend bilan sinaldi).
+- [x] 29.4 Eski Safari (16.4 — Next 16 minimal) auditi: build CSS'da `-webkit-` prefikslari joyida; o'z kodimizdagi
+      yangi API'lar (`startViewTransition`, `requestIdleCallback`, `caretPositionFromPoint`, `crypto.randomUUID`)
+      himoyalangan; build JS'dagi yangi API'lar — pdf.js legacy polyfill'lari va Next'ning nomodule polyfill'i.
+      Topildi: **ReadableStream async iteratori** (yuqoridagi sabab).
+- [x] 29.5 Tuzatish: (a) `src/lib/reader/stream-iterator-polyfill.js` — yagona polyfill, asosiy oqimda
+      `range-transport.ts` import qiladi, worker'ga `copy-pdf-worker` skripti qo'shadi; (b) viewer matn qatlamiga
+      `page.streamTextContent()` ni to'g'ridan-to'g'ri beradi (TextLayer `getReader()` bilan o'qiydi — ikkinchi
+      himoya). Safari 17.4 da: polyfill'siz `getTextContent` → "undefined is not a function", polyfill bilan — 12 ta
+      matn elementi. `reader-safari` testi endi ReadableStream iteratorini ham o'chiradi: tuzatishsiz aynan
+      "readableStream is not async iterable" bilan yiqiladi, tuzatish bilan o'tadi.
+- [x] 29.6 `--prod`: Chrome **22/22 (363)**, WebKit 26.6 **22/22 (360)**, Firefox reader to'plamlari **4/4**; push
+
 ### Backend uchun eslatmalar (jonli auditdan) — holat: B1 ✅(avvaldan) · B2 ✅ · B3 ✅ · B4 ✅ · B5 ✅ · B6 ✅(avvaldan) ·
 B7 ✅ · B8 ✅ (OpenAPI manba) · B9 ✅ · B10 ✅ · B11 ✅ · B12 ✅ · B13 ✅ — **ochiq savol yo'q**
 

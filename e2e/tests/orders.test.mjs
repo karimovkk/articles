@@ -2,7 +2,7 @@
 // (multipart), HEIC, validatsiya, chekni almashtirish (AWAITING), 409 INVALID_ORDER_STATE, bekor qilish (CANCELLED),
 // 409 ORDER_ALREADY_PENDING → mavjud buyurtma, kuzatuv GET /orders/{id} (APPROVED/REJECTED),
 // 409 ALREADY_HAS_ACCESS, bildirishnoma havolasi + 2FA login
-import { launch, BASE, API, reset, mockGet, confirmDialog, IS_CHROMIUM } from "../lib.mjs";
+import { launch, BASE, API, reset, mockGet, confirmDialog, IS_CHROMIUM, ignorablePageError } from "../lib.mjs";
 import { mkdirSync, writeFileSync } from "node:fs";
 const BOOK2 = "33333333-3333-4333-8333-333333333333";
 const OUT = new URL("../out/", import.meta.url).pathname;
@@ -16,7 +16,7 @@ const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } })
 if (IS_CHROMIUM) await ctx.grantPermissions(["clipboard-read", "clipboard-write"], { origin: BASE });
 const page = await ctx.newPage();
 const pageErrors = [];
-page.on("pageerror", (e) => pageErrors.push(e.message));
+page.on("pageerror", (e) => !ignorablePageError(e.message) && pageErrors.push(e.message));
 process.on("unhandledRejection", async (e) => { console.log("❌ XATO:", e.message.split("\n")[0]); await page.screenshot({ path: OUT + "99-orders-failure.png" }).catch(() => {}); await browser.close(); process.exit(1); });
 const bodyHas = async (text) => page.evaluate((t) => document.body.innerText.replace(/ /g, " ").includes(t), text);
 // Test fayllari: haqiqiy 1×1 PNG, kichik PDF, HEIC sarlavhali fayl, matn fayli, 10 MB dan katta "JPEG"

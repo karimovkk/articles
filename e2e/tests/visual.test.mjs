@@ -1,5 +1,5 @@
 // 9.8 — vizual o'tish: barcha sahifalar × (360px, 1280px) × (kunduzgi, tungi): gorizontal scroll yo'q, skrinshotlar e2e/out/visual/
-import { launch, BASE, reset } from "../lib.mjs";
+import { launch, BASE, reset, ignorablePageError } from "../lib.mjs";
 import { mkdirSync } from "node:fs";
 const BOOK = "11111111-1111-4111-8111-111111111111", ART1 = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", USER_ID = "u1u1u1u1-u1u1-4u1u-8u1u-u1u1u1u1u1u1";
 const OUT = new URL("../out/visual/", import.meta.url).pathname;
@@ -29,7 +29,7 @@ for (const [role, paths] of Object.entries(PAGES)) {
       const ctx = await browser.newContext({ viewport: { width, height }, colorScheme: theme, ...(width < 900 ? { hasTouch: true, isMobile: true } : {}) });
       const page = await ctx.newPage();
       const errs = [];
-      page.on("pageerror", (e) => errs.push(e.message));
+      page.on("pageerror", (e) => !ignorablePageError(e.message) && errs.push(e.message));
       if (role !== "guest") {
         await page.goto(`${BASE}/login`);
         await page.fill('input[autocomplete="username"]', creds[role][0]);

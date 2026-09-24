@@ -1,6 +1,6 @@
 // 11.2 — jonli qidiruv: tugmasiz, yozilayotganda (debounce), fokus saqlanadi, eskirgan javob yangisini bosmaydi,
 // URL sinxron (katalog), Enter darhol, admin ro'yxatlar va reader qidiruvi
-import { launch, BASE, reset, mockGet, makeCheck, selectPick } from "../lib.mjs";
+import { launch, BASE, reset, mockGet, makeCheck, selectPick, ignorablePageError } from "../lib.mjs";
 const API_HOST = process.env.E2E_API ?? "http://localhost:8001";
 const ART = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const { check, done } = makeCheck();
@@ -8,7 +8,7 @@ await reset("");
 const browser = await launch();
 const page = await (await browser.newContext({ viewport: { width: 1280, height: 800 } })).newPage();
 const pageErrors = [];
-page.on("pageerror", (e) => pageErrors.push(e.message));
+page.on("pageerror", (e) => !ignorablePageError(e.message) && pageErrors.push(e.message));
 process.on("unhandledRejection", async (e) => {
   console.log("❌ XATO:", e.message.split("\n")[0]);
   await browser.close();

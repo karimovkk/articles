@@ -28,7 +28,8 @@ const CHROME_CANDIDATES = [
 /** Tizimdagi Chrome (yuklab olishsiz) yoki Playwright build'lari (`npx playwright-core install firefox|webkit`). */
 export async function launch(extra = {}) {
   if (BROWSER === "firefox") return firefox.launch({ headless: true, ...extra });
-  if (BROWSER === "webkit") return webkit.launch({ headless: true, ...extra });
+  // WEBKIT_PATH — tizim kutubxonalari yetishmasa, o'z o'ramingiz orqali (masalan, LD_LIBRARY_PATH qo'shib) ishga tushirish
+  if (BROWSER === "webkit") return webkit.launch({ headless: true, ...(process.env.WEBKIT_PATH ? { executablePath: process.env.WEBKIT_PATH } : {}), ...extra });
   const executablePath = CHROME_CANDIDATES.find((p) => existsSync(p));
   if (executablePath) return chromium.launch({ executablePath, headless: true, args: ["--no-sandbox"], ...extra });
   // Tizimda Chrome topilmasa — Playwright'ning Chromium build'i (`npx playwright-core install chromium`)
@@ -50,6 +51,12 @@ export function makeCheck() {
 }
 
 /** Mock holatini tiklash (`/__reset`). */
+/**
+ * Brauzer shovqini — ilova xatosi emas: WebKit (Safari) sahifadan ketilganda yoki Next oldindan yuklashni bekor
+ * qilganda uzilgan so'rovlarni "Fetch API cannot load … due to access control checks" deb `pageerror`ga yozadi.
+ */
+export const ignorablePageError = (msg = "") => /due to access control checks|Load request cancelled/i.test(msg);
+
 export const reset = (query = "") => fetch(`${API_HOST}/__reset${query}`);
 export const mockGet = async (path) => (await fetch(`${API_HOST}${path}`)).json();
 

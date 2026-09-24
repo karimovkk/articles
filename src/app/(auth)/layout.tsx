@@ -96,10 +96,12 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
       <div className="auth-panel">
         <div className="auth-form">
           <div className="mb-5 flex items-center justify-between gap-3">
-            <Link href="/catalog" className="brand shrink-0 min-[901px]:hidden">
-              <span className="brand-mark">A</span>
-              <span className="brand-text">
-                <span className="brand-name" style={{ color: "var(--text)" }}>
+            {/* 29: Safari shriftni biroz kengroq chizadi — 320px da qator sig'masa brend nomi "…" bilan qisqaradi
+                (ustiga boshqa element tushmaydi: "kun/365" ≤420px da yashirin) */}
+            <Link href="/catalog" className="brand min-w-0 min-[901px]:hidden">
+              <span className="brand-mark shrink-0">A</span>
+              <span className="brand-text min-w-0">
+                <span className="brand-name block truncate" style={{ color: "var(--text)" }}>
                   {env.appName}
                 </span>
               </span>
@@ -111,7 +113,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
             {/* chap panelda brend yonida ko'rinadi — bu yerda faqat tor ekranlarda; ≤420px da brend nomi ustiga
                 tushmasligi uchun yashiriladi (27.3) */}
             <YearDayChip className="ml-auto mr-1 min-[901px]:hidden max-[420px]:hidden" />
-            <div className="flex items-center gap-2">
+            <div className="flex shrink-0 items-center gap-2">
               {/* 23: tor ekranda til tanlagich brend nomini siqib qo'ymasin — ixcham menyu */}
               <LocaleSwitcher className="max-[640px]:hidden" />
               <LocaleSwitcher variant="menu" className="min-[641px]:hidden" />

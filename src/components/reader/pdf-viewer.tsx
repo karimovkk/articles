@@ -886,7 +886,9 @@ function PdfPage({
       // pdfjs-dist 6: matn qatlami o'lchamlari shu o'zgaruvchidan hisoblanadi (bo'lmasa matn canvas bilan mos kelmaydi)
       textDiv.style.setProperty("--total-scale-factor", String(viewport.scale));
       textDiv.style.setProperty("--scale-factor", String(viewport.scale));
-      const textLayer = new pdfjs.TextLayer({ textContentSource: await page.getTextContent(), container: textDiv, viewport });
+      // 29: oqim to'g'ridan-to'g'ri — TextLayer uni getReader() bilan o'qiydi; `getTextContent()` esa
+      // `for await` ishlatadi, u Safari 17/18 da yo'q (polyfill ham bor, bu — ikkinchi himoya)
+      const textLayer = new pdfjs.TextLayer({ textContentSource: page.streamTextContent(), container: textDiv, viewport });
       await textLayer.render();
       if (!cancelled) setRendered(true);
     })().catch((e: unknown) => {

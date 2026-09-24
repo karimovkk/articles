@@ -1,7 +1,8 @@
-// 28 — iPhone/iPad Safari'da reader: Safari'da hali yo'q eng yangi JS imkoniyatlari (Map.getOrInsertComputed va h.k.)
+// 28/29 — iPhone/iPad va MacBook Safari'da reader: Safari 17/18 da yo'q JS imkoniyatlari (Map.getOrInsertComputed,
+// ReadableStream async iteratori va h.k.)
 // sahifada ham, pdf.js worker ichida ham o'chirib tashlanadi — reader baribir ochilib, sahifa chizilishi kerak.
 // (Haqiqiy xato: "this._requestsByChunk.getOrInsertComputed is not a function" — iPhone, 2026-09-24)
-import { launch, BASE, reset } from "../lib.mjs";
+import { launch, BASE, reset, ignorablePageError } from "../lib.mjs";
 const ART = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 let failures = 0;
 const check = (name, ok, extra = "") => { console.log(`${ok ? "✅" : "❌"} ${name}${extra ? " — " + extra : ""}`); if (!ok) failures++; };
@@ -18,7 +19,10 @@ const STRIP = `(() => {
   del(Promise, ["try"]);
   del(Uint8Array, ["fromBase64", "fromHex"]);
   del(Uint8Array.prototype, ["toBase64", "toHex", "setFromBase64", "setFromHex"]);
-  globalThis.__stripped = typeof Map.prototype.getOrInsertComputed === "undefined";
+  // 29: Safari 17/18 (macOS, iOS) — ReadableStream async iteratori yo'q (for await … of stream). Haqiqiy Safari 17.4
+  // da tasdiqlangan: pdf.js getTextContent() "undefined is not a function" bilan yiqilib, reader bo'sh qolardi
+  del(ReadableStream.prototype, ["values", Symbol.asyncIterator]);
+  globalThis.__stripped = typeof Map.prototype.getOrInsertComputed === "undefined" && typeof ReadableStream.prototype[Symbol.asyncIterator] === "undefined";
 })();\n`;
 
 const browser = await launch();
@@ -31,11 +35,11 @@ await ctx.route("**/pdf.worker.min.mjs", async (route) => {
 });
 const page = await ctx.newPage();
 const errors = [];
-page.on("pageerror", (e) => errors.push(e.message));
-page.on("console", (m) => m.type() === "error" && /getOrInsert|is not a function/.test(m.text()) && errors.push(m.text()));
+page.on("pageerror", (e) => !ignorablePageError(e.message) && errors.push(e.message));
+page.on("console", (m) => m.type() === "error" && /getOrInsert|is not a function|\[reader\]/.test(m.text()) && errors.push(m.text()));
 
 await page.goto(`${BASE}/login`);
-check("Safari taqlidi: sahifada Map.getOrInsertComputed yo'q", (await page.evaluate(() => globalThis.__stripped)) === true);
+check("Safari taqlidi: sahifada Map.getOrInsertComputed va ReadableStream iteratori yo'q", (await page.evaluate(() => globalThis.__stripped)) === true);
 await page.fill('input[autocomplete="username"]', "user@articles365.local");
 await page.fill('input[type="password"]', "User12345!");
 await page.click('button[type="submit"]');

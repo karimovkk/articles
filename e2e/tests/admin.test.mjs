@@ -1,5 +1,5 @@
 // Task 7.7 — admin: maqolalar CRUD/fayl/TOC, buyurtmalar approve/reject, foydalanuvchi yaratish/parol/sessiyalar, eksport, nomlar
-import { launch, BASE, API, reset, mockGet, selectPick, confirmDialog } from "../lib.mjs";
+import { launch, BASE, API, reset, mockGet, selectPick, confirmDialog, ignorablePageError } from "../lib.mjs";
 import { mkdirSync } from "node:fs";
 const BOOK = "11111111-1111-4111-8111-111111111111", BOOK2 = "33333333-3333-4333-8333-333333333333";
 const USER_ID = "u1u1u1u1-u1u1-4u1u-8u1u-u1u1u1u1u1u1";
@@ -21,7 +21,7 @@ const browser = await launch();
 const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 }, acceptDownloads: true });
 const page = await ctx.newPage();
 const pageErrors = [];
-page.on("pageerror", (e) => pageErrors.push(e.message));
+page.on("pageerror", (e) => !ignorablePageError(e.message) && pageErrors.push(e.message));
 process.on("unhandledRejection", async (e) => { console.log("❌ XATO:", e.message.split("\n")[0]); await page.screenshot({ path: OUT + "99-admin-failure.png" }).catch(() => {}); await browser.close(); process.exit(1); });
 const bodyHas = async (text) => page.evaluate((t) => document.body.innerText.replace(/ /g, " ").includes(t), text);
 

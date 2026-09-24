@@ -1,5 +1,5 @@
 // Reader funksional tekshiruvi (Task 2): highlight, ranglar, nusxalash/chop etish cheklovi, varaqlash rejimi
-import { launch, BASE, reset, mockGet } from "../lib.mjs";
+import { launch, BASE, reset, mockGet, ignorablePageError } from "../lib.mjs";
 
 const BOOK = "11111111-1111-4111-8111-111111111111";
 const ART = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
@@ -18,7 +18,7 @@ const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } })
 const page = await ctx.newPage();
 const consoleErrors = [];
 page.on("console", (m) => m.type() === "error" && consoleErrors.push(m.text()));
-page.on("pageerror", (e) => consoleErrors.push("pageerror: " + e.message));
+page.on("pageerror", (e) => !ignorablePageError(e.message) && consoleErrors.push("pageerror: " + e.message));
 const notFound = [];
 page.on("response", (r) => r.status() === 404 && notFound.push(r.url()));
 
