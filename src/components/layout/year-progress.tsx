@@ -40,32 +40,34 @@ export function YearDayChip({ className }: { className?: string }) {
 const yearStyle = (day: { n: number; total: number } | null) => ({ ["--year" as string]: day ? (day.n / day.total).toFixed(4) : "0" });
 
 /**
- * 32A: halqa chizig'idagi mahalliy bo'rtiq — Gauss shaklida tashqariga chiqqan yoy (viewBox 0–100, tepada).
- * CSS uni tepadan boshlab soat yo'nalishida bir marta aylantiradi; uchlari konus niqob bilan so'nadi.
+ * 32A/32C: halqa atrofida aylanadigan **yoy** — halqa bilan konsentrik, silliq aylana bo'lagi (burchaksiz).
+ * Yoy uzun chiziladi (±85°), ko'rinadigan qismi esa burchak bo'yicha so'nadigan konus niqob bilan belgilanadi
+ * (CSS): niqob yoy uchlaridan ancha oldin to'liq shaffof — kesilgan chet ham, bo'laklar orasidagi chok ham yo'q.
+ * CSS uni tepadan boshlab soat yo'nalishida bir marta aylantiradi.
  */
-function bulgePath(r: number, amp: number, sigma = 15, span = 64) {
-  const pts: string[] = [];
-  for (let a = -span; a <= span; a += 2) {
-    const rad = ((a - 90) * Math.PI) / 180;
-    const rr = r + amp * Math.exp(-(a * a) / (2 * sigma * sigma));
-    pts.push(`${(50 + rr * Math.cos(rad)).toFixed(2)} ${(50 + rr * Math.sin(rad)).toFixed(2)}`);
-  }
-  return `M${pts.join(" L")}`;
+function arcPath(r: number, span: number) {
+  const pt = (deg: number) => {
+    const rad = ((deg - 90) * Math.PI) / 180;
+    return `${(50 + r * Math.cos(rad)).toFixed(2)} ${(50 + r * Math.sin(rad)).toFixed(2)}`;
+  };
+  return `M${pt(-span)} A${r} ${r} 0 0 1 ${pt(span)}`;
 }
 
 const BULGE = {
-  // header: halqa 56px, chiziq 3px → markaziy radius 47.3, qalinlik ≈5.4 (viewBox birligida)
-  sm: { r: 47.3, stroke: 4.6, amp: 8 },
-  // hero: halqa ≈176–224px, chiziq 6px
-  lg: { r: 48.6, stroke: 2.6, amp: 6 },
+  // header: halqa 56px (chiziq markazi r≈47.3) — yoy biroz tashqarida
+  sm: { r: 55, stroke: 3.6 },
+  // hero: halqa ≈176–224px (chiziq markazi r≈48.6)
+  lg: { r: 53.5, stroke: 2.2 },
 } as const;
 
 function RingBulge({ size }: { size: keyof typeof BULGE }) {
-  const { r, stroke, amp } = BULGE[size];
-  const d = useMemo(() => bulgePath(r, amp), [r, amp]);
+  const { r, stroke } = BULGE[size];
+  const d = useMemo(() => arcPath(r, 85), [r]);
   return (
-    <svg className="ring-bulge" viewBox="0 0 100 100" aria-hidden focusable="false">
-      <path className="glow" d={d} strokeWidth={stroke * 2.6} />
+    // Quti halqadan har tomonga 12% katta (CSS inset: -12%) — viewBox ham shunga mos: koordinatalar o'sha-o'sha,
+    // yoy esa to'liq quti ichida (niqob quti chegarasida yoyni kesmasin)
+    <svg className="ring-bulge" viewBox="-12 -12 124 124" aria-hidden focusable="false">
+      <path className="glow" d={d} strokeWidth={stroke * 2.4} />
       <path d={d} strokeWidth={stroke} />
     </svg>
   );
@@ -73,7 +75,7 @@ function RingBulge({ size }: { size: keyof typeof BULGE }) {
 
 /**
  * Emblema + yil davomiyligini ko'rsatuvchi halqa (to'lib boradi).
- * 32A: `RingBulge` — vaqti-vaqti bilan halqa chizig'idagi bo'rtiq tepadan boshlab soat yo'nalishida aylanib o'tadi
+ * 32A/32C: `RingBulge` — vaqti-vaqti bilan halqa atrofidagi silliq yoy tepadan boshlab soat yo'nalishida aylanib o'tadi
  * (CSS animatsiya, reduced-motion'da yo'q).
  */
 export function YearEmblem({ text = "365" }: { text?: string }) {

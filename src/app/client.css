@@ -159,27 +159,27 @@
   border-color: transparent;
   box-shadow: none;
 }
-/* 32A: har ~9 soniyada halqa chizig'ida bo'rtiq paydo bo'lib, tepadan (soat 12) boshlab soat yo'nalishida bir marta
-   aylanib o'tadi va so'nadi — halqaning hamma joyi birdan emas. Faqat transform/opacity (WebKit'da `filter`
+/* 32A/32C: har ~9 soniyada halqa atrofida silliq yoy (halqa shaklida, burchaksiz) paydo bo'lib, tepadan (soat 12)
+   boshlab soat yo'nalishida bir marta aylanib o'tadi va so'nadi — halqaning hamma joyi birdan emas. Faqat transform/opacity (WebKit'da `filter`
    animatsiyasi render jarayonini qulatardi) */
 .year-ring {
   --ring-w: 3px;
 }
 .ring-bulge {
   position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
+  inset: -12%;
+  width: 124%;
+  height: 124%;
   overflow: visible;
   z-index: 1;
   pointer-events: none;
   fill: none;
   stroke: var(--accent);
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  /* uchlari so'nib halqaga qo'shiladi (niqob element bilan birga aylanadi) */
-  -webkit-mask: conic-gradient(from -66deg, transparent 0deg, #000 34deg, #000 98deg, transparent 132deg, transparent 360deg);
-  mask: conic-gradient(from -66deg, transparent 0deg, #000 34deg, #000 98deg, transparent 132deg, transparent 360deg);
+  stroke-linecap: butt;
+  /* Ko'rinadigan yoy: tepada to'liq, ±22° dan ±60° gacha silliq so'nadi, undan keyin yo'q (yoy ±85° gacha chizilgan —
+     uchi niqob ichida qoladi, kesilgan chet ko'rinmaydi). Niqob element bilan birga aylanadi */
+  -webkit-mask: conic-gradient(from -60deg, transparent 0deg, rgba(0, 0, 0, 0.35) 16deg, #000 38deg, #000 82deg, rgba(0, 0, 0, 0.35) 104deg, transparent 120deg, transparent 360deg);
+  mask: conic-gradient(from -60deg, transparent 0deg, rgba(0, 0, 0, 0.35) 16deg, #000 38deg, #000 82deg, rgba(0, 0, 0, 0.35) 104deg, transparent 120deg, transparent 360deg);
   opacity: 0;
   animation: ring-bulge 9s linear 1.2s infinite;
 }
