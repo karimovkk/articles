@@ -54,12 +54,12 @@ const brand = await page.evaluate(() => {
     heroBrand: !!hb && getComputedStyle(hb).display !== "none" && hr.left > hero.left + hero.width / 2,
     heroDay: hb?.querySelector(".hero-brand-day")?.textContent ?? "",
     script: !!document.querySelector(".hero-script"),
-    sparks: document.getAnimations().filter((a) => a.animationName === "ring-orbit").length,
+    sparks: document.getAnimations().filter((a) => a.animationName === "ring-bulge").length,
   };
 });
 check("Brend header markazida (emblema + nom)", Math.abs(brand.headerCenter - brand.vw / 2) < brand.vw * 0.12, `markaz=${brand.headerCenter} / ${brand.vw}`);
 check("Hero o'ng tomonida katta brend va yil kuni; eski yozuv yo'q", brand.heroBrand && brand.heroDay.includes(String(expectedDay)) && !brand.script, JSON.stringify(brand));
-check("Halqa animatsiyasi (header + hero): chiziq vaqti-vaqti bilan shaklini o'zgartirib tashqariga chiqadi", brand.sparks === 4, `ring-orbit=${brand.sparks}`);
+check("Halqa animatsiyasi (header + hero): bo'rtiq vaqti-vaqti bilan tepadan soat yo'nalishida aylanadi", brand.sparks === 2, `ring-bulge=${brand.sparks}`);
 const hdrs0 = await mockGet("/__headers");
 check("Katalog so'rovi Authorization'siz ketdi (public)", hdrs0.some((h) => h.path === "/catalog"));
 check("Dumaloq pagination (31 ta kitob / 24): joriy 1, keyingi 2", (await page.textContent('[data-testid="pager"] button[aria-current="page"]'))?.trim() === "1" && (await page.locator('[data-testid="pager"] button:text-is("2")').count()) === 1);

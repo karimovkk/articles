@@ -215,6 +215,43 @@ await page.reload();
 await page.waitForFunction(() => document.querySelector('[data-testid="flip-stage"]') && ([...document.querySelectorAll(".flip-leaf")].find((l) => getComputedStyle(l).visibility === "visible"))?.querySelector("canvas")?.width > 0, null, { timeout: 20000 });
 check("Reload'dan keyin varaqlash rejimi saqlandi", (await page.$eval("button[aria-label=\"O'qish rejimi\"]", (b) => b.textContent)).includes("Varaq"));
 
+// 32B: Varaq → Kitob (ikki sahifa yonma-yon, 180° varaqlash)
+await page.click('button[aria-label="O\'qish rejimi"]');
+await page.waitForSelector('[data-testid="spread-stage"]', { timeout: 8000 });
+const spreadState = () =>
+  page.evaluate(() => {
+    const vis = [...document.querySelectorAll(".spread-leaf")].filter((l) => getComputedStyle(l).visibility === "visible");
+    return { spread: document.querySelector('[data-testid="spread-stage"]')?.dataset.spread, leaves: vis.map((l) => `${l.dataset.side}:${l.dataset.leaf}`).join(","), input: document.querySelector('input[aria-label="Sahifa"]').value, mode: document.querySelector('[data-testid="reader-mode"]')?.dataset.mode };
+  });
+await page.waitForFunction(() => [...document.querySelectorAll(".spread-leaf")].filter((l) => getComputedStyle(l).visibility === "visible" && l.querySelector("canvas")?.width > 0).length === 2, null, { timeout: 20000 });
+let sp = await spreadState();
+check("Kitob rejimi: ikki sahifa yonma-yon (3|4), joriy — o'ng sahifa", sp.mode === "spread" && sp.leaves === "left:3,right:4" && sp.input === "4", JSON.stringify(sp));
+const geo = await page.evaluate(() => {
+  const [a, b] = [...document.querySelectorAll(".spread-leaf")].filter((l) => getComputedStyle(l).visibility === "visible").map((l) => l.getBoundingClientRect());
+  const vp = document.querySelector('[data-testid="spread-stage"]').parentElement.getBoundingClientRect();
+  return { side: Math.abs(a.right - b.left) < 2 && Math.abs(a.top - b.top) < 1, fits: a.left >= vp.left - 1 && b.right <= vp.right + 1 && a.bottom <= vp.bottom + 1 };
+});
+check("Kitob: sahifalar umurtqada tutashgan va ekranga sig'adi", geo.side && geo.fits, JSON.stringify(geo));
+await page.screenshot({ path: OUT + "05b-spread-mode.png" });
+await page.keyboard.press("ArrowRight");
+const midFlip = await page
+  .waitForFunction(() => { const st = document.querySelector('[data-testid="spread-stage"]'); return st?.dataset.flipping === "1" && +st.dataset.progress > 0.2 && +st.dataset.progress < 0.8; }, null, { timeout: 4000, polling: 16 })
+  .then(() => true)
+  .catch(() => false);
+if (midFlip) await page.screenshot({ path: OUT + "05c-spread-flip.png" });
+await page.waitForFunction(() => document.querySelector('[data-testid="spread-stage"]')?.dataset.spread === "3" && !document.querySelector('[data-testid="spread-stage"]').dataset.flipping, null, { timeout: 8000 });
+sp = await spreadState();
+check("Kitob: ArrowRight → keyingi juft (5|6) varaq animatsiyasi bilan", midFlip && sp.leaves === "left:5,right:6" && sp.input === "6", JSON.stringify({ midFlip, ...sp }));
+await page.keyboard.press("ArrowLeft");
+await page.waitForFunction(() => document.querySelector('[data-testid="spread-stage"]')?.dataset.spread === "2" && !document.querySelector('[data-testid="spread-stage"]').dataset.flipping, null, { timeout: 8000 });
+sp = await spreadState();
+check("Kitob: ArrowLeft → oldingi juft (3|4)", sp.leaves === "left:3,right:4" && sp.input === "4", JSON.stringify(sp));
+const spreadHl = await page
+  .waitForFunction(() => [...document.querySelectorAll('.spread-leaf[data-leaf="3"] .highlightLayer > div')].some((d) => d.getBoundingClientRect().width > 0), null, { timeout: 8000 })
+  .then(() => true)
+  .catch(() => false);
+check("Kitob: 3-sahifadagi belgilash ko'rinadi", spreadHl);
+
 // Scroll'ga qaytish → 6 sahifa, joriy sahifa saqlanadi
 const before = await page.$eval('input[aria-label="Sahifa"]', (i) => i.value);
 await page.click('button[aria-label="O\'qish rejimi"]');

@@ -4,8 +4,9 @@
  * PDF.js asosidagi reader.
  *  - Hujjat `openProtectedPdf` orqali ochiladi: bo'laklar Range so'rovlari bilan,
  *    Bearer + avtomatik refresh (lib/reader/range-transport.ts).
- *  - Ikki rejim (S-29=C): "scroll" — uzluksiz; "page" — varaqlash (bitta sahifa, ekranga sig'adi;
- *    `FlipStage`: 3D varaq animatsiyasi, sichqoncha bilan sudrab varaqlash, chekka zonalar, swipe).
+ *  - Uch rejim (S-29=C, 32B): "scroll" — uzluksiz; "page" — varaqlash (bitta sahifa, ekranga sig'adi;
+ *    `FlipStage`: 3D varaq animatsiyasi, sichqoncha bilan sudrab varaqlash, chekka zonalar, swipe);
+ *    "spread" — kitob: ikki sahifa yonma-yon, 180° varaqlash (`SpreadStage`); tor ekranda "page" ga tushadi.
  *  - Sahifalar IntersectionObserver bilan faqat ko'rinish yaqinida render qilinadi.
  *  - Har sahifada matn qatlami (tanlash, highlight) va highlight overlay qatlami.
  *  - Nusxalash cheklovi (S-41): copy/cut/drag hodisalari bloklanadi; tanlash
@@ -17,14 +18,17 @@ import { loadPdfJs, openProtectedPdf } from "@/lib/reader/range-transport";
 import { getHighlightRects, normalizeColor, rectsFromClientRects, type HighlightRect } from "@/lib/reader/highlights";
 import { drawCurl, edgeTable, progressForEdge } from "@/lib/reader/page-curl";
 import { findTextRects } from "@/lib/reader/find-text";
+import { SpreadStage, lastOf, leftOf, spreadOf } from "./spread-stage";
 import type { Annotation } from "@/lib/api";
 import { Spinner } from "@/components/ui";
 import { useT } from "@/i18n";
 
-export type ViewMode = "scroll" | "page";
+export type ViewMode = "scroll" | "page" | "spread";
 
 export interface PdfViewerHandle {
   goToPage: (page: number) => void;
+  /** Rejimga mos bir qadam: scroll/varaq — 1 sahifa, kitob — 1 juft (32B) */
+  step: (dir: 1 | -1) => void;
   /** Tanlovni bekor qilish (22.1 — o'z tanlov mexanizmi) */
   clearSelection: () => void;
 }
@@ -60,6 +64,8 @@ export interface PdfViewerProps {
   onError?: (message: string, error?: unknown) => void;
   onTextSelected?: (sel: TextSelection | null) => void;
   onProgress?: (loaded: number, total: number) => void;
+  /** Kitob rejimi (ikki sahifa) shu o'lchamda sig'adimi — rejim almashtirgich uchun (32B) */
+  onSpreadAvailable?: (ok: boolean) => void;
 }
 
 const RENDER_MARGIN = "150% 0px";
@@ -69,6 +75,8 @@ const MAX_PAGE_WIDTH = 1100;
 const SEARCH_HIT_MS = 6000;
 /** Sahifaning chekka ulushi (chap/o'ng) — sichqoncha bilan "varaq burchagidan" ushlab sudrash zonasi */
 const GRAB_EDGE = 0.14;
+/** Kitob rejimi: konteyner shu kenglikdan tor yoki portret bo'lsa — bitta varaqqa tushadi */
+const SPREAD_MIN_W = 860;
 
 interface PageHighlight {
   id: string;
@@ -77,7 +85,7 @@ interface PageHighlight {
 }
 
 export const PdfViewer = forwardRef<PdfViewerHandle, PdfViewerProps>(function PdfViewer(
-  { articleId, initialPage = 1, zoom, night, mode, highlights, searchHit, watermarkText, onReady, onPageChange, onError, onTextSelected, onProgress, onHighlightPick },
+  { articleId, initialPage = 1, zoom, night, mode: requestedMode, highlights, searchHit, watermarkText, onReady, onPageChange, onError, onTextSelected, onProgress, onHighlightPick, onSpreadAvailable },
   ref,
 ) {
   const { t } = useT();
@@ -141,12 +149,20 @@ export const PdfViewer = forwardRef<PdfViewerHandle, PdfViewerProps>(function Pd
     return () => ro.disconnect();
   }, []);
 
-  // Scroll rejimi: kenglikka moslash; page rejimi: butun sahifa ekranga sig'adi
+  // 32B: kitob rejimi faqat keng va yotiq konteynerda — aks holda bitta varaq
+  const spreadFits = box.w >= SPREAD_MIN_W && box.w > box.h;
+  const mode: ViewMode = requestedMode === "spread" && !spreadFits ? "page" : requestedMode;
+  useEffect(() => {
+    if (box.w) onSpreadAvailable?.(spreadFits);
+  }, [spreadFits, box.w, onSpreadAvailable]);
+
+  // Scroll rejimi: kenglikka moslash; page rejimi: butun sahifa ekranga sig'adi; kitob: ikki sahifa sig'adi
   const scale = useMemo(() => {
     if (!baseWidth || !box.w) return 1;
     const fitW = Math.min(box.w - 32, MAX_PAGE_WIDTH) / baseWidth;
     if (mode === "scroll" || !box.h) return fitW * zoom;
     const fitH = (box.h - 32) / (baseWidth * aspect);
+    if (mode === "spread") return Math.min((box.w - 48) / (2 * baseWidth), fitH) * zoom;
     return Math.min(fitW, fitH) * zoom;
   }, [baseWidth, box, mode, aspect, zoom]);
   const pageWidth = Math.round(baseWidth * scale);
@@ -227,7 +243,26 @@ export const PdfViewer = forwardRef<PdfViewerHandle, PdfViewerProps>(function Pd
     setPick(null);
     onTextSelected?.(null);
   }, [onTextSelected]);
-  useImperativeHandle(ref, () => ({ goToPage, clearSelection }), [goToPage, clearSelection]);
+  const step = useCallback(
+    (dir: 1 | -1) => {
+      const cur = currentPageRef.current;
+      if (mode === "spread") {
+        const s = spreadOf(cur, pageCount) + dir;
+        if (s >= 1 && leftOf(s) <= pageCount) goToPage(lastOf(s, pageCount));
+        return;
+      }
+      goToPage(cur + dir);
+    },
+    [mode, pageCount, goToPage],
+  );
+  useImperativeHandle(ref, () => ({ goToPage, step, clearSelection }), [goToPage, step, clearSelection]);
+
+  // 32B: kitob rejimida joriy sahifa — juftda ko'rinib turgan eng katta sahifa (progress va "o'qildi" to'g'ri bo'lsin)
+  useEffect(() => {
+    if (mode !== "spread" || !pageCount) return;
+    const want = lastOf(spreadOf(currentPageRef.current, pageCount), pageCount);
+    if (want !== currentPageRef.current) setCurrent(want);
+  }, [mode, pageCount, pageNo, setCurrent]);
 
   // Chop etish dialogi (display:none) scroll holatini yo'qotadi — yopilgach joriy sahifa tiklanadi
   useEffect(() => {
@@ -468,12 +503,46 @@ export const PdfViewer = forwardRef<PdfViewerHandle, PdfViewerProps>(function Pd
             labels={{ prev: t("reader.prevPage"), next: t("reader.nextPage") }}
           />
         )}
+
+        {pageCount > 0 && mode === "spread" && (
+          <SpreadStage
+            current={shownPage}
+            pageCount={pageCount}
+            width={pageWidth}
+            height={pageHeight}
+            night={night}
+            onCommit={goToPage}
+            renderPage={(n) => (
+              <PdfPage
+                pageNumber={n}
+                docRef={docRef}
+                scale={scale}
+                width={pageWidth}
+                height={pageHeight}
+                highlights={highlightsByPage.get(n)}
+                searchQuery={searchHit?.page === n ? searchHit.query : undefined}
+                searchNonce={searchHit?.nonce}
+                onHighlightPick={onHighlightPick}
+                pickRects={pick?.page === n ? pick.rects : undefined}
+                watermarkText={watermarkText}
+                label={t("common.pageN", { n })}
+              />
+            )}
+            labels={{ prev: t("reader.prevPage"), next: t("reader.nextPage") }}
+          />
+        )}
       </div>
 
       {pageCount > 0 && mode === "page" && (
         <>
           <PageNavButton side="left" disabled={shownPage <= 1} onClick={() => goToPage(shownPage - 1)} label={t("reader.prevPage")} />
           <PageNavButton side="right" disabled={shownPage >= pageCount} onClick={() => goToPage(shownPage + 1)} label={t("reader.nextPage")} />
+        </>
+      )}
+      {pageCount > 0 && mode === "spread" && (
+        <>
+          <PageNavButton side="left" disabled={spreadOf(shownPage, pageCount) <= 1} onClick={() => step(-1)} label={t("reader.prevPage")} />
+          <PageNavButton side="right" disabled={lastOf(spreadOf(shownPage, pageCount), pageCount) >= pageCount} onClick={() => step(1)} label={t("reader.nextPage")} />
         </>
       )}
     </div>

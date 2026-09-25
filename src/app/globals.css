@@ -322,6 +322,97 @@ html {
     transition: none !important;
   }
 }
+/* ---- Kitob rejimi (32B, SpreadStage): ikki sahifa yonma-yon, o'rtada umurtqa ---- */
+.spread-book {
+  position: relative;
+  box-shadow: 0 22px 44px -26px rgba(0, 0, 0, 0.55);
+}
+.spread-leaf {
+  position: absolute;
+  top: 0;
+  width: var(--page-w);
+  height: 100%;
+}
+.spread-leaf .reader-page {
+  box-shadow: none;
+}
+/* Toq sonli hujjatning oxirgi jufti — o'ngda bo'sh qog'oz */
+.spread-blank {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: var(--page-w);
+  height: 100%;
+  background: #fff;
+}
+.reader-night .spread-blank {
+  filter: invert(0.92) hue-rotate(180deg);
+}
+/* Umurtqa: ikki sahifa tutashgan joydagi chuqurlik soyasi */
+.spread-spine {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(50% - 24px);
+  width: 48px;
+  z-index: 4;
+  pointer-events: none;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(0, 0, 0, 0.07) 30%,
+    rgba(0, 0, 0, 0.24) 49%,
+    rgba(0, 0, 0, 0.3) 50%,
+    rgba(0, 0, 0, 0.24) 51%,
+    rgba(0, 0, 0, 0.07) 70%,
+    transparent
+  );
+}
+.reader-night .spread-spine {
+  background: linear-gradient(90deg, transparent, rgba(0, 0, 0, 0.25) 30%, rgba(0, 0, 0, 0.6) 50%, rgba(0, 0, 0, 0.25) 70%, transparent);
+}
+/* Ikki chetdagi varaqlar stacki — kitob qalinligi */
+.spread-book::before,
+.spread-book::after {
+  content: "";
+  position: absolute;
+  top: 5px;
+  bottom: 5px;
+  width: 7px;
+  z-index: 0;
+  background: repeating-linear-gradient(90deg, rgba(120, 110, 90, 0.35) 0 1px, rgba(255, 255, 255, 0.85) 1px 3px);
+  box-shadow: 0 4px 10px -5px rgba(0, 0, 0, 0.55);
+}
+.spread-book::before {
+  left: -7px;
+  border-radius: 3px 0 0 3px;
+}
+.spread-book::after {
+  right: -7px;
+  border-radius: 0 3px 3px 0;
+}
+.reader-night .spread-book::before,
+.reader-night .spread-book::after {
+  background: repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.6) 0 1px, rgba(90, 88, 84, 0.7) 1px 3px);
+}
+/* Ushlash zonasi — faqat tashqi chekkalar (chap sahifaning chapi, o'ngining o'ngi) */
+.spread-leaf[data-side="left"] .reader-page::before,
+.spread-leaf[data-side="right"] .reader-page::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 14%;
+  z-index: 2;
+  cursor: grab;
+}
+.spread-leaf[data-side="left"] .reader-page::before {
+  left: 0;
+}
+.spread-leaf[data-side="right"] .reader-page::after {
+  right: 0;
+}
+
 
 /* ---- Chop etish cheklovi (TZ §4, FE-4.6): reader chop etilmaydi ---- */
 @media print {

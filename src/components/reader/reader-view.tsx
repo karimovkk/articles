@@ -86,7 +86,13 @@ export function ReaderView({ articleId }: { articleId: string }) {
   const [pageCount, setPageCount] = useState(0);
   const [zoomIdx, setZoomIdx] = useState(3);
   const [night, setNight] = useState(() => readPref(NIGHT_KEY) === "1");
-  const [mode, setMode] = useState<ViewMode>(() => (readPref(MODE_KEY) === "page" ? "page" : "scroll"));
+  const [mode, setMode] = useState<ViewMode>(() => {
+    const saved = readPref(MODE_KEY);
+    return saved === "page" || saved === "spread" ? saved : "scroll";
+  });
+  // 32B: kitob rejimi (ikki sahifa) joriy o'lchamda sig'adimi — viewer aytadi; sig'masa bitta varaq ko'rsatiladi
+  const [spreadOk, setSpreadOk] = useState(false);
+  const shownMode: ViewMode = mode === "spread" && !spreadOk ? "page" : mode;
   const [hlColor, setHlColor] = useState(() => normalizeColor(readPref(COLOR_KEY)));
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [tab, setTab] = useState<SidebarTab>("toc");
@@ -307,8 +313,9 @@ export function ReaderView({ articleId }: { articleId: string }) {
         showToast(t("reader.noCopy"));
         return;
       }
-      if (e.key === "ArrowRight" || e.key === "PageDown") viewerRef.current?.goToPage(page + 1);
-      if (e.key === "ArrowLeft" || e.key === "PageUp") viewerRef.current?.goToPage(page - 1);
+      // 32B: rejimga mos qadam (kitob rejimida — bir juft)
+      if (e.key === "ArrowRight" || e.key === "PageDown") viewerRef.current?.step(1);
+      if (e.key === "ArrowLeft" || e.key === "PageUp") viewerRef.current?.step(-1);
       if (e.key === "+" || e.key === "=") setZoomIdx((z) => Math.min(ZOOMS.length - 1, z + 1));
       if (e.key === "-") setZoomIdx((z) => Math.max(0, z - 1));
     };
@@ -326,12 +333,12 @@ export function ReaderView({ articleId }: { articleId: string }) {
       return !n;
     });
   };
+  /** Scroll → Varaq → Kitob (sig'sa) → Scroll */
+  const nextModeOf = (m: ViewMode): ViewMode => (m === "scroll" ? "page" : m === "page" && spreadOk ? "spread" : "scroll");
   const toggleMode = () => {
-    setMode((m) => {
-      const nextMode: ViewMode = m === "scroll" ? "page" : "scroll";
-      writePref(MODE_KEY, nextMode);
-      return nextMode;
-    });
+    const nextMode = nextModeOf(shownMode);
+    writePref(MODE_KEY, nextMode);
+    setMode(nextMode);
   };
 
   // ---- Annotatsiyalar
@@ -537,9 +544,17 @@ export function ReaderView({ articleId }: { articleId: string }) {
             {isRead ? <I.CheckCircle size={16} /> : <I.Check size={16} className="opacity-50" />}
             <span className="hidden md:inline">{t("reader.readLabel")}</span>
           </button>
-          <button type="button" onClick={toggleMode} className="btn ghost sm max-sm:!px-2" title={mode === "scroll" ? t("reader.toPageMode") : t("reader.toScrollMode")} aria-label={t("reader.readingMode")}>
-            {mode === "scroll" ? <I.Rows size={16} /> : <I.Columns size={16} />}
-            <span className="hidden sm:inline">{mode === "scroll" ? t("reader.modeScroll") : t("reader.modePage")}</span>
+          <button
+            type="button"
+            onClick={toggleMode}
+            className="btn ghost sm max-sm:!px-2"
+            title={t(nextModeOf(shownMode) === "page" ? "reader.toPageMode" : nextModeOf(shownMode) === "spread" ? "reader.toSpreadMode" : "reader.toScrollMode")}
+            aria-label={t("reader.readingMode")}
+            data-testid="reader-mode"
+            data-mode={shownMode}
+          >
+            {shownMode === "scroll" ? <I.Rows size={16} /> : shownMode === "page" ? <I.Columns size={16} /> : <I.BookOpen size={16} />}
+            <span className="hidden sm:inline">{t(shownMode === "scroll" ? "reader.modeScroll" : shownMode === "page" ? "reader.modePage" : "reader.modeSpread")}</span>
           </button>
           <button type="button" onClick={toggleNight} className="icon-btn plain" title={night ? t("theme.light") : t("theme.dark")} aria-label={night ? t("theme.light") : t("theme.dark")}>
             {night ? <I.Sun size={18} /> : <I.Moon size={18} />}
@@ -595,6 +610,7 @@ export function ReaderView({ articleId }: { articleId: string }) {
               zoom={ZOOMS[zoomIdx]}
               night={night}
               mode={mode}
+              onSpreadAvailable={setSpreadOk}
               highlights={highlights}
               searchHit={searchHit}
               watermarkText={meta.features?.watermark !== false ? (watermark?.watermark_text ?? null) : null}

@@ -720,6 +720,27 @@ kitob, profil, bildirishnomalar, mavzu almashish Safari 17.4 da ishladi.
 - [x] 30b.2 Header va hero halqasida; kadrlar skrinshoti, WebKit qulamasligi, e2e yangilanadi
       → Chrome `--prod` **22/22 (366)**, WebKit catalog/visual/theme/long-text/auth-ui/profile **6/6 (95)**, qulash yo'q
 
+## 32. Halqa bo'rtig'i aylanadi + reader'da kitobdek ikki sahifa (2026-09-25)
+
+**32A — halqa** ("hamma joyi bir vaqtda bo'rtib chiqmasin, tepadan boshlab o'ng tomonga aylansin")
+- [x] 32A.1 Butun chiziq kengayishi o'rniga: halqa chizig'ida **mahalliy bo'rtiq** (SVG yo'l, Gauss shaklida tashqariga)
+      tepadan (soat 12) boshlanib soat yo'nalishida bir marta to'liq aylanadi va so'nadi; har ~9 s. Butun halqa
+      yonishi (ring-glow) ham olib tashlanadi. Faqat transform/opacity; reduced-motion'da yo'q
+- [x] 32A.2 Header + hero, yorug'/qorong'i kadrlar; WebKit qulamasligi; e2e yangilanadi (catalog: `ring-bulge` 2 ta)
+
+**32B — kitobdek ikki sahifa** ("pdf o'qilayotganda 2 tali page qilish imkoni, xuddi kitob singari")
+- [x] 32B.1 Uchinchi rejim `spread`: yonma-yon juftlar [1|2], [3|4]…, o'rtada umurtqa (soya); ikkala sahifa ekranga sig'adi
+- [x] 32B.2 Varaqlash 180°: o'ng varaq umurtqa atrofida ko'tariladi (mavjud `drawCurl`), 90° dan keyin orqa tomoni
+      (keyingi juftning chap sahifasi) chapga tushadi (ko'zgu chizish); orqaga — teskari. Tugma, klaviatura, fonni
+      bosish, sudrash (varaq kursorga ergashadi), swipe; reduced-motion'da animatsiyasiz
+- [x] 32B.3 Rejim almashtirgich: Scroll → Varaq → Kitob; tor ekranda (kenglik < 900px yoki portret) Kitob rejimi
+      bitta varaqqa tushadi; tanlov, belgilash, qidiruv natijasi, suv belgisi ikkala sahifada ishlaydi; progress —
+      ko'rinib turgan eng katta sahifa (oxirgi juftda avtomatik "o'qildi")
+- [x] 32B.4 e2e: kitob rejimi (2 sahifa, varaqlash animatsiyasi, navigatsiya, belgilash) + WebKit + `--prod`
+      → Chrome `--prod` **22/22 (371)**. WebKit: 6/7 — `reader` to'plami 31.1 dagi ma'lum joyda (210-qator, kitob
+      tekshiruvlaridan oldin) to'xtaydi; kitob rejimi WebKit'da alohida skript bilan sinaldi (sudrash oldinga/qisqa/
+      orqaga, 180° kadrlar) — o'tdi.
+
 ## 31. Keyingi vazifalar
 
 - [ ] 31.1 Safari (WebKit): varaqlash rejimida oldingi sahifaga qaytilganda (3-sahifa) belgilash qatlami
