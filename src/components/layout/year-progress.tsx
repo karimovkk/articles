@@ -41,14 +41,15 @@ const yearStyle = (day: { n: number; total: number } | null) => ({ ["--year" as 
 
 /**
  * Emblema + yil davomiyligini ko'rsatuvchi halqa (to'lib boradi).
- * 30: `.ring-spark` — vaqti-vaqti bilan halqa bo'ylab aylanib o'tadigan oltin nur (CSS animatsiya, reduced-motion'da yo'q).
+ * 30b: `.ring-orbit` — vaqti-vaqti bilan halqa atrofidagi dumaloq chiziq shaklini o'zgartirib, tashqariga kengayib
+ * aylanadi va so'nadi (ikki to'lqin; CSS animatsiya, reduced-motion'da yo'q).
  */
 export function YearEmblem({ text = "365" }: { text?: string }) {
   const { t } = useT();
   const day = useYearDay();
   return (
     <span className="year-ring" style={yearStyle(day)} title={day ? t("client.dayOfYear", { n: day.n, total: day.total }) : undefined} data-testid="year-ring">
-      <span className="ring-spark" aria-hidden />
+      <span className="ring-orbit" aria-hidden />
       <span className="client-emblem" aria-hidden>
         {text}
       </span>
@@ -67,7 +68,7 @@ export function HeroBrand({ name }: { name: string }) {
     <div className="hero-brand" data-testid="hero-brand">
       <span className="year-ring year-ring-lg" style={yearStyle(day)} aria-hidden>
         <span className="ring-months" />
-        <span className="ring-spark" />
+        <span className="ring-orbit" />
         <span className="hero-brand-emblem">365</span>
       </span>
       <span className="hero-brand-name" aria-hidden>

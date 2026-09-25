@@ -712,6 +712,14 @@ kitob, profil, bildirishnomalar, mavzu almashish Safari 17.4 da ishladi.
       halqadagi `filter: drop-shadow` animatsiyasi WebKit render jarayonini qulatardi → yorug'lik alohida qatlamda,
       faqat `opacity` animatsiyasi (Chrome'da ham arzonroq).
 
+## 30b. Halqa animatsiyasi — aniqlashtirish (2026-09-25, "atrofidagi dumaloq chiziq shaklini o'zgartirib, tashqariga bo'rtib chiqib aylansin")
+
+- [x] 30b.1 Nur (`ring-spark`) o'rniga: halqa atrofidagi ingichka dumaloq chiziq har ~9 s da tashqariga kengayadi,
+      shakli to'lqinsimon o'zgaradi (border-radius), aylanadi va so'nib yo'qoladi; ikkinchi chiziq biroz kechikib
+      (to'lqin effekti). Faqat transform/opacity/border-radius — `filter` yo'q (WebKit). Reduced-motion'da o'chadi
+- [x] 30b.2 Header va hero halqasida; kadrlar skrinshoti, WebKit qulamasligi, e2e yangilanadi
+      → Chrome `--prod` **22/22 (366)**, WebKit catalog/visual/theme/long-text/auth-ui/profile **6/6 (95)**, qulash yo'q
+
 ## 31. Keyingi vazifalar
 
 - [ ] 31.1 Safari (WebKit): varaqlash rejimida oldingi sahifaga qaytilganda (3-sahifa) belgilash qatlami
