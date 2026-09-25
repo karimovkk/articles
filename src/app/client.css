@@ -1378,3 +1378,404 @@
     font-size: 28px;
   }
 }
+
+/* ---------- 33: Lug'at sahifasi ---------- */
+
+.vocab-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+.vocab-tabs {
+  flex-shrink: 0;
+}
+.vocab-tabs .tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.vocab-search {
+  flex: 1 1 220px;
+  min-width: 0;
+  max-width: 360px;
+}
+.vocab-select {
+  width: 190px;
+}
+.vocab-toolbar-end {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+.vocab-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
+  gap: 16px;
+}
+.vocab-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  padding: 18px 18px 14px;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  transition:
+    border-color 160ms var(--ease),
+    transform 160ms var(--ease),
+    box-shadow 160ms var(--ease);
+}
+.vocab-card:hover {
+  border-color: var(--gold-line);
+  transform: translateY(-2px);
+  box-shadow: 0 18px 36px -22px rgba(0, 0, 0, 0.55);
+}
+/* O'rganilgan so'z — chap chetida yashil chiziq */
+.vocab-card.is-learned::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 16px;
+  bottom: 16px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--success);
+}
+.vocab-card-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.vocab-word {
+  flex: 0 1 auto;
+  min-width: 0;
+  /* umumiy sarlavha qoidasidagi nowrap'ni bekor qiladi — uzun so'z/ibora qatorga bo'linadi */
+  white-space: normal;
+  overflow-wrap: anywhere;
+  font-family: var(--font-serif);
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+.vocab-tr {
+  font-size: 15.5px;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--accent-ink);
+}
+.dark .vocab-tr {
+  color: var(--accent);
+}
+.vocab-add-tr {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1.5px dashed var(--gold-line);
+  background: transparent;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent-ink);
+  cursor: pointer;
+}
+.dark .vocab-add-tr {
+  color: var(--accent);
+}
+.vocab-add-tr:hover {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+.vocab-context {
+  margin: 0;
+  padding: 8px 12px;
+  border-left: 3px solid var(--accent);
+  border-radius: 0 10px 10px 0;
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+  font-size: 13.5px;
+  font-style: italic;
+  line-height: 1.5;
+  color: var(--text-2);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
+}
+.vocab-context mark {
+  padding: 0 2px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--accent) 35%, transparent);
+  color: inherit;
+  font-style: normal;
+  font-weight: 700;
+}
+.vocab-source {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.vocab-source > span:first-of-type {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.vocab-pageno {
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--gold-line);
+  color: var(--accent-ink);
+  white-space: nowrap;
+}
+.dark .vocab-pageno {
+  color: var(--accent);
+}
+.vocab-date {
+  margin-left: auto;
+  white-space: nowrap;
+}
+.vocab-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.vocab-actions-end {
+  display: inline-flex;
+  gap: 2px;
+  margin-left: auto;
+}
+
+/* Takrorlash (flashcards) */
+.flashcards {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 640px;
+  margin: 8px auto 0;
+}
+.flashcards-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.flashcards-count {
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-2);
+}
+.flashcard {
+  display: block;
+  width: 100%;
+  height: clamp(250px, 42vh, 380px);
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  perspective: 1400px;
+  -webkit-tap-highlight-color: transparent;
+}
+.flashcard-inner {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transition: transform 520ms cubic-bezier(0.3, 0.7, 0.2, 1);
+}
+.flashcard.is-flipped .flashcard-inner {
+  transform: rotateY(180deg);
+}
+.flashcard-face {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 28px;
+  border-radius: 24px;
+  border: 1px solid var(--gold-line);
+  background:
+    radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 60%),
+    var(--surface);
+  box-shadow: 0 24px 48px -28px rgba(0, 0, 0, 0.55);
+  text-align: center;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+.flashcard-face.back {
+  transform: rotateY(180deg);
+}
+.flashcard:focus-visible .flashcard-face {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+.flashcard-word {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  font-family: var(--font-serif);
+  font-size: clamp(32px, 6vw, 54px);
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--text);
+}
+.flashcard-word.small {
+  font-size: 20px;
+  color: var(--muted);
+}
+.flashcard-tr {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  font-size: clamp(22px, 4vw, 32px);
+  font-weight: 800;
+  line-height: 1.2;
+  color: var(--accent-ink);
+}
+.dark .flashcard-tr {
+  color: var(--accent);
+}
+.flashcard-tr.muted {
+  font-size: 16px;
+  font-style: italic;
+  font-weight: 600;
+  color: var(--muted);
+}
+.flashcard-context {
+  max-width: 480px;
+  font-size: 14px;
+  font-style: italic;
+  line-height: 1.5;
+  color: var(--text-2);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+  overflow: hidden;
+}
+.flashcard-hint {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.flashcards-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+.flashcards-keys {
+  text-align: center;
+  font-size: 12px;
+  color: var(--muted);
+}
+.flashcards-done {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  max-width: 520px;
+  margin: 24px auto;
+  padding: 36px 24px;
+  text-align: center;
+}
+.flashcards-done h3 {
+  font-family: var(--font-serif);
+  font-size: 26px;
+  font-weight: 700;
+}
+.flashcards-done p {
+  color: var(--text-2);
+}
+.flashcards-done-icon {
+  color: var(--success);
+}
+.flashcards-score {
+  font-family: var(--font-serif);
+  font-size: 40px;
+  font-weight: 700;
+  color: var(--accent-ink) !important;
+}
+.dark .flashcards-score {
+  color: var(--accent) !important;
+}
+
+@media (max-width: 760px) {
+  .vocab-search {
+    flex-basis: 100%;
+    max-width: none;
+    order: 2;
+  }
+  .vocab-tabs {
+    order: 1;
+  }
+  .vocab-select {
+    order: 3;
+    width: calc(50% - 5px);
+  }
+  .vocab-toolbar-end {
+    order: 1;
+  }
+  .vocab-word {
+    font-size: 21px;
+  }
+}
+@media (max-width: 400px) {
+  .vocab-select {
+    width: 100%;
+  }
+  .vocab-card {
+    padding: 16px 14px 12px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .flashcard-inner,
+  .vocab-card {
+    transition: none;
+  }
+}
+@media (min-width: 2200px) {
+  .vocab-grid {
+    grid-template-columns: repeat(auto-fill, minmax(440px, 1fr));
+    gap: 22px;
+  }
+  .vocab-word {
+    font-size: 30px;
+  }
+  .vocab-tr {
+    font-size: 19px;
+  }
+  .vocab-context {
+    font-size: 16px;
+  }
+  .vocab-source {
+    font-size: 14px;
+  }
+  .flashcards {
+    max-width: 860px;
+  }
+  .flashcard {
+    height: 460px;
+  }
+}

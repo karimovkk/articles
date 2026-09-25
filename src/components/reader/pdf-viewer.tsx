@@ -56,6 +56,9 @@ export interface PdfViewerProps {
   searchHit?: { page: number; query: string; nonce: number } | null;
   /** Sahifadagi belgilangan joy bosildi (21.3) — rang almashtirish / o'chirish paneli uchun */
   onHighlightPick?: (id: string, x: number, y: number) => void;
+  /** 33.3: lug'at so'zlari — PDF'da nuqtali chiziq bilan belgilanadi; bosilsa tarjima oynasi */
+  vocabMarks?: Array<{ id: string; page: number | null; rects: HighlightRect[] }>;
+  onVocabPick?: (id: string, x: number, y: number) => void;
   /** Suv belgisi matni — sahifa canvas'iga chiziladi (22.3: ekran suratida ham qoladi) */
   watermarkText?: string | null;
   onReady?: (info: { pageCount: number; size: number }) => void;
@@ -85,7 +88,7 @@ interface PageHighlight {
 }
 
 export const PdfViewer = forwardRef<PdfViewerHandle, PdfViewerProps>(function PdfViewer(
-  { articleId, initialPage = 1, zoom, night, mode: requestedMode, highlights, searchHit, watermarkText, onReady, onPageChange, onError, onTextSelected, onProgress, onHighlightPick, onSpreadAvailable },
+  { articleId, initialPage = 1, zoom, night, mode: requestedMode, highlights, searchHit, watermarkText, onReady, onPageChange, onError, onTextSelected, onProgress, onHighlightPick, onSpreadAvailable, vocabMarks, onVocabPick },
   ref,
 ) {
   const { t } = useT();
@@ -181,6 +184,18 @@ export const PdfViewer = forwardRef<PdfViewerHandle, PdfViewerProps>(function Pd
     }
     return map;
   }, [highlights]);
+
+  // 33.3: lug'at belgilari sahifa bo'yicha
+  const vocabByPage = useMemo(() => {
+    const map = new Map<number, Array<{ id: string; rects: HighlightRect[] }>>();
+    for (const v of vocabMarks ?? []) {
+      if (v.page == null || !v.rects.length) continue;
+      const list = map.get(v.page) ?? [];
+      list.push({ id: v.id, rects: v.rects });
+      map.set(v.page, list);
+    }
+    return map;
+  }, [vocabMarks]);
 
   const setCurrent = useCallback(
     (p: number) => {
@@ -468,6 +483,8 @@ export const PdfViewer = forwardRef<PdfViewerHandle, PdfViewerProps>(function Pd
                 searchNonce={searchHit?.nonce}
                 onSearchRects={onSearchRects}
                 onHighlightPick={onHighlightPick}
+                vocab={vocabByPage.get(i + 1)}
+                onVocabPick={onVocabPick}
                 pickRects={pick?.page === i + 1 ? pick.rects : undefined}
                 watermarkText={watermarkText}
                 label={t("common.pageN", { n: i + 1 })}
@@ -495,6 +512,8 @@ export const PdfViewer = forwardRef<PdfViewerHandle, PdfViewerProps>(function Pd
                 searchQuery={searchHit?.page === n ? searchHit.query : undefined}
                 searchNonce={searchHit?.nonce}
                 onHighlightPick={onHighlightPick}
+                vocab={vocabByPage.get(n)}
+                onVocabPick={onVocabPick}
                 pickRects={pick?.page === n ? pick.rects : undefined}
                 watermarkText={watermarkText}
                 label={t("common.pageN", { n })}
@@ -523,6 +542,8 @@ export const PdfViewer = forwardRef<PdfViewerHandle, PdfViewerProps>(function Pd
                 searchQuery={searchHit?.page === n ? searchHit.query : undefined}
                 searchNonce={searchHit?.nonce}
                 onHighlightPick={onHighlightPick}
+                vocab={vocabByPage.get(n)}
+                onVocabPick={onVocabPick}
                 pickRects={pick?.page === n ? pick.rects : undefined}
                 watermarkText={watermarkText}
                 label={t("common.pageN", { n })}
@@ -872,6 +893,8 @@ function PdfPage({
   searchNonce,
   onSearchRects,
   onHighlightPick,
+  vocab,
+  onVocabPick,
   pickRects,
   watermarkText,
   label,
@@ -888,6 +911,9 @@ function PdfPage({
   onSearchRects?: (page: number, rects: HighlightRect[]) => void;
   /** Belgilangan joy bosildi (21.3) */
   onHighlightPick?: (id: string, x: number, y: number) => void;
+  /** 33.3: shu sahifadagi lug'at so'zlari */
+  vocab?: Array<{ id: string; rects: HighlightRect[] }>;
+  onVocabPick?: (id: string, x: number, y: number) => void;
   /** Foydalanuvchi sudrab tanlagan joy (22.1 — brauzer tanlovi o'rniga) */
   pickRects?: HighlightRect[];
   /** Canvas ichiga chiziladigan suv belgisi (22.3) */
@@ -986,13 +1012,24 @@ function PdfPage({
 
   /** Bosilgan nuqta belgilangan joyga tushdimi? (matn qatlami ustida bo'lgani uchun klik shu yerda tekshiriladi) */
   function pickHighlight(e: React.MouseEvent<HTMLDivElement>) {
-    if (!onHighlightPick || !highlights?.length) return;
     if (pickRects?.length) return; // matn tanlangan — avval tanlov paneli
     const box = wrapRef.current?.getBoundingClientRect();
     if (!box) return;
     const fx = (e.clientX - box.left) / box.width;
     const fy = (e.clientY - box.top) / box.height;
     const pad = 0.004;
+    // 33.3: lug'at so'zi (nuqtali chiziq) — ustuvor: tarjimani ko'rsatish
+    if (onVocabPick && vocab?.length) {
+      for (const v of vocab) {
+        for (const r of v.rects) {
+          if (fx >= r[0] - pad && fx <= r[0] + r[2] + pad && fy >= r[1] - pad && fy <= r[1] + r[3] + pad * 2) {
+            onVocabPick(v.id, e.clientX, e.clientY);
+            return;
+          }
+        }
+      }
+    }
+    if (!onHighlightPick || !highlights?.length) return;
     for (const h of highlights) {
       for (const r of h.rects) {
         if (fx >= r[0] - pad && fx <= r[0] + r[2] + pad && fy >= r[1] - pad && fy <= r[1] + r[3] + pad) {
@@ -1021,6 +1058,15 @@ function PdfPage({
                 key={`${h.id}-${i}`}
                 style={{ left: `${r[0] * 100}%`, top: `${r[1] * 100}%`, width: `${r[2] * 100}%`, height: `${r[3] * 100}%`, background: h.color }}
               />
+            )),
+          )}
+        </div>
+      )}
+      {vocab && vocab.length > 0 && (
+        <div className="vocabLayer pointer-events-none absolute inset-0" aria-hidden data-testid="vocab-marks">
+          {vocab.map((v) =>
+            v.rects.map((r, i) => (
+              <div key={`${v.id}-${i}`} data-vocab={v.id} style={{ left: `${r[0] * 100}%`, top: `${r[1] * 100}%`, width: `${r[2] * 100}%`, height: `${r[3] * 100}%` }} />
             )),
           )}
         </div>

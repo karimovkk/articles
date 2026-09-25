@@ -13,7 +13,7 @@ const LONG = {
   body: "Buyurtmangiz tasdiqlandi: https://articles-seven-tawny.vercel.app/books/11111111-1111-4111-8111-111111111111?manba=bildirishnoma",
   device_name: "Chrome_Linux_x86_64_JudaUzunQurilmaNomi_Abdurahmonning_noutbugi",
 };
-const MAP = { email: "email", user_email: "email", full_name: "full_name", user_full_name: "full_name", title: "title", book_title: "title", author: "author", name: "name", category_name: "name", body: "body", device_name: "device_name", user_agent: "device_name" };
+const MAP = { selected_text: "title", note_text: "body", context: "body", book_title: "title", article_title: "title", email: "email", user_email: "email", full_name: "full_name", user_full_name: "full_name", title: "title", book_title: "title", author: "author", name: "name", category_name: "name", body: "body", device_name: "device_name", user_agent: "device_name" };
 const lengthen = (v) => {
   if (Array.isArray(v)) return v.map(lengthen);
   if (v && typeof v === "object") {
@@ -26,11 +26,17 @@ const lengthen = (v) => {
 const DEVICES = process.env.E2E_PROD ? [320, 360, 390, 430, 768] : [320, 390];
 const PAGES = {
   guest: ["/login", "/register", "/catalog", `/catalog/${BOOK}`],
-  user: ["/library", `/books/${BOOK}`, "/profile", "/notifications", `/reader/${ART}`],
+  user: ["/library", `/books/${BOOK}`, "/profile", "/notifications", "/vocabulary", `/reader/${ART}`],
   admin: ["/admin", "/admin/books", `/admin/books/${BOOK}`, "/admin/users", `/admin/users/${USER_ID}`, "/admin/access", "/admin/orders", "/admin/categories", "/admin/audit-logs"],
 };
 const creds = { user: ["user@articles365.local", "User12345!"], admin: ["admin@articles365.local", "Admin12345!"] };
 await fetch(`${API}/__reset`).catch(() => {});
+// 33: lug'at sahifasi uchun bitta so'z (javobda uzun satrlarga almashtiriladi)
+await fetch(`${API}/api/v1/articles/${ART}/annotations`, {
+  method: "POST",
+  headers: { Authorization: "Bearer access-token-1", "Content-Type": "application/json" },
+  body: JSON.stringify({ type: "NOTE", label: "vocab", page: 1, selected_text: "quick", note_text: "tez", location_data: { kind: "vocab", v: 1, book_title: "Test", article_title: "Test", context: "The quick brown fox", rects: [[0.2, 0.1, 0.1, 0.02]] } }),
+}).catch(() => {});
 await fetch(`${API}/__notify?title=${encodeURIComponent(LONG.title)}&body=${encodeURIComponent(LONG.body)}`).catch(() => {});
 const browser = await launch();
 const problems = [];

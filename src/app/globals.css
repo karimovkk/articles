@@ -175,6 +175,18 @@ html {
   }
 }
 
+/* 33.3: lug'at so'zlari — nuqtali tagchiziq (belgilashdan farqlanadi), bosilsa tarjima */
+.vocabLayer > div {
+  position: absolute;
+  border-bottom: 2px dotted #c28a00;
+  background: rgba(242, 184, 5, 0.1);
+  border-radius: 2px;
+}
+.reader-night .vocabLayer > div {
+  border-bottom-color: #f2c94c;
+  background: rgba(242, 201, 76, 0.12);
+}
+
 /* ---- Varaqlash rejimi (FlipStage): 3D varaq, sudrash zonalari ---- */
 .flip-stage {
   position: relative;

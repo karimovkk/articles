@@ -10,7 +10,7 @@ await reset("");
 const browser = await launch();
 const PAGES = {
   guest: ["/login", "/register", "/catalog", `/catalog/${BOOK}`],
-  user: ["/library", `/books/${BOOK}`, "/profile", "/notifications", `/reader/${ART1}`],
+  user: ["/library", `/books/${BOOK}`, "/profile", "/notifications", "/vocabulary", `/reader/${ART1}`],
   admin: ["/admin", "/admin/books", `/admin/books/${BOOK}`, "/admin/users", `/admin/users/${USER_ID}`, "/admin/access", "/admin/orders", "/admin/categories", "/admin/audit-logs"],
 };
 const creds = { user: ["user@articles365.local", "User12345!"], admin: ["admin@articles365.local", "Admin12345!"] };

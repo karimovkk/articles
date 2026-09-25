@@ -107,3 +107,8 @@ export const Copy = make("Copy", <><rect x="9" y="9" width="12" height="12" rx="
 export const Columns = make("Columns", <><rect x="3" y="4" width="18" height="16" rx="3" /><path d="M12 4v16" /></>);
 export const Rows = make("Rows", <><rect x="3" y="4" width="18" height="16" rx="3" /><path d="M3 12h18" /></>);
 export const Loader = make("Loader", <><path d="M12 2v4" /><path d="m16.2 7.8 2.9-2.9" /><path d="M18 12h4" /><path d="m16.2 16.2 2.9 2.9" /><path d="M12 18v4" /><path d="m4.9 19.1 2.9-2.9" /><path d="M2 12h4" /><path d="m4.9 4.9 2.9 2.9" /></>);
+/* 33: lug'at */
+export const Languages = make("Languages", <><path d="m5 8 6 6" /><path d="m4 14 6-6 2-3" /><path d="M2 5h12" /><path d="M7 2h1" /><path d="m22 22-5-10-5 10" /><path d="M14 18h6" /></>);
+export const Volume = make("Volume", <><path d="M11 5 6 9H2v6h4l5 4z" /><path d="M15.5 8.5a5 5 0 0 1 0 7" /><path d="M19 5a10 10 0 0 1 0 14" /></>);
+export const Shuffle = make("Shuffle", <><path d="M2 18h1.4a4 4 0 0 0 3.3-1.8l6.6-9.4A4 4 0 0 1 16.6 5H22" /><path d="m18 2 4 3-4 3" /><path d="M2 6h1.4a4 4 0 0 1 3.3 1.8l.8 1.2" /><path d="M22 19h-5.4a4 4 0 0 1-3.3-1.8l-.8-1.2" /><path d="m18 16 4 3-4 3" /></>);
+export const RotateCcw = make("RotateCcw", <><path d="M3 12a9 9 0 1 0 2.6-6.4" /><path d="M3 3v6h6" /></>);

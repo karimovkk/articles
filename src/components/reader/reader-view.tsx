@@ -13,21 +13,31 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/providers/auth-provider";
-import { Alert, IconButton, Spinner, cn } from "@/components/ui";
+import { Alert, IconButton, Spinner, cn, useConfirm } from "@/components/ui";
 import {
   errorMessage,
   isApiError,
   isNetworkError,
+  isVocab,
+  libraryApi,
+  libraryCache,
+  normalizeWord,
   readerApi,
   readingApi,
+  toVocab,
+  vocabularyApi,
   type Annotation,
+  type VocabEntry,
   type ArticleListItem,
   type ReaderMeta,
   type SearchMatch,
   type TocEntry,
 } from "@/lib/api";
-import { HIGHLIGHT_COLORS, getHighlightRects, normalizeColor, overlappingHighlight, sameRects } from "@/lib/reader/highlights";
+import { HIGHLIGHT_COLORS, getHighlightRects, normalizeColor, overlappingHighlight, sameRects, type HighlightRect } from "@/lib/reader/highlights";
+import { VocabDialog, type VocabFormValues } from "@/components/vocabulary/vocab-dialog";
+import { canSpeak, speak } from "@/components/vocabulary/speak";
 import { useT } from "@/i18n";
 import * as I from "@/components/ui/icons";
 import { PdfViewer, type PdfViewerHandle, type TextSelection, type ViewMode } from "./pdf-viewer";
@@ -36,6 +46,7 @@ import { ReaderSidebar, type SidebarTab } from "./reader-sidebar";
 import { WatermarkOverlay, type WatermarkLike } from "./watermark-overlay";
 
 const ZOOMS = [0.6, 0.75, 0.9, 1, 1.15, 1.3, 1.5, 1.75, 2];
+const EMPTY_VOCAB: VocabFormValues = { word: "", translation: "", context: "" };
 const NIGHT_KEY = "a365.reader.night";
 const MODE_KEY = "a365.reader.mode";
 const COLOR_KEY = "a365.reader.hlcolor";
@@ -110,8 +121,25 @@ export function ReaderView({ articleId }: { articleId: string }) {
   const [hlMenu, setHlMenu] = useState<{ id: string; x: number; y: number; w: number } | null>(null);
   const stageRef = useRef<HTMLDivElement>(null);
 
-  const initialPage = useMemo(() => Math.max(1, meta?.current_page ?? 1), [meta]);
+  // 33.6: lug'atdan "PDF'da ochish" — `?page=N&word=…`: o'sha betdan boshlanadi va so'z vaqtincha bo'rttiriladi
+  const params = useSearchParams();
+  const deepPage = Number(params.get("page")) || 0;
+  const deepWord = params.get("word")?.trim() || "";
+  const initialPage = useMemo(() => Math.max(1, deepPage || meta?.current_page || 1), [meta, deepPage]);
+  const [deepShown, setDeepShown] = useState(false);
+  if (!deepShown && deepPage && deepWord && pageCount > 0) {
+    setDeepShown(true);
+    setSearchHit({ page: Math.min(deepPage, pageCount), query: deepWord, nonce: 1 });
+  }
   const highlights = useMemo(() => annotations.filter((a) => a.type === "HIGHLIGHT"), [annotations]);
+  // 33: lug'at so'zlari (NOTE + label "vocab") — oddiy eslatmalardan ajratiladi
+  const vocab = useMemo(() => annotations.map(toVocab).filter((v): v is VocabEntry => !!v), [annotations]);
+  const plainAnnotations = useMemo(() => annotations.filter((a) => !isVocab(a)), [annotations]);
+  const [vocabDraft, setVocabDraft] = useState<{ values: VocabFormValues; page: number | null; rects: HighlightRect[]; existing: VocabEntry | null; mode: "add" | "edit" } | null>(null);
+  const [vocabPop, setVocabPop] = useState<{ id: string; x: number; y: number; w: number } | null>(null);
+  const confirm = useConfirm();
+  // Bo'rttirishni qayta yoqish uchun (bir xil so'z qayta bosilsa ham)
+  const hitNonce = useRef(1);
   const ready = meta?.processing_status === "READY" && meta.features?.can_read !== false;
 
   // Oldingi / keyingi maqola (faqat READY)
@@ -414,6 +442,104 @@ export function ReaderView({ articleId }: { articleId: string }) {
     }
   };
 
+  // ---- 33: lug'at
+  /** Tanlangan joy joylashgan qator(lar) matni — so'zning konteksti (PDF matn qatlamidan) */
+  const contextFor = (s: TextSelection): string => {
+    const pageEl = stageRef.current?.querySelector<HTMLElement>(`[data-page="${s.page}"]`);
+    const layer = pageEl?.querySelector(".textLayer");
+    if (!pageEl || !layer || !s.rects.length) return "";
+    const box = pageEl.getBoundingClientRect();
+    const top = Math.min(...s.rects.map((r) => r[1]));
+    const bottom = Math.max(...s.rects.map((r) => r[1] + r[3]));
+    const parts: Array<{ y: number; x: number; text: string }> = [];
+    for (const sp of Array.from(layer.querySelectorAll("span"))) {
+      const r = sp.getBoundingClientRect();
+      if (!r.height || !sp.textContent?.trim()) continue;
+      const cy = (r.top + r.height / 2 - box.top) / box.height;
+      if (cy >= top - 0.004 && cy <= bottom + 0.004) parts.push({ y: Math.round(cy * 400), x: r.left, text: sp.textContent });
+    }
+    parts.sort((a, b) => a.y - b.y || a.x - b.x);
+    return parts
+      .map((p) => p.text)
+      .join(" ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 400);
+  };
+  /** Tanlangan matndan so'z: ortiqcha bo'shliq va chetdagi tinish belgilari olib tashlanadi (asl harflar saqlanadi) */
+  const cleanWord = (text: string) =>
+    text
+      .replace(/\s+/g, " ")
+      .trim()
+      .replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, "")
+      .slice(0, 120);
+
+  const openVocabFromSelection = () => {
+    if (!selection) return;
+    const s = selection;
+    const word = cleanWord(s.text);
+    const existing = vocab.find((v) => normalizeWord(v.word) === normalizeWord(word)) ?? null;
+    setVocabDraft({
+      mode: "add",
+      page: s.page,
+      rects: s.rects,
+      existing,
+      values: { word, translation: existing?.translation ?? "", context: existing?.context ?? contextFor(s) },
+    });
+    setSelection(null);
+    viewerRef.current?.clearSelection();
+  };
+  const openVocabEdit = (v: VocabEntry) => {
+    setVocabPop(null);
+    setVocabDraft({ mode: "edit", page: v.page, rects: v.rects, existing: v, values: { word: v.word, translation: v.translation ?? "", context: v.context ?? "" } });
+  };
+  const reloadAnnotations = () =>
+    readingApi
+      .listAnnotations(articleId)
+      .then(setAnnotations)
+      .catch(() => undefined);
+  const saveVocab = async (values: VocabFormValues) => {
+    const d = vocabDraft;
+    if (!d) return;
+    try {
+      if (d.existing) {
+        await vocabularyApi.update(d.existing, { word: values.word, translation: values.translation || null, context: values.context || null });
+        showToast(t("vocab.updated"));
+      } else {
+        const bookId = meta?.book_id ?? null;
+        const bookTitle = bookId ? (libraryCache.get(bookId)?.title ?? (await libraryApi.get(bookId).then((b) => b.title, () => null))) : null;
+        await vocabularyApi.add(
+          articleId,
+          { word: values.word, translation: values.translation || null, context: values.context || null, page: d.page, rects: d.rects, bookId, bookTitle, articleTitle: meta?.title ?? null },
+          user?.id ?? null,
+        );
+        showToast(t("vocab.added", { word: values.word }));
+      }
+      setVocabDraft(null);
+      await reloadAnnotations();
+    } catch (e) {
+      throw new Error(errorMessage(e));
+    }
+  };
+  const deleteVocab = async (v: VocabEntry) => {
+    setVocabPop(null);
+    const ok = await confirm({ title: t("vocab.delete"), message: t("vocab.deleteConfirm", { word: v.word }), confirmLabel: t("vocab.delete"), tone: "danger" });
+    if (!ok) return;
+    try {
+      await vocabularyApi.remove(v);
+      setAnnotations((prev) => prev.filter((a) => a.id !== v.id));
+      showToast(t("vocab.deleted"));
+    } catch (e) {
+      showToast(errorMessage(e));
+    }
+  };
+  const goToVocab = (v: VocabEntry) => {
+    if (v.page == null) return;
+    goToPage(v.page);
+    hitNonce.current += 1;
+    setSearchHit({ page: v.page, query: v.word, nonce: hitNonce.current });
+  };
+
   // Jonli qidiruv: faqat oxirgi so'rov natijasi qo'llanadi (eskirgan javob keyin kelsa — e'tiborsiz)
   const searchSeq = useRef(0);
   const onSearch = async (q: string) => {
@@ -592,7 +718,11 @@ export function ReaderView({ articleId }: { articleId: string }) {
                 searchHits={searchHits}
                 searching={searching}
                 onSearch={onSearch}
-                annotations={annotations}
+                annotations={plainAnnotations}
+                vocab={vocab}
+                onVocabGo={goToVocab}
+                onVocabEdit={openVocabEdit}
+                onVocabDelete={(v) => void deleteVocab(v)}
                 onAddBookmark={onAddBookmark}
                 onAddNote={onAddNote}
                 onUpdateNote={onUpdateNote}
@@ -622,12 +752,23 @@ export function ReaderView({ articleId }: { articleId: string }) {
                 const box = stageRef.current?.getBoundingClientRect();
                 setHlMenu({ id, x: x - (box?.left ?? 0), y: y - (box?.top ?? 0), w: box?.width ?? 0 });
               }}
+              vocabMarks={vocab}
+              onVocabPick={(id, x, y) => {
+                const box = stageRef.current?.getBoundingClientRect();
+                setHlMenu(null);
+                setVocabPop({ id, x: x - (box?.left ?? 0), y: y - (box?.top ?? 0), w: box?.width ?? 0 });
+              }}
             />
             {meta.features?.watermark !== false && <WatermarkOverlay payload={watermark} night={night} />}
 
             {selection && (
-              <div className="absolute left-1/2 top-2 z-40 flex -translate-x-1/2 items-center gap-1 rounded-full border border-border bg-surface p-1.5 pl-3 shadow-lg">
-                <span className="px-1 text-xs text-muted">{t("reader.highlightAt", { n: selection.page })}</span>
+              <div className="absolute left-1/2 top-2 z-40 flex w-max max-w-[calc(100%-16px)] -translate-x-1/2 flex-wrap items-center justify-center gap-1 rounded-[22px] border border-border bg-surface p-1.5 pl-2 shadow-lg">
+                {/* 33.2: lug'atga qo'shish */}
+                <button type="button" onClick={openVocabFromSelection} className="btn soft sm !h-7 !rounded-full !px-2.5" data-testid="selection-vocab" title={t("vocab.addTitle")} aria-label={t("vocab.addTitle")}>
+                  <I.Languages size={15} />
+                  <span className="max-sm:hidden">{t("vocab.add")}</span>
+                </button>
+                <span className="px-1 text-xs text-muted max-sm:hidden">{t("reader.highlightAt", { n: selection.page })}</span>
                 {HIGHLIGHT_COLORS.map((c) => (
                   <button
                     key={c.id}
@@ -660,6 +801,26 @@ export function ReaderView({ articleId }: { articleId: string }) {
                 </IconButton>
               </div>
             )}
+
+            {vocabPop && vocab.find((v) => v.id === vocabPop.id) && (
+              <VocabPopover
+                entry={vocab.find((v) => v.id === vocabPop.id)!}
+                // oyna kengligi min(300, ekran−24); chetlardan kamida 8px qolsin
+                x={Math.min(Math.max(vocabPop.x, Math.min(150, (vocabPop.w - 24) / 2) + 8), vocabPop.w - Math.min(150, (vocabPop.w - 24) / 2) - 8)}
+                y={vocabPop.y + 14}
+                onEdit={openVocabEdit}
+                onDelete={(v) => void deleteVocab(v)}
+                onClose={() => setVocabPop(null)}
+              />
+            )}
+            <VocabDialog
+              open={!!vocabDraft}
+              mode={vocabDraft?.mode ?? "add"}
+              initial={vocabDraft?.values ?? EMPTY_VOCAB}
+              duplicate={vocabDraft?.mode === "add" && !!vocabDraft.existing}
+              onSave={saveVocab}
+              onClose={() => setVocabDraft(null)}
+            />
 
             {hlMenu && hlAnnotation && (
               <HighlightMenu
@@ -737,6 +898,76 @@ function HighlightMenu({
       <IconButton size="sm" variant="plain" label={t("common.close")} onClick={onClose}>
         <I.X size={15} />
       </IconButton>
+    </div>
+  );
+}
+
+/** 33.3: PDF'dagi lug'at so'zi bosilganda — tarjima, kontekst va amallar */
+function VocabPopover({
+  entry,
+  x,
+  y,
+  onEdit,
+  onDelete,
+  onClose,
+}: {
+  entry: VocabEntry;
+  x: number;
+  y: number;
+  onEdit: (v: VocabEntry) => void;
+  onDelete: (v: VocabEntry) => void;
+  onClose: () => void;
+}) {
+  const { t } = useT();
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    const onDown = (e: PointerEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("pointerdown", onDown, true);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("pointerdown", onDown, true);
+    };
+  }, [onClose]);
+
+  return (
+    <div
+      ref={ref}
+      className="absolute z-40 w-[min(300px,calc(100vw-24px))] -translate-x-1/2 rounded-2xl border border-border bg-surface p-3.5 shadow-lg"
+      style={{ left: x, top: y }}
+      data-testid="vocab-popover"
+      role="dialog"
+      aria-label={entry.word}
+    >
+      <div className="flex items-start gap-2">
+        <div className="user-text min-w-0 flex-1">
+          <p className="text-[15px] font-extrabold text-text">{entry.word}</p>
+          <p className={cn("mt-0.5 text-sm", entry.translation ? "text-text-2" : "italic text-muted")} data-testid="vocab-popover-translation">
+            {entry.translation ?? t("vocab.noTranslation")}
+          </p>
+        </div>
+        {canSpeak() && (
+          <IconButton size="sm" variant="plain" label={t("vocab.listen")} onClick={() => speak(entry.word)}>
+            <I.Volume size={15} />
+          </IconButton>
+        )}
+      </div>
+      {entry.context && <p className="user-text mt-2 line-clamp-3 border-l-2 border-accent pl-2 text-xs italic text-muted">{entry.context}</p>}
+      <div className="mt-3 flex items-center gap-1.5">
+        <button type="button" className="btn secondary sm" onClick={() => onEdit(entry)}>
+          <I.Pencil size={14} />
+          {entry.translation ? t("vocab.edit") : t("vocab.addTranslation")}
+        </button>
+        <IconButton size="sm" variant="danger" label={t("vocab.delete")} onClick={() => onDelete(entry)}>
+          <I.Trash size={15} />
+        </IconButton>
+        <Link href="/vocabulary" className="ml-auto text-xs font-bold text-accent-ink hover:underline">
+          {t("vocab.openPage")}
+        </Link>
+      </div>
     </div>
   );
 }

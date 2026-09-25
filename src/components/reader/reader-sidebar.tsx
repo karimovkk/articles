@@ -4,11 +4,13 @@ import { useState, type FormEvent } from "react";
 import { Button, Spinner, Textarea, cn, formatDate } from "@/components/ui";
 import * as I from "@/components/ui/icons";
 import { useDebouncedCallback } from "@/lib/use-debounce";
-import type { Annotation, SearchMatch, TocEntry } from "@/lib/api";
+import Link from "next/link";
+import type { Annotation, SearchMatch, TocEntry, VocabEntry } from "@/lib/api";
+import { canSpeak, speak } from "@/components/vocabulary/speak";
 import { HIGHLIGHT_COLORS, getHighlightRects, normalizeColor } from "@/lib/reader/highlights";
 import { useT, type DictKey } from "@/i18n";
 
-export type SidebarTab = "toc" | "search" | "bookmarks" | "notes" | "highlights";
+export type SidebarTab = "toc" | "search" | "bookmarks" | "notes" | "highlights" | "vocab";
 
 interface Props {
   tab: SidebarTab;
@@ -33,6 +35,12 @@ interface Props {
   onUpdateNote: (a: Annotation, text: string) => Promise<void>;
   onDelete: (a: Annotation) => Promise<void>;
   onChangeColor: (a: Annotation, color: string) => Promise<void>;
+
+  /** 33: shu maqoladan lug'atga qo'shilgan so'zlar */
+  vocab: VocabEntry[];
+  onVocabGo: (v: VocabEntry) => void;
+  onVocabEdit: (v: VocabEntry) => void;
+  onVocabDelete: (v: VocabEntry) => void;
 }
 
 const TABS: Array<{ id: SidebarTab; label: DictKey }> = [
@@ -41,6 +49,7 @@ const TABS: Array<{ id: SidebarTab; label: DictKey }> = [
   { id: "bookmarks", label: "reader.tab.bookmarks" },
   { id: "highlights", label: "reader.tab.highlights" },
   { id: "notes", label: "reader.tab.notes" },
+  { id: "vocab", label: "reader.tab.vocab" },
 ];
 
 export function ReaderSidebar(p: Props) {
@@ -85,6 +94,7 @@ export function ReaderSidebar(p: Props) {
           />
         )}
         {p.tab === "notes" && <NotesPanel {...p} />}
+        {p.tab === "vocab" && <VocabPanel {...p} />}
       </div>
     </aside>
   );
@@ -336,6 +346,50 @@ function NotesPanel({ annotations, currentPage, goToPage, onAddNote, onUpdateNot
           </li>
         ))}
       </ul>
+    </div>
+  );
+}
+
+/** 33: shu maqoladagi lug'at so'zlari — bet bo'yicha; bosilsa o'sha betga o'tib so'z bo'rttiriladi */
+function VocabPanel({ vocab, onVocabGo, onVocabEdit, onVocabDelete }: Props) {
+  const { t } = useT();
+  const list = vocab.slice().sort((a, b) => (a.page ?? 0) - (b.page ?? 0) || a.word.localeCompare(b.word));
+  return (
+    <div data-testid="reader-vocab">
+      <Link href="/vocabulary" className="mb-3 inline-flex items-center gap-1 text-xs font-bold text-accent-ink hover:underline">
+        {t("vocab.openPage")} <I.ArrowRight size={13} />
+      </Link>
+      {list.length === 0 ? (
+        <p className="text-muted">{t("vocab.emptyArticle")}</p>
+      ) : (
+        <ul className="space-y-2">
+          {list.map((v) => (
+            <li key={v.id} className="rounded-lg border border-border p-2" data-testid="reader-vocab-item">
+              <div className="flex items-start gap-2">
+                <button type="button" onClick={() => onVocabGo(v)} className="user-text min-w-0 flex-1 text-left">
+                  <span className="block font-bold text-text">{v.word}</span>
+                  <span className={cn("block text-xs", v.translation ? "text-text-2" : "italic text-muted")}>{v.translation ?? t("vocab.noTranslation")}</span>
+                </button>
+                {v.page != null && <span className="chip shrink-0">{t("vocab.pageN", { n: v.page })}</span>}
+              </div>
+              <div className="mt-1.5 flex items-center gap-1">
+                {canSpeak() && (
+                  <button type="button" className="icon-btn plain sm" onClick={() => speak(v.word)} aria-label={t("vocab.listen")} title={t("vocab.listen")}>
+                    <I.Volume size={14} />
+                  </button>
+                )}
+                <button type="button" className="icon-btn plain sm" onClick={() => onVocabEdit(v)} aria-label={t("vocab.edit")} title={t("vocab.edit")}>
+                  <I.Pencil size={14} />
+                </button>
+                <button type="button" className="icon-btn plain sm" onClick={() => onVocabDelete(v)} aria-label={t("vocab.delete")} title={t("vocab.delete")}>
+                  <I.Trash size={14} />
+                </button>
+                {v.learned && <span className="chip success ml-auto">{t("vocab.learned")}</span>}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

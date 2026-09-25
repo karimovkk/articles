@@ -61,9 +61,11 @@ function ClientHeader({ menuOpen, onMenu }: { menuOpen: boolean; onMenu: () => v
   const { t } = useT();
   const pathname = usePathname();
   const displayName = user ? user.full_name || user.email || user.phone || t("common.user") : "";
-  const nav: Array<{ href: string; label: DictKey; auth?: boolean }> = [
+  const nav: Array<{ href: string; label: DictKey; auth?: boolean; wide?: boolean }> = [
     { href: "/catalog", label: "nav.catalog" },
     { href: "/library", label: "nav.library", auth: true },
+    // 33: 1280px dan tor header'da joy yo'q (brend markazda) — u yerda sidebar'da bor
+    { href: "/vocabulary", label: "nav.vocabulary", auth: true, wide: true },
     { href: "/profile", label: "nav.profile", auth: true },
   ];
 
@@ -76,7 +78,7 @@ function ClientHeader({ menuOpen, onMenu }: { menuOpen: boolean; onMenu: () => v
         {nav
           .filter((n) => !n.auth || user)
           .map((n) => (
-            <Link key={n.href} href={n.href} className={cn(isActive(pathname, n.href) && "active")} aria-current={isActive(pathname, n.href) ? "page" : undefined}>
+            <Link key={n.href} href={n.href} className={cn(isActive(pathname, n.href) && "active", n.wide && "max-[1279px]:!hidden")} aria-current={isActive(pathname, n.href) ? "page" : undefined}>
               {t(n.label)}
             </Link>
           ))}
@@ -174,6 +176,7 @@ function ClientSidebar({ open, onNavigate }: { open: boolean; onNavigate: () => 
   const items: NavItem[] = [
     { href: "/catalog", label: "nav.catalog", icon: <I.Grid size={19} /> },
     { href: "/library", label: "nav.library", icon: <I.Library size={19} />, auth: true },
+    { href: "/vocabulary", label: "nav.vocabulary", icon: <I.Languages size={19} />, auth: true },
     { href: "/notifications", label: "notifications.title", icon: <I.Bell size={19} />, auth: true, badge: unread },
     { href: "/profile", label: "nav.profile", icon: <I.User size={19} />, auth: true },
   ];

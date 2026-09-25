@@ -741,6 +741,40 @@ kitob, profil, bildirishnomalar, mavzu almashish Safari 17.4 da ishladi.
       tekshiruvlaridan oldin) to'xtaydi; kitob rejimi WebKit'da alohida skript bilan sinaldi (sudrash oldinga/qisqa/
       orqaga, 180° kadrlar) — o'tdi.
 
+## 33. Lug'at (vocabulary) — PDF'dan so'z qo'shish (2026-09-25)
+
+So'rov: "PDF ichidan so'z tanlab vocabulary'ga qo'shish, tarjimasini ham xohlasa qo'sha olsin; vocabulary uchun
+alohida sahifa (dizaynga to'liq mos), so'zdan o'sha PDF'ga o'tish tugmasi, boshqa kerakli funksiyalar; responsive,
+har xil qurilmalarda ishlasin".
+
+**Saqlash (backend'da lug'at API yo'q — OpenAPI tekshirildi):** so'z `NOTE` annotatsiya sifatida, `label: "vocab"`:
+`selected_text` = so'z, `note_text` = tarjima, `location_data` = `{kind:"vocab", v:1, book_id, book_title,
+article_title, context, rects, learned, learned_at}`. Serverda saqlanadi, qurilmalar orasida sinxron. Hamma
+maqolalar bo'yicha ro'yxat endpointi yo'q → lug'at sahifasi (a) mahalliy indeks (so'z bor maqolalar id'lari) bo'yicha,
+(b) indeks bo'sh bo'lsa (yangi qurilma) — kutubxona → maqolalar → annotatsiyalar bo'yicha bir marta skanlaydi
+(parallel, cheklangan). Backend `/vocabulary` qo'shsa — faqat `lib/api/vocabulary.ts` almashadi (B30).
+
+- [x] 33.1 Ma'lumot qatlami `lib/api/vocabulary.ts`: `VocabEntry`, qo'shish/tahrirlash/o'chirish/o'rganildi,
+      barcha so'zlar (indeks + zaxira skan, kesh), maqola bo'yicha; lug'at so'zlari reader'dagi "Eslatmalar"da chiqmaydi
+- [x] 33.2 Reader: tanlov panelida "Lug'atga qo'shish" → oyna: so'z (tahrirlanadi), tarjima (ixtiyoriy), kontekst
+      (tanlangan qator avtomatik), dublikat — "allaqachon bor, tarjimani yangilash"; saqlangach toast + "Lug'at" havolasi
+- [x] 33.3 PDF'da lug'at so'zlari nuqtali chiziq bilan belgilanadi; bosilsa — tarjima ko'rinadigan kichik oyna
+      (tahrirlash, o'chirish, lug'atga o'tish)
+- [x] 33.4 `/vocabulary` sahifasi (mijoz dizayni): sarlavha + statistika (jami, o'rganilgan, bu hafta); qidiruv
+      (so'z/tarjima), kitob filtri, holat filtri (hammasi / o'rganilmoqda / o'rganilgan), saralash (yangi, eski, A–Z);
+      kartalar: so'z, tarjima (bo'lmasa "Tarjima qo'shish"), kontekst, manba (kitob · maqola · bet), 🔊 talaffuz
+      (brauzer TTS), ✓ o'rgandim, ✏ tahrirlash, 🗑 o'chirish (tasdiq), **"PDF'da ochish"**; bo'sh holat qo'llanma bilan;
+      CSV eksport
+- [x] 33.5 Takrorlash (flashcards): karta — so'z → aylantirilsa tarjima + kontekst; "Bilaman" (o'rganildi) / "Yana";
+      aralashtirish, progress; klaviatura (Space — aylantirish, ←/→)
+- [x] 33.6 "PDF'da ochish": `/reader/{id}?page=N&word=…` — o'sha betga o'tadi va so'z vaqtincha bo'rttiriladi
+- [x] 33.7 Navigatsiya: header menyusi va sidebar'da "Lug'at" (so'zlar soni bilan); i18n uz/en/ru
+- [x] 33.8 e2e `vocabulary`: reader'dan qo'shish, dublikat, sahifa (qidiruv/filtr/saralash), tarjima tahrirlash,
+      o'rgandim, takrorlash, PDF'da ochish (bet + bo'rttirish), o'chirish; responsive audit (telefon/planshet/
+      kompyuter/TV, yorug'/qorong'i, uzun so'z/tarjima); `--prod` + WebKit + Firefox
+      → Chrome `--prod` **23/23 (399)**, WebKit vocabulary/visual/long-text/reader-article/reader-safari **5/5**,
+      Firefox vocabulary/reader/reader-article **3/3**. Backend topshirig'i: `BACKEND_VOCABULARY.md`.
+
 ## 31. Keyingi vazifalar
 
 - [ ] 31.1 Safari (WebKit): varaqlash rejimida oldingi sahifaga qaytilganda (3-sahifa) belgilash qatlami
@@ -775,6 +809,10 @@ B7 ✅ · B8 ✅ (OpenAPI manba) · B9 ✅ · B10 ✅ · B11 ✅ · B12 ✅ · B
 
 Holat: B15–B25 ✅ hammasi javoblandi va deploy qilindi (15-bo'lim) — B21: PDF ✅, HEIC ❌ (FE JPEG'ga o'giradi).
 
+- B30 (33-bo'lim, lug'at) — **to'liq topshiriq: `BACKEND_VOCABULARY.md`**. Lug'at uchun alohida API tavsiya etiladi: `GET/POST /me/vocabulary`, `PATCH/DELETE
+  /me/vocabulary/{id}` (so'z, tarjima, kontekst, article_id, page, learned, created_at; `?search=&book_id=&learned=`
+  bilan). Hozir FE `NOTE` annotatsiya + `label:"vocab"` bilan saqlaydi — hamma maqolalar bo'yicha annotatsiyalar
+  endpointi yo'qligi sababli lug'at sahifasi maqolama-maqola so'raydi. Minimal alternativa: `GET /me/annotations?label=`.
 - B28 ❗ (26-bo'lim, tezlik) Jonli backend javob vaqti katta: `GET /categories` **1279 ms**, `GET /catalog` **1325 ms**
   (o'lchov: Vercel'dagi frontend, 2026-09-23). Frontend tomondan so'rovlar soni kamaytirildi, lekin bitta so'rovning
   o'zi ~1.3 s bo'lsa sayt baribir sekin seziladi. Tavsiya: (a) `categories` va `catalog` uchun keshlash

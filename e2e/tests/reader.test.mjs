@@ -215,7 +215,11 @@ await page.reload();
 await page.waitForFunction(() => document.querySelector('[data-testid="flip-stage"]') && ([...document.querySelectorAll(".flip-leaf")].find((l) => getComputedStyle(l).visibility === "visible"))?.querySelector("canvas")?.width > 0, null, { timeout: 20000 });
 check("Reload'dan keyin varaqlash rejimi saqlandi", (await page.$eval("button[aria-label=\"O'qish rejimi\"]", (b) => b.textContent)).includes("Varaq"));
 
-// 32B: Varaq → Kitob (ikki sahifa yonma-yon, 180° varaqlash)
+// 32B: Varaq → Kitob (ikki sahifa yonma-yon, 180° varaqlash). Reload'dan keyingi bet serverdagi progress'ga bog'liq
+// (brauzerga qarab saqlanib ulgurmasligi mumkin) — shuning uchun avval aniq 3-betga o'tamiz
+await page.fill('input[aria-label="Sahifa"]', "3");
+await page.press('input[aria-label="Sahifa"]', "Enter");
+await page.waitForFunction(() => [...document.querySelectorAll(".flip-leaf")].find((l) => getComputedStyle(l).visibility === "visible")?.dataset.leaf === "3" && !document.querySelector('[data-testid="flip-stage"]')?.dataset.flipping, null, { timeout: 10000 });
 await page.click('button[aria-label="O\'qish rejimi"]');
 await page.waitForSelector('[data-testid="spread-stage"]', { timeout: 8000 });
 const spreadState = () =>
