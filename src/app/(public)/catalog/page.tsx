@@ -9,6 +9,7 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { BookCardH } from "@/components/catalog/book-card";
 import { HeroBrand } from "@/components/layout/year-progress";
+import { AddToCartButton, PricingPromo } from "@/components/cart/cart-ui";
 import { Price } from "@/components/catalog/price";
 import { Alert, EmptyState, Menu, MenuItem, RoundPagination, Spinner, cn } from "@/components/ui";
 import * as I from "@/components/ui/icons";
@@ -127,6 +128,9 @@ function CatalogList() {
         <HeroBrand name={env.appName} />
       </section>
 
+      {/* 35: ko'p kitobga chegirma (backend qo'llasa) */}
+      <PricingPromo />
+
       <div className="cat-chips" data-testid="catalog-categories">
         {cats.length > 0 && (
           <>
@@ -212,6 +216,7 @@ function CatalogList() {
                   }
                   footer={<Price value={item.price} className="bcard-price" />}
                   cta={has ? { href: `/books/${item.book_id}`, label: t("catalog.read"), icon: <I.BookOpen size={15} /> } : { href: `/catalog/${item.book_id}`, label: t("catalog.buy"), icon: <I.ShoppingBag size={15} /> }}
+                  ctaExtra={<AddToCartButton compact owned={has} book={{ book_id: item.book_id, title: item.title, author: item.author, price: item.price, has_cover: item.has_cover }} />}
                 />
               );
             })}

@@ -8,6 +8,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { useRouter } from "next/navigation";
 import { AUTH_EVENT, authApi, clearVocabCache, tokenStore, type AuthChangeReason, type User } from "@/lib/api";
 import { clearOwnedBooks } from "@/lib/owned-books";
+import { cart } from "@/lib/cart";
 import { sessionGet, sessionSet } from "@/lib/session-cache";
 
 interface AuthState {
@@ -104,6 +105,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearOwnedBooks(); // boshqa foydalanuvchi — katalog keshini tozalaymiz (26.4)
       clearMe();
       if (reason !== "login") clearVocabCache(); // 33: boshqa foydalanuvchi — lug'at indeksi/keshi
+      if (reason === "logout") cart.clear(); // 35: savatcha — shu qurilmadagi foydalanuvchiniki
       if (reason === "logout" || reason === "expired") {
         setUser(null);
         setLoading(false);

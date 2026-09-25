@@ -21,6 +21,7 @@ export function BookCardH({
   meta,
   footer,
   cta,
+  ctaExtra,
   className,
 }: {
   bookId: string;
@@ -35,6 +36,8 @@ export function BookCardH({
   /** Narx yoki progress qatori */
   footer?: ReactNode;
   cta: { href: string; label: ReactNode; icon?: ReactNode; variant?: "primary" | "secondary" };
+  /** 35: asosiy tugma yonidagi qo'shimcha tugma (masalan, "Savatga") */
+  ctaExtra?: ReactNode;
   className?: string;
 }) {
   return (
@@ -55,6 +58,7 @@ export function BookCardH({
             {cta.icon}
             {cta.label}
           </Link>
+          {ctaExtra}
         </div>
       </div>
     </article>

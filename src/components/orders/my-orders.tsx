@@ -78,11 +78,34 @@ export function MyOrders() {
             <li key={o.id} className="py-3 text-sm">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="min-w-0">
-                  <Link href={`/catalog/${o.book_id}`} className="font-bold text-text hover:text-accent-ink">
-                    {o.book_title || titles[o.book_id] || "…"}
-                  </Link>
+                  {(o.items?.length ?? 0) > 1 ? (
+                    // 35: savatchadan — bir nechta kitob
+                    <p className="font-bold text-text" data-testid="order-bundle">
+                      {t("orders.itemsCount", { n: o.items!.length })}:{" "}
+                      {o.items!.map((i, k) => (
+                        <span key={i.book_id}>
+                          {k > 0 && ", "}
+                          <Link href={`/catalog/${i.book_id}`} className="hover:text-accent-ink">
+                            {i.book_title || titles[i.book_id] || "…"}
+                          </Link>
+                        </span>
+                      ))}
+                    </p>
+                  ) : (
+                    <Link href={`/catalog/${o.book_id}`} className="font-bold text-text hover:text-accent-ink">
+                      {o.book_title || titles[o.book_id] || "…"}
+                    </Link>
+                  )}
                   <p className="text-xs text-muted">
-                    <Price value={o.amount} /> · {formatDate(o.created_at)}
+                    <Price value={o.amount} />
+                    {Number(o.discount ?? 0) > 0 && (
+                      <>
+                        {" "}
+                        · <span className="font-semibold text-success">{t("orders.discountLine", { amount: "" })}</span>
+                        <Price value={o.discount} className="font-semibold text-success" />
+                      </>
+                    )}{" "}
+                    · {formatDate(o.created_at)}
                   </p>
                 </div>
                 <OrderStatusBadge status={o.status} />

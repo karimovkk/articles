@@ -773,7 +773,50 @@ maqolalar bo'yicha ro'yxat endpointi yo'q → lug'at sahifasi (a) mahalliy indek
       o'rgandim, takrorlash, PDF'da ochish (bet + bo'rttirish), o'chirish; responsive audit (telefon/planshet/
       kompyuter/TV, yorug'/qorong'i, uzun so'z/tarjima); `--prod` + WebKit + Firefox
       → Chrome `--prod` **23/23 (399)**, WebKit vocabulary/visual/long-text/reader-article/reader-safari **5/5**,
-      Firefox vocabulary/reader/reader-article **3/3**. Backend topshirig'i: `BACKEND_VOCABULARY.md`.
+      Firefox vocabulary/reader/reader-article **3/3**. Backend topshirig'i: `BACKEND_TASKS.md`.
+
+## 34. Varaqlash rejimida sichqoncha bilan sudrash o'chirildi (2026-09-25)
+
+So'rov: "PDF 1 page'lik paytida mouse bilan sudrash ishlamasin — chaproq yoki o'ngroqdagi so'zlarni tanlab
+bo'lmayapti, cursor hand'ga o'tib qolgani uchun". Sabab: sahifa chekkalarida (14%) ko'rinmas "ushlash" qatlami
+(`::before/::after`, `cursor: grab`) matn qatlami ustida turardi.
+
+- [x] 34.1 `FlipStage` va `SpreadStage` (kitob rejimi ham — o'sha muammo): sichqoncha harakati varaqlamaydi;
+      chekkadagi ushlash qatlamlari va `cursor: grab` olib tashlandi — sahifaning hamma joyida matn tanlanadi.
+      Qoldi: tugmalar, klaviatura, sahifa tashqarisidagi fonni bosish (fonda kursor — ko'rsatkich), sensorda swipe
+- [x] 34.2 e2e (reader): sichqoncha sudrash varaqlamaydi (varaq va kitob rejimi), chap chekkadagi so'z (x≈0.12)
+      tanlanadi, sensor swipe 3→4, qisqa swipe joyiga qaytadi
+
+## 35. Savatcha (add to cart) va ko'p kitobga chegirma (2026-09-25)
+
+So'rov: "add to cart kabi ishlasin; kitoblar asosan 49 ming; 2 ta bittada olinsa donasi arzonroq; 3 va undan ko'p —
+30 ming dan; 2 taga marketing bo'yicha to'g'ri narxni qo'y; backend kerak — md'ga to'liq yoz".
+
+**Narx qoidasi (tavsiya, backend sozlamasida o'zgaradi):** bitta buyurtmadagi **pullik** kitoblar soniga qarab har
+kitob narxi = `min(kitob narxi, pog'ona narxi)`: 1 ta — o'z narxi (49 000), **2 ta — 39 000** (jami 78 000, −20%),
+**3+ — 30 000** (3 ta = 90 000, −39%). 39 000 tanlandi: 49→39→30 bir tekis zinapoya, "…9 000" uslubi; 2 dan 3 ga
+o'tish atigi +12 000 — uchinchi kitobga kuchli turtki (asosiy taklif — 3+). Bepul kitoblar savatga tushmaydi.
+
+**Backend:** bir buyurtmada bir nechta kitob va chegirma — backend'da yo'q. Frontend kontrakt bo'yicha quriladi
+(`GET /pricing`, `POST /orders/quote`, `POST /orders/checkout`, `Order.items[]`) — to'liq topshiriq
+`BACKEND_TASKS.md` (lug'at bilan bitta faylda). **`GET /pricing` bo'lmasa (jonli backend hozir) savatcha
+ko'rinmaydi** — eski "Sotib olish" oqimi o'zgarmaydi, noto'g'ri narx ko'rsatilmaydi; backend qo'shishi bilan o'zi yoqiladi.
+
+- [x] 35.1 Ma'lumot qatlami: `pricingApi`, `ordersApi.quote/checkout`, `Order.items`, mahalliy narx hisobi (server
+      quote bilan bir xil), savatcha store'i (localStorage, tablar orasida sinxron, mehmon ham qo'sha oladi)
+- [x] 35.2 "Savatga": katalog kartalari va kitob sahifasi; header'da savatcha ikonkasi (soni bilan); katalogda aksiya
+      banneri (1 / 2 / 3+ narxlar); kutubxonadagi / ochiq buyurtmadagi / bepul kitob — qo'shilmaydi
+- [x] 35.3 `/cart` sahifasi: kitoblar (asl narx ustidan chizilgan + chegirmali narx), o'chirish, pog'ona zinapoyasi
+      ("yana 1 ta qo'shsangiz — donasi 30 000"), xulosa (asl narx, chegirma, jami, "siz X tejaysiz"), tavsiya kitoblar;
+      "Buyurtma berish" → bitta buyurtma → to'lov rekvizitlari + chek yuborish → holat
+- [x] 35.4 Buyurtmalar: profildagi ro'yxat, kitob sahifasidagi panel va admin buyurtmalari ko'p kitobli buyurtmani
+      ko'rsatadi (kitoblar ro'yxati, chegirma)
+- [x] 35.5 Mock backend (pricing, quote, checkout, tasdiqlashda hamma kitoblarga ruxsat) + e2e `cart` + responsive
+- [x] 35.6 `BACKEND_TASKS.md`: savatcha/chegirma bo'limi (maqsad, narx qoidasi, model, endpointlar, xato kodlari,
+      admin/Telegram, migratsiya, qabul mezonlari); `--prod` + WebKit + Firefox
+      → Chrome `--prod` 23/24 → topilgan xato (768px da kartadagi "Sotib olish" + "Savatga" sig'masdi — endi qatorga
+      o'raladi) tuzatildi, qayta: long-text/cart/catalog/visual 4/4; WebKit cart/catalog/orders/visual 4/4 +
+      long-text/catalog 2/2; Firefox cart/orders 2/2. e2e `cart` — 22 tekshiruv.
 
 ## 31. Keyingi vazifalar
 
@@ -809,7 +852,7 @@ B7 ✅ · B8 ✅ (OpenAPI manba) · B9 ✅ · B10 ✅ · B11 ✅ · B12 ✅ · B
 
 Holat: B15–B25 ✅ hammasi javoblandi va deploy qilindi (15-bo'lim) — B21: PDF ✅, HEIC ❌ (FE JPEG'ga o'giradi).
 
-- B30 (33-bo'lim, lug'at) — **to'liq topshiriq: `BACKEND_VOCABULARY.md`**. Lug'at uchun alohida API tavsiya etiladi: `GET/POST /me/vocabulary`, `PATCH/DELETE
+- B30 (33-bo'lim, lug'at) — **to'liq topshiriq: `BACKEND_TASKS.md` (1-bo'lim)**. Lug'at uchun alohida API tavsiya etiladi: `GET/POST /me/vocabulary`, `PATCH/DELETE
   /me/vocabulary/{id}` (so'z, tarjima, kontekst, article_id, page, learned, created_at; `?search=&book_id=&learned=`
   bilan). Hozir FE `NOTE` annotatsiya + `label:"vocab"` bilan saqlaydi — hamma maqolalar bo'yicha annotatsiyalar
   endpointi yo'qligi sababli lug'at sahifasi maqolama-maqola so'raydi. Minimal alternativa: `GET /me/annotations?label=`.

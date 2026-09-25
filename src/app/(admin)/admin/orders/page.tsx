@@ -67,11 +67,27 @@ export default function AdminOrdersPage() {
     {
       key: "book",
       header: t("admin.book"),
-      render: (o) => (
-        <Link href={`/admin/books/${o.book_id}`} className="font-semibold hover:text-accent-ink">
-          {o.book_title || names.books[o.book_id] || o.book_id.slice(0, 8)}
-        </Link>
-      ),
+      render: (o) =>
+        (o.items?.length ?? 0) > 1 ? (
+          // 35: savatchadan — bir nechta kitob (chegirma bilan)
+          <div className="min-w-0" data-testid="admin-order-bundle">
+            <span className="font-semibold">{t("orders.itemsCount", { n: o.items!.length })}</span>
+            <ul className="mt-0.5 space-y-0.5 text-xs text-muted">
+              {o.items!.map((i) => (
+                <li key={i.book_id}>
+                  <Link href={`/admin/books/${i.book_id}`} className="hover:text-accent-ink">
+                    {i.book_title || names.books[i.book_id] || i.book_id.slice(0, 8)}
+                  </Link>{" "}
+                  · <Price value={i.unit_price} />
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : (
+          <Link href={`/admin/books/${o.book_id}`} className="font-semibold hover:text-accent-ink">
+            {o.book_title || names.books[o.book_id] || o.book_id.slice(0, 8)}
+          </Link>
+        ),
     },
     { key: "amount", header: t("admin.books.price"), num: true, render: (o) => <Price value={o.amount} /> },
     { key: "status", header: t("common.status"), render: (o) => <OrderStatusBadge status={o.status} /> },

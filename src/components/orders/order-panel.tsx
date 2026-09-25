@@ -17,8 +17,9 @@ import { OrderStatusBadge } from "./order-status";
 import { ReceiptForm } from "./receipt-form";
 import { PaymentDetails } from "./payment-info";
 import { useOrderPoll } from "./use-order-poll";
-import { errorMessage, isApiError, ordersApi, type Order } from "@/lib/api";
+import { errorMessage, isApiError, ordersApi, type Order, orderBookIds } from "@/lib/api";
 import { clearOwnedBooks } from "@/lib/owned-books";
+import { Price } from "@/components/catalog/price";
 import { purchaseLink } from "@/lib/env";
 import { useT } from "@/i18n";
 
@@ -52,7 +53,8 @@ export function OrderPanel({ bookId }: { bookId: string }) {
   const load = useCallback(
     () =>
       ordersApi.mine().then((list) => {
-        const mine = list.filter((o) => o.book_id === bookId).sort((a, b) => b.created_at.localeCompare(a.created_at));
+        // 35: ko'p kitobli buyurtmada ham shu kitob bo'lishi mumkin
+        const mine = list.filter((o) => orderBookIds(o).includes(bookId)).sort((a, b) => b.created_at.localeCompare(a.created_at));
         apply(mine[0] ?? null);
       }),
     [bookId, apply],
@@ -167,6 +169,11 @@ export function OrderPanel({ bookId }: { bookId: string }) {
             <OrderStatusBadge status={active.status} />
             <span className="text-xs text-muted">{formatDate(active.created_at)}</span>
           </div>
+          {(active.items?.length ?? 0) > 1 && (
+            <p className="text-xs font-semibold text-text-2" data-testid="order-bundle-note">
+              {t("orders.inBundle", { n: active.items!.length })} · <Price value={active.amount} />
+            </p>
+          )}
           {active.status === "PENDING" && <PaymentDetails />}
           {(active.status === "PENDING" || active.status === "AWAITING_REVIEW") && receiptOpen && (
             <ReceiptForm

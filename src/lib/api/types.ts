@@ -274,8 +274,47 @@ export interface Order {
   book_title?: string | null;
   /** Chek fayli (rasm/PDF) yuklanganmi — admin `GET /admin/orders/{id}/receipt` bilan ko'radi */
   has_receipt_file?: boolean;
+  /**
+   * 35: ko'p kitobli buyurtma (savatcha). Bo'lsa — buyurtmadagi barcha kitoblar; `book_id` — birinchisi (eski
+   * klientlar uchun). `amount` = `total` (chegirmadan keyin).
+   */
+  items?: OrderItem[];
+  subtotal?: string;
+  discount?: string;
   created_at: string;
   updated_at: string;
+}
+
+/** 35: buyurtmadagi bitta kitob — asl va chegirmadan keyingi narx */
+export interface OrderItem {
+  book_id: UUID;
+  book_title?: string | null;
+  list_price: string;
+  unit_price: string;
+}
+
+/** 35: GET /pricing — ko'p kitobga chegirma pog'onalari (1 ta — kitobning o'z narxi) */
+export interface PricingTier {
+  /** Buyurtmadagi pullik kitoblar soni shundan boshlab */
+  min_quantity: number;
+  /** Har kitob narxi shundan oshmaydi */
+  unit_price: string;
+}
+export interface PricingConfig {
+  currency: string;
+  tiers: PricingTier[];
+}
+
+/** 35: POST /orders/quote — savatcha narxi (server hisobi) */
+export interface OrderQuote {
+  items: OrderItem[];
+  quantity: number;
+  subtotal: string;
+  discount: string;
+  total: string;
+  currency: string;
+  /** Keyingi pog'ona: yana `add_count` ta kitob qo'shilsa har biri `unit_price` bo'ladi */
+  next_tier: { min_quantity: number; unit_price: string; add_count: number } | null;
 }
 
 /** GET /payment-info — to'lov rekvizitlari (backend config'dan; bo'sh satr = sozlanmagan) */

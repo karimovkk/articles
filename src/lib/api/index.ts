@@ -10,6 +10,6 @@ export { readerApi, type CoverSize } from "./reader";
 export { readingApi } from "./reading";
 export { vocabularyApi, isVocab, toVocab, normalizeWord, clearVocabCache, VOCAB_EVENT, VOCAB_WORD_MAX, VOCAB_TRANSLATION_MAX, type VocabEntry, type VocabInput } from "./vocabulary";
 export { sessionsApi } from "./sessions";
-export { ordersApi } from "./orders";
+export { ordersApi, pricingApi, orderBookIds } from "./orders";
 export { notificationsApi } from "./notifications";
 export { adminApi } from "./admin";

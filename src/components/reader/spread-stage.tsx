@@ -9,14 +9,12 @@
  * DOM'da yashiriladi, ular o'rniga egilgan qog'oz `canvas`da chiziladi; ostidagi sahifalar DOM'da ko'rinib turadi.
  *
  * `t` — varaqlash yakunlanish ulushi (0 — boshlanmagan, 1 — tugagan), ikkala yo'nalishda ham.
- * Boshqaruv: tashqi navigatsiya (tugma, klaviatura, TOC) — avtomatik animatsiya; sichqoncha bilan sahifa tashqi
- * chekkasidan yoki fondan sudrash (varaq kursorga ergashadi), fonni bosish; sensor — swipe.
+ * Boshqaruv: tashqi navigatsiya (tugma, klaviatura, TOC) — avtomatik animatsiya; sichqoncha — fonni bosish (sudrab
+ * varaqlash yo'q: sahifa chekkasidagi so'zlar ham tanlanadi — 34); sensor — swipe (varaq barmoqqa ergashadi).
  */
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { drawCurl } from "@/lib/reader/page-curl";
 
-/** Sahifaning tashqi chekkasidagi ushlash zonasi (sahifa kengligiga nisbatan) — o'rtasi matn tanlash uchun */
-const GRAB_EDGE = 0.14;
 
 type SpreadFlip = {
   dir: 1 | -1;
@@ -228,15 +226,8 @@ export function SpreadStage({
     const el = e.target as HTMLElement;
     if (el.closest("button, a")) return;
     if (e.pointerType === "mouse") {
-      // Sahifaning tashqi chekkasi yoki fon — ushlash zonasi; qolgani — matn tanlash
-      const pageEl = el.closest<HTMLElement>(".reader-page");
-      if (pageEl) {
-        const r = pageEl.getBoundingClientRect();
-        const fx = (e.clientX - r.left) / r.width;
-        const isLeft = pageEl.closest(".spread-leaf")?.getAttribute("data-side") === "left";
-        if (isLeft ? fx > GRAB_EDGE : fx < 1 - GRAB_EDGE) return;
-      }
-      e.preventDefault();
+      // 34: sichqoncha bilan sudrab varaqlash yo'q — sahifaning hamma joyi matn tanlash uchun; faqat fonni bosish
+      if (el.closest(".reader-page")) return;
     } else if (stageRef.current?.closest("[data-selecting]")) return;
     drag.current = { id: e.pointerId, x: e.clientX, y: e.clientY, lastX: e.clientX, lastT: performance.now(), dir: 0, type: e.pointerType };
   };
@@ -252,6 +243,7 @@ export function SpreadStage({
   const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     const d = drag.current;
     if (!d || d.id !== e.pointerId) return;
+    if (d.type === "mouse") return; // 34: sichqoncha — faqat bosish
     if (stageRef.current?.closest("[data-selecting]")) {
       drag.current = null;
       return;

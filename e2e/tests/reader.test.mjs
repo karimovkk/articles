@@ -179,23 +179,54 @@ await page.waitForFunction(() => !document.querySelector('[data-testid="flip-sta
 await page.keyboard.press("ArrowLeft");
 await page.waitForFunction(() => !document.querySelector('[data-testid="flip-stage"]').dataset.flipping && [...document.querySelectorAll(".flip-leaf")].find((l) => getComputedStyle(l).visibility === "visible")?.dataset.leaf === "3", null, { timeout: 5000 });
 check("Next tugma / ArrowLeft navigatsiyasi ishlaydi (animatsiya bilan)", true);
-// Sichqoncha bilan sudrab varaqlash: o'ng chekkadan chapga tortish → 4-sahifa; qisqa tortish → qaytadi
+// 34: sichqoncha bilan sudrash VARAQLAMAYDI — sahifaning chekkasi ham matn tanlash uchun
 const pr = await page.locator(".flip-leaf[data-leaf='3'] .reader-page").boundingBox();
-await page.mouse.move(pr.x + pr.width * 0.95, pr.y + pr.height / 2);
+await page.mouse.move(pr.x + pr.width * 0.97, pr.y + pr.height * 0.6);
 await page.mouse.down();
-for (let i = 1; i <= 10; i++) { await page.mouse.move(pr.x + pr.width * 0.95 - (pr.width * 0.6 * i) / 10, pr.y + pr.height / 2); await page.waitForTimeout(16); }
-const dragProgress = Number(await page.getAttribute('[data-testid="flip-stage"]', "data-progress"));
+for (let i = 1; i <= 10; i++) { await page.mouse.move(pr.x + pr.width * 0.97 - (pr.width * 0.6 * i) / 10, pr.y + pr.height * 0.6); await page.waitForTimeout(16); }
 await page.mouse.up();
-await page.waitForFunction(() => !document.querySelector('[data-testid="flip-stage"]').dataset.flipping, null, { timeout: 4000 });
-check("Sudrash: varaq chekkasi kursorga ergashdi va yarmidan o'tgach varaqlandi (3→4)", dragProgress > 0.4 && dragProgress <= 1 && (await visibleLeaf()) === "4", `progress=${dragProgress} → ${await visibleLeaf()}`);
-const pr2 = await page.locator(".flip-leaf[data-leaf='4'] .reader-page").boundingBox();
-await page.mouse.move(pr2.x + pr2.width * 0.95, pr2.y + pr2.height / 2);
+await page.waitForTimeout(400);
+check("Sichqoncha bilan sudrash varaqlamaydi (3 da qoldi)", (await visibleLeaf()) === "3" && !(await page.getAttribute('[data-testid="flip-stage"]', "data-flipping")));
+await page.keyboard.press("Escape");
+await page.locator('button[aria-label="Yopish"]').first().click().catch(() => {});
+// Chap chekkadagi so'z ("Line" — qator boshi, eski ushlash zonasi ichida) sichqoncha bilan tanlanadi
+const edge = await page.evaluate(() => {
+  const sp = [...document.querySelectorAll('.flip-leaf[data-leaf="3"] .textLayer span')].find((x) => x.textContent.startsWith("Line 1 of"));
+  const t = sp.firstChild; const r = document.createRange(); r.setStart(t, 0); r.setEnd(t, 4);
+  const b = r.getBoundingClientRect(); const pg = sp.closest(".reader-page").getBoundingClientRect();
+  return { x1: b.left + 1, x2: b.right - 1, y: b.top + b.height / 2, frac: (b.left - pg.left) / pg.width };
+});
+await page.mouse.move(edge.x1, edge.y);
 await page.mouse.down();
-await page.mouse.move(pr2.x + pr2.width * 0.95 - 30, pr2.y + pr2.height / 2); await page.waitForTimeout(40);
-await page.mouse.move(pr2.x + pr2.width * 0.95 - 50, pr2.y + pr2.height / 2); await page.waitForTimeout(300);
+for (let n = 1; n <= 6; n++) { await page.mouse.move(edge.x1 + ((edge.x2 - edge.x1) * n) / 6, edge.y); await page.waitForTimeout(16); }
 await page.mouse.up();
-await page.waitForFunction(() => !document.querySelector('[data-testid="flip-stage"]').dataset.flipping, null, { timeout: 4000 });
-check("Qisqa sudrash → varaq joyiga qaytdi (4)", (await visibleLeaf()) === "4");
+const edgePicked = await page.waitForSelector('[data-testid="selection-vocab"]', { timeout: 4000 }).then(() => true).catch(() => false);
+check("Chekkadagi so'z tanlanadi (qo'l kursori yo'q)", edgePicked && edge.frac < 0.14 && (await visibleLeaf()) === "3", `x=${edge.frac.toFixed(3)} kenglikdan`);
+await page.locator('button[aria-label="Yopish"]').first().click().catch(() => {});
+// Sensor: swipe varaqlaydi (varaq barmoqqa ergashadi), qisqa swipe — joyiga qaytadi
+const swipe = (fromFrac, toFrac, pageNo) =>
+  page.evaluate(
+    async ([a, b, n]) => {
+      const el = document.querySelector(`.flip-leaf[data-leaf="${n}"] .reader-page`);
+      const r = el.getBoundingClientRect();
+      const y = r.top + r.height * 0.8;
+      const fire = (type, x) => el.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, pointerType: "touch", pointerId: 7, isPrimary: true, button: 0, clientX: x, clientY: y }));
+      fire("pointerdown", r.left + r.width * a);
+      for (let i = 1; i <= 10; i++) {
+        fire("pointermove", r.left + r.width * (a + ((b - a) * i) / 10));
+        await new Promise((res) => setTimeout(res, 16));
+      }
+      await new Promise((res) => setTimeout(res, 250));
+      fire("pointerup", r.left + r.width * b);
+    },
+    [fromFrac, toFrac, pageNo],
+  );
+await swipe(0.9, 0.2, 3);
+await page.waitForFunction(() => !document.querySelector('[data-testid="flip-stage"]').dataset.flipping && [...document.querySelectorAll(".flip-leaf")].find((l) => getComputedStyle(l).visibility === "visible")?.dataset.leaf === "4", null, { timeout: 5000 }).catch(() => {});
+check("Sensor swipe: varaqlandi (3→4)", (await visibleLeaf()) === "4");
+await swipe(0.9, 0.82, 4);
+await page.waitForFunction(() => !document.querySelector('[data-testid="flip-stage"]').dataset.flipping, null, { timeout: 4000 }).catch(() => {});
+check("Qisqa swipe → varaq joyiga qaytdi (4)", (await visibleLeaf()) === "4");
 // Fonning chap yarmini bosish → oldingi sahifa (3)
 const st = await page.locator('[data-testid="flip-stage"]').boundingBox();
 await page.mouse.click(st.x + 24, st.y + st.height / 2);
@@ -237,6 +268,15 @@ const geo = await page.evaluate(() => {
 });
 check("Kitob: sahifalar umurtqada tutashgan va ekranga sig'adi", geo.side && geo.fits, JSON.stringify(geo));
 await page.screenshot({ path: OUT + "05b-spread-mode.png" });
+// 34: kitob rejimida ham sichqoncha bilan sudrash varaqlamaydi (o'ng sahifaning o'ng chekkasidan chapga)
+const rp = await page.locator('.spread-leaf[data-leaf="4"] .reader-page').boundingBox();
+await page.mouse.move(rp.x + rp.width * 0.97, rp.y + rp.height * 0.6);
+await page.mouse.down();
+for (let i = 1; i <= 10; i++) { await page.mouse.move(rp.x + rp.width * 0.97 - (rp.width * 1.2 * i) / 10, rp.y + rp.height * 0.6); await page.waitForTimeout(16); }
+await page.mouse.up();
+await page.waitForTimeout(400);
+check("Kitob: sichqoncha bilan sudrash varaqlamaydi", (await page.getAttribute('[data-testid="spread-stage"]', "data-spread")) === "2" && !(await page.getAttribute('[data-testid="spread-stage"]', "data-flipping")));
+await page.locator('button[aria-label="Yopish"]').first().click().catch(() => {});
 await page.keyboard.press("ArrowRight");
 const midFlip = await page
   .waitForFunction(() => { const st = document.querySelector('[data-testid="spread-stage"]'); return st?.dataset.flipping === "1" && +st.dataset.progress > 0.2 && +st.dataset.progress < 0.8; }, null, { timeout: 4000, polling: 16 })

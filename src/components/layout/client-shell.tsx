@@ -15,6 +15,7 @@ import { Avatar, Menu, MenuItem, MenuLabel, MenuSep, buttonClass, cn } from "@/c
 import * as I from "@/components/ui/icons";
 import { ThemeSwitch } from "@/components/ui/theme-switch";
 import { NotificationBell } from "@/components/notifications/bell";
+import { CartHeaderButton, useCartNav } from "@/components/cart/cart-ui";
 import { YearDayChip, YearEmblem } from "./year-progress";
 import { useUnreadCount } from "@/components/notifications/use-unread-count";
 import { useCatalogCategories } from "@/lib/catalog-categories";
@@ -117,6 +118,7 @@ function ClientHeader({ menuOpen, onMenu }: { menuOpen: boolean; onMenu: () => v
         </Link>
         <LocaleSwitcher variant="menu" />
         <ThemeSwitch />
+        <CartHeaderButton />
         {user && <NotificationBell />}
         {user ? (
           <Menu
@@ -173,10 +175,13 @@ function ClientSidebar({ open, onNavigate }: { open: boolean; onNavigate: () => 
   const { t } = useT();
   const pathname = usePathname();
   const unread = useUnreadCount(!!user);
+  const cartNav = useCartNav();
   const items: NavItem[] = [
     { href: "/catalog", label: "nav.catalog", icon: <I.Grid size={19} /> },
     { href: "/library", label: "nav.library", icon: <I.Library size={19} />, auth: true },
     { href: "/vocabulary", label: "nav.vocabulary", icon: <I.Languages size={19} />, auth: true },
+    // 35: savatcha (chegirma yoqilgan bo'lsa; mehmonlar uchun ham)
+    ...(cartNav.enabled ? [{ href: "/cart", label: "cart.title" as DictKey, icon: <I.ShoppingBag size={19} />, badge: cartNav.count }] : []),
     { href: "/notifications", label: "notifications.title", icon: <I.Bell size={19} />, auth: true, badge: unread },
     { href: "/profile", label: "nav.profile", icon: <I.User size={19} />, auth: true },
   ];
@@ -191,7 +196,7 @@ function ClientSidebar({ open, onNavigate }: { open: boolean; onNavigate: () => 
               {n.icon}
               <span>{t(n.label)}</span>
               {!!n.badge && (
-                <span className="side-badge" data-testid="nav-unread">
+                <span className="side-badge" data-testid={n.href === "/cart" ? "nav-cart" : "nav-unread"}>
                   {n.badge > 99 ? "99+" : n.badge}
                 </span>
               )}

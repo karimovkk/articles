@@ -12,10 +12,13 @@ import { Price } from "@/components/catalog/price";
 import { Badge, Card, EmptyState, Spinner, buttonClass } from "@/components/ui";
 import * as I from "@/components/ui/icons";
 import { OrderPanel } from "@/components/orders/order-panel";
+import { AddToCartButton, TierLadder } from "@/components/cart/cart-ui";
+import { usePricing } from "@/lib/use-pricing";
 import { catalogApi, readerApi, type CatalogItem } from "@/lib/api";
 import { useT } from "@/i18n";
 
 export function CatalogBookDetail({ bookId }: { bookId: string }) {
+  const pricing = usePricing();
   const { t } = useT();
   const { user, loading: authLoading } = useAuth();
   const [item, setItem] = useState<CatalogItem | null | undefined>(undefined); // undefined = yuklanmoqda
@@ -101,7 +104,16 @@ export function CatalogBookDetail({ bookId }: { bookId: string }) {
                 </Link>
               </div>
             ) : (
-              <OrderPanel bookId={item.book_id} />
+              <>
+                <OrderPanel bookId={item.book_id} />
+                {/* 35: savatcha — bir nechta kitob birga olinsa arzonroq */}
+                {pricing && Number(item.price) > 0 && (
+                  <div className="book-cart-row" data-testid="book-cart">
+                    <AddToCartButton book={{ book_id: item.book_id, title: item.title, author: item.author, price: item.price, has_cover: item.has_cover }} />
+                    <TierLadder cfg={pricing} className="compact" />
+                  </div>
+                )}
+              </>
             )}
           </Card>
         </div>

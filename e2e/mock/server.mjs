@@ -32,7 +32,7 @@ let refreshBroken = false; // /__expire?all=1 — refresh ham ishlamaydi (sessiy
 const freshBooks = () => [
   { id: BOOK_ID, title: "Test kitob", author: "Muallif", description: "Sinov uchun kitob tavsifi.\nIkkinchi qator.", price: "45000.00", status: "ACTIVE", category_id: CAT.id, category: CAT, book_metadata: {}, created_at: now(), updated_at: now(), has_cover: false },
   { id: BOOK2_ID, title: "Ruxsatsiz kitob", author: "B. Boboyev", description: "Sotib olinmagan.", price: "70000.00", status: "ACTIVE", category_id: CAT.id, category: CAT, book_metadata: {}, created_at: now(), updated_at: now(), has_cover: false },
-  ...Array.from({ length: 29 }, (_, i) => ({ id: `22222222-2222-4222-8222-${String(i).padStart(12, "0")}`, title: `Kitob ${i + 1}`, author: i % 2 ? "A. Aliyev" : "B. Boboyev", description: `Tavsif ${i + 1}`, price: i % 5 === 0 ? "0" : `${10000 + i * 1000}.00`, status: "ACTIVE", category_id: i % 3 ? null : CAT.id, category: i % 3 ? null : CAT, book_metadata: {}, created_at: now(), updated_at: now(), has_cover: false })),
+  ...Array.from({ length: 29 }, (_, i) => ({ id: `22222222-2222-4222-8222-${String(i).padStart(12, "0")}`, title: `Kitob ${i + 1}`, author: i % 2 ? "A. Aliyev" : "B. Boboyev", description: `Tavsif ${i + 1}`, price: i % 5 === 0 ? "0" : "49000.00", status: "ACTIVE", category_id: i % 3 ? null : CAT.id, category: i % 3 ? null : CAT, book_metadata: {}, created_at: now(), updated_at: now(), has_cover: false })),
 ];
 const freshArticles = () => [
   { id: ART_ID, book_id: BOOK_ID, title: "Birinchi maqola", order_index: 0, mime_type: "application/pdf", file_size: PDF.length, format: "pdf", page_count: 6, processing_status: "READY", processing_error: null, text_extractable: true, file_version: 1, content_updated_at: null, article_metadata: {}, created_at: now(), updated_at: now(), has_source_file: true },
@@ -48,7 +48,25 @@ let audit500 = false;
 let noContentRange = false;
 let delayRule = null; // /__delay?search=Kitob&ms=1500
 let failRule = null; // /__fail?path=/catalog&status=429&code=RATE_LIMIT_EXCEEDED — mos yo'llar shu xato bilan javob beradi // B1 workaround'ni sinash uchun toggle (prod'da Content-Range BOR)
+// 35: ko'p kitobga chegirma (BACKEND_TASKS.md §2) — `/__pricing?off=1` bilan o'chiriladi (backend qo'llamagan holat)
+const DEFAULT_PRICING = { currency: "UZS", tiers: [{ min_quantity: 2, unit_price: "39000.00" }, { min_quantity: 3, unit_price: "30000.00" }] };
+let pricing = DEFAULT_PRICING;
+const money = (n) => n.toFixed(2);
+function quoteFor(bookIds) {
+  const list = bookIds.map((id) => books.find((b) => b.id === id)).filter(Boolean).filter((b) => Number(b.price) > 0);
+  const q = list.length;
+  const tier = pricing.tiers.filter((t) => t.min_quantity <= q).sort((a, b) => b.min_quantity - a.min_quantity)[0];
+  const cap = tier ? Number(tier.unit_price) : null;
+  const items = list.map((b) => ({ book_id: b.id, book_title: b.title, list_price: money(Number(b.price)), unit_price: money(cap == null ? Number(b.price) : Math.min(Number(b.price), cap)) }));
+  const subtotal = items.reduce((s, i) => s + Number(i.list_price), 0);
+  const total = items.reduce((s, i) => s + Number(i.unit_price), 0);
+  const next = pricing.tiers.filter((t) => t.min_quantity > q).sort((a, b) => a.min_quantity - b.min_quantity)[0];
+  return { items, quantity: q, subtotal: money(subtotal), discount: money(subtotal - total), total: money(total), currency: pricing.currency, next_tier: next ? { min_quantity: next.min_quantity, unit_price: next.unit_price, add_count: next.min_quantity - q } : null };
+}
+const orderBookIds = (o) => (o.items?.length ? o.items.map((i) => i.book_id) : [o.book_id]);
+
 function reset(opts = {}) {
+  pricing = DEFAULT_PRICING;
   books = freshBooks();
   articles = freshArticles();
   access = [{ id: "acc-1", user_id: USER.id, book_id: BOOK_ID, status: "ACTIVE", granted_at: now(), granted_by_admin_id: ADMIN.id, revoked_at: null, revoked_by_admin_id: null, created_at: now(), updated_at: now() }];
@@ -113,7 +131,7 @@ function parseMultipart(buf, contentType) {
 const isPdfBytes = (b) => b.slice(0, 5).toString() === "%PDF-";
 const isImageBytes = (b) => (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) || (b[0] === 0x89 && b.slice(1, 4).toString() === "PNG") || (b.slice(0, 4).toString() === "RIFF" && b.slice(8, 12).toString() === "WEBP");
 const isOpen = (o) => o.status === "PENDING" || o.status === "AWAITING_REVIEW";
-const withNames = (x) => { const u = users.find((y) => y.id === x.user_id); const b = books.find((y) => y.id === x.book_id); return { ...x, user_email: u?.email ?? null, user_full_name: u?.full_name ?? null, book_title: b?.title ?? null }; };
+const withNames = (x) => { const u = users.find((y) => y.id === x.user_id); const b = books.find((y) => y.id === x.book_id); return { ...x, user_email: u?.email ?? null, user_full_name: u?.full_name ?? null, book_title: b?.title ?? null, ...(x.items ? { items: x.items.map((i) => ({ ...i, book_title: books.find((y) => y.id === i.book_id)?.title ?? null })) } : {}) }; };
 const hasAccess = (userId, bookId) => access.some((a) => a.user_id === userId && a.book_id === bookId && a.status === "ACTIVE");
 const progKey = (u, a) => `${u}:${a}`;
 const getProg = (u, aid) => progress[progKey(u, aid)] ?? { article_id: aid, current_page: 0, current_location: null, percentage: 0, is_read: false, reading_seconds: 0, last_read_at: null, updated_at: null };
@@ -164,7 +182,10 @@ createServer(async (req, res) => {
   if (path === "/__delay") { delayRule = q.get("off") ? null : { search: q.get("search") ?? "", ms: Number(q.get("ms") ?? 1000) }; return json(res, 200, { delayRule }); }
   if (delayRule && q.get("search") === delayRule.search) await new Promise((r) => setTimeout(r, delayRule.ms));
 
+  if (path === "/__pricing") { pricing = q.get("off") === "1" ? null : DEFAULT_PRICING; return json(res, 200, { pricing }); }
+
   // ---- public
+  if (path === "/pricing" && m === "GET") return pricing ? json(res, 200, pricing) : err(res, 404, "NOT_FOUND", "Not Found");
   if (path === "/catalog") {
     const s = (q.get("search") ?? "").toLowerCase();
     const all = books.filter((b) => b.status === "ACTIVE").filter((b) => !q.get("category_id") || b.category_id === q.get("category_id")).filter((b) => !s || b.title.toLowerCase().includes(s) || (b.author ?? "").toLowerCase().includes(s) || (b.description ?? "").toLowerCase().includes(s))
@@ -303,7 +324,27 @@ createServer(async (req, res) => {
 
   // ---- orders / notifications
   if (path === "/orders" && m === "GET") return json(res, 200, orders.filter((o) => o.user_id === me.id).map(withNames));
-  if (path === "/orders" && m === "POST") { const b = await readBody(req); const bk = books.find((x) => x.id === b.book_id); if (!bk) return err(res, 404, "BOOK_NOT_FOUND", "Book not found"); if (hasAccess(me.id, bk.id)) return err(res, 409, "ALREADY_HAS_ACCESS", "You already have access to this book"); const open = orders.find((x) => x.user_id === me.id && x.book_id === bk.id && isOpen(x)); if (open) return err(res, 409, "ORDER_ALREADY_PENDING", "You already have an open order for this book", { order_id: open.id, status: open.status }); const o = { id: randomUUID(), user_id: me.id, book_id: bk.id, amount: bk.price, status: "PENDING", receipt_note: null, has_receipt_file: false, reviewed_by_admin_id: null, reviewed_at: null, reject_reason: null, created_at: now(), updated_at: now() }; orders.unshift(o); return json(res, 201, o); }
+  if (path === "/orders/quote" && m === "POST") {
+    if (!pricing) return err(res, 404, "NOT_FOUND", "Not Found");
+    const b = await readBody(req); const ids = Array.isArray(b.book_ids) ? [...new Set(b.book_ids)] : [];
+    if (!ids.length) return err(res, 422, "CART_EMPTY", "Cart is empty");
+    if (ids.length > 20) return err(res, 422, "CART_TOO_LARGE", "At most 20 books per order");
+    const missing = ids.filter((id) => !books.some((x) => x.id === id && x.status === "ACTIVE")); if (missing.length) return err(res, 404, "BOOK_NOT_FOUND", "Book not found", { book_ids: missing });
+    return json(res, 200, quoteFor(ids));
+  }
+  if (path === "/orders/checkout" && m === "POST") {
+    if (!pricing) return err(res, 404, "NOT_FOUND", "Not Found");
+    const b = await readBody(req); const ids = Array.isArray(b.book_ids) ? [...new Set(b.book_ids)] : [];
+    if (!ids.length) return err(res, 422, "CART_EMPTY", "Cart is empty");
+    if (ids.length > 20) return err(res, 422, "CART_TOO_LARGE", "At most 20 books per order");
+    const missing = ids.filter((id) => !books.some((x) => x.id === id && x.status === "ACTIVE")); if (missing.length) return err(res, 404, "BOOK_NOT_FOUND", "Book not found", { book_ids: missing });
+    const owned = ids.filter((id) => hasAccess(me.id, id)); if (owned.length) return err(res, 409, "ALREADY_HAS_ACCESS", "You already have access to some books", { book_ids: owned });
+    const pending = ids.filter((id) => orders.some((x) => x.user_id === me.id && isOpen(x) && orderBookIds(x).includes(id))); if (pending.length) return err(res, 409, "ORDER_ALREADY_PENDING", "Some books are already in an open order", { book_ids: pending });
+    const qt = quoteFor(ids); if (!qt.items.length) return err(res, 422, "CART_EMPTY", "No paid books in cart");
+    const o = { id: randomUUID(), user_id: me.id, book_id: qt.items[0].book_id, items: qt.items.map(({ book_title, ...i }) => i), subtotal: qt.subtotal, discount: qt.discount, amount: qt.total, status: "PENDING", receipt_note: null, has_receipt_file: false, reviewed_by_admin_id: null, reviewed_at: null, reject_reason: null, created_at: now(), updated_at: now() };
+    orders.unshift(o); return json(res, 201, withNames(o));
+  }
+  if (path === "/orders" && m === "POST") { const b = await readBody(req); const bk = books.find((x) => x.id === b.book_id); if (!bk) return err(res, 404, "BOOK_NOT_FOUND", "Book not found"); if (hasAccess(me.id, bk.id)) return err(res, 409, "ALREADY_HAS_ACCESS", "You already have access to this book"); const open = orders.find((x) => x.user_id === me.id && orderBookIds(x).includes(bk.id) && isOpen(x)); if (open) return err(res, 409, "ORDER_ALREADY_PENDING", "You already have an open order for this book", { order_id: open.id, status: open.status }); const o = { id: randomUUID(), user_id: me.id, book_id: bk.id, amount: bk.price, status: "PENDING", receipt_note: null, has_receipt_file: false, reviewed_by_admin_id: null, reviewed_at: null, reject_reason: null, created_at: now(), updated_at: now() }; orders.unshift(o); return json(res, 201, o); }
   // Bitta buyurtma (polling) va bekor qilish — boshqa foydalanuvchiniki 404 (IDOR)
   const og = /^\/orders\/([^/]+)(\/cancel)?$/.exec(path);
   if (og && (og[2] ? m === "POST" : m === "GET")) {
@@ -393,7 +434,7 @@ createServer(async (req, res) => {
     if (arm && m === "GET") { const o = orders.find((x) => x.id === arm[1]); if (!o) return err(res, 404, "ORDER_NOT_FOUND", "Not found"); const f = receiptFiles[o.id]; if (!f) return err(res, 404, "RECEIPT_NOT_FOUND", "Receipt not found"); res.writeHead(200, { "Content-Type": f.type, "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff" }); return res.end(f.data); }
     const aom = /^\/admin\/orders\/([^/]+)\/(approve|reject)$/.exec(path);
     // Approve idempotent (APPROVED → 200 o'zgarishsiz); boshqa yopiq holat → 409 (Telegram'da hal qilingan); sabab majburiy
-    if (aom && m === "POST") { const o = orders.find((x) => x.id === aom[1]); if (!o) return err(res, 404, "ORDER_NOT_FOUND", "Not found"); const b = aom[2] === "reject" ? await readBody(req) : {}; if (aom[2] === "reject" && !String(b.reason ?? "").trim()) return err(res, 422, "VALIDATION_ERROR", "reason: String should have at least 1 character"); if (aom[2] === "approve" && o.status === "APPROVED") return json(res, 200, o); if (!isOpen(o)) return err(res, 409, "INVALID_ORDER_STATE", `Order is ${o.status}`); if (aom[2] === "approve") { Object.assign(o, { status: "APPROVED", reviewed_by_admin_id: me.id, reviewed_at: now(), updated_at: now() }); access.push({ id: randomUUID(), user_id: o.user_id, book_id: o.book_id, status: "ACTIVE", granted_at: now(), granted_by_admin_id: me.id, revoked_at: null, revoked_by_admin_id: null, created_at: now(), updated_at: now() }); notifications.unshift({ id: randomUUID(), type: "ORDER_APPROVED", title: "Buyurtma tasdiqlandi", body: null, is_read: false, meta: { order_id: o.id, book_id: o.book_id }, created_at: now(), _user: o.user_id }); } else { Object.assign(o, { status: "REJECTED", reject_reason: b.reason ?? null, reviewed_by_admin_id: me.id, reviewed_at: now(), updated_at: now() }); notifications.unshift({ id: randomUUID(), type: "ORDER_REJECTED", title: "Buyurtma rad etildi", body: b.reason ?? null, is_read: false, meta: { order_id: o.id, book_id: o.book_id }, created_at: now(), _user: o.user_id }); } return json(res, 200, o); }
+    if (aom && m === "POST") { const o = orders.find((x) => x.id === aom[1]); if (!o) return err(res, 404, "ORDER_NOT_FOUND", "Not found"); const b = aom[2] === "reject" ? await readBody(req) : {}; if (aom[2] === "reject" && !String(b.reason ?? "").trim()) return err(res, 422, "VALIDATION_ERROR", "reason: String should have at least 1 character"); if (aom[2] === "approve" && o.status === "APPROVED") return json(res, 200, o); if (!isOpen(o)) return err(res, 409, "INVALID_ORDER_STATE", `Order is ${o.status}`); if (aom[2] === "approve") { Object.assign(o, { status: "APPROVED", reviewed_by_admin_id: me.id, reviewed_at: now(), updated_at: now() }); for (const bid of orderBookIds(o)) if (!hasAccess(o.user_id, bid)) access.push({ id: randomUUID(), user_id: o.user_id, book_id: bid, status: "ACTIVE", granted_at: now(), granted_by_admin_id: me.id, revoked_at: null, revoked_by_admin_id: null, created_at: now(), updated_at: now() }); notifications.unshift({ id: randomUUID(), type: "ORDER_APPROVED", title: "Buyurtma tasdiqlandi", body: null, is_read: false, meta: { order_id: o.id, book_id: o.book_id }, created_at: now(), _user: o.user_id }); } else { Object.assign(o, { status: "REJECTED", reject_reason: b.reason ?? null, reviewed_by_admin_id: me.id, reviewed_at: now(), updated_at: now() }); notifications.unshift({ id: randomUUID(), type: "ORDER_REJECTED", title: "Buyurtma rad etildi", body: b.reason ?? null, is_read: false, meta: { order_id: o.id, book_id: o.book_id }, created_at: now(), _user: o.user_id }); } return json(res, 200, o); }
     if (path === "/admin/export/users" || path === "/admin/export/audit-logs") { res.writeHead(200, { "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "Content-Disposition": `attachment; filename="${path.split("/").pop()}.xlsx"` }); return res.end(Buffer.from("PK\x03\x04fake-xlsx")); }
     return err(res, 404, "NOT_FOUND", `No admin route ${m} ${path}`);
   }

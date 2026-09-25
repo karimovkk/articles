@@ -1025,6 +1025,18 @@
   width: 100%;
   border-radius: 10px;
 }
+/* 35: "Sotib olish" + "Savatga" yonma-yon; joy yetmasa — "Savatga" keyingi qatorga (tugmalar siqilmaydi) */
+.bcard-cta:has(.cart-btn) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.bcard-cta:has(.cart-btn) .btn {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: max-content;
+  white-space: nowrap;
+}
 
 /* ---------- Dumaloq pagination ---------- */
 
@@ -1777,5 +1789,444 @@
   }
   .flashcard {
     height: 460px;
+  }
+}
+
+
+/* ---------- 35: Savatcha va ko'p kitobga chegirma ---------- */
+
+.cart-btn.in-cart {
+  border-color: color-mix(in srgb, var(--success) 45%, transparent);
+  color: var(--success);
+}
+/* Narx zinapoyasi: 1 ta / 2 ta / 3+ ta */
+.tier-ladder {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.tier-step {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  transition:
+    border-color 160ms var(--ease),
+    background 160ms var(--ease),
+    transform 160ms var(--ease);
+}
+.tier-step.best {
+  border-color: var(--gold-line);
+  background: color-mix(in srgb, var(--accent) 9%, var(--surface));
+}
+.tier-step.active {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 18%, var(--surface));
+  transform: translateY(-1px);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+.tier-qty {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.tier-price {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text);
+  white-space: nowrap;
+}
+.tier-price small {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.tier-step.best .tier-price,
+.tier-step.active .tier-price {
+  color: var(--accent-ink);
+}
+.dark .tier-step.best .tier-price,
+.dark .tier-step.active .tier-price {
+  color: var(--accent);
+}
+.tier-ladder.compact {
+  gap: 6px;
+}
+.tier-ladder.compact .tier-step {
+  padding: 6px 10px;
+}
+.tier-ladder.compact .tier-price {
+  font-size: 14px;
+}
+
+/* Katalog: aksiya banneri */
+.pricing-promo {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 22px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1px solid var(--gold-line);
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  box-shadow: var(--shadow-sm);
+}
+.dark .pricing-promo {
+  background: rgba(10, 9, 7, 0.78);
+}
+.pricing-promo-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.pricing-promo-icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--accent-ink);
+}
+.dark .pricing-promo-icon {
+  color: var(--accent);
+}
+.pricing-promo-title {
+  font-family: var(--font-serif);
+  font-size: 19px;
+  font-weight: 700;
+  line-height: 1.15;
+  color: var(--text);
+}
+.pricing-promo-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.18);
+  font-size: 11.5px;
+  font-weight: 800;
+}
+
+/* Kitob sahifasi: Savatga + zinapoya */
+.book-cart-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--border);
+}
+.book-cart-row .tier-ladder {
+  flex: 1 1 300px;
+}
+
+/* Savatcha sahifasi */
+.cart-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  align-items: start;
+  gap: 20px;
+}
+.cart-main {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+.cart-card {
+  padding: 18px;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+.cart-tiers-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text);
+}
+.cart-next {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--accent-ink);
+}
+.dark .cart-next {
+  color: var(--accent);
+}
+.cart-items {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.cart-item {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+.cart-item-cover .book-cover,
+.cart-suggest-cover .book-cover {
+  border-radius: 8px;
+}
+/* Kichik muqovada nom sig'maydi — faqat oltin chiziq (nom yonida yozilgan) */
+.cart-item-cover .book-cover .ph > span,
+.cart-suggest-cover .book-cover .ph > span {
+  display: none;
+}
+.cart-item-body {
+  min-width: 0;
+}
+.cart-item-title {
+  display: block;
+  font-family: var(--font-serif);
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--text);
+  text-decoration: none;
+}
+.cart-item-title:hover {
+  color: var(--accent-ink);
+}
+.cart-item-author {
+  margin-top: 2px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.cart-item-price {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  margin-top: 6px;
+}
+.cart-item-price strong {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text);
+}
+.cart-item-old {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.cart-summary {
+  position: sticky;
+  top: calc(var(--header-h) + 16px);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.cart-summary-title {
+  font-family: var(--font-serif);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+}
+.cart-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+}
+.cart-lines > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+.cart-lines dd {
+  margin: 0;
+  white-space: nowrap;
+}
+.cart-lines .is-discount {
+  color: var(--success);
+}
+.cart-lines .is-total {
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--text);
+}
+.cart-savings {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--success) 12%, transparent);
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--success);
+}
+.cart-clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 0;
+  background: none;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--muted);
+  cursor: pointer;
+}
+.cart-clear:hover {
+  color: var(--danger);
+}
+.cart-suggest-title {
+  margin-bottom: 10px;
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text);
+}
+.cart-suggest-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr));
+  gap: 10px;
+}
+.cart-suggest-card {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px dashed var(--gold-line);
+  background: color-mix(in srgb, var(--surface) 85%, transparent);
+}
+.cart-suggest-card .cart-item-title {
+  font-size: 15px;
+}
+.cart-suggest-card .cart-btn {
+  margin-top: 8px;
+}
+.cart-empty-ladder {
+  max-width: 560px;
+  margin: 18px auto 0;
+}
+.checkout-order {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 720px;
+}
+.checkout-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.checkout-items {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.checkout-items li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px dashed var(--border);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+.checkout-item-price {
+  display: inline-flex;
+  gap: 8px;
+  white-space: nowrap;
+}
+.checkout-item-price s {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+@media (max-width: 1100px) {
+  .cart-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .cart-summary {
+    position: static;
+  }
+}
+@media (max-width: 760px) {
+  .pricing-promo {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+  .pricing-promo-cta {
+    justify-self: start;
+  }
+}
+@media (max-width: 480px) {
+  .cart-item {
+    grid-template-columns: 52px minmax(0, 1fr) auto;
+    gap: 10px;
+    padding: 10px;
+  }
+  .cart-item-title {
+    font-size: 15.5px;
+  }
+  .tier-ladder {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+  }
+  .tier-step {
+    padding: 8px;
+  }
+  .tier-price {
+    font-size: 13.5px;
+    white-space: normal;
+  }
+}
+@media (min-width: 2200px) {
+  .cart-layout {
+    grid-template-columns: minmax(0, 1fr) 440px;
+  }
+  .cart-item {
+    grid-template-columns: 84px minmax(0, 1fr) auto;
+  }
+  .cart-item-title {
+    font-size: 21px;
+  }
+  .tier-price {
+    font-size: 19px;
   }
 }

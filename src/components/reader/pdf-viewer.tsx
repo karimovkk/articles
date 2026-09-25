@@ -76,8 +76,6 @@ const PAGE_GAP = 16;
 const MAX_PAGE_WIDTH = 1100;
 /** Qidiruv moslikari qancha vaqt ko'rinib turadi (CSS animatsiyasi bilan bir xil) */
 const SEARCH_HIT_MS = 6000;
-/** Sahifaning chekka ulushi (chap/o'ng) — sichqoncha bilan "varaq burchagidan" ushlab sudrash zonasi */
-const GRAB_EDGE = 0.14;
 /** Kitob rejimi: konteyner shu kenglikdan tor yoki portret bo'lsa — bitta varaqqa tushadi */
 const SPREAD_MIN_W = 860;
 
@@ -591,9 +589,9 @@ type Flip = {
  * tomoni ko'rinadi, ostidagi sahifaga soya tushadi. Qoplamadek 180° ag'darilmaydi.
  * Boshqaruv:
  *  - tashqaridan `current` o'zgarsa (tugma, klaviatura, sahifa raqami, TOC) — avtomatik animatsiya;
- *  - sichqoncha: sahifaning chekkasidan yoki fondan ushlab sudrash — varaq chekkasi kursorga aniq ergashadi,
- *    qo'yib yuborilganda tezlik va masofaga qarab varaqlanadi yoki joyiga qaytadi; fonni bosish — oldingi/keyingi;
- *  - sensor: istalgan joydan swipe (matn tanlanmagan bo'lsa).
+ *  - sichqoncha (34): sudrab varaqlash yo'q — sahifa chekkasidagi so'zlar ham tanlanadi; fonni bosish — oldingi/keyingi;
+ *  - sensor: istalgan joydan swipe — varaq chekkasi barmoqqa aniq ergashadi, qo'yib yuborilganda tezlik va masofaga
+ *    qarab varaqlanadi yoki joyiga qaytadi (matn tanlanmagan bo'lsa).
  * Matn tanlash sahifa o'rtasida oddiy ishlaydi — u yerda sudrash boshlanmaydi.
  */
 function FlipStage({
@@ -744,14 +742,9 @@ function FlipStage({
     const target = e.target as HTMLElement;
     if (target.closest("button, a")) return;
     if (e.pointerType === "mouse") {
-      // Sahifa o'rtasi — matn tanlash uchun; chekka ulushi yoki fon — varaq ushlash zonasi
-      const pageEl = target.closest<HTMLElement>(".reader-page");
-      if (pageEl) {
-        const r = pageEl.getBoundingClientRect();
-        const fx = (e.clientX - r.left) / r.width;
-        if (fx > GRAB_EDGE && fx < 1 - GRAB_EDGE) return;
-      }
-      e.preventDefault(); // matn tanlash boshlanmasin
+      // 34: sichqoncha bilan sudrab varaqlash yo'q — sahifaning hamma joyi (chekkalari ham) matn tanlash uchun.
+      // Faqat sahifa tashqarisidagi fonni bosish (oldingi/keyingi) kuzatiladi.
+      if (target.closest(".reader-page")) return;
     } else if (stageRef.current?.closest("[data-selecting]")) return; // sensorli tanlov faol
     drag.current = { id: e.pointerId, x: e.clientX, y: e.clientY, lastX: e.clientX, lastT: performance.now(), dir: 0, type: e.pointerType };
   };
@@ -766,6 +759,7 @@ function FlipStage({
   const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     const d = drag.current;
     if (!d || d.id !== e.pointerId) return;
+    if (d.type === "mouse") return; // 34: sichqoncha — faqat bosish, sudrash varaqlamaydi
     if (stageRef.current?.closest("[data-selecting]")) {
       drag.current = null; // matn tanlanmoqda — varaqlash boshlanmaydi
       return;
