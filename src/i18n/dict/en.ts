@@ -127,7 +127,6 @@ export const en: Dict = {
   "catalog.heroTitle": "Discover powerful articles for a",
   "catalog.heroAccent": "better you",
   "catalog.heroSub": "Short, valuable and life-changing articles that help you grow in every area of life.",
-  "catalog.heroScript": "Small steps,\nbig results",
   "catalog.more": "More",
   "catalog.owned": "In library",
   "catalog.found": "{n} books",

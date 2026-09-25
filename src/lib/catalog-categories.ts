@@ -6,7 +6,7 @@
  * olinadi (asosiy `/catalog` so'roviga xalaqit bermaydi) va sessiya keshiga yoziladi — keyingi sahifalarda
  * qayta so'ralmaydi. `GET /categories` da son yo'q (B26).
  */
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import { catalogApi, type Category } from "@/lib/api";
 import { sessionGet, sessionSet, whenIdle } from "@/lib/session-cache";
 
@@ -51,16 +51,24 @@ function start() {
   );
 }
 
-/** `undefined` — hali yuklanmadi, `[]` — kategoriya yo'q yoki xato. */
+function subscribe(l: () => void) {
+  listeners.add(l);
+  start();
+  return () => {
+    listeners.delete(l);
+  };
+}
+
+/**
+ * `undefined` — hali yuklanmadi, `[]` — kategoriya yo'q yoki xato.
+ * 30: `useSyncExternalStore` — hidratatsiyada server qiymati (`undefined`) ishlatiladi. Aks holda sessiya keshi
+ * oldinroq hidratlangan sidebar tomonidan to'ldirilib, keyinroq hidratlanadigan katalog (Suspense ichida) serverda
+ * bo'lmagan chip'larni chizar va "Hydration failed" xatosi chiqar edi (qayta yuklashda, keshdan).
+ */
 export function useCatalogCategories(): CategoryWithCount[] | undefined {
-  const [, force] = useState(0);
-  useEffect(() => {
-    const l = () => force((n) => n + 1);
-    listeners.add(l);
-    start();
-    return () => {
-      listeners.delete(l);
-    };
-  }, []);
-  return state;
+  return useSyncExternalStore(
+    subscribe,
+    () => state,
+    () => undefined,
+  );
 }

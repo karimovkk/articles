@@ -37,15 +37,43 @@ export function YearDayChip({ className }: { className?: string }) {
   );
 }
 
-/** Emblema + yil davomiyligini ko'rsatuvchi halqa (to'lib boradi) */
+const yearStyle = (day: { n: number; total: number } | null) => ({ ["--year" as string]: day ? (day.n / day.total).toFixed(4) : "0" });
+
+/**
+ * Emblema + yil davomiyligini ko'rsatuvchi halqa (to'lib boradi).
+ * 30: `.ring-spark` — vaqti-vaqti bilan halqa bo'ylab aylanib o'tadigan oltin nur (CSS animatsiya, reduced-motion'da yo'q).
+ */
 export function YearEmblem({ text = "365" }: { text?: string }) {
   const { t } = useT();
   const day = useYearDay();
   return (
-    <span className="year-ring" style={{ ["--year" as string]: day ? (day.n / day.total).toFixed(4) : "0" }} title={day ? t("client.dayOfYear", { n: day.n, total: day.total }) : undefined} data-testid="year-ring">
+    <span className="year-ring" style={yearStyle(day)} title={day ? t("client.dayOfYear", { n: day.n, total: day.total }) : undefined} data-testid="year-ring">
+      <span className="ring-spark" aria-hidden />
       <span className="client-emblem" aria-hidden>
         {text}
       </span>
     </span>
+  );
+}
+
+/**
+ * 30: katalog hero'ning o'ng tomonidagi katta brend — katta "365" halqa (oy belgilari bilan), nom va yil kuni.
+ * Bezak: ekran o'quvchilarga faqat "Yilning N-kuni" matni o'qiladi.
+ */
+export function HeroBrand({ name }: { name: string }) {
+  const { t } = useT();
+  const day = useYearDay();
+  return (
+    <div className="hero-brand" data-testid="hero-brand">
+      <span className="year-ring year-ring-lg" style={yearStyle(day)} aria-hidden>
+        <span className="ring-months" />
+        <span className="ring-spark" />
+        <span className="hero-brand-emblem">365</span>
+      </span>
+      <span className="hero-brand-name" aria-hidden>
+        {name}
+      </span>
+      <span className="hero-brand-day">{day ? t("client.dayOfYear", { n: day.n, total: day.total }) : "\u00a0"}</span>
+    </div>
   );
 }

@@ -10,7 +10,6 @@
   --side-w: 264px;
   --client-pad: 32px;
   --font-serif: var(--font-playfair), Georgia, "Times New Roman", serif;
-  --font-script: var(--font-caveat), "Segoe Script", cursive;
   --gold-line: color-mix(in srgb, var(--accent) 34%, transparent);
 
   position: relative;
@@ -119,12 +118,23 @@
 .client-burger {
   display: none;
 }
+/* 30: brend markazda — chapda menyu (planshet/telefonda burger), o'ngda amallar */
+.client-burger,
+.client-nav {
+  grid-column: 1;
+  justify-self: start;
+}
+.client-actions {
+  grid-column: 3;
+}
 .client-brand-wrap {
+  grid-column: 2;
+  grid-row: 1;
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   min-width: 0;
-  justify-self: start;
+  justify-self: center;
 }
 .client-brand {
   display: inline-flex;
@@ -148,6 +158,71 @@
 .year-ring .client-emblem {
   border-color: transparent;
   box-shadow: none;
+}
+/* 30: har ~9 soniyada halqa bo'ylab oltin nur bir marta aylanib o'tadi, halqa yengil yonadi */
+.year-ring {
+  --ring-w: 3px;
+}
+/* Yorug'lik — alohida qatlam, faqat opacity animatsiya qilinadi (kompozitor darajasida, arzon). `filter` animatsiyasi
+   WebKit'da (Safari dvigateli) render jarayonini qulatardi — tekshirildi */
+.year-ring::before {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  pointer-events: none;
+  box-shadow:
+    0 0 14px 2px color-mix(in srgb, var(--accent) 75%, transparent),
+    0 0 36px 6px color-mix(in srgb, var(--accent) 35%, transparent);
+  opacity: 0;
+  animation: ring-glow 9s ease-in-out 1.2s infinite;
+}
+.ring-spark {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: 50%;
+  pointer-events: none;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0 58%,
+    color-mix(in srgb, var(--accent) 45%, transparent) 76%,
+    #ffd24a 90%,
+    #fffbea 97.5%,
+    transparent 100%
+  );
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - var(--ring-w) - 1px), #000 calc(100% - var(--ring-w) - 1px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - var(--ring-w) - 1px), #000 calc(100% - var(--ring-w) - 1px));
+  filter: drop-shadow(0 0 5px rgba(255, 214, 90, 0.95));
+  opacity: 0;
+  animation: ring-spark 9s cubic-bezier(0.45, 0.05, 0.25, 1) 1.2s infinite;
+}
+@keyframes ring-spark {
+  0% {
+    transform: rotate(0deg);
+    opacity: 0;
+  }
+  3% {
+    opacity: 1;
+  }
+  17% {
+    opacity: 1;
+  }
+  20%,
+  100% {
+    transform: rotate(360deg);
+    opacity: 0;
+  }
+}
+@keyframes ring-glow {
+  0%,
+  24%,
+  100% {
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
 }
 .year-chip {
   display: inline-flex;
@@ -174,14 +249,14 @@
   opacity: 0.5;
 }
 .client-emblem {
-  width: 46px;
-  height: 46px;
+  width: 50px;
+  height: 50px;
   flex-shrink: 0;
   display: grid;
   place-items: center;
   border-radius: 50%;
   font-family: var(--font-serif);
-  font-size: 17px;
+  font-size: 18px;
   font-weight: 700;
   letter-spacing: -0.02em;
   font-variant-numeric: lining-nums;
@@ -193,9 +268,9 @@
     0 0 22px -2px color-mix(in srgb, var(--accent) 55%, transparent);
 }
 .client-brand-name {
-  font-size: 14px;
+  font-size: 15.5px;
   font-weight: 800;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   white-space: nowrap;
   overflow: hidden;
@@ -684,32 +759,76 @@
 .hero-search input::-webkit-search-cancel-button {
   filter: invert(1) brightness(0.8);
 }
-:root:not(.dark) .hero-script {
-  color: var(--accent-ink);
-  text-shadow: 0 1px 12px rgba(255, 255, 255, 0.85);
-}
-.hero-script {
-  align-self: end;
-  margin: 0 12px 6px 0;
-  font-family: var(--font-script);
-  font-size: clamp(30px, 3vw, 44px);
-  font-weight: 600;
-  line-height: 1.02;
-  color: var(--accent);
-  white-space: pre-line;
-  text-align: right;
-  transform: rotate(-9deg);
-  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.6);
+/* 30: o'ng tomonda katta brend — "365" halqa (yil kuni bilan to'lib boradi, 12 oy belgisi), nom va yil kuni */
+.hero-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  margin-right: clamp(0px, 3vw, 56px);
+  text-align: center;
   pointer-events: none;
 }
-.hero-script::after {
-  content: "";
-  display: block;
-  width: 70%;
-  height: 2px;
-  margin: 8px 0 0 auto;
-  border-radius: 2px;
-  background: linear-gradient(90deg, transparent, var(--accent));
+.year-ring-lg {
+  --ring-w: 6px;
+  width: clamp(176px, 15vw, 224px);
+  aspect-ratio: 1;
+  padding: var(--ring-w);
+  box-shadow:
+    0 0 44px -6px color-mix(in srgb, var(--accent) 55%, transparent),
+    0 18px 50px -24px rgba(0, 0, 0, 0.7);
+}
+/* 12 oy belgisi — halqa tashqarisida */
+.ring-months {
+  position: absolute;
+  inset: -16px;
+  border-radius: 50%;
+  background: repeating-conic-gradient(from -1.5deg, var(--accent) 0 3deg, transparent 3deg 30deg);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 7px), #000 calc(100% - 7px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 7px), #000 calc(100% - 7px));
+  opacity: 0.55;
+}
+.hero-brand-emblem {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-family: var(--font-serif);
+  font-size: clamp(54px, 4.8vw, 74px);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  font-variant-numeric: lining-nums;
+  color: var(--accent);
+  background: radial-gradient(circle at 35% 25%, #2a2310, #070605 70%);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent),
+    inset 0 0 46px -12px color-mix(in srgb, var(--accent) 55%, transparent);
+  text-shadow: 0 0 24px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+.hero-brand-name {
+  margin-top: 6px;
+  /* letter-spacing oxirgi harfdan keyin ham bo'shliq qo'shadi — markazlash uchun chapdan teng qo'shimcha */
+  padding-left: 0.34em;
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+  color: var(--accent);
+  text-shadow: 0 2px 16px rgba(0, 0, 0, 0.6);
+}
+.hero-brand-day {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--hero-sub);
+  font-variant-numeric: tabular-nums;
+}
+:root:not(.dark) .hero-brand-name {
+  color: var(--accent-ink);
+  text-shadow: 0 1px 12px rgba(255, 255, 255, 0.9);
+}
+:root:not(.dark) .hero-brand-day {
+  text-shadow: 0 1px 10px rgba(255, 255, 255, 0.9);
 }
 
 /* ---------- Kategoriya chip'lari ---------- */
@@ -1034,7 +1153,7 @@
   }
 }
 @media (max-width: 900px) {
-  .hero-script {
+  .hero-brand {
     display: none;
   }
   .catalog-hero {
@@ -1125,10 +1244,25 @@
   .client-promo-go {
     transition: none;
   }
+  .year-ring::before,
+  .ring-spark {
+    animation: none;
+  }
 }
 
 /* ---------- 23.5: televizor — mijoz qobig'i kattalashadi, kontent kengligi cheklanadi ---------- */
 @media (min-width: 2200px) {
+  /* 30: katta brend televizorda ham ko'zga tashlansin */
+  .year-ring-lg {
+    --ring-w: 8px;
+    width: 300px;
+  }
+  .hero-brand-emblem {
+    font-size: 96px;
+  }
+  .hero-brand-name {
+    font-size: 20px;
+  }
   .client {
     --header-h: 92px;
     --side-w: 330px;
@@ -1210,6 +1344,17 @@
   }
 }
 @media (min-width: 3200px) {
+  /* 30: katta brend televizorda ham ko'zga tashlansin */
+  .year-ring-lg {
+    --ring-w: 8px;
+    width: 400px;
+  }
+  .hero-brand-emblem {
+    font-size: 128px;
+  }
+  .hero-brand-name {
+    font-size: 26px;
+  }
   .client-main {
     max-width: 3000px;
   }

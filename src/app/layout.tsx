@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { Caveat, Manrope, Playfair_Display, Unbounded } from "next/font/google";
+import { Manrope, Playfair_Display, Unbounded } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/providers/auth-provider";
 import { ThemeProvider } from "@/providers/theme-provider";
@@ -13,11 +13,10 @@ const manrope = Manrope({ subsets: ["latin", "cyrillic"], variable: "--font-manr
 // 26.2: sarlavha shrifti faqat lotin qismida oldindan yuklanadi — interfeys lotin yozuvida; kirill matn
 // (kitob nomi bo'lsa) tizim shriftida chiqadi, lekin har sahifada ≈50 KB kam yuklanadi.
 const unbounded = Unbounded({ subsets: ["latin"], variable: "--font-unbounded", display: "swap" });
-// Mijoz tomoni (16): hero/sarlavhalar — serif (Playfair Display), bezak yozuvi — Caveat. Faqat mijoz sahifalarida
+// Mijoz tomoni (16): hero/sarlavhalar — serif (Playfair Display). Faqat mijoz sahifalarida
 // ishlatiladi — preload qilinmaydi (admin sahifalari ularni yuklamaydi)
 // 26.2: faqat ishlatiladigan qalinlik (700 + kursiv) — har ortiqcha qalinlik alohida fayl (≈30–50 KB)
 const playfair = Playfair_Display({ subsets: ["latin", "cyrillic"], weight: ["700"], style: ["normal", "italic"], variable: "--font-playfair", display: "swap", preload: false });
-const caveat = Caveat({ subsets: ["latin", "cyrillic"], weight: ["600"], variable: "--font-caveat", display: "swap", preload: false });
 
 /**
  * Mavzuni birinchi paint'dan OLDIN qo'llash (hydration'gacha oq "flash" bo'lmasin):
@@ -33,7 +32,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="uz" suppressHydrationWarning className={`${manrope.variable} ${unbounded.variable} ${playfair.variable} ${caveat.variable}`}>
+    <html lang="uz" suppressHydrationWarning className={`${manrope.variable} ${unbounded.variable} ${playfair.variable}`}>
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
       </head>

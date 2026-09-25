@@ -127,7 +127,6 @@ export const ru: Dict = {
   "catalog.heroTitle": "Сильные статьи, которые",
   "catalog.heroAccent": "меняют жизнь",
   "catalog.heroSub": "Короткие и ценные статьи, которые помогают расти в каждой сфере жизни.",
-  "catalog.heroScript": "Маленькие шаги —\nбольшие результаты",
   "catalog.more": "Ещё",
   "catalog.owned": "В библиотеке",
   "catalog.found": "Книг: {n}",

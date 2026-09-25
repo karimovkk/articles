@@ -690,6 +690,34 @@ kitob, profil, bildirishnomalar, mavzu almashish Safari 17.4 da ishladi.
       "readableStream is not async iterable" bilan yiqiladi, tuzatish bilan o'tadi.
 - [x] 29.6 `--prod`: Chrome **22/22 (363)**, WebKit 26.6 **22/22 (360)**, Firefox reader to'plamlari **4/4**; push
 
+## 30. Brend markazda (2026-09-25, "logo judayam chapda, ko'zga tashlanmayapti — focus brandda bo'lsin")
+
+- [x] 30.1 Header: brend (365 halqa + ARTICLES365 + kun/365) o'rtaga ko'chadi, menyu havolalari chapga; emblema
+      kattaroq; planshet/telefonda ham brend markazda (burger — chapda, amallar — o'ngda)
+- [x] 30.2 Halqa animatsiyasi: har ~9 soniyada halqa bo'ylab oltin nur bir marta aylanib o'tadi + yengil yorug'lik
+      (doimiy emas — "har zamonda"); `prefers-reduced-motion` da o'chadi
+- [x] 30.3 Katalog hero'ning o'ng tomoni: "Kichik qadamlar — katta natijalar" yozuvi olib tashlanadi, o'rniga katta
+      brend emblemasi (katta 365 halqa + oy belgilari, ARTICLES365, "N-kun / 365") — xuddi shu animatsiya bilan
+- [x] 30.4 Tekshiruv: telefon/planshet/kompyuter/TV, yorug'/qorong'i, Safari (WebKit) — skrinshotlar; e2e yangilanadi
+      **Natija:** header 3 ustun — chapda menyu (planshet/telefonda burger), markazda brend (emblema 46→50px,
+      nom kattaroq), o'ngda amallar; DOM tartibi ham shunday (Tab tartibi ko'rinishga mos). Kun belgisi 641–1100px da
+      header'da yashirin (joy yetmaydi), ≤400px da ham. Nur: `.ring-spark` 9 s siklda ≈1.5 s aylanadi (o'lchandi),
+      `reduced-motion` da animatsiya yo'q. Hero: katta 365 halqa (12 oy belgisi), ARTICLES365, "Yilning N-kuni";
+      ≤900px da yashirin (header'dagi markaziy brend qoladi); TV'da 300/400px. "Kichik qadamlar — katta natijalar"
+      olib tashlandi → Caveat shrifti endi kerak emas (katalogda ≈50 KB kam). 1180–3840px admin menyusi bilan
+      ustma-ust tushish yo'q. Yo'l-yo'lakay: kategoriyalar store'i `useSyncExternalStore` ga o'tkazildi — qayta
+      yuklashda (sessiya keshidan) katalog chip'larida "Hydration failed" chiqar edi (26.4 dan qolgan poyga).
+- [x] 30.5 `--prod`: Chrome **22/22 (366)**; WebKit **21/22 (352)** — yiqilgan `reader` to'plami bu o'zgarishga
+      aloqasiz: oxirgi commit (dceb254…23d1573) holatida ham WebKit'da 3/3 yiqiladi (quyida 31.1). Yo'l-yo'lakay:
+      halqadagi `filter: drop-shadow` animatsiyasi WebKit render jarayonini qulatardi → yorug'lik alohida qatlamda,
+      faqat `opacity` animatsiyasi (Chrome'da ham arzonroq).
+
+## 31. Keyingi vazifalar
+
+- [ ] 31.1 Safari (WebKit): varaqlash rejimida oldingi sahifaga qaytilganda (3-sahifa) belgilash qatlami
+      ko'rinmaydi — `reader` e2e 210-qator: `[data-page="3"] .highlightLayer > div` "hidden" (5 s). Chrome'da o'tadi,
+      WebKit'da 23d1573 holatida ham 3/3 yiqiladi. Sababini topish (varaq animatsiyasi tugagach qatlam ko'rsatilishi).
+
 ### Backend uchun eslatmalar (jonli auditdan) — holat: B1 ✅(avvaldan) · B2 ✅ · B3 ✅ · B4 ✅ · B5 ✅ · B6 ✅(avvaldan) ·
 B7 ✅ · B8 ✅ (OpenAPI manba) · B9 ✅ · B10 ✅ · B11 ✅ · B12 ✅ · B13 ✅ — **ochiq savol yo'q**
 

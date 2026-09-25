@@ -134,7 +134,6 @@ export const uz = {
   "catalog.heroTitle": "Hayotingizni o'zgartiradigan",
   "catalog.heroAccent": "kuchli maqolalar",
   "catalog.heroSub": "Hayotning har bir sohasida o'sishingizga yordam beradigan qisqa va qimmatli maqolalar.",
-  "catalog.heroScript": "Kichik qadamlar —\nkatta natijalar",
   "catalog.more": "Yana",
   "catalog.owned": "Kutubxonada",
   "catalog.found": "{n} ta kitob",

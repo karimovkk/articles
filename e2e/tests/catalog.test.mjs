@@ -42,6 +42,24 @@ await page.waitForSelector('[data-testid="year-day"]', { timeout: 8000 });
 const chip = (await page.textContent('[data-testid="year-day"]'))?.replace(/\s/g, "");
 const ringYear = Number(await page.evaluate(() => getComputedStyle(document.querySelector('[data-testid="year-ring"]')).getPropertyValue("--year")));
 check("Yil kuni ko'rsatkichi: bugungi kun / jami va emblema halqasi", chip === `${expectedDay}/${totalDays}` && ringYear > 0 && Math.abs(ringYear - expectedDay / totalDays) < 0.01, `${chip} ring=${ringYear}`);
+// 30: brend markazda + hero'ning o'ng tomonida katta brend; halqa bo'ylab vaqti-vaqti bilan nur
+const brand = await page.evaluate(() => {
+  const b = document.querySelector('[data-testid="header-brand"]').getBoundingClientRect();
+  const hb = document.querySelector('[data-testid="hero-brand"]');
+  const hr = hb?.getBoundingClientRect();
+  const hero = document.querySelector(".catalog-hero").getBoundingClientRect();
+  return {
+    headerCenter: Math.round(b.left + b.width / 2),
+    vw: window.innerWidth,
+    heroBrand: !!hb && getComputedStyle(hb).display !== "none" && hr.left > hero.left + hero.width / 2,
+    heroDay: hb?.querySelector(".hero-brand-day")?.textContent ?? "",
+    script: !!document.querySelector(".hero-script"),
+    sparks: document.getAnimations().filter((a) => a.animationName === "ring-spark").length,
+  };
+});
+check("Brend header markazida (emblema + nom)", Math.abs(brand.headerCenter - brand.vw / 2) < brand.vw * 0.12, `markaz=${brand.headerCenter} / ${brand.vw}`);
+check("Hero o'ng tomonida katta brend va yil kuni; eski yozuv yo'q", brand.heroBrand && brand.heroDay.includes(String(expectedDay)) && !brand.script, JSON.stringify(brand));
+check("Halqa animatsiyasi (header + hero): nur vaqti-vaqti bilan aylanadi", brand.sparks === 2, `ring-spark=${brand.sparks}`);
 const hdrs0 = await mockGet("/__headers");
 check("Katalog so'rovi Authorization'siz ketdi (public)", hdrs0.some((h) => h.path === "/catalog"));
 check("Dumaloq pagination (31 ta kitob / 24): joriy 1, keyingi 2", (await page.textContent('[data-testid="pager"] button[aria-current="page"]'))?.trim() === "1" && (await page.locator('[data-testid="pager"] button:text-is("2")').count()) === 1);

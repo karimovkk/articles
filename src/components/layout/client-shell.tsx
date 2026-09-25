@@ -72,15 +72,6 @@ function ClientHeader({ menuOpen, onMenu }: { menuOpen: boolean; onMenu: () => v
       <button type="button" className="icon-btn plain client-burger" onClick={onMenu} aria-expanded={menuOpen} aria-label={t(menuOpen ? "ui.nav.closeMenu" : "ui.nav.openMenu")} data-testid="client-menu">
         {menuOpen ? <I.X size={20} /> : <I.Menu size={20} />}
       </button>
-      {/* 25: brend "365" — yilning nechanchi kuni ekani doim ko'rinib turadi */}
-      <div className="client-brand-wrap">
-        <Link href={user ? "/library" : "/catalog"} className="client-brand" aria-label={env.appName}>
-          <YearEmblem />
-          <span className="client-brand-name">{env.appName}</span>
-        </Link>
-        <YearDayChip className="max-[400px]:hidden" />
-      </div>
-
       <nav className="client-nav" aria-label={t("client.nav")}>
         {nav
           .filter((n) => !n.auth || user)
@@ -96,6 +87,15 @@ function ClientHeader({ menuOpen, onMenu }: { menuOpen: boolean; onMenu: () => v
           </Link>
         )}
       </nav>
+
+      {/* 25/30: brend "365" markazda — yilning nechanchi kuni doim ko'rinib turadi, halqa vaqti-vaqti bilan yonadi */}
+      <div className="client-brand-wrap">
+        <Link href={user ? "/library" : "/catalog"} className="client-brand" aria-label={env.appName} data-testid="header-brand">
+          <YearEmblem />
+          <span className="client-brand-name">{env.appName}</span>
+        </Link>
+        <YearDayChip className="max-[400px]:hidden min-[641px]:max-[1100px]:hidden" />
+      </div>
 
       <div className="client-actions">
         <Link

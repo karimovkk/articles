@@ -8,11 +8,13 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { BookCardH } from "@/components/catalog/book-card";
+import { HeroBrand } from "@/components/layout/year-progress";
 import { Price } from "@/components/catalog/price";
 import { Alert, EmptyState, Menu, MenuItem, RoundPagination, Spinner, cn } from "@/components/ui";
 import * as I from "@/components/ui/icons";
 import { catalogApi } from "@/lib/api";
 import { useCatalogCategories } from "@/lib/catalog-categories";
+import { env } from "@/lib/env";
 import { loadOwnedBookIds } from "@/lib/owned-books";
 import { useAsync } from "@/lib/use-async";
 import { useDebouncedCallback } from "@/lib/use-debounce";
@@ -121,9 +123,8 @@ function CatalogList() {
             {loading && data && <Spinner className="mr-3 size-4 shrink-0 text-[rgba(246,242,232,0.6)]" />}
           </form>
         </div>
-        <p className="hero-script" aria-hidden>
-          {t("catalog.heroScript")}
-        </p>
+        {/* 30: o'ng tomonda — katta brend (yozuv o'rniga) */}
+        <HeroBrand name={env.appName} />
       </section>
 
       <div className="cat-chips" data-testid="catalog-categories">
