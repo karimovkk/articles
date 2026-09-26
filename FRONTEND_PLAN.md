@@ -878,6 +878,17 @@ Manba: `Articles365_BACKEND_TASKS2_Hisobot_v1.0.md`, `Articles365_Frontend_Vazif
 - [x] 38.9 Login/ro'yxatdan o'tish: sahifa jonlanmaguncha maydonlar `readOnly`, tugma o'chiq (Safari'da oldin yozilgan
       matn o'chib, forma yuborilmay qolardi); e2e runner: server chiqishi pipe'da to'lib, dev server qotardi — tuzatildi
 
+## 39. Admin: ko'rib chiqilmagan buyurtmalar doim ko'rinib tursin (2026-09-26)
+
+Talab: tasdiqlanmagan va rad etilmagan buyurtmalar soni adminning ko'z oldida bo'lsin (unutilmasin).
+
+- [x] 39.1 Umumiy manba `lib/admin-open-orders.ts`: `PENDING` + `AWAITING_REVIEW` soni (`GET /admin/orders?status=…`),
+      obunachi bor ekan har 60 s, oynaga qaytilganda va tasdiqlash/rad etishdan keyin darhol yangilanadi; chiqishda tozalanadi
+- [x] 39.2 Admin sidebar: "Buyurtmalar" yonida qizil son (yig'ilgan sidebar'da — nuqta)
+- [x] 39.3 Dashboard: "Ko'rib chiqilmagan buyurtmalar" eslatmasi (chek tekshiruvda / to'lov kutilmoqda) + "Buyurtmalarga
+      o'tish"; plitka ikkala holat bo'yicha taqsimot bilan (avval faqat AWAITING_REVIEW edi)
+- [x] 39.4 Ilova sidebar'ida "Admin" havolasi yonida ham son; e2e `admin` (son, tasdiqlagach kamayishi, yangi buyurtma)
+
 ## 31. Keyingi vazifalar
 
 - [ ] 31.1 Safari (WebKit): varaqlash rejimida oldingi sahifaga qaytilganda (3-sahifa) belgilash qatlami

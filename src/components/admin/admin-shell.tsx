@@ -18,6 +18,7 @@ import { env } from "@/lib/env";
 import { useT, type DictKey } from "@/i18n";
 import { NotificationBell } from "@/components/notifications/bell";
 import { useMediaQuery } from "@/lib/use-media-query";
+import { useOpenOrders } from "@/lib/admin-open-orders";
 
 interface NavItem {
   href: string;
@@ -114,6 +115,8 @@ export function AdminShell({ children }: { children: ReactNode }) {
 
   const section = ADMIN_NAV.flatMap((s) => s.items).find((i) => isNavActive(pathname, i.href));
   const displayName = user?.full_name || user?.email || user?.phone || t("common.user");
+  // Ko'rib chiqilmagan buyurtmalar — "Buyurtmalar" yonida doim ko'rinadi (admin unutib qo'ymasin)
+  const openOrders = useOpenOrders();
 
   return (
     <CrumbCtx.Provider value={crumbValue}>
@@ -154,10 +157,17 @@ export function AdminShell({ children }: { children: ReactNode }) {
                 </div>
                 {s.items.map((it) => {
                   const active = isNavActive(pathname, it.href);
+                  const badge = it.href === "/admin/orders" ? (openOrders?.total ?? 0) : 0;
+                  const label = badge ? `${t(it.label)} — ${t("admin.orders.openCount", { n: badge })}` : t(it.label);
                   return (
-                    <Link key={it.href} href={it.href} className={cn("nav-item", active && "active")} aria-current={active ? "page" : undefined} title={collapsed ? t(it.label) : undefined}>
+                    <Link key={it.href} href={it.href} className={cn("nav-item", active && "active")} aria-current={active ? "page" : undefined} title={collapsed ? label : badge ? label : undefined}>
                       <it.icon size={18} />
                       {!collapsed && <span>{t(it.label)}</span>}
+                      {badge > 0 && (
+                        <span className={cn("nav-badge alert", collapsed && "dot")} data-testid="nav-orders-badge" aria-label={t("admin.orders.openCount", { n: badge })}>
+                          {collapsed ? "" : badge > 99 ? "99+" : badge}
+                        </span>
+                      )}
                     </Link>
                   );
                 })}

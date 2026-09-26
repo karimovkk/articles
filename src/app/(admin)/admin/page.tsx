@@ -11,14 +11,13 @@ import * as I from "@/components/ui/icons";
 import { adminApi, isApiError, type AdminStats, type AuditLog } from "@/lib/api";
 import { auditActionLabel, auditEntityLabel } from "@/lib/admin-names";
 import { useT } from "@/i18n";
+import { useOpenOrders } from "@/lib/admin-open-orders";
 import { formatNumber as fmt } from "@/i18n";
 
 interface Loaded {
   stats: AdminStats;
   fallback: boolean;
   logs: AuditLog[];
-  /** Tekshiruvni kutayotgan buyurtmalar (stats'da yo'q) */
-  ordersAwaiting: number;
 }
 
 /** Eski backend: /admin/stats yo'q — ro'yxatlardan minimal statistika. */
@@ -55,28 +54,30 @@ export default function AdminHome() {
         stats = await statsFromLists();
         fallback = true;
       }
-      const [logs, ordersAwaiting] = await Promise.all([
-        adminApi
-          .auditLogs({ page_size: 8 })
-          .then((r) => r.items)
-          .catch(() => [] as AuditLog[]),
-        adminApi
-          .orders({ status: "AWAITING_REVIEW", page_size: 1 })
-          .then((r) => r.total)
-          .catch(() => 0),
-      ]);
-      setData({ stats, fallback, logs, ordersAwaiting });
+      const logs = await adminApi
+        .auditLogs({ page_size: 8 })
+        .then((r) => r.items)
+        .catch(() => [] as AuditLog[]);
+      setData({ stats, fallback, logs });
     })();
   }, []);
 
   const s = data?.stats;
+  // Ko'rib chiqilmagan buyurtmalar (PENDING + AWAITING_REVIEW) — sidebar bilan bitta manba
+  const open = useOpenOrders();
   const tiles: Array<{ href: string; label: string; value?: number; breakdown?: Record<string, number>; icon: ReactNode }> = [
     { href: "/admin/users", label: t("nav.admin.users"), value: s?.users.total, breakdown: s?.users.by_status, icon: <I.Users size={17} /> },
     { href: "/admin/books", label: t("nav.admin.books"), value: s?.books.total, breakdown: s?.books.by_status, icon: <I.Book size={17} /> },
     ...(s?.articles ? [{ href: "/admin/books", label: t("admin.stats.articles"), value: s.articles.total, breakdown: s.articles.by_processing, icon: <I.FileText size={17} /> }] : []),
     { href: "/admin/access", label: t("nav.admin.access"), value: s?.access.total, breakdown: s?.access.by_status, icon: <I.Key size={17} /> },
     { href: "/admin/categories", label: t("nav.admin.categories"), value: s?.categories, icon: <I.Tag size={17} /> },
-    { href: "/admin/orders", label: t("admin.orders.awaiting"), value: data?.ordersAwaiting, icon: <I.ShoppingBag size={17} /> },
+    {
+      href: "/admin/orders",
+      label: t("admin.orders.openTitle"),
+      value: open?.total,
+      breakdown: open ? { AWAITING_REVIEW: open.awaiting, PENDING: open.pending } : undefined,
+      icon: <I.ShoppingBag size={17} />,
+    },
     ...(data && !data.fallback
       ? [
           { href: "/admin/books", label: t("admin.stats.annotations"), value: s?.annotations, icon: <I.Highlighter size={17} /> },
@@ -88,6 +89,21 @@ export default function AdminHome() {
   return (
     <div>
       <PageHeader eyebrow={t("nav.admin")} title={t("admin.title")} description={t("admin.description")} icon={<I.Sparkles size={26} />} />
+      {!!open?.total && (
+        <div className="mb-4" data-testid="open-orders-alert">
+          <Alert tone="warning">
+            <span className="flex flex-wrap items-center justify-between gap-3">
+              <span>
+                <b>{t("admin.orders.openBanner", { n: open.total })}</b>{" "}
+                {t("admin.orders.openBreakdown", { awaiting: open.awaiting, pending: open.pending })}
+              </span>
+              <Link href="/admin/orders" className={buttonClass("primary", "sm")}>
+                {t("admin.orders.openAction")}
+              </Link>
+            </span>
+          </Alert>
+        </div>
+      )}
       {data?.fallback && (
         <Alert tone="info" className="mb-4">
           {t("admin.stats.fallback")}

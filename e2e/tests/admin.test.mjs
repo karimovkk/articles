@@ -31,11 +31,14 @@ await page.fill('input[type="password"]', "Admin12345!");
 await page.click('button[type="submit"]');
 await page.waitForURL(`${BASE}/library`);
 
-// ---- Dashboard: tekshiruvdagi buyurtmalar plitkasi
+// ---- Dashboard: ko'rib chiqilmagan buyurtmalar (PENDING + AWAITING_REVIEW) — plitka, eslatma, sidebar belgisi
 await page.goto(`${BASE}/admin`);
-await page.waitForSelector("text=Tekshiruvdagi buyurtmalar", { timeout: 10000 });
+await page.waitForSelector("text=Ko'rib chiqilmagan buyurtmalar", { timeout: 10000 });
 await page.waitForFunction(() => [...document.querySelectorAll("a")].some((a) => a.href.endsWith("/admin/orders") && /\b1\b/.test(a.innerText)), null, { timeout: 8000 });
-check("Dashboard: tekshiruvdagi buyurtmalar = 1", true);
+check("Dashboard: ko'rib chiqilmagan buyurtmalar = 1", true);
+await page.waitForSelector('[data-testid="open-orders-alert"]', { timeout: 8000 });
+check("Dashboard: eslatma — 1 ta buyurtma ko'rib chiqilmagan, havola", ((await page.textContent('[data-testid="open-orders-alert"]')) ?? "").includes("1 ta buyurtma") && (await page.locator('[data-testid="open-orders-alert"] a[href="/admin/orders"]').count()) === 1);
+check("Sidebar: 'Buyurtmalar' yonida son (1)", ((await page.textContent('[data-testid="nav-orders-badge"]')) ?? "").trim() === "1");
 
 // ---- 11.5 Sidebar yig'ish tugmasi: ikkala holatda ham bir xil balandlikda, sidebar chekkasida; holat saqlanadi
 const togglePos = async () => page.evaluate(() => {
@@ -80,10 +83,15 @@ await page.waitForSelector('[data-testid="receipt-viewer"]', { state: "detached"
 await page.click("text=Tasdiqlash");
 // "Barchasi" filtrida buyurtma ro'yxatda qoladi — holati Tasdiqlangan bo'ladi, amal tugmalari yo'qoladi
 await page.waitForFunction(() => document.body.innerText.includes("Tasdiqlangan") && ![...document.querySelectorAll("button")].some((b) => b.textContent.trim() === "Tasdiqlash"), null, { timeout: 8000 });
+await page.waitForSelector('[data-testid="nav-orders-badge"]', { state: "detached", timeout: 8000 });
+check("Tasdiqlagandan keyin sidebar'dagi son darhol yo'qoldi (0 ta ochiq)", true);
 const accessAfter = await (await fetch(`${API}/admin/book-access?book_id=${BOOK2}`, { headers: { Authorization: "Bearer access-token-admin" } })).json();
 check("Approve → ruxsat yaratildi (book-access)", accessAfter.items.some((a) => a.user_id === USER_ID && a.status === "ACTIVE"));
 // reject flow
 const o2 = await (await fetch(`${API}/orders`, { method: "POST", headers: uh, body: JSON.stringify({ book_id: "22222222-2222-4222-8222-000000000001" }) })).json();
+await page.reload();
+await page.waitForSelector('[data-testid="nav-orders-badge"]', { timeout: 8000 });
+check("Yangi PENDING buyurtma → sidebar'da yana 1", ((await page.textContent('[data-testid="nav-orders-badge"]')) ?? "").trim() === "1");
 await selectPick(page, '[data-testid="filter-status"]', "PENDING");
 await page.waitForSelector("text=Rad etish", { timeout: 8000 });
 await page.click("text=Rad etish");

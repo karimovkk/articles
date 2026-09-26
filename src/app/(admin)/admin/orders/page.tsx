@@ -15,6 +15,7 @@ import { adminApi, errorMessage, isApiError, type Order, type OrderStatus } from
 import { useEntityNames } from "@/lib/admin-names";
 import { ReceiptViewer } from "@/components/admin/receipt-viewer";
 import { useT } from "@/i18n";
+import { refreshOpenOrders } from "@/lib/admin-open-orders";
 
 const STATUSES: OrderStatus[] = ["PENDING", "AWAITING_REVIEW", "APPROVED", "REJECTED", "CANCELLED"];
 
@@ -41,12 +42,14 @@ export default function AdminOrdersPage() {
       setRejecting(null);
       setReason("");
       reload();
+      void refreshOpenOrders(); // sidebar/dashboard'dagi "ko'rib chiqilmagan" soni darhol kamayadi
     } catch (e) {
       setActionErr(errorMessage(e));
       // Telegram'da hal qilingan — ro'yxat va oynani yangilaymiz
       if (isApiError(e) && e.code === "INVALID_ORDER_STATE") {
         setRejecting(null);
         reload();
+        void refreshOpenOrders();
       }
     } finally {
       setBusy(null);

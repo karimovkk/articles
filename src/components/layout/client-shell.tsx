@@ -20,6 +20,7 @@ import { YearDayChip, YearEmblem } from "./year-progress";
 import { useUnreadCount } from "@/components/notifications/use-unread-count";
 import { useCatalogCategories } from "@/lib/catalog-categories";
 import { env } from "@/lib/env";
+import { useOpenOrders } from "@/lib/admin-open-orders";
 import { useT, type DictKey } from "@/i18n";
 import { LocaleSwitcher } from "@/i18n/locale-switcher";
 
@@ -172,6 +173,7 @@ function ClientHeader({ menuOpen, onMenu }: { menuOpen: boolean; onMenu: () => v
 
 function ClientSidebar({ open, onNavigate }: { open: boolean; onNavigate: () => void }) {
   const { user, loading, isAdmin } = useAuth();
+  const openOrders = useOpenOrders(isAdmin);
   const { t } = useT();
   const pathname = usePathname();
   const unread = useUnreadCount(!!user);
@@ -206,7 +208,13 @@ function ClientSidebar({ open, onNavigate }: { open: boolean; onNavigate: () => 
           <Link href="/admin" prefetch={false} onClick={onNavigate} className="side-link">
             <I.Settings size={19} />
             <span>{t("nav.admin")}</span>
-            <I.ArrowUpRight size={14} className="ml-auto opacity-60" />
+            {openOrders?.total ? (
+              <span className="side-badge" data-testid="nav-admin-orders" title={t("admin.orders.openCount", { n: openOrders.total })}>
+                {openOrders.total > 99 ? "99+" : openOrders.total}
+              </span>
+            ) : (
+              <I.ArrowUpRight size={14} className="ml-auto opacity-60" />
+            )}
           </Link>
         )}
         {!user && !loading && (

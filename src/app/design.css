@@ -2712,3 +2712,31 @@ a.track:hover {
   min-width: 0;
   overflow-wrap: anywhere;
 }
+
+/* Admin: ko'rib chiqilmagan buyurtmalar soni — ko'zga tashlanadigan (unutilmasin) */
+.nav-badge.alert {
+  min-width: 22px;
+  padding: 1px 7px;
+  text-align: center;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  background: var(--danger);
+  color: #fff;
+}
+.nav-item.active .nav-badge.alert {
+  background: var(--danger);
+  color: #fff;
+}
+.nav-item:has(.nav-badge.dot) {
+  position: relative;
+}
+.nav-badge.alert.dot {
+  position: absolute;
+  top: 7px;
+  right: 9px;
+  min-width: 0;
+  width: 9px;
+  height: 9px;
+  padding: 0;
+  box-shadow: 0 0 0 2px var(--frame);
+}
