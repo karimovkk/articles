@@ -2230,3 +2230,75 @@
     font-size: 19px;
   }
 }
+
+/* 37 — Tekin kitoblar: katalog belgisi/narxi va kitob sahifasidagi "Bepul o'qing" paneli */
+.bcard-tag.free {
+  border-color: color-mix(in srgb, var(--success) 45%, transparent);
+  background: color-mix(in srgb, var(--success) 10%, transparent);
+  color: var(--success);
+}
+.bcard-price.free {
+  color: var(--success);
+}
+.free-read {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+.free-read-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--success);
+}
+.free-read-list {
+  display: grid;
+  gap: 2px;
+  margin-top: 4px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  list-style: none;
+  max-height: 320px;
+  overflow-y: auto;
+}
+.free-read-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 7px 8px;
+  border-radius: 10px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text);
+  text-decoration: none;
+}
+.free-read-item:hover {
+  background: var(--surface-2, color-mix(in srgb, var(--text) 5%, transparent));
+}
+.free-read-item .user-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.free-read-num {
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--success) 12%, transparent);
+  color: var(--success);
+  font-size: 11.5px;
+  font-weight: 800;
+}
+.free-read-pages {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--muted);
+}

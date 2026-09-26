@@ -13,7 +13,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/providers/auth-provider";
 import { Alert, IconButton, Spinner, cn, useConfirm } from "@/components/ui";
 import {
@@ -21,12 +21,9 @@ import {
   isApiError,
   isNetworkError,
   isVocab,
-  libraryApi,
-  libraryCache,
   normalizeWord,
   readerApi,
   readingApi,
-  toVocab,
   vocabularyApi,
   type Annotation,
   type VocabEntry,
@@ -83,7 +80,11 @@ export function ReaderView({ articleId }: { articleId: string }) {
     }
     return errorMessage(e, m);
   };
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
+  // 37: mehmon (tekin kitob) — o'qish mumkin, lekin progress/belgilash/lug'at/eslatma saqlanmaydi
+  const guest = !authLoading && !user;
+  const router = useRouter();
+  const [guestBannerHidden, setGuestBannerHidden] = useState(false);
   const viewerRef = useRef<PdfViewerHandle>(null);
 
   const [meta, setMeta] = useState<ReaderMeta | null>(null);
@@ -132,8 +133,8 @@ export function ReaderView({ articleId }: { articleId: string }) {
     setSearchHit({ page: Math.min(deepPage, pageCount), query: deepWord, nonce: 1 });
   }
   const highlights = useMemo(() => annotations.filter((a) => a.type === "HIGHLIGHT"), [annotations]);
-  // 33: lug'at so'zlari (NOTE + label "vocab") — oddiy eslatmalardan ajratiladi
-  const vocab = useMemo(() => annotations.map(toVocab).filter((v): v is VocabEntry => !!v), [annotations]);
+  // 38: lug'at so'zlari — `/articles/{id}/vocabulary`; eski "vocab" annotatsiyalari (backend ko'chirgan) eslatmalarga tushmaydi
+  const [vocab, setVocab] = useState<VocabEntry[]>([]);
   const plainAnnotations = useMemo(() => annotations.filter((a) => !isVocab(a)), [annotations]);
   const [vocabDraft, setVocabDraft] = useState<{ values: VocabFormValues; page: number | null; rects: HighlightRect[]; existing: VocabEntry | null; mode: "add" | "edit" } | null>(null);
   const [vocabPop, setVocabPop] = useState<{ id: string; x: number; y: number; w: number } | null>(null);
@@ -157,6 +158,7 @@ export function ReaderView({ articleId }: { articleId: string }) {
 
   // ---- Metadata + watermark + annotatsiyalar + progress + qo'shni maqolalar
   useEffect(() => {
+    if (authLoading) return;
     let cancelled = false;
     (async () => {
       try {
@@ -175,6 +177,11 @@ export function ReaderView({ articleId }: { articleId: string }) {
         if (m.processing_status !== "READY") return;
       } catch (e) {
         if (cancelled) return;
+        // 37: mehmon pullik (yoki hali backend ochmagan) kitobni ochdi — kirish sahifasiga, keyin shu yerga qaytadi
+        if (!user && isApiError(e) && (e.status === 401 || e.status === 403)) {
+          router.replace(`/login?next=${encodeURIComponent(`/reader/${articleId}`)}`);
+          return;
+        }
         setFatal({ code: isApiError(e) ? e.code : "ERROR", message: errorMessage(e) });
         return;
       }
@@ -182,12 +189,19 @@ export function ReaderView({ articleId }: { articleId: string }) {
         .watermark(articleId)
         .then((w) => !cancelled && setWatermark(w))
         .catch(() => {
-          // Watermark olinmasa ham o'qishga ruxsat bor; minimal label ko'rsatamiz
-          if (!cancelled && user) setWatermark({ watermark_text: `${user.email ?? user.phone ?? user.id.slice(0, 8)} · ${new Date().toISOString().slice(0, 10)}` });
+          // Watermark olinmasa ham o'qishga ruxsat bor; minimal label ko'rsatamiz (mehmonda — "mehmon")
+          if (cancelled) return;
+          const who = user ? (user.email ?? user.phone ?? user.id.slice(0, 8)) : "Articles365 · guest";
+          setWatermark({ watermark_text: `${who} · ${new Date().toISOString().slice(0, 10)}` });
         });
+      if (!user) return; // mehmon: annotatsiya va progress yo'q
       readingApi
         .listAnnotations(articleId)
         .then((a) => !cancelled && setAnnotations(a))
+        .catch(() => undefined);
+      vocabularyApi
+        .listForArticle(articleId)
+        .then((v) => !cancelled && setVocab(v))
         .catch(() => undefined);
       readingApi
         .getProgress(articleId)
@@ -197,7 +211,8 @@ export function ReaderView({ articleId }: { articleId: string }) {
     return () => {
       cancelled = true;
     };
-  }, [articleId, user]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- router barqaror
+  }, [articleId, user, authLoading]);
 
   // ---- Mundarija (bir marta)
   const tocAvailable = meta?.features?.has_toc !== false;
@@ -214,11 +229,11 @@ export function ReaderView({ articleId }: { articleId: string }) {
   const lastSaved = useRef<number>(0);
   const persistProgress = useCallback(
     (p: number) => {
-      if (!pageCount || p === lastSaved.current) return;
+      if (guest || !pageCount || p === lastSaved.current) return;
       lastSaved.current = p;
       readingApi.saveProgress(articleId, { current_page: p, total_pages: pageCount }).catch(() => undefined);
     },
-    [articleId, pageCount],
+    [articleId, pageCount, guest],
   );
   const onPageChange = useCallback(
     (p: number) => {
@@ -248,7 +263,7 @@ export function ReaderView({ articleId }: { articleId: string }) {
 
   // ---- Faol o'qish vaqti: heartbeat (faqat ko'rinayotganda; yopilganda qoldiq keepalive bilan)
   useEffect(() => {
-    if (!ready) return;
+    if (!ready || guest) return;
     let since = Date.now();
     const beat = (final = false) => {
       if (document.visibilityState !== "visible" && !final) {
@@ -273,7 +288,7 @@ export function ReaderView({ articleId }: { articleId: string }) {
       window.removeEventListener("pagehide", onHide);
       beat(true);
     };
-  }, [articleId, ready]);
+  }, [articleId, ready, guest]);
 
   const toastTimer = useRef<number | null>(null);
   const showToast = useCallback((tx: string) => {
@@ -297,10 +312,10 @@ export function ReaderView({ articleId }: { articleId: string }) {
   );
   const autoMarked = useRef(false);
   useEffect(() => {
-    if (!ready || !pageCount || isRead || autoMarked.current || page < pageCount) return;
+    if (guest || !ready || !pageCount || isRead || autoMarked.current || page < pageCount) return;
     autoMarked.current = true;
     void toggleRead(true);
-  }, [page, pageCount, isRead, ready, toggleRead]);
+  }, [page, pageCount, isRead, ready, toggleRead, guest]);
 
   // ---- Nusxalashni to'sish (S-41, 21.2): `copy`/`cut` hujjat darajasida ushlanadi — Ctrl+A bilan butun
   // sahifa tanlanganda ham matn buferga tushmaydi. O'z matnini yozadigan maydonlar (input/textarea) tegilmaydi.
@@ -493,10 +508,10 @@ export function ReaderView({ articleId }: { articleId: string }) {
     setVocabPop(null);
     setVocabDraft({ mode: "edit", page: v.page, rects: v.rects, existing: v, values: { word: v.word, translation: v.translation ?? "", context: v.context ?? "" } });
   };
-  const reloadAnnotations = () =>
-    readingApi
-      .listAnnotations(articleId)
-      .then(setAnnotations)
+  const reloadVocab = () =>
+    vocabularyApi
+      .listForArticle(articleId)
+      .then(setVocab)
       .catch(() => undefined);
   const saveVocab = async (values: VocabFormValues) => {
     const d = vocabDraft;
@@ -506,17 +521,11 @@ export function ReaderView({ articleId }: { articleId: string }) {
         await vocabularyApi.update(d.existing, { word: values.word, translation: values.translation || null, context: values.context || null });
         showToast(t("vocab.updated"));
       } else {
-        const bookId = meta?.book_id ?? null;
-        const bookTitle = bookId ? (libraryCache.get(bookId)?.title ?? (await libraryApi.get(bookId).then((b) => b.title, () => null))) : null;
-        await vocabularyApi.add(
-          articleId,
-          { word: values.word, translation: values.translation || null, context: values.context || null, page: d.page, rects: d.rects, bookId, bookTitle, articleTitle: meta?.title ?? null },
-          user?.id ?? null,
-        );
+        await vocabularyApi.add(articleId, { word: values.word, translation: values.translation || null, context: values.context || null, page: d.page, rects: d.rects });
         showToast(t("vocab.added", { word: values.word }));
       }
       setVocabDraft(null);
-      await reloadAnnotations();
+      await reloadVocab();
     } catch (e) {
       throw new Error(errorMessage(e));
     }
@@ -527,7 +536,7 @@ export function ReaderView({ articleId }: { articleId: string }) {
     if (!ok) return;
     try {
       await vocabularyApi.remove(v);
-      setAnnotations((prev) => prev.filter((a) => a.id !== v.id));
+      setVocab((prev) => prev.filter((x) => x.id !== v.id));
       showToast(t("vocab.deleted"));
     } catch (e) {
       showToast(errorMessage(e));
@@ -596,7 +605,7 @@ export function ReaderView({ articleId }: { articleId: string }) {
         {!failed && <Spinner />}
         <p className="text-lg font-medium text-text">{meta.title}</p>
         <Alert tone={failed ? "danger" : "info"}>{failed ? t("reader.processingFailed") : t("reader.processing")}</Alert>
-        <Link href={`/books/${meta.book_id}`} className="text-sm font-bold text-accent-ink underline">
+        <Link href={guest ? `/catalog/${meta.book_id}` : `/books/${meta.book_id}`} className="text-sm font-bold text-accent-ink underline">
           {t("reader.backToBook")}
         </Link>
       </div>
@@ -612,7 +621,7 @@ export function ReaderView({ articleId }: { articleId: string }) {
         {/* Toolbar */}
         {/* 23.6: ≤420px — sarlavha ikkinchi qatorga tushadi (toolbar tor bo'lib qolmasin) */}
         <header className="z-30 flex shrink-0 flex-wrap items-center gap-1 border-b border-border bg-surface px-1.5 py-1.5 text-text sm:h-14 sm:flex-nowrap sm:gap-1.5 sm:py-0 sm:px-3">
-          <Link href={`/books/${meta.book_id}`} className="icon-btn plain" title={t("reader.backToBook")} aria-label={t("reader.backToBook")}>
+          <Link href={guest ? `/catalog/${meta.book_id}` : `/books/${meta.book_id}`} className="icon-btn plain" title={t("reader.backToBook")} aria-label={t("reader.backToBook")}>
             <I.ArrowLeft size={18} />
           </Link>
           <button type="button" onClick={() => setSidebarOpen((s) => !s)} className={cn("icon-btn plain", sidebarOpen && "bg-surface-2 text-text")} title={t("reader.panel")} aria-label={t("reader.panel")} aria-pressed={sidebarOpen}>
@@ -662,6 +671,7 @@ export function ReaderView({ articleId }: { articleId: string }) {
           <button
             type="button"
             onClick={() => void toggleRead(!isRead)}
+            hidden={guest}
             className={cn("btn ghost sm max-sm:!px-2", isRead && "text-success")}
             title={isRead ? t("reader.markUnread") : t("reader.markRead")}
             aria-label={isRead ? t("reader.markUnread") : t("reader.markRead")}
@@ -718,6 +728,7 @@ export function ReaderView({ articleId }: { articleId: string }) {
                 searchHits={searchHits}
                 searching={searching}
                 onSearch={onSearch}
+                guest={guest}
                 annotations={plainAnnotations}
                 vocab={vocab}
                 onVocabGo={goToVocab}
@@ -760,8 +771,39 @@ export function ReaderView({ articleId }: { articleId: string }) {
               }}
             />
             {meta.features?.watermark !== false && <WatermarkOverlay payload={watermark} night={night} />}
+            {guest && !guestBannerHidden && (
+              <div className="guest-banner" data-testid="guest-banner" role="status">
+                <div className="min-w-0">
+                  <p className="guest-banner-title">{t("reader.guest.title")}</p>
+                  <p className="guest-banner-desc">{t("reader.guest.desc")}</p>
+                </div>
+                <div className="guest-banner-actions">
+                  <Link href={`/register?next=${encodeURIComponent(`/reader/${articleId}`)}`} className="btn primary sm">
+                    {t("reader.guest.register")}
+                  </Link>
+                  <Link href={`/login?next=${encodeURIComponent(`/reader/${articleId}`)}`} className="btn secondary sm">
+                    {t("reader.guest.login")}
+                  </Link>
+                </div>
+                <IconButton size="sm" variant="plain" label={t("common.close")} onClick={() => setGuestBannerHidden(true)} className="guest-banner-close">
+                  <I.X size={15} />
+                </IconButton>
+              </div>
+            )}
 
-            {selection && (
+            {/* 37: mehmon — belgilash/lug'at o'rniga ro'yxatdan o'tish taklifi */}
+            {selection && guest && (
+              <div className="absolute left-1/2 top-2 z-40 flex w-max max-w-[calc(100%-16px)] -translate-x-1/2 flex-wrap items-center justify-center gap-2 rounded-[22px] border border-border bg-surface p-1.5 pl-3 shadow-lg" data-testid="guest-selection">
+                <span className="text-xs font-semibold text-text-2">{t("reader.guest.selection")}</span>
+                <Link href={`/register?next=${encodeURIComponent(`/reader/${articleId}`)}`} className="btn primary sm !h-7 !rounded-full">
+                  {t("reader.guest.register")}
+                </Link>
+                <IconButton size="sm" variant="plain" onClick={() => setSelection(null)} label={t("common.close")}>
+                  <I.X size={15} />
+                </IconButton>
+              </div>
+            )}
+            {selection && !guest && (
               <div className="absolute left-1/2 top-2 z-40 flex w-max max-w-[calc(100%-16px)] -translate-x-1/2 flex-wrap items-center justify-center gap-1 rounded-[22px] border border-border bg-surface p-1.5 pl-2 shadow-lg">
                 {/* 33.2: lug'atga qo'shish */}
                 <button type="button" onClick={openVocabFromSelection} className="btn soft sm !h-7 !rounded-full !px-2.5" data-testid="selection-vocab" title={t("vocab.addTitle")} aria-label={t("vocab.addTitle")}>

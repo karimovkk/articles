@@ -11,6 +11,7 @@ import Link from "next/link";
 import { Alert, Badge, Button, Card, DatePicker, Field, Input, Select, Spinner, Switch, Textarea, buttonClass, cn, formatDate, statusTone, useConfirm } from "@/components/ui";
 import * as I from "@/components/ui/icons";
 import { Price } from "@/components/catalog/price";
+import { isFreeBook } from "@/lib/free-books";
 import { BookCover } from "@/components/book-cover";
 import { adminApi, errorMessage, type Article, type BookAccess, type BookStatus, type Category } from "@/lib/api";
 import { useAsync } from "@/lib/use-async";
@@ -63,14 +64,16 @@ export function AdminBookDetail({ bookId }: { bookId: string }) {
   const error = actionError ?? loadError;
 
   // Forma: foydalanuvchi tahrirlari serverdagi qiymatlar ustiga qo'yiladi
-  const [edits, setEdits] = useState<Partial<{ title: string; author: string; description: string; category_id: string; price: string; published_at: string }>>({});
+  const [edits, setEdits] = useState<Partial<{ title: string; author: string; description: string; category_id: string; price: string; published_at: string; is_free: boolean }>>({});
   const meta = (book?.book_metadata ?? {}) as Record<string, unknown>;
   const form = {
     title: edits.title ?? book?.title ?? "",
     author: edits.author ?? book?.author ?? "",
     description: edits.description ?? book?.description ?? "",
     category_id: edits.category_id ?? book?.category_id ?? book?.category?.id ?? "",
-    price: edits.price ?? (book?.price ? String(Number(book.price)) : ""),
+    price: edits.price ?? (book?.price && Number(book.price) > 0 ? String(Number(book.price)) : ""),
+    // 37: tekin kitob (is_free yoki narx 0)
+    is_free: edits.is_free ?? isFreeBook(book),
     published_at: edits.published_at ?? (typeof meta.published_at === "string" ? meta.published_at.slice(0, 10) : ""),
   };
   const setForm = (next: typeof form) => setEdits(next);
@@ -116,13 +119,18 @@ export function AdminBookDetail({ bookId }: { bookId: string }) {
     const nextMeta: Record<string, unknown> = { ...meta };
     if (form.published_at) nextMeta.published_at = form.published_at;
     else delete nextMeta.published_at;
+    if (!form.is_free && !(Number(form.price) > 0)) {
+      setActionError(t("admin.books.priceRequired"));
+      return;
+    }
     void run(t("admin.books.saved"), () =>
       adminApi.updateBook(bookId, {
         title: form.title.trim(),
         author: form.author.trim() || null,
         description: form.description.trim() || null,
         category_id: form.category_id || null,
-        price: form.price.trim() === "" ? null : form.price.trim(),
+        price: form.is_free ? 0 : form.price.trim(),
+        is_free: form.is_free,
         book_metadata: nextMeta,
       }),
     );
@@ -199,7 +207,7 @@ export function AdminBookDetail({ bookId }: { bookId: string }) {
           <div className="mt-auto flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
             <span className="flex items-center gap-2 font-semibold">
               <I.Wallet size={16} className="text-muted" />
-              <Price value={book.price} />
+              {isFreeBook(book) ? <Badge tone="success">{t("catalog.free")}</Badge> : <Price value={book.price} />}
             </span>
             <span className="flex items-center gap-2 font-semibold text-text-2">
               <I.Layers size={16} className="text-muted" />
@@ -263,9 +271,14 @@ export function AdminBookDetail({ bookId }: { bookId: string }) {
                 data-testid="book-category"
               />
             </Field>
-            <Field label={t("admin.books.price")}>
-              <Input type="number" min={0} step="1000" inputMode="decimal" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} />
-            </Field>
+            <div className="md:col-span-2">
+              <Switch checked={form.is_free} onChange={(v) => setForm({ ...form, is_free: v })} label={t("admin.books.free")} description={t("admin.books.freeHint")} data-testid="book-free" />
+            </div>
+            {!form.is_free && (
+              <Field label={t("admin.books.price")}>
+                <Input type="number" min={1} step="any" inputMode="decimal" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} data-testid="book-price" />
+              </Field>
+            )}
             <Field label={t("admin.books.publishedAt")} hint={t("admin.books.publishedAtHint")}>
               <DatePicker value={form.published_at} onChange={(v) => setForm({ ...form, published_at: v })} max={new Date().toISOString().slice(0, 10)} aria-label={t("admin.books.publishedAt")} data-testid="published-at" />
             </Field>

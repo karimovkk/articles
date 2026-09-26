@@ -16,6 +16,7 @@ import * as I from "@/components/ui/icons";
 import { catalogApi } from "@/lib/api";
 import { useCatalogCategories } from "@/lib/catalog-categories";
 import { env } from "@/lib/env";
+import { isFreeBook } from "@/lib/free-books";
 import { loadOwnedBookIds } from "@/lib/owned-books";
 import { useAsync } from "@/lib/use-async";
 import { useDebouncedCallback } from "@/lib/use-debounce";
@@ -181,6 +182,7 @@ function CatalogList() {
           <div className="bgrid" data-testid="book-grid">
             {data.items.map((item) => {
               const has = !!owned?.has(item.book_id);
+              const free = isFreeBook(item); // 37: tekin — sotilmaydi, mehmon ham o'qiydi
               return (
                 <BookCardH
                   key={item.book_id}
@@ -190,11 +192,16 @@ function CatalogList() {
                   coverSource="catalog"
                   href={`/catalog/${item.book_id}`}
                   tags={
-                    (item.category_name || has) && (
+                    (item.category_name || has || free) && (
                       <>
                         {item.category_name && (
                           <span className="bcard-tag" title={item.category_name}>
                             <span className="chip-text">{item.category_name}</span>
+                          </span>
+                        )}
+                        {free && !has && (
+                          <span className="bcard-tag free" data-testid="free-tag">
+                            {t("catalog.free")}
                           </span>
                         )}
                         {has && (
@@ -214,8 +221,14 @@ function CatalogList() {
                       {!!item.article_count && <span>{t("catalog.articles", { n: item.article_count })}</span>}
                     </>
                   }
-                  footer={<Price value={item.price} className="bcard-price" />}
-                  cta={has ? { href: `/books/${item.book_id}`, label: t("catalog.read"), icon: <I.BookOpen size={15} /> } : { href: `/catalog/${item.book_id}`, label: t("catalog.buy"), icon: <I.ShoppingBag size={15} /> }}
+                  footer={free ? <span className="bcard-price free">{t("catalog.free")}</span> : <Price value={item.price} className="bcard-price" />}
+                  cta={
+                    has
+                      ? { href: `/books/${item.book_id}`, label: t("catalog.read"), icon: <I.BookOpen size={15} /> }
+                      : free
+                        ? { href: `/catalog/${item.book_id}`, label: t("catalog.read"), icon: <I.BookOpen size={15} /> }
+                        : { href: `/catalog/${item.book_id}`, label: t("catalog.buy"), icon: <I.ShoppingBag size={15} /> }
+                  }
                   ctaExtra={<AddToCartButton compact owned={has} book={{ book_id: item.book_id, title: item.title, author: item.author, price: item.price, has_cover: item.has_cover }} />}
                 />
               );

@@ -97,6 +97,33 @@ export interface AuthTokens {
 
 export interface LoginResponse extends AuthTokens {
   user: User;
+  /** 38: faqat qurilma akkauntga birinchi bog'langanda (aks holda null) — saqlanib, keyin `X-Device-Secret` */
+  device_secret?: string | null;
+}
+
+/** 38: GET /me/devices — "Qurilmalarim" (faqat ko'rish; bo'shatish faqat admin orqali) */
+export interface MyDevice {
+  id: string;
+  name: string | null;
+  bound_at: string;
+  last_seen_at: string;
+  is_current: boolean;
+}
+export interface MyDevicesResponse {
+  limit: number;
+  items: MyDevice[];
+}
+
+/** 38: GET /admin/users/{id}/devices */
+export interface AdminDevice {
+  id: string;
+  name: string | null;
+  user_agent: string | null;
+  bound_at: string;
+  last_seen_at: string;
+  removed_at: string | null;
+  removed_by_admin_id: string | null;
+  remove_reason: string | null;
 }
 
 export interface TwoFactorSetup {
@@ -135,6 +162,8 @@ export interface CatalogItem {
   description: string | null;
   category_name: string | null;
   price: string;
+  /** 37: tekin kitob (backend qo'shsa). Frontend `narx = 0` ni ham tekin deb biladi — `isFreeBook()` */
+  is_free?: boolean;
   has_cover: boolean;
   article_count: number;
 }
@@ -149,6 +178,8 @@ export interface LibraryItem {
   category_name: string | null;
   has_cover: boolean;
   price: string;
+  /** 37: tekin kitob (backend qo'shsa). Frontend `narx = 0` ni ham tekin deb biladi — `isFreeBook()` */
+  is_free?: boolean;
   article_count: number;
   read_count: number;
   overall_percentage: number;
@@ -315,6 +346,8 @@ export interface OrderQuote {
   currency: string;
   /** Keyingi pog'ona: yana `add_count` ta kitob qo'shilsa har biri `unit_price` bo'ladi */
   next_tier: { min_quantity: number; unit_price: string; add_count: number } | null;
+  /** 38: hisobga kirmagan kitoblar (masalan, tekin bo'lib qolgan — `BOOK_IS_FREE`) */
+  skipped?: Array<{ book_id: string; reason: string }>;
 }
 
 /** GET /payment-info — to'lov rekvizitlari (backend config'dan; bo'sh satr = sozlanmagan) */
@@ -343,6 +376,8 @@ export interface Book {
   description: string | null;
   /** decimal string ("30000.00") */
   price: string;
+  /** 37: tekin kitob (backend qo'shsa). Frontend `narx = 0` ni ham tekin deb biladi — `isFreeBook()` */
+  is_free?: boolean;
   status: BookStatus;
   category_id: UUID | null;
   category: Category | null;

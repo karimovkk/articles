@@ -7,9 +7,11 @@ import { Alert, Button, Field, PasswordInput, passwordStrength } from "@/compone
 import * as I from "@/components/ui/icons";
 import { authApi, errorMessage } from "@/lib/api";
 import { useT } from "@/i18n";
+import { useHydrated } from "@/lib/use-hydrated";
 
 export default function RegisterPage() {
   const { t } = useT();
+  const hydrated = useHydrated();
   const router = useRouter();
   const [fullName, setFullName] = useState("");
   const [identifier, setIdentifier] = useState("");
@@ -48,20 +50,20 @@ export default function RegisterPage() {
       <Field label={t("auth.fullName")}>
         <div className="input-wrap">
           <I.User size={16} />
-          <input className="input" autoComplete="name" value={fullName} onChange={(e) => setFullName(e.target.value)} autoFocus />
+          <input className="input" autoComplete="name" value={fullName} readOnly={!hydrated} onChange={(e) => setFullName(e.target.value)} autoFocus />
         </div>
       </Field>
       <Field label={t("auth.identifier")} hint={t("auth.identifierHint")}>
         <div className="input-wrap">
           <I.Mail size={16} />
-          <input className="input" autoComplete="username" placeholder={t("auth.identifierPlaceholder")} value={identifier} onChange={(e) => setIdentifier(e.target.value)} required />
+          <input className="input" autoComplete="username" placeholder={t("auth.identifierPlaceholder")} value={identifier} readOnly={!hydrated} onChange={(e) => setIdentifier(e.target.value)} required />
         </div>
       </Field>
       <Field label={t("auth.password")}>
-        <PasswordInput withIcon autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} strength={passwordStrength(password)} />
+        <PasswordInput withIcon autoComplete="new-password" value={password} readOnly={!hydrated} onChange={(e) => setPassword(e.target.value)} required minLength={8} strength={passwordStrength(password)} />
       </Field>
       <Field label={t("auth.confirmPassword")}>
-        <PasswordInput withIcon autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} required aria-invalid={mismatch || undefined} />
+        <PasswordInput withIcon autoComplete="new-password" value={confirm} readOnly={!hydrated} onChange={(e) => setConfirm(e.target.value)} required aria-invalid={mismatch || undefined} />
         {match && (
           <span className="flex items-center gap-1.5 text-xs font-semibold text-success" data-testid="pw-match">
             <I.CheckCircle size={13} /> {t("auth.passwordsMatch")}
@@ -74,7 +76,7 @@ export default function RegisterPage() {
         )}
       </Field>
       <p className="text-xs text-muted">{t("auth.terms")}</p>
-      <Button type="submit" size="lg" loading={loading} icon={<I.Sparkles size={17} />}>
+      <Button type="submit" size="lg" loading={loading} disabled={!hydrated} icon={<I.Sparkles size={17} />}>
         {t("auth.createAccount")}
       </Button>
       <p className="text-center text-sm text-muted">

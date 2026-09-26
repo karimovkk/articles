@@ -68,11 +68,11 @@ check("Oyna: tanlangan so'z va kontekst (qator) avtomatik", pre.word === "quick"
 await page.fill('[data-testid="vocab-translation"]', "tez");
 await page.click('[data-testid="vocab-save"]');
 await page.waitForSelector('[data-page="1"] [data-testid="vocab-marks"] > div', { timeout: 8000 });
-let saved = (await mockGet("/__annotations")).filter((a) => a.label === "vocab");
+let saved = await mockGet("/__vocab");
 check(
-  "Serverga NOTE + label 'vocab' (so'z, tarjima, kontekst, kitob/maqola nomi)",
-  saved.length === 1 && saved[0].type === "NOTE" && saved[0].selected_text === "quick" && saved[0].note_text === "tez" && saved[0].location_data?.book_title === "Test kitob" && saved[0].location_data?.article_title === "Birinchi maqola",
-  JSON.stringify(saved.map((a) => [a.selected_text, a.note_text, a.location_data?.book_title])),
+  "Serverga POST /me/vocabulary (so'z, tarjima, kontekst, maqola, bet, belgi joyi); annotatsiya yaratilmadi",
+  saved.length === 1 && saved[0].word === "quick" && saved[0].translation === "tez" && saved[0].context?.includes("The quick brown fox") && saved[0].page === 1 && saved[0].rects?.length > 0 && (await mockGet("/__annotations")).length === 0,
+  JSON.stringify(saved.map((a) => [a.word, a.translation, a.page])),
 );
 await page.waitForFunction(() => document.body.innerText.includes("lug'atga qo'shildi"), null, { timeout: 5000 });
 check("Toast: “quick” lug'atga qo'shildi", true);
@@ -92,8 +92,8 @@ check("Dublikat: ogohlantirish, mavjud tarjima oldindan", (await page.inputValue
 await page.fill('[data-testid="vocab-translation"]', "tez, chaqqon");
 await page.click('[data-testid="vocab-save"]');
 await page.waitForFunction(() => !document.querySelector('[data-testid="vocab-dialog"]'), null, { timeout: 5000 });
-saved = (await mockGet("/__annotations")).filter((a) => a.label === "vocab");
-check("Dublikat yaratilmadi, tarjima yangilandi", saved.length === 1 && saved[0].note_text === "tez, chaqqon", JSON.stringify(saved.map((a) => a.note_text)));
+saved = await mockGet("/__vocab");
+check("Dublikat yaratilmadi, tarjima yangilandi", saved.length === 1 && saved[0].translation === "tez, chaqqon", JSON.stringify(saved.map((a) => a.translation)));
 
 // Ikkinchi so'z (tarjimasiz) — 2-betdan
 await page.fill('input[aria-label="Sahifa"]', "2");
@@ -105,7 +105,7 @@ await page.click('[data-testid="selection-vocab"]');
 await page.waitForSelector('[data-testid="vocab-dialog"]');
 await page.click('[data-testid="vocab-save"]');
 await page.waitForSelector('[data-page="2"] [data-testid="vocab-marks"] > div', { timeout: 8000 });
-check("Tarjimasiz so'z ham qo'shiladi (2-bet)", (await mockGet("/__annotations")).filter((a) => a.label === "vocab").length === 2);
+check("Tarjimasiz so'z ham qo'shiladi (2-bet)", (await mockGet("/__vocab")).length === 2);
 
 // Sidebar: "Lug'at" tabida 2 so'z, "Eslatmalar"da lug'at ko'rinmaydi
 await page.click('button[aria-label="Panel"], button[title="Panel"]');
@@ -139,12 +139,12 @@ await page.waitForSelector('[data-testid="vocab-dialog"]');
 await page.fill('[data-testid="vocab-translation"]', "dangasa");
 await page.click('[data-testid="vocab-save"]');
 await page.waitForFunction(() => document.querySelector('[data-word="lazy"] [data-testid="vocab-card-translation"]')?.textContent === "dangasa", null, { timeout: 5000 });
-check("Tarjima qo'shildi (oyna → karta, server)", (await mockGet("/__annotations")).some((a) => a.selected_text === "lazy" && a.note_text === "dangasa"));
+check("Tarjima qo'shildi (oyna → karta, server)", (await mockGet("/__vocab")).some((a) => a.word === "lazy" && a.translation === "dangasa"));
 
 // O'rgandim → holat filtri
 await lazyCard.locator('[data-testid="vocab-learned"]').click();
 await page.waitForFunction(() => document.querySelector('[data-word="lazy"]')?.classList.contains("is-learned"), null, { timeout: 5000 });
-check("O'rgandim: karta belgilandi, serverda learned=true", (await mockGet("/__annotations")).some((a) => a.selected_text === "lazy" && a.location_data?.learned === true));
+check("O'rgandim: karta belgilandi, serverda learned=true", (await mockGet("/__vocab")).some((a) => a.word === "lazy" && a.learned === true));
 const pickSelect = async (testId, value) => {
   await selectPick(page, `[data-testid="${testId}"]`, value);
   await page.waitForTimeout(200);
@@ -177,7 +177,7 @@ await page.waitForFunction(() => document.querySelector('[data-testid="cards-pro
 await page.click('[data-testid="cards-know"]');
 await page.waitForSelector('[data-testid="cards-done"]', { timeout: 5000 });
 check("Takrorlash tugadi: yakuniy ekran", true);
-check("'Bilaman' — so'z o'rganilgan deb belgilandi (serverda)", (await mockGet("/__annotations")).filter((a) => a.label === "vocab" && a.location_data?.learned === true).length === 2);
+check("'Bilaman' — so'z o'rganilgan deb belgilandi (serverda)", (await mockGet("/__vocab")).filter((a) => a.learned === true).length === 2);
 await page.click('[data-testid="vocab-view-list"]');
 
 // ---- PDF'da ochish → o'sha bet, so'z bo'rttiriladi
@@ -196,7 +196,7 @@ await page.waitForSelector('[data-testid="vocab-card"]', { timeout: 30000 });
 await page.locator('[data-testid="vocab-card"][data-word="quick"] [data-testid="vocab-delete"]').click();
 await page.locator('[role="dialog"] button', { hasText: "O'chirish" }).last().click();
 await page.waitForFunction(() => !document.querySelector('[data-word="quick"]'), null, { timeout: 5000 });
-check("O'chirish: karta va serverdan ketdi", (await mockGet("/__annotations")).filter((a) => a.label === "vocab").length === 1);
+check("O'chirish: karta va serverdan ketdi", (await mockGet("/__vocab")).length === 1);
 
 // ---- Responsive: telefon / planshet / TV — gorizontal scroll yo'q, kartalar ko'rinadi
 const sizes = process.env.E2E_PROD ? [[320, 640], [390, 844], [768, 1024], [1920, 1080], [2560, 1440], [3840, 2160]] : [[320, 640], [768, 1024], [2560, 1440]];

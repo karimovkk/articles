@@ -23,10 +23,14 @@ const TYPE_KEY: Record<Notification["type"], DictKey> = {
 /** Bildirishnoma turi va `meta` bo'yicha ochiladigan sahifa (buyurtma oqimi v1.0: tasdiq → kitob, rad → qayta urinish). */
 function linkFor(n: Notification): string | null {
   const bookId = typeof n.meta?.book_id === "string" ? n.meta.book_id : null;
+  // 38: ko'p kitobli buyurtma — `meta.book_ids`; bittadan ko'p bo'lsa kutubxonaga
+  const bookIds = Array.isArray(n.meta?.book_ids) ? n.meta.book_ids.filter((x): x is string => typeof x === "string") : [];
   switch (n.type) {
     case "ACCESS_GRANTED":
-    case "ORDER_APPROVED":
       return bookId ? `/books/${bookId}` : "/library";
+    case "ORDER_APPROVED":
+      if (bookIds.length > 1) return "/library";
+      return (bookIds[0] ?? bookId) ? `/books/${bookIds[0] ?? bookId}` : "/library";
     case "ACCESS_REVOKED":
       return bookId ? `/catalog/${bookId}` : null;
     case "ORDER_REJECTED":

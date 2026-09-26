@@ -36,6 +36,8 @@ interface Props {
   onDelete: (a: Annotation) => Promise<void>;
   onChangeColor: (a: Annotation, color: string) => Promise<void>;
 
+  /** 37: mehmon — faqat mundarija va qidiruv (belgilash/eslatma/lug'at saqlanmaydi) */
+  guest?: boolean;
   /** 33: shu maqoladan lug'atga qo'shilgan so'zlar */
   vocab: VocabEntry[];
   onVocabGo: (v: VocabEntry) => void;
@@ -58,7 +60,7 @@ export function ReaderSidebar(p: Props) {
     <aside className="flex h-full w-full flex-col border-r border-border bg-surface md:w-80">
       <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
         <div className="tabs wrap" role="tablist">
-          {TABS.map((tab) => (
+          {TABS.filter((tab) => !p.guest || tab.id === "toc" || tab.id === "search").map((tab) => (
             <button key={tab.id} type="button" role="tab" aria-selected={p.tab === tab.id} onClick={() => p.onTab(tab.id)} className={cn("tab !h-7 !px-2.5 !text-xs", p.tab === tab.id && "active")}>
               {t(tab.label)}
             </button>

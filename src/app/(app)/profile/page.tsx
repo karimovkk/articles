@@ -8,6 +8,7 @@ import { authApi, errorMessage, sessionsApi, type Session } from "@/lib/api";
 import { useAsync } from "@/lib/use-async";
 import { shortAgent } from "@/lib/agent";
 import { PasswordCard, TwoFactorCard } from "@/components/profile/security";
+import { MyDevicesCard } from "@/components/profile/devices";
 import { MyOrders } from "@/components/orders/my-orders";
 import { useT } from "@/i18n";
 
@@ -102,6 +103,8 @@ export default function ProfilePage() {
             </Button>
           </form>
         </Card>
+
+        <MyDevicesCard />
 
         <Card title={t("profile.sessions")} padded={false}>
           <p className="px-5 pt-4 text-xs text-muted">{t("profile.sessionsNote")}</p>

@@ -79,7 +79,7 @@ await page.screenshot({ path: OUT + "21-library-ru.png" });
 
 // ---- Profil (ru)
 await page.click('header a[href="/profile"]');
-await page.waitForSelector("text=Сессии и устройства");
+await page.waitForSelector("text=Мои устройства");
 check("ru: profil sahifasi", (await has("Личный кабинет")) && (await has("Сохранить")));
 
 // ---- Reader (ru): toolbar, sidebar tablari, sahifa belgilari

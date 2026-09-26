@@ -55,7 +55,7 @@ check("Kutubxona: bo'sh holat (ruxsat yo'q)", true);
 
 // ---- Profil: sessiyalar (last_active_at, user_agent, bekor qilinganlar yashirin)
 await page.goto(`${BASE}/profile`);
-await page.waitForSelector("text=Sessiyalar va qurilmalar", { timeout: 15000 });
+await page.waitForSelector("text=Sessiyalar", { timeout: 15000 });
 await page.waitForSelector("text=joriy", { timeout: 15000 });
 const sessionRows = await page.locator("li:has-text('Bekor qilish')").count();
 check("Profil: joriy sessiya (Chrome · Linux) ko'rinadi", await bodyHas("Chrome · Linux"));

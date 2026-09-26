@@ -34,7 +34,14 @@ const freshBooks = () => [
   { id: BOOK2_ID, title: "Ruxsatsiz kitob", author: "B. Boboyev", description: "Sotib olinmagan.", price: "70000.00", status: "ACTIVE", category_id: CAT.id, category: CAT, book_metadata: {}, created_at: now(), updated_at: now(), has_cover: false },
   ...Array.from({ length: 29 }, (_, i) => ({ id: `22222222-2222-4222-8222-${String(i).padStart(12, "0")}`, title: `Kitob ${i + 1}`, author: i % 2 ? "A. Aliyev" : "B. Boboyev", description: `Tavsif ${i + 1}`, price: i % 5 === 0 ? "0" : "49000.00", status: "ACTIVE", category_id: i % 3 ? null : CAT.id, category: i % 3 ? null : CAT, book_metadata: {}, created_at: now(), updated_at: now(), has_cover: false })),
 ];
+// 37: tekin kitob — narxi 0 (backend `is_free` bilan); "Kitob 1" da 2 ta maqola — mehmon o'qishi uchun
+const FREE_BOOK_ID = "22222222-2222-4222-8222-000000000000";
+const FREE_ART1 = "f1f1f1f1-f1f1-4f1f-8f1f-f1f1f1f1f1f1";
+const FREE_ART2 = "f2f2f2f2-f2f2-4f2f-8f2f-f2f2f2f2f2f2";
+const withFree = (list) => list.map((b) => ({ ...b, is_free: Number(b.price) === 0 }));
 const freshArticles = () => [
+  { id: FREE_ART1, book_id: FREE_BOOK_ID, title: "Tekin maqola", order_index: 0, mime_type: "application/pdf", file_size: PDF.length, format: "pdf", page_count: 6, processing_status: "READY", processing_error: null, text_extractable: true, file_version: 1, content_updated_at: null, article_metadata: {}, created_at: now(), updated_at: now(), has_source_file: true },
+  { id: FREE_ART2, book_id: FREE_BOOK_ID, title: "Tekin maqola 2", order_index: 1, mime_type: "application/pdf", file_size: PDF.length, format: "pdf", page_count: 6, processing_status: "READY", processing_error: null, text_extractable: true, file_version: 1, content_updated_at: null, article_metadata: {}, created_at: now(), updated_at: now(), has_source_file: true },
   { id: ART_ID, book_id: BOOK_ID, title: "Birinchi maqola", order_index: 0, mime_type: "application/pdf", file_size: PDF.length, format: "pdf", page_count: 6, processing_status: "READY", processing_error: null, text_extractable: true, file_version: 1, content_updated_at: null, article_metadata: {}, created_at: now(), updated_at: now(), has_source_file: true },
   { id: ART2_ID, book_id: BOOK_ID, title: "Ikkinchi maqola", order_index: 1, mime_type: "application/pdf", file_size: PDF.length, format: "pdf", page_count: 6, processing_status: "READY", processing_error: null, text_extractable: true, file_version: 1, content_updated_at: null, article_metadata: {}, created_at: now(), updated_at: now(), has_source_file: true },
   { id: ART3_ID, book_id: BOOK_ID, title: "Qayta ishlanayotgan maqola", order_index: 2, mime_type: null, file_size: null, format: null, page_count: null, processing_status: "PROCESSING", processing_error: null, text_extractable: false, file_version: 0, content_updated_at: null, article_metadata: {}, created_at: now(), updated_at: now(), has_source_file: true },
@@ -51,6 +58,16 @@ let failRule = null; // /__fail?path=/catalog&status=429&code=RATE_LIMIT_EXCEEDE
 // 35: ko'p kitobga chegirma (BACKEND_TASKS.md §2) — `/__pricing?off=1` bilan o'chiriladi (backend qo'llamagan holat)
 const DEFAULT_PRICING = { currency: "UZS", tiers: [{ min_quantity: 2, unit_price: "39000.00" }, { min_quantity: 3, unit_price: "30000.00" }] };
 let pricing = DEFAULT_PRICING;
+// 38: qurilma bog'lash (BACKEND_TASKS.md 3-qism). Testlar har kontekstda yangi X-Device-Id bilan kiradi — limit
+// faqat `/__devicelimit?on=1` bilan qo'llanadi; `device_secret` esa har doim birinchi bog'lashda beriladi.
+let devices = []; // { id, user, key, secret, name, user_agent, bound_at, last_seen_at, removed_at, removed_by_admin_id, remove_reason }
+let deviceLimitOn = false;
+let deviceRemovedOnRefresh = false; // /__device-removed?on=1 — refresh → 401 DEVICE_REMOVED
+// 38: lug'at (`/me/vocabulary`, BACKEND_TASKS.md 1-qism)
+let vocab = [];
+const normWord = (w) => String(w ?? "").toLocaleLowerCase().replace(/[‘’ʻʼ`]/g, "'").replace(/^[\s"'«»“”.,;:!?()[\]{}—–-]+|[\s"'«»“”.,;:!?()[\]{}—–-]+$/g, "").replace(/\s+/g, " ");
+const DEVICE_LIMIT = 2;
+const activeDevices = (userId) => devices.filter((d) => d.user === userId && !d.removed_at);
 const money = (n) => n.toFixed(2);
 function quoteFor(bookIds) {
   const list = bookIds.map((id) => books.find((b) => b.id === id)).filter(Boolean).filter((b) => Number(b.price) > 0);
@@ -67,7 +84,11 @@ const orderBookIds = (o) => (o.items?.length ? o.items.map((i) => i.book_id) : [
 
 function reset(opts = {}) {
   pricing = DEFAULT_PRICING;
-  books = freshBooks();
+  devices = [];
+  deviceLimitOn = false;
+  deviceRemovedOnRefresh = false;
+  vocab = [];
+  books = withFree(freshBooks());
   articles = freshArticles();
   access = [{ id: "acc-1", user_id: USER.id, book_id: BOOK_ID, status: "ACTIVE", granted_at: now(), granted_by_admin_id: ADMIN.id, revoked_at: null, revoked_by_admin_id: null, created_at: now(), updated_at: now() }];
   progress = {}; // key: user:article
@@ -132,6 +153,10 @@ const isPdfBytes = (b) => b.slice(0, 5).toString() === "%PDF-";
 const isImageBytes = (b) => (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) || (b[0] === 0x89 && b.slice(1, 4).toString() === "PNG") || (b.slice(0, 4).toString() === "RIFF" && b.slice(8, 12).toString() === "WEBP");
 const isOpen = (o) => o.status === "PENDING" || o.status === "AWAITING_REVIEW";
 const withNames = (x) => { const u = users.find((y) => y.id === x.user_id); const b = books.find((y) => y.id === x.book_id); return { ...x, user_email: u?.email ?? null, user_full_name: u?.full_name ?? null, book_title: b?.title ?? null, ...(x.items ? { items: x.items.map((i) => ({ ...i, book_title: books.find((y) => y.id === i.book_id)?.title ?? null })) } : {}) }; };
+const isFreeId = (bookId) => !!books.find((b) => b.id === bookId && b.is_free && b.status === "ACTIVE");
+const GUEST = { id: "guest-000", email: null, phone: null, full_name: null, role: "GUEST" };
+/** 37: o'qish ruxsati — tekin kitob hamma uchun */
+const canRead = (userId, bookId) => hasAccess(userId, bookId) || isFreeId(bookId);
 const hasAccess = (userId, bookId) => access.some((a) => a.user_id === userId && a.book_id === bookId && a.status === "ACTIVE");
 const progKey = (u, a) => `${u}:${a}`;
 const getProg = (u, aid) => progress[progKey(u, aid)] ?? { article_id: aid, current_page: 0, current_location: null, percentage: 0, is_read: false, reading_seconds: 0, last_read_at: null, updated_at: null };
@@ -148,12 +173,16 @@ createServer(async (req, res) => {
   const m = req.method;
   const q = url.searchParams;
   log.push(`${m} ${path}${req.headers.range ? " " + req.headers.range : ""}`);
-  if (!path.startsWith("/__")) headersSeen.push({ path, ngrok: req.headers["ngrok-skip-browser-warning"], device: req.headers["x-device-id"], auth: !!req.headers.authorization });
+  if (!path.startsWith("/__")) headersSeen.push({ path, secret: req.headers["x-device-secret"] ?? null, ngrok: req.headers["ngrok-skip-browser-warning"], device: req.headers["x-device-id"], auth: !!req.headers.authorization });
 
   // ---- test yordamchilari
   if (path === "/__reset") { reset({ legacy: q.get("legacy") === "1" }); return json(res, 200, { ok: true }); }
   if (path === "/__log") return json(res, 200, log);
   if (path === "/__headers") return json(res, 200, headersSeen);
+  if (path === "/__devices") return json(res, 200, devices);
+  if (path === "/__devicelimit") { deviceLimitOn = q.get("on") === "1"; return json(res, 200, { deviceLimitOn }); }
+  if (path === "/__device-removed") { deviceRemovedOnRefresh = q.get("on") === "1"; return json(res, 200, { deviceRemovedOnRefresh }); }
+  if (path === "/__vocab") return json(res, 200, vocab);
   if (path === "/__annotations") return json(res, 200, annotations);
   if (path === "/__progress") return json(res, 200, progress);
   if (path === "/__uploads") return json(res, 200, uploads);
@@ -189,7 +218,7 @@ createServer(async (req, res) => {
   if (path === "/catalog") {
     const s = (q.get("search") ?? "").toLowerCase();
     const all = books.filter((b) => b.status === "ACTIVE").filter((b) => !q.get("category_id") || b.category_id === q.get("category_id")).filter((b) => !s || b.title.toLowerCase().includes(s) || (b.author ?? "").toLowerCase().includes(s) || (b.description ?? "").toLowerCase().includes(s))
-      .map((b) => ({ book_id: b.id, title: b.title, author: b.author, description: b.description, category_name: b.category?.name ?? null, price: b.price, has_cover: b.has_cover, article_count: articles.filter((a) => a.book_id === b.id).length }));
+      .map((b) => ({ book_id: b.id, title: b.title, author: b.author, description: b.description, category_name: b.category?.name ?? null, price: b.price, is_free: !!b.is_free, has_cover: b.has_cover, article_count: articles.filter((a) => a.book_id === b.id).length }));
     return json(res, 200, paged(all, Number(q.get("page") ?? 1), Number(q.get("page_size") ?? 20)));
   }
   const cm0 = /^\/catalog\/([^/]+)(\/cover)?$/.exec(path);
@@ -197,12 +226,12 @@ createServer(async (req, res) => {
     const b = books.find((x) => x.id === cm0[1] && x.status === "ACTIVE");
     if (!b) return err(res, 404, "BOOK_NOT_FOUND", "Book not found");
     if (cm0[2]) return err(res, 404, "NOT_FOUND", "Cover not found");
-    return json(res, 200, { book_id: b.id, title: b.title, author: b.author, description: b.description, category_name: b.category?.name ?? null, price: b.price, has_cover: b.has_cover, article_count: articles.filter((a) => a.book_id === b.id).length });
+    return json(res, 200, { book_id: b.id, title: b.title, author: b.author, description: b.description, category_name: b.category?.name ?? null, price: b.price, is_free: !!b.is_free, has_cover: b.has_cover, article_count: articles.filter((a) => a.book_id === b.id).length });
   }
   if (path === "/categories") return json(res, 200, categories.filter((c) => c.status === "ACTIVE"));
   if (m === "POST" && path === "/auth/login") {
     const b = await readBody(req);
-    if (b.identifier === "limit@articles365.local") return err(res, 403, "DEVICE_LIMIT_REACHED", "Device limit reached", { limit: 2, active_devices: [{ device_name: "Chrome · Windows", last_seen_at: now() }, { device_name: "Safari · iOS", last_seen_at: now() }] });
+    if (b.identifier === "limit@articles365.local") return err(res, 403, "DEVICE_NOT_ALLOWED", "This account is already linked to 2 devices", { limit: 2, devices: [{ name: "Chrome · Windows", bound_at: now(), last_seen_at: now() }, { name: "Safari · iOS", bound_at: now(), last_seen_at: now() }] });
     if (b.identifier === TWOFA_USER.email) {
       if (b.password !== "User12345!") return err(res, 401, "INVALID_CREDENTIALS", "Invalid credentials");
       if (!b.totp_code) return err(res, 401, "TOTP_REQUIRED", "TOTP code required");
@@ -210,7 +239,21 @@ createServer(async (req, res) => {
       return json(res, 200, { access_token: "access-token-2fa", refresh_token: "refresh-2fa", token_type: "bearer", expires_in: 900, user: TWOFA_USER });
     }
     if (b.identifier === ADMIN.email && b.password === "Admin12345!") { sessions.push({ id: randomUUID(), user: ADMIN.id, device: b.device_name }); return json(res, 200, { access_token: "access-token-admin", refresh_token: "refresh-a", token_type: "bearer", expires_in: 900, user: ADMIN }); }
-    if (b.identifier === USER.email && b.password === "User12345!") { sessions.push({ id: randomUUID(), user: USER.id, device: b.device_name }); return json(res, 200, { access_token: "access-token-1", refresh_token: "refresh-1", token_type: "bearer", expires_in: 900, user: USER }); }
+    if (b.identifier === USER.email && b.password === "User12345!") {
+      // 38: qurilmani bog'lash — X-Device-Id bo'yicha; nusxalangan id + noto'g'ri sir → DEVICE_NOT_ALLOWED
+      const key = req.headers["x-device-id"] ?? "no-device"; const secret = req.headers["x-device-secret"] ?? null;
+      let dev = activeDevices(USER.id).find((d) => d.key === key); let newSecret = null;
+      if (dev && dev.secret && secret && secret !== dev.secret) return err(res, 403, "DEVICE_NOT_ALLOWED", "Device secret mismatch", { limit: DEVICE_LIMIT, devices: activeDevices(USER.id).map(({ name, bound_at, last_seen_at }) => ({ name, bound_at, last_seen_at })) });
+      if (!dev) {
+        if (deviceLimitOn && activeDevices(USER.id).length >= DEVICE_LIMIT) return err(res, 403, "DEVICE_NOT_ALLOWED", "This account is already linked to 2 devices", { limit: DEVICE_LIMIT, devices: activeDevices(USER.id).map(({ name, bound_at, last_seen_at }) => ({ name, bound_at, last_seen_at })) });
+        newSecret = "secret-" + randomUUID();
+        dev = { id: randomUUID(), user: USER.id, key, secret: newSecret, name: b.device_name ?? null, user_agent: req.headers["user-agent"] ?? null, bound_at: now(), last_seen_at: now(), removed_at: null, removed_by_admin_id: null, remove_reason: null };
+        devices.push(dev);
+      }
+      dev.last_seen_at = now();
+      sessions.push({ id: randomUUID(), user: USER.id, device: b.device_name });
+      return json(res, 200, { access_token: "access-token-1", refresh_token: "refresh-1", token_type: "bearer", expires_in: 900, user: USER, device_secret: newSecret });
+    }
     return err(res, 401, "INVALID_CREDENTIALS", "Invalid credentials");
   }
   if (m === "POST" && path === "/auth/register") {
@@ -223,6 +266,7 @@ createServer(async (req, res) => {
   }
   if (m === "POST" && path === "/auth/refresh") {
     const b = await readBody(req);
+    if (deviceRemovedOnRefresh) return err(res, 401, "DEVICE_REMOVED", "This device was removed from the account");
     if (refreshBroken || !b.refresh_token || usedRefresh.has(b.refresh_token)) return err(res, 401, "INVALID_TOKEN", "Invalid refresh token");
     usedRefresh.add(b.refresh_token);
     // rotatsiya: refresh-1 → access-token-1b/refresh-1b → access-token-1c/refresh-1c
@@ -234,7 +278,14 @@ createServer(async (req, res) => {
   const auth = req.headers.authorization ?? "";
   const rawTok = auth.replace("Bearer ", "");
   if (invalidTokens.has(rawTok)) return err(res, 401, "TOKEN_EXPIRED", "Token expired");
-  const me = TOKENS[rawTok] ?? (auth === "Bearer access-token-new" ? users.at(-1) : undefined);
+  let me = TOKENS[rawTok] ?? (auth === "Bearer access-token-new" ? users.at(-1) : undefined);
+  // 37: tekin kitob — reader (meta, content, watermark, maqolalar, mundarija, qidiruv) kirishsiz ham ochiq
+  if (!me && !auth && m === "GET") {
+    const fb = /^\/reader\/books\/([^/]+)\/articles$/.exec(path)?.[1];
+    const fa = /^\/reader\/articles\/([^/]+)(?:\/content|\/watermark)?$/.exec(path)?.[1] ?? /^\/articles\/([^/]+)\/(?:toc|search)$/.exec(path)?.[1];
+    const bid = fb ?? articles.find((x) => x.id === fa)?.book_id;
+    if (bid && isFreeId(bid)) me = GUEST;
+  }
   if (!me) return err(res, 401, "AUTHENTICATION_REQUIRED", "Authentication required");
 
   if (path === "/auth/me" || (m === "GET" && path === "/me")) return json(res, 200, me);
@@ -268,7 +319,7 @@ createServer(async (req, res) => {
   if (rb) {
     const [, bid, what] = rb;
     if (!books.find((b) => b.id === bid)) return err(res, 404, "BOOK_NOT_FOUND", "Book not found");
-    if (!hasAccess(me.id, bid)) return err(res, 403, "BOOK_ACCESS_DENIED", "Access to this book has not been granted");
+    if (!canRead(me.id, bid)) return err(res, 403, "BOOK_ACCESS_DENIED", "Access to this book has not been granted");
     if (what === "cover") return err(res, 404, "COVER_NOT_FOUND", "No cover");
     if (q.get("size") && !/^(original|thumb|medium)$/.test(q.get("size"))) return err(res, 422, "VALIDATION_ERROR", "Validation failed", [{ loc: ["query", "size"], msg: "String should match pattern '^(original|thumb|medium)$'" }]);
     return json(res, 200, articles.filter((a) => a.book_id === bid).sort((a, b) => a.order_index - b.order_index).map((a) => { const p = getProg(me.id, a.id); return { article_id: a.id, title: a.title, order_index: a.order_index, page_count: a.page_count, processing_status: a.processing_status, reading_percentage: p.percentage, current_page: p.current_page, is_read: p.is_read }; }));
@@ -278,8 +329,9 @@ createServer(async (req, res) => {
     const [, aid, sub] = ra;
     const a = articles.find((x) => x.id === aid);
     if (!a) return err(res, 404, "ARTICLE_NOT_FOUND", "Article not found");
-    if (!hasAccess(me.id, a.book_id)) return err(res, 403, "BOOK_ACCESS_DENIED", "Access to this book has not been granted");
+    if (!canRead(me.id, a.book_id)) return err(res, 403, "BOOK_ACCESS_DENIED", "Access to this book has not been granted");
     if (!sub) { const p = getProg(me.id, aid); return json(res, 200, { article_id: aid, book_id: a.book_id, title: a.title, format: a.format, mime_type: a.mime_type, page_count: a.page_count, processing_status: a.processing_status, text_extractable: a.text_extractable, file_version: a.file_version, content_updated_at: null, reading_percentage: p.percentage, current_page: p.current_page, features: { can_read: a.processing_status === "READY", can_download: false, can_print: false, can_search: a.text_extractable, has_toc: aid === ART_ID, watermark: true } }); }
+    if (sub === "/watermark" && me === GUEST) return json(res, 200, { watermark_text: `Articles365 • mehmon • 127.0.0.x`, trace_id: "TRACE-GUEST", user_ref: "GUEST", issued_at: Math.floor(Date.now() / 1000), signature: "guest" });
     if (sub === "/watermark") return json(res, 200, { watermark_text: `U-${me.id.slice(0, 5).toUpperCase()} • u***@articles365.local`, trace_id: "TRACE-42", user_ref: "U-TEST", issued_at: Math.floor(Date.now() / 1000), signature: "abc" });
     if (a.processing_status !== "READY") return err(res, 409, "ARTICLE_NOT_READY", "Article is not ready");
     const FILE = aid === ART_BIG_ID ? BIG_PDF : PDF;
@@ -301,7 +353,7 @@ createServer(async (req, res) => {
     const [, aid, what, sub] = art;
     const a = articles.find((x) => x.id === aid);
     if (!a) return err(res, 404, "ARTICLE_NOT_FOUND", "Article not found");
-    if (!hasAccess(me.id, a.book_id)) return err(res, 403, "BOOK_ACCESS_DENIED", "Access to this book has not been granted");
+    if (!canRead(me.id, a.book_id)) return err(res, 403, "BOOK_ACCESS_DENIED", "Access to this book has not been granted");
     const key = progKey(me.id, aid);
     if (what === "progress") {
       if (m === "PUT") { const b = await readBody(req); progress[key] = { ...getProg(me.id, aid), current_page: b.current_page, current_location: b.current_location ?? null, percentage: b.percentage ?? 0, updated_at: now() }; }
@@ -322,6 +374,51 @@ createServer(async (req, res) => {
     }
   }
 
+  // ---- 38: bog'langan qurilmalar
+  if (path === "/me/devices" && m === "GET") {
+    const key = req.headers["x-device-id"];
+    return json(res, 200, { limit: DEVICE_LIMIT, items: activeDevices(me.id).map((d) => ({ id: d.id, name: d.name, bound_at: d.bound_at, last_seen_at: d.last_seen_at, is_current: d.key === key })) });
+  }
+
+  // ---- 38: lug'at
+  const artVocab = /^\/articles\/([^/]+)\/vocabulary$/.exec(path);
+  const vocabOut = ({ _user, _norm, ...v }) => { const a = articles.find((x) => x.id === v.article_id); const bk = books.find((x) => x.id === a?.book_id); return { ...v, article_title: a?.title ?? null, book_id: a?.book_id ?? null, book_title: bk?.title ?? null }; };
+  if (artVocab && m === "GET") return json(res, 200, vocab.filter((v) => v._user === me.id && v.article_id === artVocab[1]).map(vocabOut));
+  if (path === "/me/vocabulary" && m === "GET") {
+    const s = normWord(q.get("search") ?? ""); const sort = q.get("sort") ?? "newest";
+    let list = vocab.filter((v) => v._user === me.id).filter((v) => !s || v._norm.includes(s) || normWord(v.translation).includes(s));
+    list = list.slice().sort((a, b) => (sort === "alpha" ? a.word.localeCompare(b.word) : sort === "oldest" ? a.created_at.localeCompare(b.created_at) : b.created_at.localeCompare(a.created_at)));
+    return json(res, 200, paged(list.map(vocabOut), Number(q.get("page") ?? 1), Math.min(100, Number(q.get("page_size") ?? 24))));
+  }
+  if (path === "/me/vocabulary" && m === "POST") {
+    const b = await readBody(req);
+    const a = articles.find((x) => x.id === b.article_id);
+    if (!a || !canRead(me.id, a.book_id)) return err(res, 403, "BOOK_ACCESS_DENIED", "Access to this book has not been granted");
+    const norm = normWord(b.word);
+    if (!norm) return err(res, 422, "VALIDATION_ERROR", "Validation failed", [{ loc: ["body", "word"], msg: "Empty word" }]);
+    const dup = vocab.find((v) => v._user === me.id && v._norm === norm);
+    if (dup) return err(res, 409, "VOCAB_DUPLICATE", "Word already in vocabulary", { entry_id: dup.id });
+    const v = { id: randomUUID(), _user: me.id, _norm: norm, word: b.word.trim(), translation: b.translation ?? null, context: b.context ?? null, page: b.page ?? null, rects: b.rects ?? null, learned: false, learned_at: null, article_id: a.id, created_at: now(), updated_at: now() };
+    vocab.unshift(v);
+    return json(res, 201, vocabOut(v));
+  }
+  const vm = /^\/me\/vocabulary\/([^/]+)$/.exec(path);
+  if (vm && vm[1] !== "stats") {
+    const v = vocab.find((x) => x.id === vm[1] && x._user === me.id);
+    if (!v) return err(res, 404, "VOCAB_NOT_FOUND", "Vocabulary entry not found");
+    if (m === "GET") return json(res, 200, vocabOut(v));
+    if (m === "PATCH") {
+      const b = await readBody(req);
+      if (b.word != null) { const n = normWord(b.word); if (vocab.some((x) => x._user === me.id && x.id !== v.id && x._norm === n)) return err(res, 409, "VOCAB_DUPLICATE", "Word already in vocabulary", { entry_id: vocab.find((x) => x._user === me.id && x._norm === n).id }); v.word = b.word.trim(); v._norm = n; }
+      if ("translation" in b) v.translation = b.translation;
+      if ("context" in b) v.context = b.context;
+      if (b.learned != null && b.learned !== v.learned) { v.learned = b.learned; v.learned_at = b.learned ? now() : null; }
+      v.updated_at = now();
+      return json(res, 200, vocabOut(v));
+    }
+    if (m === "DELETE") { vocab = vocab.filter((x) => x.id !== v.id); return json(res, 200, { message: "Deleted" }); }
+  }
+
   // ---- orders / notifications
   if (path === "/orders" && m === "GET") return json(res, 200, orders.filter((o) => o.user_id === me.id).map(withNames));
   if (path === "/orders/quote" && m === "POST") {
@@ -330,7 +427,7 @@ createServer(async (req, res) => {
     if (!ids.length) return err(res, 422, "CART_EMPTY", "Cart is empty");
     if (ids.length > 20) return err(res, 422, "CART_TOO_LARGE", "At most 20 books per order");
     const missing = ids.filter((id) => !books.some((x) => x.id === id && x.status === "ACTIVE")); if (missing.length) return err(res, 404, "BOOK_NOT_FOUND", "Book not found", { book_ids: missing });
-    return json(res, 200, quoteFor(ids));
+    return json(res, 200, { ...quoteFor(ids), skipped: ids.filter((id) => books.find((x) => x.id === id)?.is_free).map((book_id) => ({ book_id, reason: "BOOK_IS_FREE" })) });
   }
   if (path === "/orders/checkout" && m === "POST") {
     if (!pricing) return err(res, 404, "NOT_FOUND", "Not Found");
@@ -344,7 +441,7 @@ createServer(async (req, res) => {
     const o = { id: randomUUID(), user_id: me.id, book_id: qt.items[0].book_id, items: qt.items.map(({ book_title, ...i }) => i), subtotal: qt.subtotal, discount: qt.discount, amount: qt.total, status: "PENDING", receipt_note: null, has_receipt_file: false, reviewed_by_admin_id: null, reviewed_at: null, reject_reason: null, created_at: now(), updated_at: now() };
     orders.unshift(o); return json(res, 201, withNames(o));
   }
-  if (path === "/orders" && m === "POST") { const b = await readBody(req); const bk = books.find((x) => x.id === b.book_id); if (!bk) return err(res, 404, "BOOK_NOT_FOUND", "Book not found"); if (hasAccess(me.id, bk.id)) return err(res, 409, "ALREADY_HAS_ACCESS", "You already have access to this book"); const open = orders.find((x) => x.user_id === me.id && orderBookIds(x).includes(bk.id) && isOpen(x)); if (open) return err(res, 409, "ORDER_ALREADY_PENDING", "You already have an open order for this book", { order_id: open.id, status: open.status }); const o = { id: randomUUID(), user_id: me.id, book_id: bk.id, amount: bk.price, status: "PENDING", receipt_note: null, has_receipt_file: false, reviewed_by_admin_id: null, reviewed_at: null, reject_reason: null, created_at: now(), updated_at: now() }; orders.unshift(o); return json(res, 201, o); }
+  if (path === "/orders" && m === "POST") { const b = await readBody(req); const bk = books.find((x) => x.id === b.book_id); if (!bk) return err(res, 404, "BOOK_NOT_FOUND", "Book not found"); if (bk.is_free) return err(res, 422, "BOOK_IS_FREE", "Free books do not need an order"); if (hasAccess(me.id, bk.id)) return err(res, 409, "ALREADY_HAS_ACCESS", "You already have access to this book"); const open = orders.find((x) => x.user_id === me.id && orderBookIds(x).includes(bk.id) && isOpen(x)); if (open) return err(res, 409, "ORDER_ALREADY_PENDING", "You already have an open order for this book", { order_id: open.id, status: open.status }); const o = { id: randomUUID(), user_id: me.id, book_id: bk.id, amount: bk.price, status: "PENDING", receipt_note: null, has_receipt_file: false, reviewed_by_admin_id: null, reviewed_at: null, reject_reason: null, created_at: now(), updated_at: now() }; orders.unshift(o); return json(res, 201, o); }
   // Bitta buyurtma (polling) va bekor qilish — boshqa foydalanuvchiniki 404 (IDOR)
   const og = /^\/orders\/([^/]+)(\/cancel)?$/.exec(path);
   if (og && (og[2] ? m === "POST" : m === "GET")) {
@@ -390,6 +487,21 @@ createServer(async (req, res) => {
     if (cm && m === "PATCH") { const c = categories.find((x) => x.id === cm[1]); if (!c) return err(res, 404, "CATEGORY_NOT_FOUND", "Not found"); const b = await readBody(req); Object.assign(c, Object.fromEntries(Object.entries(b).filter(([, v]) => v !== null && v !== undefined)), { updated_at: now() }); return json(res, 200, c); }
     if (path === "/admin/users" && m === "GET") { const s = (q.get("search") ?? "").toLowerCase(); return json(res, 200, paged(users.filter((u) => !s || (u.email ?? "").includes(s) || (u.full_name ?? "").toLowerCase().includes(s)).filter((u) => !q.get("status") || u.status === q.get("status")), Number(q.get("page") ?? 1), Number(q.get("page_size") ?? 20))); }
     if (path === "/admin/users" && m === "POST") { const b = await readBody(req); if (!b.password) return err(res, 422, "VALIDATION_ERROR", "Validation failed", [{ loc: ["body", "password"], msg: "Field required" }]); const u = { id: randomUUID(), email: b.email ?? null, phone: b.phone ?? null, full_name: b.full_name ?? null, role: "USER", status: "ACTIVE", created_at: now(), updated_at: now() }; users.push(u); return json(res, 201, u); }
+    // 38: admin — foydalanuvchi qurilmalari (sabab majburiy)
+    const dm = /^\/admin\/users\/([^/]+)\/devices(?:\/([^/]+))?$/.exec(path);
+    if (dm) {
+      const [, uid, did] = dm;
+      const devOut = ({ user, key, secret, ...d }) => d;
+      if (m === "GET" && !did) return json(res, 200, devices.filter((d) => d.user === uid).map(devOut));
+      if (m === "DELETE") {
+        const b = await readBody(req);
+        if (!b.reason || !String(b.reason).trim()) return err(res, 422, "VALIDATION_ERROR", "Validation failed", [{ loc: ["body", "reason"], msg: "Field required" }]);
+        const targets = devices.filter((d) => d.user === uid && !d.removed_at && (!did || d.id === did));
+        if (did && !targets.length) return err(res, 404, "DEVICE_NOT_FOUND", "Device not found");
+        for (const d of targets) Object.assign(d, { removed_at: now(), removed_by_admin_id: me.id, remove_reason: String(b.reason).trim() });
+        return json(res, 200, { message: "Device removed" });
+      }
+    }
     const um = /^\/admin\/users\/([^/]+)(?:\/(status|books|sessions|reset-password))?$/.exec(path);
     if (um) {
       const u = users.find((x) => x.id === um[1]);
@@ -404,13 +516,13 @@ createServer(async (req, res) => {
     }
     if (path.startsWith("/admin/sessions/") && m === "DELETE") return json(res, 200, { message: "Session revoked" });
     if (path === "/admin/books" && m === "GET") { const s = (q.get("search") ?? "").toLowerCase(); return json(res, 200, paged(books.filter((b) => !s || b.title.toLowerCase().includes(s)).filter((b) => !q.get("status") || b.status === q.get("status")), Number(q.get("page") ?? 1), Number(q.get("page_size") ?? 20))); }
-    if (path === "/admin/books" && m === "POST") { const b = await readBody(req); const cat = categories.find((c) => c.id === b.category_id) ?? null; const bk = { id: randomUUID(), title: b.title, author: b.author ?? null, description: b.description ?? null, price: Number(b.price ?? 0).toFixed(2), status: "INACTIVE", category_id: cat?.id ?? null, category: cat, book_metadata: b.book_metadata ?? {}, created_at: now(), updated_at: now(), has_cover: false }; books.unshift(bk); return json(res, 201, bk); }
+    if (path === "/admin/books" && m === "POST") { const b = await readBody(req); const cat = categories.find((c) => c.id === b.category_id) ?? null; const bk = { id: randomUUID(), title: b.title, author: b.author ?? null, description: b.description ?? null, price: b.is_free ? "0.00" : Number(b.price ?? 0).toFixed(2), is_free: !!b.is_free || Number(b.price ?? 0) === 0, status: "INACTIVE", category_id: cat?.id ?? null, category: cat, book_metadata: b.book_metadata ?? {}, created_at: now(), updated_at: now(), has_cover: false }; books.unshift(bk); return json(res, 201, bk); }
     const bm = /^\/admin\/books\/([^/]+)(?:\/(cover|articles))?(?:\/([^/]+))?(?:\/(file|toc))?$/.exec(path);
     if (bm) {
       const [, bid, sub, aid, sub2] = bm;
       const bk = books.find((x) => x.id === bid);
       if (!bk) return err(res, 404, "BOOK_NOT_FOUND", "Not found");
-      if (!sub) { if (m === "PATCH") { const b = await readBody(req); if (b.status === "ACTIVE" && !articles.some((a) => a.book_id === bid && a.processing_status === "READY")) return err(res, 409, "BOOK_NOT_READY", "No READY articles"); Object.assign(bk, Object.fromEntries(Object.entries(b).filter(([, v]) => v !== undefined)), { updated_at: now() }); if (b.price != null) bk.price = Number(b.price).toFixed(2); if ("category_id" in b) bk.category = categories.find((c) => c.id === b.category_id) ?? null; } return json(res, 200, bk); }
+      if (!sub) { if (m === "PATCH") { const b = await readBody(req); if (b.status === "ACTIVE" && !articles.some((a) => a.book_id === bid && a.processing_status === "READY")) return err(res, 409, "BOOK_NOT_READY", "No READY articles"); Object.assign(bk, Object.fromEntries(Object.entries(b).filter(([, v]) => v !== undefined)), { updated_at: now() }); if (b.price != null) bk.price = Number(b.price).toFixed(2); if (b.is_free) bk.price = "0.00"; if ("is_free" in b || b.price != null) bk.is_free = !!b.is_free || Number(bk.price) === 0; if ("category_id" in b) bk.category = categories.find((c) => c.id === b.category_id) ?? null; } return json(res, 200, bk); }
       if (sub === "cover") { let size = 0; for await (const c of req) { size += c.length; await new Promise((r) => setTimeout(r, 3)); } uploads.push({ path, size, contentType: req.headers["content-type"]?.split(";")[0] }); bk.has_cover = true; return json(res, 200, bk); }
       if (sub === "articles" && !aid) {
         const list = articles.filter((a) => a.book_id === bid).sort((a, b) => a.order_index - b.order_index);

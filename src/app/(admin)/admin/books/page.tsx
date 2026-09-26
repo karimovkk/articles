@@ -4,10 +4,11 @@ import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { DataTable, Toolbar, usePaged, type Column } from "@/components/admin/data-table";
-import { Alert, Badge, Button, Field, Input, Modal, PageHeader, SearchInput, Select, Textarea, formatDate, statusTone } from "@/components/ui";
+import { Alert, Badge, Button, Field, Input, Modal, PageHeader, SearchInput, Select, Textarea, formatDate, statusTone, Switch } from "@/components/ui";
 import * as I from "@/components/ui/icons";
 import { adminApi, errorMessage, type Book, type BookStatus, type Category } from "@/lib/api";
 import { Price } from "@/components/catalog/price";
+import { isFreeBook } from "@/lib/free-books";
 import { useDebounced } from "@/lib/use-debounce";
 import { useT } from "@/i18n";
 
@@ -60,7 +61,7 @@ export default function AdminBooksPage() {
         </Badge>
       ),
     },
-    { key: "price", header: t("admin.books.price"), num: true, render: (b) => <Price value={b.price} /> },
+    { key: "price", header: t("admin.books.price"), num: true, render: (b) => (isFreeBook(b) ? <Badge tone="success">{t("catalog.free")}</Badge> : <Price value={b.price} />) },
     { key: "cover", header: t("admin.books.cover"), render: (b) => (b.has_cover ? <Badge tone="success">✓</Badge> : <span className="muted">{t("common.none")}</span>) },
     { key: "created", header: t("common.created"), render: (b) => <span className="muted">{formatDate(b.created_at)}</span> },
   ];
@@ -101,11 +102,18 @@ function CreateBookModal({ open, onClose, categories, onCreated }: { open: boole
   const [description, setDescription] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [price, setPrice] = useState("");
+  // 37: tekin kitob — narx yozilmaydi (0), mehmonlar ham o'qiy oladi
+  const [free, setFree] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
+    // Pullik kitobda narx majburiy (ilgari bo'sh narx 0 bo'lib, kitob bilmasdan tekin bo'lib qolardi)
+    if (!free && !(Number(price) > 0)) {
+      setError(t("admin.books.priceRequired"));
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -114,7 +122,8 @@ function CreateBookModal({ open, onClose, categories, onCreated }: { open: boole
         author: author.trim() || null,
         description: description.trim() || null,
         category_id: categoryId || null,
-        price: price.trim() || 0,
+        price: free ? 0 : price.trim(),
+        is_free: free,
       });
       onCreated(b);
     } catch (err) {
@@ -137,9 +146,12 @@ function CreateBookModal({ open, onClose, categories, onCreated }: { open: boole
         <Field label={t("admin.books.category")}>
           <Select value={categoryId} onChange={setCategoryId} options={[{ value: "", label: t("admin.books.noCategory") }, ...categories.map((c) => ({ value: c.id, label: c.name }))]} aria-label={t("admin.books.category")} data-testid="book-category" />
         </Field>
-        <Field label={t("admin.books.price")}>
-          <Input type="number" min={0} step="1000" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="0" />
-        </Field>
+        <Switch checked={free} onChange={setFree} label={t("admin.books.free")} description={t("admin.books.freeHint")} data-testid="book-free" />
+        {!free && (
+          <Field label={t("admin.books.price")}>
+            <Input type="number" min={1} step="any" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} required data-testid="book-price" />
+          </Field>
+        )}
         <Field label={t("admin.books.summary")}>
           <Textarea rows={3} value={description} onChange={(e) => setDescription(e.target.value)} />
         </Field>

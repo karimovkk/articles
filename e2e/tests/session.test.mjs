@@ -23,7 +23,7 @@ await page.waitForSelector("text=Test kitob", { timeout: 10000 });
 await fetch(`${MOCK}/__expire?token=access-token-1`);
 let n = (await mockGet("/__log")).length;
 await page.goto(`${BASE}/profile`);
-await page.waitForSelector("text=Sessiyalar va qurilmalar", { timeout: 10000 });
+await page.waitForSelector('[data-testid="my-devices"]', { timeout: 10000 });
 await page.waitForSelector("text=joriy", { timeout: 10000 });
 let log = await logSince(n);
 const refreshes = log.filter((l) => l === "POST /auth/refresh").length;

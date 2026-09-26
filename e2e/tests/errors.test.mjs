@@ -1,4 +1,4 @@
-// Task 3 tekshiruvi: xato kodlari xaritasi, DEVICE_LIMIT_REACHED UX, ngrok/X-Device-Id header, upload progress + validatsiya
+// Task 3 tekshiruvi: xato kodlari xaritasi, DEVICE_NOT_ALLOWED UX (38), ngrok/X-Device-Id header, upload progress + validatsiya
 import { launch, BASE, API, reset, mockGet, IS_CHROMIUM, ignorablePageError } from "../lib.mjs";
 import { mkdirSync, writeFileSync } from "node:fs";
 
@@ -36,11 +36,12 @@ await page.waitForSelector("text=Login yoki parol noto'g'ri", { timeout: 5000 })
 check("INVALID_CREDENTIALS → xaritadagi matn", true);
 check("Backend inglizcha xabari ko'rinmaydi", (await page.locator("text=Invalid credentials").count()) === 0);
 
-// ---- 3.2 DEVICE_LIMIT_REACHED
+// ---- 3.2 (38) DEVICE_NOT_ALLOWED — akkaunt 2 ta qurilmaga bog'langan, chiqish joy bo'shatmaydi
 await login("limit@articles365.local", "x");
-await page.waitForSelector("text=Qurilmalar limiti to'ldi (2 ta)", { timeout: 5000 });
-check("DEVICE_LIMIT_REACHED → maxsus xabar, details.limit (2 ta)", true);
-check("Yo'l-yo'riq (Profil → Sessiyalar) + faol qurilmalar ro'yxati", (await page.locator("text=Sessiyalar").count()) > 0 && (await page.locator("text=Chrome · Windows").count()) === 1);
+await page.waitForSelector('[data-testid="device-not-allowed"]', { timeout: 5000 });
+const devText = (await page.textContent('[data-testid="device-not-allowed"]')) ?? "";
+check("DEVICE_NOT_ALLOWED → maxsus xabar, details.limit (2 ta)", devText.includes("2 ta qurilmaga bog'langan"));
+check("Yo'l-yo'riq: administratorga murojaat (chiqish yordam bermaydi) + bog'langan qurilmalar", devText.includes("administratorga") && devText.includes("Chrome · Windows") && devText.includes("Safari · iOS"));
 await page.screenshot({ path: OUT + "10-device-limit.png" });
 
 // ---- 3.3 Header'lar

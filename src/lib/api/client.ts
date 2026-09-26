@@ -88,6 +88,31 @@ async function parseError(res: Response): Promise<ApiError> {
   );
 }
 
+/**
+ * 38: sessiya nima sababdan tugadi — login sahifasida mos xabar (`?reason=`). `device_removed` — admin shu qurilmani
+ * akkauntdan olib tashlagan (refresh → 401 DEVICE_REMOVED); qurilma siri ham eskirgan, o'chiriladi.
+ */
+export type SessionEndReason = "expired" | "device_removed";
+let endReason: SessionEndReason = "expired";
+export function sessionEndReason(): SessionEndReason {
+  return endReason;
+}
+export function resetSessionEndReason() {
+  endReason = "expired";
+}
+function markDeviceRemoved(code: string | undefined) {
+  if (code !== "DEVICE_REMOVED") return;
+  endReason = "device_removed";
+  tokenStore.setDeviceSecret(null);
+}
+async function errorCodeOf(res: Response): Promise<string | undefined> {
+  try {
+    return ((await res.clone().json()) as Partial<ApiErrorBody>).error?.code;
+  } catch {
+    return undefined;
+  }
+}
+
 /** Bir vaqtda faqat bitta refresh (single-flight) — rotatsiya buzilmasligi uchun. */
 let refreshInFlight: Promise<boolean> | null = null;
 
@@ -103,7 +128,10 @@ export async function refreshTokens(): Promise<boolean> {
         body: JSON.stringify({ refresh_token: refresh }),
         cache: "no-store",
       });
-      if (!res.ok) return false;
+      if (!res.ok) {
+        markDeviceRemoved(await errorCodeOf(res));
+        return false;
+      }
       const data = (await res.json()) as AuthTokens;
       if (!data.access_token) return false;
       tokenStore.set(data.access_token, data.refresh_token ?? refresh);
@@ -141,8 +169,12 @@ export async function apiRaw(path: string, opts: RequestOptions = {}): Promise<R
   };
 
   const sentWith = tokenStore.getAccess();
+  // 37: tokeni umuman yo'q mehmon (masalan, tekin kitobni o'qiyotgan) 401 olsa — bu "sessiya tugadi" emas:
+  // refresh urinilmaydi va `expired` hodisasi yuborilmaydi, chaqiruvchi o'zi kirish sahifasiga yo'naltiradi
+  const hadSession = !!(tokenStore.getAccess() || tokenStore.getRefresh());
   let res = await doFetch();
-  if (res.status === 401 && auth && !noRefresh) {
+  if (res.status === 401 && auth && !noRefresh && hadSession) {
+    markDeviceRemoved(await errorCodeOf(res));
     // So'rov ketgandan keyin boshqa so'rov tokenni allaqachon yangilagan bo'lsa (parallel so'rovlar) — qayta
     // refresh qilinmaydi, yangi token bilan takrorlanadi. Aks holda ikkinchi rotatsiya birinchisini bekor qiladi.
     const ok = tokenStore.getAccess() !== sentWith && !!tokenStore.getAccess() ? true : await refreshTokens();

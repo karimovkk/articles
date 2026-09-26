@@ -14,13 +14,14 @@ import { cart, CART_MAX, useCart, type CartItem } from "@/lib/cart";
 import { tierLadder } from "@/lib/pricing";
 import { usePricing } from "@/lib/use-pricing";
 import type { PricingConfig } from "@/lib/api";
+import { isFreeBook } from "@/lib/free-books";
 import { useT } from "@/i18n";
 
 type Book = Omit<CartItem, "added_at">;
 
-/** Savatga qo'shish mumkinmi: pullik va hali kutubxonada emas */
-export function cartEligible(book: Pick<Book, "price">, owned?: boolean) {
-  return !owned && Number(book.price) > 0;
+/** Savatga qo'shish mumkinmi: pullik (tekin emas — 37) va hali kutubxonada emas */
+export function cartEligible(book: Pick<Book, "price"> & { is_free?: boolean }, owned?: boolean) {
+  return !owned && !isFreeBook(book) && Number(book.price) > 0;
 }
 
 /**

@@ -22,10 +22,12 @@ const env = { ...process.env, BACKEND_URL: `http://localhost:${MOCK_PORT}`, E2E_
 if (args.includes("--prod")) env.E2E_PROD = "1";
 
 const procs = [];
+// Server chiqishi pipe orqali EMAS: to'plamlar `spawnSync` bilan ketma-ket yuradi va shu paytda runner pipe'ni
+// o'qimaydi — uzoq to'plamda (Next brauzer loglarini ham terminalga uzatadi) bufer to'lib, server stdout'ga yozishda
+// bloklanardi va butun dev server qotib qolardi. Endi to'g'ridan-to'g'ri terminalga (E2E_VERBOSE) yoki hech qayerga.
+const serverOut = process.env.E2E_VERBOSE ? "inherit" : "ignore";
 const start = (cmd, cmdArgs, opts = {}) => {
-  const p = spawn(cmd, cmdArgs, { cwd: root, env, stdio: ["ignore", "pipe", "pipe"], detached: true, ...opts });
-  p.stdout.on("data", (d) => process.env.E2E_VERBOSE && process.stdout.write(d));
-  p.stderr.on("data", (d) => process.env.E2E_VERBOSE && process.stderr.write(d));
+  const p = spawn(cmd, cmdArgs, { cwd: root, env, stdio: ["ignore", serverOut, serverOut], detached: true, ...opts });
   procs.push(p);
   return p;
 };

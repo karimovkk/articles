@@ -818,6 +818,66 @@ ko'rinmaydi** — eski "Sotib olish" oqimi o'zgarmaydi, noto'g'ri narx ko'rsatil
       o'raladi) tuzatildi, qayta: long-text/cart/catalog/visual 4/4; WebKit cart/catalog/orders/visual 4/4 +
       long-text/catalog 2/2; Firefox cart/orders 2/2. e2e `cart` — 22 tekshiruv.
 
+## 36. Akkaunt faqat 2 ta qurilmada (2026-09-26) — backend tayyor, §38 da ulandi
+
+Muammo: cheklov bir vaqtdagi sessiyalarga (`MAX_ACTIVE_SESSIONS_PER_USER=2`) — bittasi chiqsa 3-, 4-… qurilma kira oladi
+(sharing). Talab: akkaunt 2 ta **bog'langan qurilma** ga; chiqish joyni bo'shatmaydi; almashtirish **faqat admin**
+(mahsulot egasi qarori); qurilmani aniqlash usulini **backend tanlaydi**. To'liq topshiriq: `BACKEND_TASKS.md` 3-qism.
+
+- [x] 36.1 Login: `DEVICE_NOT_ALLOWED` — bog'langan qurilmalar nomi bilan aniq xabar + admin'ga murojaat havolasi
+      (hozirgi "boshqa qurilmada chiqing" xabari yangi qoidada noto'g'ri bo'ladi)
+- [x] 36.2 Profil: "Qurilmalarim" (`GET /me/devices`, faqat ko'rish, "almashtirish — admin orqali")
+- [x] 36.3 Admin → foydalanuvchi: "Bog'langan qurilmalar", olib tashlash (sabab majburiy), tarix
+- [x] 36.4 `DEVICE_REMOVED` (refresh) → kirish sahifasi xabari; backend `device_secret` tanlasa — saqlash/yuborish
+- [x] 36.5 Mock + e2e (§3.3 ssenariysi) + `--prod`
+
+## 37. Tekin kitoblar — mehmonlar ham o'qiy oladi (2026-09-26)
+
+So'rov: "kitob create qilinayotganda 'tekin kitob' yoqilsa narx yozilmaydi; tekin kitoblarni odamlar ro'yxatdan
+o'tmasdan ham o'qiy olishi kerak; frontend'ga qo'sh va backend md'da ham bo'lsin".
+
+**Kelishuv:** frontend kitobni tekin deb biladi, agar `is_free === true` **yoki** `narx = 0` (hozirgi backend'da
+`is_free` yo'q — narx 0 bo'lgan kitoblar darhol "tekin" ko'rinadi). Mehmon o'qishi uchun reader endpointlari tekin
+kitoblarda **kirishsiz** ishlashi kerak — backend topshirig'i `BACKEND_TASKS.md` 4-qism. Backend qo'llamaguncha
+mehmon "O'qish"ni bossa — kirish sahifasiga yo'naltiriladi (hech narsa buzilmaydi).
+
+- [x] 37.1 Umumiy: `isFreeBook()`, tiplarda `is_free?`; API klient — tokeni yo'q mehmonning 401 javobi "sessiya
+      tugadi" deb hisoblanmasin (faqat kirish sahifasiga yo'naltirish)
+- [x] 37.2 Admin: yaratish va tahrirlash formasida "Tekin kitob" kaliti — yoqilsa narx maydoni yo'qoladi, `price: 0`
+      (+ `is_free: true`) yuboriladi; ro'yxatda narx o'rniga "Tekin"
+- [x] 37.3 Katalog: kartada "Tekin" belgisi va narxi, tugma — "O'qish" (sotib olish/savatcha yo'q); kitob sahifasi:
+      "Bepul o'qing" bloki — maqolalar ro'yxati va "O'qishni boshlash" (mehmon ham)
+- [x] 37.4 Reader mehmon rejimi: tekin kitob kirishsiz ochiladi; progress/belgilash/lug'at/eslatma yo'q — o'rniga
+      "Ro'yxatdan o'ting — belgilash, lug'at va o'qish joyi saqlanadi" banneri; pullik kitob — kirish sahifasiga
+- [x] 37.5 Mock (is_free, mehmon uchun reader endpointlari, tekin kitobga buyurtma — 422) + e2e `free-books` +
+      responsive + `--prod`
+- [x] 37.6 `BACKEND_TASKS.md` 4-qism: model, validatsiya, mehmon o'qish endpointlari, suv belgisi, himoya,
+      buyurtma/savatcha qoidalari, migratsiya, qabul mezonlari
+
+## 38. Backend 4 qismni ham tayyorladi — frontend haqiqiy endpointlarga o'tdi (2026-09-26)
+
+Manba: `Articles365_BACKEND_TASKS2_Hisobot_v1.0.md`, `Articles365_Frontend_Vazifa_4qism_v1.0.md`, jonli `/openapi.json`
+(https://articles.api.cognilabs.org). Backend: 155 test, 4 migratsiya, prod'da jonli.
+
+- [x] 38.1 Qurilma siri: login javobidagi `device_secret` (faqat birinchi bog'lashda) `token-store`da saqlanadi,
+      keyingi har login'da `X-Device-Secret`; logout'da o'chmaydi, `DEVICE_REMOVED` da o'chiriladi
+- [x] 38.2 Login: `403 DEVICE_NOT_ALLOWED` (`details.limit`, `devices[]`) — "allaqachon 2 ta qurilmaga bog'langan,
+      administratorga murojaat qiling" (eski "boshqa qurilmada chiqing" olib tashlandi); `401 DEVICE_REMOVED` (refresh)
+      → `/login?reason=device_removed` va xabar
+- [x] 38.3 Profil: "Qurilmalarim" (`GET /me/devices`, faqat ko'rish, "Shu qurilma"); sessiyalar izohi — sessiyani bekor
+      qilish qurilmani bo'shatmaydi
+- [x] 38.4 Admin → foydalanuvchi: "Bog'langan qurilmalar" — olib tashlash / barchasini (sabab majburiy), tarix
+- [x] 38.5 Lug'at: annotatsiya o'rniga `/me/vocabulary` (+ `/articles/{id}/vocabulary` reader'da); `409 VOCAB_DUPLICATE`
+      → mavjud yozuv (`details.entry_id`) yangilanadi; eski "vocab" annotatsiyalari eslatmalarga tushmaydi
+- [x] 38.6 Savatcha: quote `skipped[]` (tekin bo'lib qolgan kitob) → savatdan chiqariladi; checkout `BOOK_NOT_FOUND`
+      (`details.book_ids`) → savatdan chiqariladi; bildirishnoma `meta.book_ids` (ko'p kitob → kutubxona)
+- [x] 38.7 Yangi xato kodlari matni (uz/ru/en): PRICE_REQUIRED, BOOK_IS_FREE, VOCAB_*, CART_EMPTY/TOO_LARGE,
+      DEVICE_NOT_ALLOWED/REMOVED/NOT_FOUND
+- [x] 38.8 Mock (qurilma bog'lash, `/me/devices`, admin qurilmalar, `/me/vocabulary`, quote `skipped`) + e2e `devices`,
+      `errors` va `vocabulary` yangilandi
+- [x] 38.9 Login/ro'yxatdan o'tish: sahifa jonlanmaguncha maydonlar `readOnly`, tugma o'chiq (Safari'da oldin yozilgan
+      matn o'chib, forma yuborilmay qolardi); e2e runner: server chiqishi pipe'da to'lib, dev server qotardi — tuzatildi
+
 ## 31. Keyingi vazifalar
 
 - [ ] 31.1 Safari (WebKit): varaqlash rejimida oldingi sahifaga qaytilganda (3-sahifa) belgilash qatlami
@@ -856,6 +916,8 @@ Holat: B15–B25 ✅ hammasi javoblandi va deploy qilindi (15-bo'lim) — B21: P
   /me/vocabulary/{id}` (so'z, tarjima, kontekst, article_id, page, learned, created_at; `?search=&book_id=&learned=`
   bilan). Hozir FE `NOTE` annotatsiya + `label:"vocab"` bilan saqlaydi — hamma maqolalar bo'yicha annotatsiyalar
   endpointi yo'qligi sababli lug'at sahifasi maqolama-maqola so'raydi. Minimal alternativa: `GET /me/annotations?label=`.
+- B31 ❗ (36-bo'lim) Qurilma cheklovi sessiyalar soniga qo'yilgan — logout bilan 3-qurilma kira oladi. Kerak:
+  akkaunt 2 ta bog'langan qurilmaga, almashtirish faqat admin. To'liq: `BACKEND_TASKS.md` 3-qism.
 - B28 ❗ (26-bo'lim, tezlik) Jonli backend javob vaqti katta: `GET /categories` **1279 ms**, `GET /catalog` **1325 ms**
   (o'lchov: Vercel'dagi frontend, 2026-09-23). Frontend tomondan so'rovlar soni kamaytirildi, lekin bitta so'rovning
   o'zi ~1.3 s bo'lsa sayt baribir sekin seziladi. Tavsiya: (a) `categories` va `catalog` uchun keshlash

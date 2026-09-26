@@ -11,7 +11,8 @@ for (const path of ["/login", "/catalog"]) {
   check(`${path}: Permissions-Policy (camera/mic/geo yopiq)`, /camera=\(\)/.test(r.get("permissions-policy") ?? ""));
 }
 const rd = await h("/reader/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
-check("/reader: Cache-Control private, no-store", /no-store/.test(rd.get("cache-control") ?? ""), rd.get("cache-control"));
+// dev'da Next sahifalarga o'zining "no-cache, must-revalidate" header'ini qo'yadi — to'liq tekshiruv production'da
+check("/reader: Cache-Control private, no-store", process.env.E2E_PROD ? /no-store/.test(rd.get("cache-control") ?? "") : /no-store|no-cache/.test(rd.get("cache-control") ?? ""), rd.get("cache-control"));
 const bk = await h("/books/11111111-1111-4111-8111-111111111111");
 check("/books: Cache-Control private, no-store", /no-store/.test(bk.get("cache-control") ?? ""), bk.get("cache-control"));
 const guard = await h("/books/11111111-1111-4111-8111-111111111111");

@@ -14,6 +14,8 @@ import * as I from "@/components/ui/icons";
 import { OrderPanel } from "@/components/orders/order-panel";
 import { AddToCartButton, TierLadder } from "@/components/cart/cart-ui";
 import { usePricing } from "@/lib/use-pricing";
+import { isFreeBook } from "@/lib/free-books";
+import { FreeReadPanel } from "./free-read-panel";
 import { catalogApi, readerApi, type CatalogItem } from "@/lib/api";
 import { useT } from "@/i18n";
 
@@ -88,11 +90,18 @@ export function CatalogBookDetail({ bookId }: { bookId: string }) {
           </div>
           <p className="max-w-2xl whitespace-pre-wrap text-sm leading-relaxed text-text-2">{item.description || t("catalog.noDescription")}</p>
           <p className="font-display text-2xl font-semibold tracking-tight text-text">
-            <Price value={item.price} />
+            {isFreeBook(item) ? <span className="text-success" data-testid="book-free-price">{t("catalog.free")}</span> : <Price value={item.price} />}
           </p>
 
           <Card className="mt-auto" padded>
-            {hasAccess ? (
+            {isFreeBook(item) ? (
+              // 37: tekin kitob — hamma uchun (mehmon ham) o'qish; backend qo'llamasa kirgan foydalanuvchiga eski panel
+              authLoading ? (
+                <Spinner />
+              ) : (
+                <FreeReadPanel bookId={item.book_id} guest={!user} fallback={hasAccess ? <Link href={`/books/${item.book_id}`} className={buttonClass()}>{t("catalog.read")}</Link> : <OrderPanel bookId={item.book_id} />} />
+              )
+            ) : hasAccess ? (
               <div className="flex flex-wrap items-center gap-3">
                 <span className="flex items-center gap-2 text-sm font-semibold text-muted">
                   <I.CheckCircle size={16} className="text-success" />

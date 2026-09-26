@@ -161,7 +161,7 @@ await page.waitForURL(`${BASE}/library`);
 await page.goto(`${BASE}/admin`);
 await page.waitForSelector("text=Faol sessiyalar", { timeout: 8000 });
 check("Dashboard: /admin/stats — maqolalar, faol sessiyalar, belgilar plitkalari", (await has("Maqolalar")) && (await has("Belgilar va izohlar")));
-check("Dashboard: holat taqsimoti (ACTIVE: 31, READY: 3, PROCESSING: 1)", (await has("ACTIVE: 31")) && (await has("READY: 3")) && (await has("PROCESSING: 1")));
+check("Dashboard: holat taqsimoti (ACTIVE: 31, READY: 5, PROCESSING: 1)", (await has("ACTIVE: 31")) && (await has("READY: 5")) && (await has("PROCESSING: 1")));
 check("Dashboard: rollar (USER 2 · ADMIN 1)", await has("USER 2 · ADMIN 1"));
 check("Dashboard: fallback ogohlantirishi yo'q", !(await page.evaluate(() => document.body.innerText.includes("mavjud emas"))));
 await page.screenshot({ path: OUT + "32-admin-stats.png" });

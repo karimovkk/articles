@@ -1,12 +1,12 @@
 /**
  * Auth (OpenAPI): POST /auth/login {identifier, password, device_name?, totp_code?} → LoginResponse;
  * POST /auth/register {email|phone, password, full_name?} → UserResponse (token YO'Q → keyin login);
- * POST /auth/logout {refresh_token}; GET /auth/me; PATCH /me; POST /me/password; /me/2fa/*.
+ * POST /auth/logout {refresh_token}; GET /auth/me; PATCH /me; POST /me/password; /me/2fa/*; GET /me/devices (38).
  */
-import { api, emitAuthChanged } from "./client";
+import { api, emitAuthChanged, resetSessionEndReason } from "./client";
 import { tokenStore } from "./token-store";
 import { shortAgent } from "@/lib/agent";
-import type { LoginResponse, MessageResponse, TwoFactorSetup, User } from "./types";
+import type { LoginResponse, MessageResponse, MyDevicesResponse, TwoFactorSetup, User } from "./types";
 
 /** Email yoki telefon ekanini aniqlab, backend kutgan maydonlarga ajratadi (register uchun). */
 export function splitIdentifier(identifier: string): { email?: string; phone?: string } {
@@ -29,13 +29,18 @@ export interface RegisterInput {
 
 export const authApi = {
   async login(identifier: string, password: string, totpCode?: string): Promise<LoginResponse> {
+    // 38: bog'langan qurilma o'z sirini ko'rsatadi (nusxalangan X-Device-Id bilan begona kompyuter kira olmaydi)
+    const secret = tokenStore.getDeviceSecret();
     const data = await api<LoginResponse>("/auth/login", {
       method: "POST",
       auth: false,
+      headers: secret ? { "X-Device-Secret": secret } : undefined,
       body: { identifier: identifier.trim(), password, device_name: deviceName(), ...(totpCode ? { totp_code: totpCode } : {}) },
     });
     if (!data.access_token) throw new Error("Backend access_token qaytarmadi");
+    if (data.device_secret) tokenStore.setDeviceSecret(data.device_secret);
     tokenStore.set(data.access_token, data.refresh_token);
+    resetSessionEndReason();
     emitAuthChanged("login");
     return data;
   },
@@ -83,5 +88,10 @@ export const authApi = {
   },
   twoFactorDisable(code: string): Promise<MessageResponse> {
     return api<MessageResponse>("/me/2fa/disable", { method: "POST", body: { code } });
+  },
+
+  // ---- 38: bog'langan qurilmalar (faqat ko'rish)
+  devices(): Promise<MyDevicesResponse> {
+    return api<MyDevicesResponse>("/me/devices");
   },
 };

@@ -1,6 +1,7 @@
 /** Admin API — barcha yo'llar ADMIN rolini talab qiladi (server tomonda tekshiriladi). Manba: OpenAPI 2026-09-21. */
 import { api, apiErrorFrom, apiRaw, apiUpload, type UploadOptions } from "./client";
 import type {
+  AdminDevice,
   AdminStats,
   Article,
   AuditAction,
@@ -29,6 +30,8 @@ export interface BookInput {
   category_id?: string | null;
   /** decimal — string ("30000.00") yoki number */
   price?: string | number | null;
+  /** 37: tekin kitob — narx 0 bilan yuboriladi (backend `is_free` ni qo'shguncha e'tiborsiz qoldirishi mumkin) */
+  is_free?: boolean;
   book_metadata?: Record<string, unknown>;
 }
 
@@ -67,6 +70,17 @@ export const adminApi = {
   },
   revokeSession(sessionId: string) {
     return api<MessageResponse>(`/admin/sessions/${sessionId}`, { method: "DELETE" });
+  },
+
+  // ---- 38: bog'langan qurilmalar (foydalanuvchi faqat 2 ta; bo'shatish faqat admin, sabab majburiy)
+  userDevices(userId: string): Promise<AdminDevice[]> {
+    return api<AdminDevice[]>(`/admin/users/${userId}/devices`);
+  },
+  removeDevice(userId: string, deviceId: string, reason: string) {
+    return api<MessageResponse>(`/admin/users/${userId}/devices/${deviceId}`, { method: "DELETE", body: { reason } });
+  },
+  removeAllDevices(userId: string, reason: string) {
+    return api<MessageResponse>(`/admin/users/${userId}/devices`, { method: "DELETE", body: { reason } });
   },
 
   // ---- Books

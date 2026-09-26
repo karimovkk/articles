@@ -160,9 +160,11 @@ export function VocabCards({ entries, onLearned }: { entries: VocabEntry[]; onLe
             <I.Volume size={18} />
           </IconButton>
         )}
-        <Link href={pdfHref(card!)} className="icon-btn" aria-label={t("vocab.openInPdf")} title={t("vocab.openInPdf")}>
-          <I.BookOpen size={18} />
-        </Link>
+        {card!.articleId && (
+          <Link href={pdfHref(card!)} className="icon-btn" aria-label={t("vocab.openInPdf")} title={t("vocab.openInPdf")}>
+            <I.BookOpen size={18} />
+          </Link>
+        )}
         <Button onClick={() => void know()} loading={busy} icon={<I.Check size={16} />} data-testid="cards-know">
           {t("vocab.cards.know")}
         </Button>

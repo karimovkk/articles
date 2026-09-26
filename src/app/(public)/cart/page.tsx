@@ -69,14 +69,23 @@ export default function CartPage() {
     const timer = window.setTimeout(() => {
       ordersApi
         .quote(key.split(","))
-        .then((q) => alive && setServerQuote({ key, quote: q }))
+        .then((q) => {
+          if (!alive) return;
+          setServerQuote({ key, quote: q });
+          // Savatga qo'shilgandan keyin tekin bo'lib qolgan kitob — sotib olish kerak emas, savatdan chiqariladi
+          const free = (q.skipped ?? []).filter((x) => x.reason === "BOOK_IS_FREE").map((x) => x.book_id);
+          if (free.length) {
+            cart.removeMany(free);
+            setNotice(t("cart.freeRemoved"));
+          }
+        })
         .catch(() => undefined);
     }, 250);
     return () => {
       alive = false;
       window.clearTimeout(timer);
     };
-  }, [cfg, key]);
+  }, [cfg, key, t]);
 
   // Tavsiya kitoblar: katalogdan, savatda yo'q, pullik
   useEffect(() => {
@@ -110,7 +119,8 @@ export default function CartPage() {
       const bad = isApiError(e) && Array.isArray((e.details as { book_ids?: unknown })?.book_ids) ? ((e.details as { book_ids: string[] }).book_ids ?? []) : [];
       if (bad.length) {
         cart.removeMany(bad);
-        setNotice(t(isApiError(e) && e.code === "ALREADY_HAS_ACCESS" ? "cart.ownedRemoved" : "cart.pendingRemoved"));
+        const code = isApiError(e) ? e.code : "";
+        setNotice(t(code === "ALREADY_HAS_ACCESS" ? "cart.ownedRemoved" : code === "BOOK_NOT_FOUND" ? "cart.unavailableRemoved" : "cart.pendingRemoved"));
       } else setError(errorMessage(e));
     } finally {
       setBusy(false);

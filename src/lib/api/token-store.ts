@@ -6,6 +6,8 @@
 const ACCESS_KEY = "a365.access";
 const REFRESH_KEY = "a365.refresh";
 const DEVICE_KEY = "a365.device";
+/** 38: qurilma bog'langanda backend bir marta beradi (nusxa himoyasi) — chiqishda o'chirilmaydi */
+const DEVICE_SECRET_KEY = "a365.device.secret";
 export const AUTH_COOKIE = "a365_auth";
 
 const isBrowser = () => typeof window !== "undefined";
@@ -49,5 +51,27 @@ export const tokenStore = {
       window.localStorage.setItem(DEVICE_KEY, id);
     }
     return id;
+  },
+  /**
+   * 38: `device_secret` — qurilma akkauntga birinchi bog'langanda login javobida keladi; keyingi har login'da
+   * `X-Device-Secret` bilan yuboriladi (kimdir faqat X-Device-Id'ni nusxalasa — kira olmaydi). Logout'da saqlanadi
+   * (qurilma bog'langanligicha qoladi); admin qurilmani olib tashlasa (DEVICE_REMOVED) — o'chiriladi.
+   */
+  getDeviceSecret(): string | null {
+    if (!isBrowser()) return null;
+    try {
+      return window.localStorage.getItem(DEVICE_SECRET_KEY);
+    } catch {
+      return null;
+    }
+  },
+  setDeviceSecret(secret: string | null) {
+    if (!isBrowser()) return;
+    try {
+      if (secret) window.localStorage.setItem(DEVICE_SECRET_KEY, secret);
+      else window.localStorage.removeItem(DEVICE_SECRET_KEY);
+    } catch {
+      /* saqlab bo'lmadi */
+    }
   },
 };

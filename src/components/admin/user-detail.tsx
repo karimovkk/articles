@@ -9,6 +9,7 @@ import { shortAgent } from "@/lib/agent";
 import { useEntityNames } from "@/lib/admin-names";
 import { useAsync } from "@/lib/use-async";
 import { useAdminCrumb } from "./admin-shell";
+import { UserDevicesCard } from "./user-devices";
 import { useT } from "@/i18n";
 
 export function AdminUserDetail({ userId }: { userId: string }) {
@@ -133,6 +134,8 @@ export function AdminUserDetail({ userId }: { userId: string }) {
               ))}
           </div>
         </Card>
+
+        <UserDevicesCard userId={user.id} />
 
         <Card
           title={t("admin.users.sessions", { n: sessions.length })}

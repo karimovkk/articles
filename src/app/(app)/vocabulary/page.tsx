@@ -302,10 +302,12 @@ export default function VocabularyPage() {
                 <span className="vocab-date">{formatDate(v.createdAt)}</span>
               </p>
               <div className="vocab-actions">
-                <Link href={pdfHref(v)} className={buttonClass("primary", "sm")} data-testid="vocab-open-pdf">
-                  <I.BookOpen size={14} />
-                  {t("vocab.openInPdf")}
-                </Link>
+                {v.articleId && (
+                  <Link href={pdfHref(v)} className={buttonClass("primary", "sm")} data-testid="vocab-open-pdf">
+                    <I.BookOpen size={14} />
+                    {t("vocab.openInPdf")}
+                  </Link>
+                )}
                 <button type="button" className={buttonClass(v.learned ? "ghost" : "secondary", "sm")} onClick={() => void toggleLearned(v)} data-testid="vocab-learned">
                   {v.learned ? <I.RotateCcw size={14} /> : <I.Check size={14} />}
                   {t(v.learned ? "vocab.markLearning" : "vocab.markLearned")}
