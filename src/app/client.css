@@ -2302,3 +2302,33 @@
   font-size: 12px;
   color: var(--muted);
 }
+
+/* Savatdagi kitobning alohida ochiq buyurtmasi bor — buyurtma hisobiga kirmaydi, sababi va yechimi yoziladi */
+.cart-item.has-order {
+  align-items: start;
+  border-color: color-mix(in srgb, var(--warning) 45%, var(--border));
+}
+.cart-item.has-order .cart-item-price {
+  opacity: 0.55;
+}
+.cart-item-order {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--warning) 10%, transparent);
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text-2);
+}
+.cart-item-order p {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+.cart-item-order p svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--warning);
+}

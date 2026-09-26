@@ -114,7 +114,7 @@ export function CatalogBookDetail({ bookId }: { bookId: string }) {
               </div>
             ) : (
               <>
-                <OrderPanel bookId={item.book_id} />
+                <OrderPanel bookId={item.book_id} cartBook={{ book_id: item.book_id, title: item.title, author: item.author, price: item.price, has_cover: item.has_cover }} />
                 {/* 35: savatcha — bir nechta kitob birga olinsa arzonroq */}
                 {pricing && Number(item.price) > 0 && (
                   <div className="book-cart-row" data-testid="book-cart">

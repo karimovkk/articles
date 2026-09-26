@@ -4,7 +4,9 @@
  * Savatcha (35.3): kitoblar (asl narx ustidan chizilgan + chegirmali narx), narx zinapoyasi va keyingi pog'ona
  * maslahati, xulosa (server hisobi — `POST /orders/quote`), tavsiya kitoblar; "Buyurtma berish" →
  * `POST /orders/checkout` → bitta buyurtma → to'lov rekvizitlari + chek yuborish → holat kuzatiladi.
- * Kutubxonadagi yoki ochiq buyurtmadagi kitoblar savatdan avtomatik olib tashlanadi.
+ * Kutubxonadagi kitoblar savatdan avtomatik olib tashlanadi. Alohida ochiq buyurtmasi bor kitob esa savatda qoladi
+ * (jim o'chirilmaydi): sababi yoziladi, buyurtma hisobiga kirmaydi; bitta kitobli, to'lanmagan buyurtmani shu yerda
+ * bekor qilib, kitobni savatdagi chegirma bilan olish mumkin.
  */
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -37,30 +39,58 @@ export default function CartPage() {
   const [created, setCreated] = useState<Order | null>(null);
   const [suggest, setSuggest] = useState<CatalogItem[]>([]);
   const [ownedIds, setOwnedIds] = useState<Set<string>>(() => new Set());
+  // Savatdagi kitob → uning alohida ochiq buyurtmasi (PENDING / AWAITING_REVIEW)
+  const [openOrders, setOpenOrders] = useState<Map<string, Order>>(() => new Map());
+  const [ordersNonce, setOrdersNonce] = useState(0);
+  const [cancelling, setCancelling] = useState<string | null>(null);
 
-  const ids = useMemo(() => items.map((i) => i.book_id), [items]);
+  const allIds = useMemo(() => items.map((i) => i.book_id), [items]);
+  const allKey = allIds.join(",");
+  // Buyurtmaga kiradigan kitoblar — ochiq buyurtmasi borlari hisobga olinmaydi
+  const ids = useMemo(() => allIds.filter((id) => !openOrders.has(id)), [allIds, openOrders]);
   const key = ids.join(",");
 
-  // Kirgan foydalanuvchi: kutubxonadagi va ochiq buyurtmadagi kitoblar savatdan olib tashlanadi
+  // Kirgan foydalanuvchi: kutubxonadagi kitoblar savatdan olib tashlanadi; ochiq buyurtmadagilar belgilanadi
   const userId = user?.id;
   useEffect(() => {
-    if (!userId || !key) return;
+    if (!userId || !allKey) return;
     let alive = true;
     void Promise.all([loadOwnedBookIds().catch(() => new Set<string>()), ordersApi.mine().catch(() => [] as Order[])]).then(([owned, orders]) => {
       if (!alive) return;
       setOwnedIds(owned);
-      const current = key.split(",");
-      const ownedIds = current.filter((id) => owned.has(id));
-      const pendingIds = current.filter((id) => orders.some((o) => (o.status === "PENDING" || o.status === "AWAITING_REVIEW") && orderBookIds(o).includes(id)));
-      if (ownedIds.length || pendingIds.length) {
-        cart.removeMany([...ownedIds, ...pendingIds]);
-        setNotice(t(ownedIds.length ? "cart.ownedRemoved" : "cart.pendingRemoved"));
+      const current = allKey.split(",");
+      const ownedNow = current.filter((id) => owned.has(id));
+      const open = new Map<string, Order>();
+      for (const id of current) {
+        const o = orders.find((x) => (x.status === "PENDING" || x.status === "AWAITING_REVIEW") && orderBookIds(x).includes(id));
+        if (o && !owned.has(id)) open.set(id, o);
+      }
+      setOpenOrders(open);
+      if (ownedNow.length) {
+        cart.removeMany(ownedNow);
+        setNotice(t("cart.ownedRemoved"));
       }
     });
     return () => {
       alive = false;
     };
-  }, [userId, key, t]);
+  }, [userId, allKey, ordersNonce, t]);
+
+  /** Bitta kitobli, hali to'lanmagan alohida buyurtmani bekor qilish → kitob savatdagi chegirma bilan olinadi */
+  const cancelSeparate = async (o: Order) => {
+    const ok = await confirm({ title: t("orders.cancel"), message: t("cart.cancelSeparateConfirm"), confirmLabel: t("orders.cancel"), tone: "danger" });
+    if (!ok) return;
+    setCancelling(o.id);
+    setError(null);
+    try {
+      await ordersApi.cancel(o.id);
+      setOrdersNonce((n) => n + 1);
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setCancelling(null);
+    }
+  };
 
   // Server hisobi (yakuniy summa) — savatcha o'zgarganda
   useEffect(() => {
@@ -100,7 +130,7 @@ export default function CartPage() {
     };
   }, [cfg]);
 
-  const local = useMemo(() => (cfg ? quoteLocal(items.map((i) => ({ book_id: i.book_id, title: i.title, price: i.price })), cfg) : null), [items, cfg]);
+  const local = useMemo(() => (cfg ? quoteLocal(items.filter((i) => !openOrders.has(i.book_id)).map((i) => ({ book_id: i.book_id, title: i.title, price: i.price })), cfg) : null), [items, openOrders, cfg]);
   const quote = serverQuote && serverQuote.key === key ? serverQuote.quote : local;
   const unitOf = (id: string) => quote?.items.find((i) => i.book_id === id);
   const saved = Number(quote?.discount ?? 0);
@@ -117,10 +147,14 @@ export default function CartPage() {
     } catch (e) {
       // Konflikt — muammoli kitoblar savatdan olib tashlanadi, foydalanuvchi qayta bosadi
       const bad = isApiError(e) && Array.isArray((e.details as { book_ids?: unknown })?.book_ids) ? ((e.details as { book_ids: string[] }).book_ids ?? []) : [];
-      if (bad.length) {
+      const code = isApiError(e) ? e.code : "";
+      if (bad.length && code === "ORDER_ALREADY_PENDING") {
+        // Boshqa oynada alohida buyurtma ochilgan — kitoblar savatda qoladi, sababi bilan belgilanadi
+        setOrdersNonce((n) => n + 1);
+        setNotice(t("cart.pendingMarked"));
+      } else if (bad.length) {
         cart.removeMany(bad);
-        const code = isApiError(e) ? e.code : "";
-        setNotice(t(code === "ALREADY_HAS_ACCESS" ? "cart.ownedRemoved" : code === "BOOK_NOT_FOUND" ? "cart.unavailableRemoved" : "cart.pendingRemoved"));
+        setNotice(t(code === "ALREADY_HAS_ACCESS" ? "cart.ownedRemoved" : "cart.unavailableRemoved"));
       } else setError(errorMessage(e));
     } finally {
       setBusy(false);
@@ -221,8 +255,10 @@ export default function CartPage() {
             {items.map((it) => {
               const line = unitOf(it.book_id);
               const discounted = line && Number(line.unit_price) < Number(line.list_price);
+              const sep = openOrders.get(it.book_id);
+              const canCancel = sep?.status === "PENDING" && orderBookIds(sep).length === 1;
               return (
-                <li key={it.book_id} className="cart-item" data-testid="cart-item" data-book={it.book_id}>
+                <li key={it.book_id} className={cn("cart-item", sep && "has-order")} data-testid="cart-item" data-book={it.book_id} data-open-order={sep?.status}>
                   <Link href={`/catalog/${it.book_id}`} className="cart-item-cover" tabIndex={-1} aria-hidden>
                     <BookCover bookId={it.book_id} title={it.title} hasCover={it.has_cover} source="catalog" />
                   </Link>
@@ -241,6 +277,24 @@ export default function CartPage() {
                         <Price value={line?.unit_price ?? it.price} />
                       </strong>
                     </p>
+                    {sep && (
+                      <div className="cart-item-order" data-testid="cart-item-order">
+                        <p>
+                          <I.Info size={14} />
+                          <span>{sep.status === "PENDING" ? t("cart.separatePending") : t("cart.separateReview")}</span>
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {canCancel && (
+                            <Button size="sm" variant="secondary" loading={cancelling === sep.id} onClick={() => void cancelSeparate(sep)} data-testid="cart-cancel-separate">
+                              {t("cart.cancelSeparate")}
+                            </Button>
+                          )}
+                          <Link href={`/catalog/${it.book_id}`} className={buttonClass("ghost", "sm")}>
+                            {t("cart.viewOrder")}
+                          </Link>
+                        </div>
+                      </div>
+                    )}
                   </div>
                   <IconButton size="sm" variant="plain" label={t("cart.remove")} onClick={() => cart.remove(it.book_id)} data-testid="cart-remove">
                     <I.Trash size={16} />
@@ -307,7 +361,7 @@ export default function CartPage() {
           {authLoading ? (
             <Spinner />
           ) : user ? (
-            <Button className="w-full" size="lg" onClick={() => void checkout()} loading={busy} icon={<I.Check size={17} />} data-testid="cart-checkout">
+            <Button className="w-full" size="lg" onClick={() => void checkout()} loading={busy} disabled={!ids.length} icon={<I.Check size={17} />} data-testid="cart-checkout">
               {t("cart.checkout")}
             </Button>
           ) : (

@@ -7,9 +7,13 @@
  *   PENDING → to'lov rekvizitlari (`GET /payment-info`) + "To'ladim" (chek rasmi/PDF + izoh, multipart);
  *   AWAITING_REVIEW → kutish (chekni almashtirish mumkin), holat `GET /orders/{id}` bilan kuzatiladi;
  *   PENDING/AWAITING → "Bekor qilish" (CANCELLED); APPROVED → "Kitob kutubxonangizda"; REJECTED → sabab + qayta.
+ * Savatchada kitob bo'lsa (chegirma yoqilgan) — "Sotib olish" alohida buyurtma ochmaydi: kitob savatga qo'shilib,
+ * savatchaga o'tiladi (hammasi bitta buyurtmada, chegirma bilan). Aks holda alohida buyurtma savatdagi shu kitobni
+ * "ochiq buyurtmada" holatiga tushirib qo'yardi.
  */
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/providers/auth-provider";
 import { Alert, Button, Spinner, buttonClass, formatDate, useConfirm } from "@/components/ui";
 import * as I from "@/components/ui/icons";
@@ -22,9 +26,21 @@ import { clearOwnedBooks } from "@/lib/owned-books";
 import { Price } from "@/components/catalog/price";
 import { purchaseLink } from "@/lib/env";
 import { useT } from "@/i18n";
+import { cart, useCart, type CartItem } from "@/lib/cart";
+import { usePricing } from "@/lib/use-pricing";
+import { cartEligible } from "@/components/cart/cart-ui";
 
-export function OrderPanel({ bookId }: { bookId: string }) {
+export function OrderPanel({ bookId, cartBook }: { bookId: string; cartBook?: Omit<CartItem, "added_at"> }) {
   const { t } = useT();
+  const router = useRouter();
+  const pricing = usePricing();
+  const cartItems = useCart();
+  // Savatchada boshqa kitoblar bor (yoki shu kitob savatda) — xarid savatcha orqali
+  const viaCart = !!pricing && !!cartBook && cartEligible(cartBook) && cartItems.length > 0;
+  const buyViaCart = () => {
+    if (cartBook && !cartItems.some((i) => i.book_id === bookId)) cart.add(cartBook);
+    router.push("/cart");
+  };
   const confirm = useConfirm();
   const { user, loading } = useAuth();
   const [order, setOrder] = useState<Order | null | undefined>(undefined); // undefined = yuklanmoqda
@@ -108,7 +124,18 @@ export function OrderPanel({ bookId }: { bookId: string }) {
   if (loading || (user && order === undefined)) return <Spinner />;
   // Mehmon uchun `order` holati ishlatilmaydi (effekt ham ishga tushmaydi)
 
+  // Savatcha orqali xarid (mehmon ham — savatcha kirishsiz ishlaydi, buyurtma berishda login so'raladi)
+  const cartBuy = (
+    <div className="space-y-2" data-testid="buy-via-cart">
+      <Button onClick={buyViaCart} icon={<I.ShoppingBag size={16} />}>
+        {cartItems.some((i) => i.book_id === bookId) ? t("orders.goToCart") : t("orders.buyViaCart")}
+      </Button>
+      <p className="text-xs text-muted">{t("orders.cartHint", { n: cartItems.length })}</p>
+    </div>
+  );
+
   if (!user) {
+    if (viaCart) return cartBuy;
     return (
       <div className="space-y-2">
         <Link href={`/login?next=${encodeURIComponent(`/catalog/${bookId}`)}`} className={buttonClass()}>
@@ -139,7 +166,9 @@ export function OrderPanel({ bookId }: { bookId: string }) {
     <div className="space-y-3" data-testid="order-panel" data-status={order?.status ?? "NONE"}>
       {error && <Alert>{error}</Alert>}
       {notice && <Alert tone="success">{notice}</Alert>}
-      {!active ? (
+      {!active && viaCart && order?.status !== "REJECTED" ? (
+        cartBuy
+      ) : !active ? (
         <div className="space-y-2">
           {order?.status === "REJECTED" && (
             <Alert tone="danger">

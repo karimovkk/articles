@@ -889,6 +889,19 @@ Talab: tasdiqlanmagan va rad etilmagan buyurtmalar soni adminning ko'z oldida bo
       o'tish"; plitka ikkala holat bo'yicha taqsimot bilan (avval faqat AWAITING_REVIEW edi)
 - [x] 39.4 Ilova sidebar'ida "Admin" havolasi yonida ham son; e2e `admin` (son, tasdiqlagach kamayishi, yangi buyurtma)
 
+## 40. Savatcha: "Sotib olish" va savatdagi kitob o'chib ketishi (2026-09-26)
+
+Bug: savatchada kitoblar turganda kitob sahifasidagi "Sotib olish" shu kitobga **alohida** buyurtma ochardi; savatcha
+sahifasi esa ochiq buyurtmasi bor kitobni jim o'chirib, "Ochiq buyurtmadagi kitoblar savatdan olib tashlandi" deb
+yozardi — "Savatda" bosilganda ham kitob yo'qolib qolardi.
+
+- [x] 40.1 Savatcha bo'sh bo'lmasa kitob sahifasidagi xarid tugmasi — "Savatga qo'shib, buyurtma berish" (savatdagi
+      kitobda — "Savatchaga o'tish"): kitob savatga qo'shilib savatchaga o'tiladi, alohida buyurtma ochilmaydi (mehmon ham)
+- [x] 40.2 Savatcha: ochiq alohida buyurtmasi bor kitob o'chirilmaydi — sababi yoziladi, hisobga kirmaydi; bitta kitobli
+      to'lanmagan buyurtmani "Alohida buyurtmani bekor qilish" bilan bekor qilib, chegirmada olish; checkout
+      `ORDER_ALREADY_PENDING` ham o'chirmaydi, belgilaydi
+- [x] 40.3 e2e `cart`: xarid savatcha orqali, "Savatda" bosilganda o'chmaydi, alohida buyurtma belgisi va bekor qilish
+
 ## 31. Keyingi vazifalar
 
 - [ ] 31.1 Safari (WebKit): varaqlash rejimida oldingi sahifaga qaytilganda (3-sahifa) belgilash qatlami

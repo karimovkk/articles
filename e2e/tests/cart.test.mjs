@@ -2,7 +2,7 @@
 // saqlanadi; narx pog'onalari (1 — o'z narxi, 2 — 39 000, 3+ — 30 000), keyingi pog'ona maslahati, tejash; kutubxonadagi
 // kitob savatdan chiqariladi; "Buyurtma berish" → bitta buyurtma (items, subtotal, discount, amount); admin
 // tasdiqlasa hamma kitoblarga ruxsat; profilda ko'p kitobli buyurtma; telefon/planshet/TV'da gorizontal scroll yo'q.
-import { launch, BASE, API_HOST, reset, mockGet, ignorablePageError } from "../lib.mjs";
+import { launch, BASE, API, API_HOST, reset, mockGet, ignorablePageError, confirmDialog } from "../lib.mjs";
 import { mkdirSync } from "node:fs";
 const OUT = new URL("../out/", import.meta.url).pathname;
 mkdirSync(OUT, { recursive: true });
@@ -110,6 +110,50 @@ check("Kutubxonada 3 ta kitob (avvalgi + savatchadagi 2 ta)", (await page.locato
 await page.goto(`${BASE}/profile`);
 await page.waitForSelector('[data-testid="order-bundle"]', { timeout: 15000 });
 check("Profil: ko'p kitobli buyurtma (2 ta kitob, chegirma)", (await text('[data-testid="order-bundle"]')).includes("2 ta kitob"));
+
+// ---- Savatchada kitob bor → boshqa kitobning "Sotib olish"i alohida buyurtma ochmaydi: savatga qo'shib, savatchaga
+const kid = (n) => `22222222-2222-4222-8222-${String(n - 1).padStart(12, "0")}`; // "Kitob n"
+await page.goto(`${BASE}/catalog/${kid(7)}`);
+await page.waitForSelector('[data-testid="book-cart"] [data-testid="add-to-cart"]', { timeout: 15000 });
+await page.click('[data-testid="book-cart"] [data-testid="add-to-cart"]');
+await page.waitForSelector('[data-testid="buy-via-cart"]', { timeout: 5000 });
+check("Savatdagi kitob sahifasida: 'Savatchaga o'tish' (alohida buyurtma tugmasi yo'q)", ((await text('[data-testid="buy-via-cart"] button')) ?? "").includes("Savatchaga o'tish"));
+const ordersBefore = (await mockGet("/__orders")).length;
+await page.goto(`${BASE}/catalog/${kid(8)}`);
+await page.waitForSelector('[data-testid="buy-via-cart"]', { timeout: 15000 });
+check("Savatda boshqa kitob bor: 'Sotib olish' → 'Savatga qo'shib, buyurtma berish' + izoh", (await text('[data-testid="buy-via-cart"]')).includes("Savatga qo'shib") && (await text('[data-testid="buy-via-cart"]')).includes("1 ta kitob"));
+await page.click('[data-testid="buy-via-cart"] button');
+await page.waitForURL(`${BASE}/cart`, { timeout: 10000 });
+await page.waitForFunction(() => document.querySelectorAll('[data-testid="cart-item"]').length === 2, null, { timeout: 8000 });
+check("Savatchaga o'tdi: 2 ta kitob, alohida buyurtma ochilmadi", (await mockGet("/__orders")).length === ordersBefore);
+// "Savatda" tugmasi bosilsa — kitob savatdan o'chmaydi
+await page.goto(`${BASE}/catalog`);
+await page.waitForSelector('[data-testid="in-cart"]', { timeout: 15000 });
+await page.locator('[data-testid="in-cart"]').first().click();
+await page.waitForURL(`${BASE}/cart`);
+await page.waitForSelector('[data-testid="cart-item"]');
+await page.waitForTimeout(800);
+check("'Savatda' bosildi → savatcha, kitoblar joyida (2 ta)", (await page.locator('[data-testid="cart-item"]').count()) === 2);
+
+// ---- Savatdagi kitobga alohida ochiq buyurtma bor (boshqa oynada ochilgan) — jim o'chirilmaydi, sababi va yechimi
+const sep = await (await fetch(`${API}/orders`, { method: "POST", headers: { Authorization: "Bearer access-token-1", "Content-Type": "application/json" }, body: JSON.stringify({ book_id: kid(9) }) })).json();
+await page.evaluate((id) => {
+  const items = JSON.parse(localStorage.getItem("a365.cart") ?? "[]");
+  items.push({ book_id: id, title: "Kitob 9", author: null, price: "49000.00", has_cover: false, added_at: new Date().toISOString() });
+  localStorage.setItem("a365.cart", JSON.stringify(items));
+}, kid(9));
+await page.reload();
+await page.waitForSelector(`[data-testid="cart-item"][data-book="${kid(9)}"] [data-testid="cart-item-order"]`, { timeout: 10000 });
+check("Ochiq buyurtmadagi kitob savatda qoldi, sababi yozildi", (await page.locator('[data-testid="cart-item"]').count()) === 3 && (await text(`[data-testid="cart-item"][data-book="${kid(9)}"] [data-testid="cart-item-order"]`)).includes("alohida buyurtma"));
+await page.waitForFunction(() => document.querySelector('[data-testid="cart-total"]')?.textContent.startsWith("78"), null, { timeout: 5000 });
+check("U buyurtma hisobiga kirmaydi: 2 ta kitob, jami 78 000", true);
+await page.screenshot({ path: OUT + "43-cart-separate-order.png", fullPage: true });
+await page.click('[data-testid="cart-cancel-separate"]');
+await confirmDialog(page);
+await page.waitForFunction(() => !document.querySelector('[data-testid="cart-item-order"]'), null, { timeout: 8000 });
+await page.waitForFunction(() => document.querySelector('[data-testid="cart-total"]')?.textContent.startsWith("90"), null, { timeout: 5000 });
+check("Alohida buyurtma bekor qilindi → kitob savatdagi buyurtmaga qo'shildi (3 ta, 90 000)", (await mockGet("/__orders")).find((o) => o.id === sep.id)?.status === "CANCELLED");
+await page.evaluate(() => localStorage.setItem("a365.cart", "[]"));
 
 // ---- Responsive: to'la savatcha
 await page.goto(`${BASE}/catalog`);
