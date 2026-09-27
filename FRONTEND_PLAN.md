@@ -902,6 +902,18 @@ yozardi — "Savatda" bosilganda ham kitob yo'qolib qolardi.
       `ORDER_ALREADY_PENDING` ham o'chirmaydi, belgilaydi
 - [x] 40.3 e2e `cart`: xarid savatcha orqali, "Savatda" bosilganda o'chmaydi, alohida buyurtma belgisi va bekor qilish
 
+## 41. Lug'atga avtomatik tarjima — Google Translate (2026-09-27)
+
+Backend: `POST /translate` (Google Cloud Translation v2, kesh, limitlar) — tayyor, prod'da hozir `TRANSLATE_ENABLED=false`
+(503) — kalit ulanganda o'zi ishlaydi. Manba: `Articles365_Frontend_Vazifa_Avto_Tarjima_v1.0.md`.
+
+- [x] 41.1 `lib/api/translate.ts`: xatoda `null`; `503 TRANSLATE_UNAVAILABLE/QUOTA_EXCEEDED` (yoki 404) → shu sessiyada
+      qayta so'ralmaydi
+- [x] 41.2 Lug'at oynasi (reader, yangi so'z): ochilishi bilan tarjima interfeys tiliga (uz/ru/en), "Tarjima qilinmoqda…",
+      "Google tarjimasi" belgisi; foydalanuvchi yozgani bosib ketilmaydi; dublikatda so'ralmaydi; bir xil til → bo'sh
+- [x] 41.3 "Tarjima qilish" tugmasi (reader va lug'at sahifasidagi tahrirlash) — joriy so'zni qo'lda tarjima
+- [x] 41.4 Mock `/translate` (standart o'chiq, `/__translate?on=1&ms=`) + e2e `translate`
+
 ## 31. Keyingi vazifalar
 
 - [ ] 31.1 Safari (WebKit): varaqlash rejimida oldingi sahifaga qaytilganda (3-sahifa) belgilash qatlami

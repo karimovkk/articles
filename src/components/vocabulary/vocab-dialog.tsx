@@ -3,11 +3,14 @@
 /**
  * Lug'at oynasi (33.2, 33.4): reader'dan yangi so'z qo'shish va lug'at sahifasida tahrirlash — bitta forma.
  * So'z majburiy, tarjima va kontekst ixtiyoriy. Dublikat bo'lsa ogohlantiradi (saqlash — tarjimani yangilaydi).
+ * 41: `autoTranslate` — oyna ochilishi bilan tarjima `POST /translate` dan so'raladi (interfeys tiliga); foydalanuvchi
+ * bu orada o'zi yozsa, kelgan tarjima uni bosib ketmaydi. "Tarjima qilish" tugmasi — joriy so'zni qo'lda tarjima.
+ * Tarjima ishlamasa (backend o'chiq/xato) — forma odatdagidek ishlaydi.
  */
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Alert, Button, Field, Input, Modal, Textarea } from "@/components/ui";
 import * as I from "@/components/ui/icons";
-import { VOCAB_TRANSLATION_MAX, VOCAB_WORD_MAX } from "@/lib/api";
+import { translateApi, VOCAB_TRANSLATION_MAX, VOCAB_WORD_MAX } from "@/lib/api";
 import { useT } from "@/i18n";
 
 export interface VocabFormValues {
@@ -21,6 +24,7 @@ export function VocabDialog({
   mode,
   initial,
   duplicate,
+  autoTranslate,
   onSave,
   onClose,
 }: {
@@ -29,20 +33,51 @@ export function VocabDialog({
   initial: VocabFormValues;
   /** Shu maqoladan bu so'z allaqachon lug'atda */
   duplicate?: boolean;
+  /** Tarjima bo'sh bo'lsa — ochilganda avtomatik tarjima (reader'dan yangi so'z; dublikatda emas) */
+  autoTranslate?: boolean;
   onSave: (v: VocabFormValues) => Promise<void>;
   onClose: () => void;
 }) {
-  const { t } = useT();
+  const { t, locale } = useT();
   const [values, setValues] = useState(initial);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // 41: avtomatik tarjima holati; `fromGoogle` — maydondagi matn Google'dan (foydalanuvchi o'zgartirmagan)
+  const [translating, setTranslating] = useState(false);
+  const [fromGoogle, setFromGoogle] = useState(false);
+  const touched = useRef(false); // foydalanuvchi tarjima maydoniga yozdi — avtomatik natija uni bosmaydi
+  const reqId = useRef(0);
   // Oyna yangi so'z bilan qayta ochilsa — forma boshlang'ich qiymatga qaytadi (render fazasida)
   const [seen, setSeen] = useState(initial);
   if (initial !== seen) {
     setSeen(initial);
     setValues(initial);
     setError(null);
+    setFromGoogle(false);
+    setTranslating(false);
   }
+
+  const runTranslate = (word: string, force: boolean) => {
+    const id = ++reqId.current;
+    setTranslating(true);
+    void translateApi.translate(word, locale).then((tr) => {
+      if (id !== reqId.current) return; // eskirgan javob (boshqa so'z / oyna yopildi)
+      setTranslating(false);
+      if (!tr || (!force && touched.current)) return;
+      setValues((v) => (force || !v.translation.trim() ? { ...v, translation: tr.slice(0, VOCAB_TRANSLATION_MAX) } : v));
+      setFromGoogle(true);
+    });
+  };
+
+  // Ochilganda: tarjima bo'sh bo'lsa — avtomatik
+  useEffect(() => {
+    touched.current = false;
+    reqId.current++;
+    if (!open || !autoTranslate || initial.translation.trim() || !initial.word.trim() || !translateApi.enabled()) return;
+    const id = reqId.current;
+    queueMicrotask(() => id === reqId.current && runTranslate(initial.word, false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- faqat yangi so'z/oyna ochilganda
+  }, [open, initial, autoTranslate]);
 
   const submit = async (e?: FormEvent) => {
     e?.preventDefault();
@@ -90,16 +125,45 @@ export function VocabDialog({
         <Field label={t("vocab.word")}>
           <Input value={values.word} maxLength={VOCAB_WORD_MAX} onChange={(e) => setValues((v) => ({ ...v, word: e.target.value }))} data-testid="vocab-word" autoComplete="off" required />
         </Field>
-        <Field label={t("vocab.translation")} hint={t("vocab.translationHint")}>
-          <Input
-            value={values.translation}
-            maxLength={VOCAB_TRANSLATION_MAX}
-            placeholder={t("vocab.translationPlaceholder")}
-            onChange={(e) => setValues((v) => ({ ...v, translation: e.target.value }))}
-            data-testid="vocab-translation"
-            autoComplete="off"
-            autoFocus
-          />
+        <Field label={t("vocab.translation")} hint={fromGoogle ? undefined : t("vocab.translationHint")}>
+          <div className="vocab-tr">
+            <Input
+              value={values.translation}
+              maxLength={VOCAB_TRANSLATION_MAX}
+              placeholder={translating ? t("vocab.translating") : t("vocab.translationPlaceholder")}
+              onChange={(e) => {
+                touched.current = true;
+                setFromGoogle(false);
+                setValues((v) => ({ ...v, translation: e.target.value }));
+              }}
+              data-testid="vocab-translation"
+              data-state={translating ? "loading" : fromGoogle ? "auto" : undefined}
+              autoComplete="off"
+              autoFocus
+            />
+            {translateApi.enabled() && (
+              <Button
+                type="button"
+                variant="soft"
+                size="sm"
+                loading={translating}
+                disabled={!values.word.trim()}
+                onClick={() => runTranslate(values.word, true)}
+                title={t("vocab.translateNow")}
+                aria-label={t("vocab.translateNow")}
+                icon={<I.Languages size={15} />}
+                data-testid="vocab-translate"
+              >
+                <span className="max-sm:hidden">{t("vocab.translateNow")}</span>
+              </Button>
+            )}
+          </div>
+          {fromGoogle && (
+            <p className="vocab-tr-badge" data-testid="vocab-auto-badge">
+              <I.Sparkles size={12} />
+              {t("vocab.autoTranslated")}
+            </p>
+          )}
         </Field>
         <Field label={t("vocab.context")}>
           <Textarea rows={3} value={values.context} maxLength={500} onChange={(e) => setValues((v) => ({ ...v, context: e.target.value }))} data-testid="vocab-context" />

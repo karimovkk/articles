@@ -65,6 +65,11 @@ let deviceLimitOn = false;
 let deviceRemovedOnRefresh = false; // /__device-removed?on=1 — refresh → 401 DEVICE_REMOVED
 // 38: lug'at (`/me/vocabulary`, BACKEND_TASKS.md 1-qism)
 let vocab = [];
+// 41: avtomatik tarjima (`POST /translate`) — jonli saytdagidek standart o'chiq (503); `/__translate?on=1[&ms=..]`
+let translateOn = false;
+let translateDelay = 0;
+const translateLog = [];
+const TR = { uz: { quick: "tez", brown: "jigarrang", fox: "tulki", dog: "it", lazy: "dangasa" }, ru: { quick: "быстрый", fox: "лиса", dog: "собака" }, en: {} };
 const normWord = (w) => String(w ?? "").toLocaleLowerCase().replace(/[‘’ʻʼ`]/g, "'").replace(/^[\s"'«»“”.,;:!?()[\]{}—–-]+|[\s"'«»“”.,;:!?()[\]{}—–-]+$/g, "").replace(/\s+/g, " ");
 const DEVICE_LIMIT = 2;
 const activeDevices = (userId) => devices.filter((d) => d.user === userId && !d.removed_at);
@@ -88,6 +93,9 @@ function reset(opts = {}) {
   deviceLimitOn = false;
   deviceRemovedOnRefresh = false;
   vocab = [];
+  translateOn = false;
+  translateDelay = 0;
+  translateLog.length = 0;
   books = withFree(freshBooks());
   articles = freshArticles();
   access = [{ id: "acc-1", user_id: USER.id, book_id: BOOK_ID, status: "ACTIVE", granted_at: now(), granted_by_admin_id: ADMIN.id, revoked_at: null, revoked_by_admin_id: null, created_at: now(), updated_at: now() }];
@@ -183,6 +191,8 @@ createServer(async (req, res) => {
   if (path === "/__devicelimit") { deviceLimitOn = q.get("on") === "1"; return json(res, 200, { deviceLimitOn }); }
   if (path === "/__device-removed") { deviceRemovedOnRefresh = q.get("on") === "1"; return json(res, 200, { deviceRemovedOnRefresh }); }
   if (path === "/__vocab") return json(res, 200, vocab);
+  if (path === "/__translate") { translateOn = q.get("on") === "1"; translateDelay = Number(q.get("ms") ?? 0); return json(res, 200, { translateOn, translateDelay }); }
+  if (path === "/__translate-log") return json(res, 200, translateLog);
   if (path === "/__annotations") return json(res, 200, annotations);
   if (path === "/__progress") return json(res, 200, progress);
   if (path === "/__uploads") return json(res, 200, uploads);
@@ -372,6 +382,19 @@ createServer(async (req, res) => {
       if (m === "PATCH") { const b = await readBody(req); Object.assign(x, b, { updated_at: now() }); const { _user, ...out } = x; return json(res, 200, out); }
       if (m === "DELETE") { annotations = annotations.filter((y) => y.id !== x.id); return json(res, 200, { message: "Annotation deleted" }); }
     }
+  }
+
+  // ---- 41: avtomatik tarjima
+  if (path === "/translate" && m === "POST") {
+    const b = await readBody(req);
+    translateLog.push(b);
+    if (!translateOn) return err(res, 503, "TRANSLATE_UNAVAILABLE", "Translation is not configured");
+    const text = String(b.text ?? "").trim(); const target = b.target_lang ?? "uz";
+    if (!text || text.length > 200 || !["uz", "ru", "en"].includes(target)) return err(res, 422, "VALIDATION_ERROR", "Validation failed", [{ loc: ["body", "text"], msg: "Invalid" }]);
+    if (translateDelay) await new Promise((r) => setTimeout(r, translateDelay));
+    const same = /^(salom|kitob)$/i.test(text) && target === "uz";
+    const tr = same ? null : (TR[target][normWord(text)] ?? `${text} (${target})`);
+    return json(res, 200, { text, translation: tr, detected_source_lang: same ? "uz" : "en", target_lang: target, same_language: same, provider: "google", cached: false });
   }
 
   // ---- 38: bog'langan qurilmalar

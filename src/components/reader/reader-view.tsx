@@ -860,6 +860,7 @@ export function ReaderView({ articleId }: { articleId: string }) {
               mode={vocabDraft?.mode ?? "add"}
               initial={vocabDraft?.values ?? EMPTY_VOCAB}
               duplicate={vocabDraft?.mode === "add" && !!vocabDraft.existing}
+              autoTranslate={vocabDraft?.mode === "add" && !vocabDraft.existing}
               onSave={saveVocab}
               onClose={() => setVocabDraft(null)}
             />
