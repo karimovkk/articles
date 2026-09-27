@@ -4,8 +4,8 @@ import { LOCALES, useT } from "@/i18n";
 import { Menu, MenuItem, cn } from "@/components/ui";
 import { Flag } from "@/components/ui/flags";
 
-/** Til tanlash — segment (auth sahifalari) yoki qo'lbola menyu (header). */
-export function LocaleSwitcher({ className, variant = "seg" }: { className?: string; variant?: "seg" | "menu" }) {
+/** Til tanlash — segment (auth sahifalari) yoki qo'lbola menyu (header). `compact` — telefonda faqat bayroq (reader). */
+export function LocaleSwitcher({ className, variant = "seg", compact }: { className?: string; variant?: "seg" | "menu"; compact?: boolean }) {
   const { locale, setLocale, t } = useT();
   if (variant === "menu") {
     return (
@@ -16,7 +16,7 @@ export function LocaleSwitcher({ className, variant = "seg" }: { className?: str
         trigger={(p) => (
           <button {...p} type="button" className={cn("btn ghost sm", className)} aria-label={t("common.language")} data-testid="locale-menu">
             <Flag locale={locale} size={20} />
-            <span className="uppercase">{locale}</span>
+            <span className={cn("uppercase", compact && "max-sm:hidden")}>{locale}</span>
           </button>
         )}
       >

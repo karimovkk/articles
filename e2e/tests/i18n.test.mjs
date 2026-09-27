@@ -102,6 +102,32 @@ await page.reload();
 await page.waitForFunction(() => document.querySelector('[data-page="1"] canvas')?.width > 0, null, { timeout: 20000 });
 check("uz: reader qayta ochilganda o'zbekcha", (await has("Scroll")) && (await lang()) === "uz");
 
+// ---- Reader ichida til almashtirish (toolbar menyusi) — darhol, qayta yuklamasdan; joy (bet) saqlanadi
+await page.fill('input[aria-label="Sahifa"]', "3");
+await page.press('input[aria-label="Sahifa"]', "Enter");
+await page.waitForTimeout(600);
+await page.click('[data-testid="locale-menu"]');
+await page.click('[data-testid="locale-en"]');
+await page.waitForFunction(() => document.documentElement.lang === "en", null, { timeout: 5000 });
+check("Reader toolbar'dan en: darhol inglizcha, bet o'zgarmadi (3)", (await has("Scroll")) && (await page.inputValue('input[aria-label="Page"]')) === "3" && (await page.locator('[data-page="1"] canvas').count()) > 0);
+const bars = [];
+for (const [w, h] of [[320, 640], [360, 740], [768, 1024], [1280, 800]]) {
+  await page.setViewportSize({ width: w, height: h });
+  await page.waitForTimeout(250);
+  const r = await page.evaluate(() => {
+    const hd = document.querySelector("header");
+    const btn = document.querySelector('[data-testid="locale-menu"]').getBoundingClientRect();
+    return { sw: document.documentElement.scrollWidth - innerWidth, hsw: hd.scrollWidth - hd.clientWidth, btnIn: btn.right <= innerWidth && btn.width > 0 };
+  });
+  if (r.sw > 1 || r.hsw > 1 || !r.btnIn) bars.push(`${w}: ${JSON.stringify(r)}`);
+  if (w === 320) await page.screenshot({ path: OUT + "23-reader-locale-320.png" });
+}
+check("Reader toolbar 320–1280px: til tugmasi ko'rinadi, gorizontal toshish yo'q", bars.length === 0, bars.join(" | "));
+await page.setViewportSize({ width: 1280, height: 800 });
+await page.click('[data-testid="locale-menu"]');
+await page.click('[data-testid="locale-uz"]');
+await page.waitForFunction(() => document.documentElement.lang === "uz", null, { timeout: 5000 });
+
 // ---- Admin (en): logout → admin login → en
 await page.goto(`${BASE}/library`);
 await page.click('header [data-testid="user-menu"]');

@@ -35,6 +35,7 @@ import {
 import { HIGHLIGHT_COLORS, getHighlightRects, normalizeColor, overlappingHighlight, sameRects, type HighlightRect } from "@/lib/reader/highlights";
 import { VocabDialog, type VocabFormValues } from "@/components/vocabulary/vocab-dialog";
 import { canSpeak, speak } from "@/components/vocabulary/speak";
+import { LocaleSwitcher } from "@/i18n/locale-switcher";
 import { useT } from "@/i18n";
 import * as I from "@/components/ui/icons";
 import { PdfViewer, type PdfViewerHandle, type TextSelection, type ViewMode } from "./pdf-viewer";
@@ -621,10 +622,10 @@ export function ReaderView({ articleId }: { articleId: string }) {
         {/* Toolbar */}
         {/* 23.6: ≤420px — sarlavha ikkinchi qatorga tushadi (toolbar tor bo'lib qolmasin) */}
         <header className="z-30 flex shrink-0 flex-wrap items-center gap-1 border-b border-border bg-surface px-1.5 py-1.5 text-text sm:h-14 sm:flex-nowrap sm:gap-1.5 sm:py-0 sm:px-3">
-          <Link href={guest ? `/catalog/${meta.book_id}` : `/books/${meta.book_id}`} className="icon-btn plain" title={t("reader.backToBook")} aria-label={t("reader.backToBook")}>
+          <Link href={guest ? `/catalog/${meta.book_id}` : `/books/${meta.book_id}`} className="icon-btn plain max-[380px]:!size-8" title={t("reader.backToBook")} aria-label={t("reader.backToBook")}>
             <I.ArrowLeft size={18} />
           </Link>
-          <button type="button" onClick={() => setSidebarOpen((s) => !s)} className={cn("icon-btn plain", sidebarOpen && "bg-surface-2 text-text")} title={t("reader.panel")} aria-label={t("reader.panel")} aria-pressed={sidebarOpen}>
+          <button type="button" onClick={() => setSidebarOpen((s) => !s)} className={cn("icon-btn plain max-[380px]:!size-8", sidebarOpen && "bg-surface-2 text-text")} title={t("reader.panel")} aria-label={t("reader.panel")} aria-pressed={sidebarOpen}>
             <I.PanelLeft size={18} />
           </button>
           <div className="min-w-0 flex-1 pl-1 max-[420px]:order-last max-[420px]:w-full max-[420px]:basis-full max-[420px]:pb-0.5">
@@ -692,7 +693,9 @@ export function ReaderView({ articleId }: { articleId: string }) {
             {shownMode === "scroll" ? <I.Rows size={16} /> : shownMode === "page" ? <I.Columns size={16} /> : <I.BookOpen size={16} />}
             <span className="hidden sm:inline">{t(shownMode === "scroll" ? "reader.modeScroll" : shownMode === "page" ? "reader.modePage" : "reader.modeSpread")}</span>
           </button>
-          <button type="button" onClick={toggleNight} className="icon-btn plain" title={night ? t("theme.light") : t("theme.dark")} aria-label={night ? t("theme.light") : t("theme.dark")}>
+          {/* O'qish paytida ham til almashtiriladi (interfeys va avtomatik tarjima tili) */}
+          <LocaleSwitcher variant="menu" compact className="max-sm:!px-1.5 max-[380px]:!px-1" />
+          <button type="button" onClick={toggleNight} className="icon-btn plain max-[380px]:!size-8" title={night ? t("theme.light") : t("theme.dark")} aria-label={night ? t("theme.light") : t("theme.dark")}>
             {night ? <I.Sun size={18} /> : <I.Moon size={18} />}
           </button>
           <button

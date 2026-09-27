@@ -918,6 +918,13 @@ Backend: `POST /translate` (Google Cloud Translation v2, kesh, limitlar) — tay
 - [x] 41.6 O'zbekcha interfeys: o'zbekcha tarjima bo'lmasa (502) — **ruscha** yoziladi, izoh "o'chirib, o'zbekchasini
       o'zingiz yozishingiz mumkin" (mahsulot qarori); backend uz'ni qo'llay boshlasa (Google) — o'zbekcha o'zi qaytadi
 
+## 42. Kitob o'qilayotganda ham til almashtirish (2026-09-27)
+
+- [x] 42.1 Reader toolbar'iga til menyusi (bayroq; telefonda faqat bayroq) — darhol, sahifani qayta yuklamasdan, joy
+      (bet) saqlanadi; avtomatik tarjima tili ham shunga qarab o'zgaradi
+- [x] 42.2 ≤380px'da toolbar tugmalari 32px — 320px'da hammasi bitta qatorda (oy tugmasi alohida qatorga tushmaydi)
+- [x] 42.3 e2e `i18n`: reader'da en ga o'tish (bet 3 saqlanadi), 320/360/768/1280 — toshish yo'q
+
 ## 31. Keyingi vazifalar
 
 - [ ] 31.1 Safari (WebKit): varaqlash rejimida oldingi sahifaga qaytilganda (3-sahifa) belgilash qatlami
