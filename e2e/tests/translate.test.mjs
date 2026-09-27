@@ -1,7 +1,8 @@
 // 41 — Lug'atga avtomatik tarjima (`POST /translate`, backend Google orqali): backend o'chiq (503) bo'lsa jim va shu
 // sessiyada qayta so'ralmaydi, so'z qo'shish ishlayveradi; yoqilgach oyna ochilishi bilan tarjima to'ladi ("Google
 // tarjimasi" belgisi), foydalanuvchi yozgani bosib ketilmaydi, dublikatda so'ralmaydi, interfeys tili (ru) yuboriladi,
-// bir xil til → bo'sh, "Tarjima qilish" tugmasi joriy so'zni tarjima qiladi; telefon o'lchamida sig'adi.
+// bir xil til → bo'sh, "Tarjima qilish" tugmasi joriy so'zni tarjima qiladi; provayder uz'ni qo'llamasa (LibreTranslate,
+// 502) — o'zbekcha interfeysda ruscha tarjima yoziladi (foydalanuvchi o'zbekchasini o'zi yozadi); telefonda sig'adi.
 import { launch, BASE, API_HOST, reset, mockGet, ignorablePageError } from "../lib.mjs";
 import { mkdirSync } from "node:fs";
 const ART = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
@@ -122,6 +123,33 @@ await page.click('[data-testid="vocab-translate"]');
 await page.waitForTimeout(700);
 check("Bir xil til (o'zbekcha → uz): maydon bo'sh qoladi", (await trValue()) === "");
 await closeDialog();
+await page.context().close();
+
+// ---- 3) LibreTranslate (prod'dagi provayder): uz qo'llanmaydi (502) → o'zbekcha interfeysda ruscha tarjima yoziladi;
+// ikki marta 502 dan keyin uz so'ralmaydi, to'g'ridan-to'g'ri ru
+await fetch(`${API_HOST}/__translate?on=1&nouz=1`);
+page = await openReader();
+const n0 = (await trLog()).length;
+await openDialog("fox");
+await page.waitForFunction(() => document.querySelector('[data-testid="vocab-translation"]')?.value === "лиса", null, { timeout: 5000 });
+const l1 = (await trLog()).slice(n0).map((x) => x.target_lang).join(",");
+check("uz → 502 → ruscha tarjima yozildi (fox → лиса), so'rovlar: uz, ru", l1 === "uz,ru", l1);
+check("Izoh: 'Avtomatik tarjima ruscha — o'zbekchasini o'zingiz yozishingiz mumkin'", ((await page.textContent('[data-testid="vocab-auto-badge"]')) ?? "").includes("ruscha"));
+await page.screenshot({ path: OUT + "72-vocab-auto-translate-ru-fallback.png" });
+await closeDialog();
+await openDialog("dog");
+await page.waitForFunction(() => document.querySelector('[data-testid="vocab-translation"]')?.value === "собака", null, { timeout: 5000 });
+await closeDialog();
+const n1 = (await trLog()).length;
+await openDialog("lazy");
+await page.waitForFunction(() => document.querySelector('[data-testid="vocab-translation"]')?.value !== "", null, { timeout: 5000 });
+const l3 = (await trLog()).slice(n1).map((x) => x.target_lang).join(",");
+check("uz ikki marta 502 → endi faqat ru so'raladi, 'Tarjima qilish' ko'rinadi", l3 === "ru" && (await page.locator('[data-testid="vocab-translate"]').count()) === 1, l3);
+await page.fill('[data-testid="vocab-translation"]', "dangasa");
+check("Foydalanuvchi ruschani o'chirib o'zbekcha yozdi — izoh yo'qoldi", (await page.locator('[data-testid="vocab-auto-badge"]').count()) === 0);
+await page.click('[data-testid="vocab-save"]');
+await page.waitForSelector('[data-testid="vocab-dialog"]', { state: "detached", timeout: 5000 });
+check("Saqlandi — foydalanuvchining o'zbekcha tarjimasi bilan", (await mockGet("/__vocab")).some((v) => v.word === "lazy" && v.translation === "dangasa"));
 await page.context().close();
 
 // ---- 3) Interfeys tili ru → target_lang ru; telefon o'lchamida oyna sig'adi

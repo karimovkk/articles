@@ -68,6 +68,7 @@ let vocab = [];
 // 41: avtomatik tarjima (`POST /translate`) — jonli saytdagidek standart o'chiq (503); `/__translate?on=1[&ms=..]`
 let translateOn = false;
 let translateDelay = 0;
+let translateNoUz = false; // LibreTranslate (prod'dagi provayder) o'zbek tilini qo'llamaydi → uz uchun 502
 const translateLog = [];
 const TR = { uz: { quick: "tez", brown: "jigarrang", fox: "tulki", dog: "it", lazy: "dangasa" }, ru: { quick: "быстрый", fox: "лиса", dog: "собака" }, en: {} };
 const normWord = (w) => String(w ?? "").toLocaleLowerCase().replace(/[‘’ʻʼ`]/g, "'").replace(/^[\s"'«»“”.,;:!?()[\]{}—–-]+|[\s"'«»“”.,;:!?()[\]{}—–-]+$/g, "").replace(/\s+/g, " ");
@@ -95,6 +96,7 @@ function reset(opts = {}) {
   vocab = [];
   translateOn = false;
   translateDelay = 0;
+  translateNoUz = false;
   translateLog.length = 0;
   books = withFree(freshBooks());
   articles = freshArticles();
@@ -191,7 +193,7 @@ createServer(async (req, res) => {
   if (path === "/__devicelimit") { deviceLimitOn = q.get("on") === "1"; return json(res, 200, { deviceLimitOn }); }
   if (path === "/__device-removed") { deviceRemovedOnRefresh = q.get("on") === "1"; return json(res, 200, { deviceRemovedOnRefresh }); }
   if (path === "/__vocab") return json(res, 200, vocab);
-  if (path === "/__translate") { translateOn = q.get("on") === "1"; translateDelay = Number(q.get("ms") ?? 0); return json(res, 200, { translateOn, translateDelay }); }
+  if (path === "/__translate") { translateOn = q.get("on") === "1"; translateDelay = Number(q.get("ms") ?? 0); translateNoUz = q.get("nouz") === "1"; return json(res, 200, { translateOn, translateDelay, translateNoUz }); }
   if (path === "/__translate-log") return json(res, 200, translateLog);
   if (path === "/__annotations") return json(res, 200, annotations);
   if (path === "/__progress") return json(res, 200, progress);
@@ -392,6 +394,7 @@ createServer(async (req, res) => {
     const text = String(b.text ?? "").trim(); const target = b.target_lang ?? "uz";
     if (!text || text.length > 200 || !["uz", "ru", "en"].includes(target)) return err(res, 422, "VALIDATION_ERROR", "Validation failed", [{ loc: ["body", "text"], msg: "Invalid" }]);
     if (translateDelay) await new Promise((r) => setTimeout(r, translateDelay));
+    if (translateNoUz && target === "uz") return err(res, 502, "TRANSLATE_FAILED", "Translation provider failed");
     const same = /^(salom|kitob)$/i.test(text) && target === "uz";
     const tr = same ? null : (TR[target][normWord(text)] ?? `${text} (${target})`);
     return json(res, 200, { text, translation: tr, detected_source_lang: same ? "uz" : "en", target_lang: target, same_language: same, provider: "google", cached: false });

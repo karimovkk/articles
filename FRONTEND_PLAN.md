@@ -913,6 +913,10 @@ Backend: `POST /translate` (Google Cloud Translation v2, kesh, limitlar) — tay
       "Google tarjimasi" belgisi; foydalanuvchi yozgani bosib ketilmaydi; dublikatda so'ralmaydi; bir xil til → bo'sh
 - [x] 41.3 "Tarjima qilish" tugmasi (reader va lug'at sahifasidagi tahrirlash) — joriy so'zni qo'lda tarjima
 - [x] 41.4 Mock `/translate` (standart o'chiq, `/__translate?on=1&ms=`) + e2e `translate`
+- [x] 41.5 Prod provayder — self-hosted LibreTranslate (bepul): **uz yo'q**, faqat ru/en → uz'da `502`. Til bo'yicha ketma-ket
+      2 ta 502 → shu sessiyada o'sha tilga so'ralmaydi va "Tarjima qilish" yashiriladi (ru/en ishlayveradi); mock `nouz=1`
+- [x] 41.6 O'zbekcha interfeys: o'zbekcha tarjima bo'lmasa (502) — **ruscha** yoziladi, izoh "o'chirib, o'zbekchasini
+      o'zingiz yozishingiz mumkin" (mahsulot qarori); backend uz'ni qo'llay boshlasa (Google) — o'zbekcha o'zi qaytadi
 
 ## 31. Keyingi vazifalar
 

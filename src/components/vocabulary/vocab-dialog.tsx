@@ -42,9 +42,11 @@ export function VocabDialog({
   const [values, setValues] = useState(initial);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // 41: avtomatik tarjima holati; `fromGoogle` — maydondagi matn Google'dan (foydalanuvchi o'zgartirmagan)
+  // 41: avtomatik tarjima holati; `fromGoogle` — maydondagi matn avtomatik (foydalanuvchi o'zgartirmagan)
   const [translating, setTranslating] = useState(false);
   const [fromGoogle, setFromGoogle] = useState(false);
+  // O'zbekcha interfeysda o'zbekcha tarjima bo'lmasa — ruscha keladi (izoh boshqacha)
+  const [autoLang, setAutoLang] = useState<string | null>(null);
   const touched = useRef(false); // foydalanuvchi tarjima maydoniga yozdi — avtomatik natija uni bosmaydi
   const reqId = useRef(0);
   // Oyna yangi so'z bilan qayta ochilsa — forma boshlang'ich qiymatga qaytadi (render fazasida)
@@ -64,8 +66,9 @@ export function VocabDialog({
       if (id !== reqId.current) return; // eskirgan javob (boshqa so'z / oyna yopildi)
       setTranslating(false);
       if (!tr || (!force && touched.current)) return;
-      setValues((v) => (force || !v.translation.trim() ? { ...v, translation: tr.slice(0, VOCAB_TRANSLATION_MAX) } : v));
+      setValues((v) => (force || !v.translation.trim() ? { ...v, translation: tr.text.slice(0, VOCAB_TRANSLATION_MAX) } : v));
       setFromGoogle(true);
+      setAutoLang(tr.lang);
     });
   };
 
@@ -73,7 +76,7 @@ export function VocabDialog({
   useEffect(() => {
     touched.current = false;
     reqId.current++;
-    if (!open || !autoTranslate || initial.translation.trim() || !initial.word.trim() || !translateApi.enabled()) return;
+    if (!open || !autoTranslate || initial.translation.trim() || !initial.word.trim() || !translateApi.availableFor(locale)) return;
     const id = reqId.current;
     queueMicrotask(() => id === reqId.current && runTranslate(initial.word, false));
     // eslint-disable-next-line react-hooks/exhaustive-deps -- faqat yangi so'z/oyna ochilganda
@@ -141,7 +144,7 @@ export function VocabDialog({
               autoComplete="off"
               autoFocus
             />
-            {translateApi.enabled() && (
+            {translateApi.availableFor(locale) && (
               <Button
                 type="button"
                 variant="soft"
@@ -161,7 +164,7 @@ export function VocabDialog({
           {fromGoogle && (
             <p className="vocab-tr-badge" data-testid="vocab-auto-badge">
               <I.Sparkles size={12} />
-              {t("vocab.autoTranslated")}
+              {autoLang && autoLang !== locale ? t("vocab.autoTranslatedRu") : t("vocab.autoTranslated")}
             </p>
           )}
         </Field>
