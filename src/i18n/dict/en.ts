@@ -674,6 +674,7 @@ export const en: Dict = {
   "quiz.admin.markCorrect": "Correct answer",
   "quiz.admin.addOption": "Add option",
   "quiz.admin.correctHint": "Mark the correct option with the circle on the left (2–6 options).",
+  "quiz.admin.pickCorrect": "Mark the correct answer — click the circle to the left of the right option.",
   "quiz.admin.explanation": "Explanation",
   "quiz.admin.explanationHint": "Optional — shown after the quiz",
   "quiz.admin.add": "Add question",

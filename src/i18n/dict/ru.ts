@@ -674,6 +674,7 @@ export const ru: Dict = {
   "quiz.admin.markCorrect": "Правильный ответ",
   "quiz.admin.addOption": "Добавить вариант",
   "quiz.admin.correctHint": "Отметьте правильный вариант кружком слева (2–6 вариантов).",
+  "quiz.admin.pickCorrect": "Отметьте правильный ответ — нажмите кружок слева от нужного варианта.",
   "quiz.admin.explanation": "Пояснение",
   "quiz.admin.explanationHint": "Необязательно — показывается после теста",
   "quiz.admin.add": "Добавить вопрос",

@@ -47,7 +47,13 @@ check("Validatsiya: bo'sh variant bilan saqlanmaydi (serverga so'rov yo'q)", (aw
 await admin.locator('[data-testid="q-option"]').nth(1).fill("Itning ustidan sakradi");
 await admin.click('[data-testid="q-add-option"]');
 await admin.locator('[data-testid="q-option"]').nth(2).fill("Qochib ketdi");
+// To'g'ri javob oldindan belgilanmagan — belgilanmaguncha saqlanmaydi
+check("Yangi savol: hech bir variant 'to'g'ri' deb oldindan belgilanmagan, eslatma ko'rinadi", (await admin.locator('[data-testid="q-correct"]:checked').count()) === 0 && ((await admin.textContent('[data-testid="q-correct-hint"]')) ?? "").includes("To'g'ri javobni belgilang"));
+await admin.click('[data-testid="q-save"]');
+await admin.waitForSelector('[data-testid="questions-editor"] .alert', { timeout: 5000 });
+check("To'g'ri javobsiz saqlanmaydi (serverga so'rov yo'q)", (await mockGet("/__questions")).length === 0 && ((await admin.textContent('[data-testid="questions-editor"] .alert')) ?? "").includes("To'g'ri javobni belgilang"));
 await admin.locator('[data-testid="q-correct"]').nth(1).check();
+check("Belgilangan variant yonida 'To'g'ri javob' yozuvi", (await admin.locator('[data-testid="q-correct-label"]').count()) === 1 && (await admin.locator('[data-testid="questions-editor"] .alert').count()) === 0);
 await admin.fill('[data-testid="q-explanation"]', "Matnda: jumps over the lazy dog.");
 await admin.click('[data-testid="q-save"]');
 await admin.waitForSelector('[data-testid="q-item"]', { timeout: 5000 });
@@ -58,6 +64,7 @@ await admin.click('[data-testid="q-new"]');
 await admin.fill('[data-testid="q-prompt"]', "It qanday edi?");
 await admin.locator('[data-testid="q-option"]').nth(0).fill("Dangasa");
 await admin.locator('[data-testid="q-option"]').nth(1).fill("Tez");
+await admin.locator('[data-testid="q-correct"]').nth(0).check();
 await admin.click('[data-testid="q-save"]');
 await admin.waitForFunction(() => document.querySelectorAll('[data-testid="q-item"]').length === 2, null, { timeout: 5000 });
 // Tahrirlash

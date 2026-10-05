@@ -969,6 +969,8 @@ Manba: `Articles365_Frontend_Vazifa_Boshliq_Ozgarishlar_v1.0.md`, hisobot v1.0, 
 - [x] 45.3 Chap menyuda "Katalog" o'rniga ikki band; sahifalar orasida almashtirgich; kitob sahifasida yo'l ko'rsatkichi
       turga qarab; mehmon `/` → `/daily`, header qidiruvi ikkala sahifada ishlaydi
 - [x] 45.4 Mock `is_free` filtri; e2e `catalog`, `free-books` yangilandi
+- [x] 45.5 Test savoli: to'g'ri javob oldindan belgilanmaydi — admin tanlamaguncha saqlanmaydi ("To'g'ri javobni belgilang"),
+      belgilangan variant yonida "To'g'ri javob"; e2e `quiz`
 
 ## 31. Keyingi vazifalar
 

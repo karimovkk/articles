@@ -693,6 +693,7 @@ export const uz = {
   "quiz.admin.markCorrect": "To'g'ri javob",
   "quiz.admin.addOption": "Variant qo'shish",
   "quiz.admin.correctHint": "To'g'ri variant chap tomondagi doiracha bilan belgilanadi (2–6 ta variant).",
+  "quiz.admin.pickCorrect": "To'g'ri javobni belgilang — kerakli variant chapidagi doirachani bosing.",
   "quiz.admin.explanation": "Izoh",
   "quiz.admin.explanationHint": "Ixtiyoriy — testdan keyin ko'rsatiladi",
   "quiz.admin.add": "Savol qo'shish",
