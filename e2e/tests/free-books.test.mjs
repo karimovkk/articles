@@ -25,22 +25,26 @@ const text = (sel) => page.textContent(sel).then((s) => (s ?? "").replace(/\s+/g
 const ord = await fetch(`${API}/orders`, { method: "POST", headers: { Authorization: "Bearer access-token-1", "Content-Type": "application/json" }, body: JSON.stringify({ book_id: FREE_BOOK }) });
 check("Tekin kitobga buyurtma: 422 BOOK_IS_FREE", ord.status === 422 && (await ord.json()).error?.code === "BOOK_IS_FREE");
 
-// ---- Katalog (mehmon): "Tekin" belgisi, narx o'rniga "Tekin", "O'qish" tugmasi, savatcha yo'q
-await page.goto(`${BASE}/catalog`);
+// ---- 45: "Kunlik kitoblar" (mehmon): "Tekin" belgisi, narx o'rniga "Tekin", "O'qish" tugmasi, savatcha yo'q
+await page.goto(`${BASE}/daily`);
 await page.waitForSelector('[data-testid="book-card"]', { timeout: 30000 });
 const freeCard = page.locator('[data-testid="book-card"]', { has: page.locator(".bcard-title", { hasText: /^Kitob 1$/ }) });
 await freeCard.waitFor();
 check("Katalog: tekin kartada 'Tekin' belgisi", (await freeCard.locator('[data-testid="free-tag"]').count()) === 1);
 check("Katalog: narx o'rnida 'Tekin'", (await freeCard.locator(".bcard-price.free").textContent())?.trim() === "Tekin");
 check("Katalog: tekin kartada 'Savatga' yo'q", (await freeCard.locator('[data-testid="add-to-cart"]').count()) === 0);
+await freeCard.screenshot({ path: OUT + "50-free-card.png" });
+// Pullik kitob — "Pullik kitoblar" sahifasida
+await page.goto(`${BASE}/catalog`);
+await page.waitForSelector('[data-testid="book-card"]', { timeout: 30000 });
 const paidCard = page.locator('[data-testid="book-card"]', { has: page.locator(".bcard-title", { hasText: /^Kitob 2$/ }) });
 check("Katalog: pullik kartada 'Tekin' belgisi yo'q, 'Savatga' bor", (await paidCard.locator('[data-testid="free-tag"]').count()) === 0 && (await paidCard.locator('[data-testid="add-to-cart"]').count()) === 1);
-await freeCard.screenshot({ path: OUT + "50-free-card.png" });
 
 // ---- Kitob sahifasi (mehmon): "Bu kitob tekin" paneli, maqolalar, "O'qishni boshlash"
 await page.goto(`${BASE}/catalog/${FREE_BOOK}`);
 await page.waitForSelector('[data-testid="free-read"]', { timeout: 20000 });
 check("Kitob sahifasi: narx 'Tekin'", (await text('[data-testid="book-free-price"]')) === "Tekin");
+check("Kitob sahifasi: yo'l ko'rsatkichi 'Kunlik kitoblar' (/daily)", ((await page.textContent('nav.crumbs a[href="/daily"]')) ?? "").includes("Kunlik kitoblar"));
 check("Kitob sahifasi: mehmonga 'ro'yxatdan o'tmasdan o'qing' matni", (await text('[data-testid="free-read"]')).includes("Ro'yxatdan o'tmasdan"));
 check("Kitob sahifasi: 2 ta maqola ro'yxati", (await page.locator(".free-read-item").count()) === 2);
 check("Kitob sahifasi: buyurtma/savatcha tugmalari yo'q", (await page.locator('[data-testid="add-to-cart"], [data-testid="book-cart"]').count()) === 0);

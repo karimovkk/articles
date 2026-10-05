@@ -272,7 +272,8 @@ createServer(async (req, res) => {
   if (path === "/pricing" && m === "GET") return pricing ? json(res, 200, pricing) : err(res, 404, "NOT_FOUND", "Not Found");
   if (path === "/catalog") {
     const s = (q.get("search") ?? "").toLowerCase();
-    const all = books.filter((b) => b.status === "ACTIVE").filter((b) => !q.get("category_id") || b.category_id === q.get("category_id")).filter((b) => !s || b.title.toLowerCase().includes(s) || (b.author ?? "").toLowerCase().includes(s) || (b.description ?? "").toLowerCase().includes(s))
+    const fq = q.get("is_free"); // 45: true — kunlik (tekin), false — pullik
+    const all = books.filter((b) => b.status === "ACTIVE").filter((b) => fq === null || !!b.is_free === (fq === "true")).filter((b) => !q.get("category_id") || b.category_id === q.get("category_id")).filter((b) => !s || b.title.toLowerCase().includes(s) || (b.author ?? "").toLowerCase().includes(s) || (b.description ?? "").toLowerCase().includes(s))
       .map((b) => ({ book_id: b.id, title: b.title, author: b.author, description: b.description, category_name: b.category?.name ?? null, price: b.price, is_free: !!b.is_free, has_cover: b.has_cover, article_count: articles.filter((a) => a.book_id === b.id).length }));
     return json(res, 200, paged(all, Number(q.get("page") ?? 1), Number(q.get("page_size") ?? 20)));
   }

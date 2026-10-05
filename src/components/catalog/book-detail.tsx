@@ -73,7 +73,8 @@ export function CatalogBookDetail({ bookId }: { bookId: string }) {
   return (
     <div className="space-y-5">
       <nav className="crumbs" aria-label="breadcrumb">
-        <Link href="/catalog">{t("nav.catalog")}</Link>
+        {/* 45: kitob turi bo'yicha — kunlik (tekin) yoki pullik kitoblar */}
+        <Link href={isFreeBook(item) ? "/daily" : "/catalog"}>{t(isFreeBook(item) ? "nav.daily" : "nav.paid")}</Link>
         <I.ChevronRight size={14} />
         <span className="current">{item.title}</span>
       </nav>

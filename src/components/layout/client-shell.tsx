@@ -47,7 +47,7 @@ export function ClientShell({ children }: { children: ReactNode }) {
 
   return (
     // `data-route` — fon rasmi katalogda keng band, ichki sahifalarda yupqa tasma (18.1)
-    <div className="client" data-route={pathname === "/catalog" ? "catalog" : undefined}>
+    <div className="client" data-route={pathname === "/catalog" || pathname === "/daily" ? "catalog" : undefined}>
       <div className="client-bg" aria-hidden />
       <ClientHeader menuOpen={open} onMenu={() => setOpenAt(open ? null : pathname)} />
       <div className="client-body">
@@ -71,7 +71,7 @@ function ClientHeader({ menuOpen, onMenu }: { menuOpen: boolean; onMenu: () => v
       </button>
       {/* 25/30: brend "365" markazda — yilning nechanchi kuni doim ko'rinib turadi, halqa vaqti-vaqti bilan yonadi */}
       <div className="client-brand-wrap">
-        <Link href={user ? "/library" : "/catalog"} className="client-brand" aria-label={env.appName} data-testid="header-brand">
+        <Link href={user ? "/library" : "/daily"} className="client-brand" aria-label={env.appName} data-testid="header-brand">
           <YearEmblem />
           <span className="client-brand-name">{env.appName}</span>
         </Link>
@@ -82,8 +82,8 @@ function ClientHeader({ menuOpen, onMenu }: { menuOpen: boolean; onMenu: () => v
         <Link
           href="/catalog#search"
           onClick={(e) => {
-            // Katalogning o'zida — sahifa qayta yuklanmaydi, qidiruv maydoniga fokus
-            if (pathname !== "/catalog") return;
+            // Katalog sahifalarining o'zida (kunlik / pullik) — sahifa qayta yuklanmaydi, qidiruv maydoniga fokus
+            if (pathname !== "/catalog" && pathname !== "/daily") return;
             e.preventDefault();
             window.dispatchEvent(new Event("a365:focus-search"));
           }}
@@ -157,7 +157,9 @@ function ClientSidebar({ open, onNavigate }: { open: boolean; onNavigate: () => 
   const unread = useUnreadCount(!!user);
   const cartNav = useCartNav();
   const items: NavItem[] = [
-    { href: "/catalog", label: "nav.catalog", icon: <I.Grid size={19} /> },
+    // 45: katalog ikki sahifa — kunlik (tekin) va pullik
+    { href: "/daily", label: "nav.daily", icon: <I.Sun size={19} /> },
+    { href: "/catalog", label: "nav.paid", icon: <I.Grid size={19} /> },
     { href: "/library", label: "nav.library", icon: <I.Library size={19} />, auth: true },
     { href: "/vocabulary", label: "nav.vocabulary", icon: <I.Languages size={19} />, auth: true },
     { href: "/leaderboard", label: "nav.leaderboard", icon: <I.Trophy size={19} />, auth: true },

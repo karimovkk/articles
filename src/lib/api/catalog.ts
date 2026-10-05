@@ -12,6 +12,8 @@ export interface CatalogQuery {
   category_id?: string;
   page?: number;
   page_size?: number;
+  /** 45: true — "Kunlik kitoblar" (tekin), false — "Pullik kitoblar"; berilmasa — hammasi */
+  is_free?: boolean;
 }
 
 export const catalogApi = {

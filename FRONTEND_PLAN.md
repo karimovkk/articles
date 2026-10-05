@@ -962,6 +962,14 @@ Manba: `Articles365_Frontend_Vazifa_Boshliq_Ozgarishlar_v1.0.md`, hisobot v1.0, 
       asosiy rang (qolganlari avtomatik, WCAG kontrast), yorug'/qorong'i fon (standart · rang · https rasm), shrift
       (Manrope · tizim); oldindan ko'rish; keshdan birinchi chizishdan oldin qo'llanadi; xavfsiz URL/qiymat filtrlari
 
+## 45. Katalog o'rniga ikki sahifa: "Kunlik kitoblar" (tekin) va "Pullik kitoblar" (2026-10-05)
+
+- [x] 45.1 Umumiy `CatalogView` (`kind: free | paid`), backend filtri `GET /catalog?is_free=true|false`
+- [x] 45.2 `/daily` — "Kunlik kitoblar" (faqat tekin, savatcha aksiyasi yo'q); `/catalog` — "Pullik kitoblar" (eski havolalar ishlaydi)
+- [x] 45.3 Chap menyuda "Katalog" o'rniga ikki band; sahifalar orasida almashtirgich; kitob sahifasida yo'l ko'rsatkichi
+      turga qarab; mehmon `/` → `/daily`, header qidiruvi ikkala sahifada ishlaydi
+- [x] 45.4 Mock `is_free` filtri; e2e `catalog`, `free-books` yangilandi
+
 ## 31. Keyingi vazifalar
 
 - [ ] 31.1 Safari (WebKit): varaqlash rejimida oldingi sahifaga qaytilganda (3-sahifa) belgilash qatlami

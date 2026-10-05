@@ -26,13 +26,21 @@ process.on("unhandledRejection", async (e) => {
 const has = async (text) => (await page.locator(`text=${text}`).count()) > 0;
 const bodyHas = async (text) => page.evaluate((t) => document.body.innerText.replace(/\u00a0/g, " ").includes(t), text);
 
-// ---- Mehmon: / → /catalog
+// ---- 45: katalog ikki sahifa — mehmon: / → /daily (kunlik, faqat tekin); /catalog — faqat pullik
 await page.goto(`${BASE}/`);
+await page.waitForURL(`${BASE}/daily`);
+await page.waitForSelector('[data-testid="book-card"]');
+check("Mehmon: / → /daily (Kunlik kitoblar, auth'siz)", (await page.getAttribute('[data-testid="catalog-hero"]', "data-kind")) === "free" && (await has("Kunlik")));
+const dailyCards = await page.locator('[data-testid="book-card"]').count();
+check("Kunlik: faqat tekin kitoblar (har kartada 'Tekin'), savatcha aksiyasi yo'q", dailyCards > 0 && (await page.locator('[data-testid="book-card"] [data-testid="free-tag"]').count()) === dailyCards && (await page.locator('[data-testid="pricing-promo"]').count()) === 0);
+check("Kunlik: so'rov ?is_free=true", (await mockGet("/__log")).some((l) => l === "GET /catalog"));
+await page.click('[data-testid="catalog-switch"] a[href="/catalog"]');
 await page.waitForURL(`${BASE}/catalog`);
 await page.waitForSelector("text=Test kitob");
-check("Mehmon: / → /catalog (auth'siz)", true);
+check("Almashtirgich → /catalog (Pullik kitoblar), faol bo'lim belgilangan", (await page.getAttribute('[data-testid="catalog-hero"]', "data-kind")) === "paid" && (await page.getAttribute('[data-testid="catalog-switch"] a[href="/catalog"]', "aria-current")) === "page");
+check("Pullik: tekin kitob yo'q", (await page.locator('[data-testid="free-tag"]').count()) === 0);
+check("Chap menyu: 'Kunlik kitoblar' va 'Pullik kitoblar' (eski 'Katalog' yo'q)", (await page.locator('.client-sidebar .side-link[href="/daily"]').count()) === 1 && (await page.locator('.client-sidebar .side-link[href="/catalog"]').count()) === 1 && (await page.locator(".client-sidebar .side-link", { hasText: /^Katalog$/ }).count()) === 0);
 check("Katalog: narx (bo'linmas bo'sh joy bilan), kategoriya, maqola soni", (await bodyHas("45 000 so'm")) && (await has("Fan")) && (await has("3 ta maqola")));
-check("Katalog: '0' narx → '0 so'm' (API'da price doim string)", await bodyHas("0 so'm"));
 check("Mehmon qobig'i: Kirish/Ro'yxatdan o'tish", await has("Kirish"));
 // 25: brend "365" — yilning nechanchi kuni header'da ko'rinadi
 const now = new Date();
@@ -63,7 +71,7 @@ check("Halqa animatsiyasi (header + hero): bo'rtiq vaqti-vaqti bilan tepadan soa
 const hdrs0 = await mockGet("/__headers");
 check("Katalog so'rovi Authorization'siz ketdi (public)", hdrs0.some((h) => h.path === "/catalog"));
 check("Dumaloq pagination (31 ta kitob / 24): joriy 1, keyingi 2", (await page.textContent('[data-testid="pager"] button[aria-current="page"]'))?.trim() === "1" && (await page.locator('[data-testid="pager"] button:text-is("2")').count()) === 1);
-check("Hero: serif sarlavha + jonli qidiruv pill", (await bodyHas("kuchli maqolalar")) && (await page.locator('.hero-search [data-testid="catalog-search"]').count()) === 1);
+check("Hero: serif sarlavha ('Pullik kitoblar') + jonli qidiruv pill", (await bodyHas("Pullik kitoblar")) && (await page.locator('.hero-search [data-testid="catalog-search"]').count()) === 1);
 const CAT = "c1c1c1c1-c1c1-4c1c-8c1c-c1c1c1c1c1c1";
 await page.waitForSelector('[data-testid="catalog-categories"] .cat-chip', { timeout: 8000 });
 check("Kategoriya chip'lari (GET /categories): 'Barcha' + 'Fan', 'Barcha' faol", (await page.locator('[data-testid="catalog-categories"] .cat-chip').count()) === 2 && (await page.getAttribute('[data-testid="catalog-categories"] [data-value=""]', "aria-pressed")) === "true");
@@ -117,7 +125,7 @@ await page.fill('input[type="password"]', "User12345!");
 await page.click('button[type="submit"]');
 await page.waitForURL(`${BASE}/library`);
 await page.waitForSelector("header", { timeout: 8000 });
-check("AppShell nav'da Katalog havolasi", (await page.locator('.client-sidebar a[href="/catalog"]').count()) > 0);
+check("AppShell nav'da Pullik kitoblar havolasi", (await page.locator('.client-sidebar a[href="/catalog"]').count()) > 0);
 await page.goto(`${BASE}/catalog/${BOOK}`);
 await page.waitForSelector("text=Bu kitob kutubxonangizda bor", { timeout: 8000 });
 const readHref = await page.getAttribute('a:has-text("O\'qish")', "href");

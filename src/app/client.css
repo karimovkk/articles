@@ -2578,3 +2578,29 @@
     display: none;
   }
 }
+
+/* 45: katalog — ikki sahifa (kunlik / pullik) orasida almashtirgich */
+.catalog-switch {
+  margin: 0 0 18px;
+}
+.catalog-switch a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 16px;
+  border-radius: 999px;
+  color: var(--text-2);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.catalog-switch a:hover {
+  color: var(--text);
+  background: color-mix(in srgb, var(--text) 6%, transparent);
+}
+.catalog-switch a.active {
+  background: var(--pill-bg);
+  color: var(--pill-text);
+}

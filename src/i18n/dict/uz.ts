@@ -134,6 +134,16 @@ export const uz = {
 
   // ---- katalog (public)
   "nav.catalog": "Katalog",
+  "nav.daily": "Kunlik kitoblar",
+  "nav.paid": "Pullik kitoblar",
+  "catalog.switch": "Kitoblar bo'limi",
+  "catalog.dailyEyebrow": "Bepul · Har kuni",
+  "catalog.dailyTitle": "Kunlik",
+  "catalog.dailyAccent": "kitoblar",
+  "catalog.dailySub": "Har kuni o'qish uchun tekin kitoblar — ro'yxatdan o'tmasdan ham o'qing.",
+  "catalog.dailyEmpty": "Hozircha kunlik (tekin) kitoblar yo'q.",
+  "catalog.paidTitle": "Pullik",
+  "catalog.paidAccent": "kitoblar",
   "catalog.allCategories": "Barcha kategoriyalar",
   "catalog.title": "Katalog",
   "catalog.description": "Sotuvdagi kitoblar. Sotib olingach kitob kutubxonangizda paydo bo'ladi va faqat himoyalangan reader ichida o'qiladi.",

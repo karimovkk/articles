@@ -17,10 +17,10 @@ export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const hasAuth = request.cookies.get(AUTH_COOKIE)?.value === "1";
 
-  // Bosh sahifa: kirganlar → kutubxona, mehmonlar → public katalog (S-7)
+  // Bosh sahifa: kirganlar → kutubxona, mehmonlar → kunlik (tekin) kitoblar (S-7, 45)
   if (pathname === "/") {
     const url = request.nextUrl.clone();
-    url.pathname = hasAuth ? "/library" : "/catalog";
+    url.pathname = hasAuth ? "/library" : "/daily"; // 45: mehmon — kunlik (tekin) kitoblar
     url.search = "";
     return NextResponse.redirect(url);
   }
