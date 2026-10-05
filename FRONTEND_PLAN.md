@@ -972,6 +972,17 @@ Manba: `Articles365_Frontend_Vazifa_Boshliq_Ozgarishlar_v1.0.md`, hisobot v1.0, 
 - [x] 45.5 Test savoli: to'g'ri javob oldindan belgilanmaydi — admin tanlamaguncha saqlanmaydi ("To'g'ri javobni belgilang"),
       belgilangan variant yonida "To'g'ri javob"; e2e `quiz`
 
+## 46. Fon rasmini yuklash (drag & drop) — backend tayyor (2026-10-05)
+
+Backend: `PUT /admin/app-settings/images/{name}?theme=light|dark` (multipart `file`) → `{name, theme, url}`; `DELETE` shu yo'l;
+public `GET /app-settings` → `{settings, images: {name: {light, dark}}}` (URL'da `?v=` — almashtirilsa darhol yangilanadi).
+
+- [x] 46.1 "Ko'rinish": "Rasm" — havola o'rniga sudrab tashlash / tanlash zonasi; rasm brauzerda WebP'ga siqiladi (≤ 1920 px),
+      yuklash progressi, oldindan ko'rish; turi/hajmi tekshiriladi
+- [x] 46.2 Sozlamada `background_light|dark: "upload"` → `images.background[theme]` URL; boshqa turga o'tib saqlansa —
+      yuklangan rasm o'chiriladi (storage'da yetim fayl qolmaydi)
+- [x] 46.3 Mock (rasm yuklash/serve/o'chirish, `images`) + e2e `appearance`
+
 ## 31. Keyingi vazifalar
 
 - [ ] 31.1 Safari (WebKit): varaqlash rejimida oldingi sahifaga qaytilganda (3-sahifa) belgilash qatlami

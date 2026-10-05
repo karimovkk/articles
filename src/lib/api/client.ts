@@ -246,12 +246,14 @@ export interface UploadOptions {
   signal?: AbortSignal;
   /** 44.2: javob shuncha ms ichida kelmasa — `ApiError(0, "UPLOAD_TIMEOUT")` (cheksiz "yuklanmoqda" bo'lmasin) */
   timeoutMs?: number;
+  /** 46: standart POST; fon rasmi — PUT */
+  method?: "POST" | "PUT";
 }
 
 function xhrOnce(url: string, form: FormData, opts: UploadOptions): Promise<{ status: number; body: string }> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
-    xhr.open("POST", url);
+    xhr.open(opts.method ?? "POST", url);
     xhr.setRequestHeader("Accept", "application/json");
     for (const [k, v] of Object.entries(baseHeaders())) xhr.setRequestHeader(k, v);
     const token = tokenStore.getAccess();

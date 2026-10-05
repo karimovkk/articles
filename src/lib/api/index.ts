@@ -10,7 +10,7 @@ export { readerApi, type CoverSize } from "./reader";
 export { readingApi } from "./reading";
 export { vocabularyApi, isVocab, normalizeWord, clearVocabCache, VOCAB_EVENT, VOCAB_WORD_MAX, VOCAB_TRANSLATION_MAX, type VocabEntry, type VocabInput } from "./vocabulary";
 export { sessionsApi } from "./sessions";
-export { appApi, type AppSettings } from "./app";
+export { appApi, type AppSettings, type AppImage, type AppImageTheme } from "./app";
 export { streakApi, type Streak, type Leaderboard, type LeaderboardEntry } from "./streak";
 export { quizApi, QUIZ_MIN_OPTIONS, QUIZ_MAX_OPTIONS, type QuizQuestion, type QuizResult, type QuizAnswerResult, type AdminQuestion, type QuestionInput } from "./quiz";
 export { translateApi, TRANSLATE_TEXT_MAX, type TranslateLang, type AutoTranslation } from "./translate";

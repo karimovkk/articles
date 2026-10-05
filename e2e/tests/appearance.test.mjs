@@ -3,7 +3,7 @@
 // etiladi; boshqa foydalanuvchi (login sahifasi ham) yangi ko'rinishni oladi, qayta ochilganda keshdan birinchi
 // chizishdanoq; "Standartga qaytarish" — DELETE va eski ko'rinish.
 import { launch, BASE, reset, mockGet, ignorablePageError } from "../lib.mjs";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, readFileSync } from "node:fs";
 const OUT = new URL("../out/", import.meta.url).pathname;
 mkdirSync(OUT, { recursive: true });
 let failures = 0;
@@ -46,11 +46,27 @@ await admin.waitForSelector('[data-testid="contrast-warn"]', { timeout: 3000 });
 check("Past kontrast (#6366f1 → 4.5:1 dan kam): ogohlantirish", true);
 await admin.locator('[data-testid="appearance-preset"][aria-label="#2563eb"]').click();
 
-// Yorug' fon — rang; shrift — tizim; xavfsiz bo'lmagan rasm havolasi
+// 46: qorong'i fon — rasm (sudrab tashlash); noto'g'ri tur rad etiladi
 await admin.click('[data-testid="bg-dark-image"]');
-await admin.fill('[data-testid="bg-dark-url"]', 'https://x.test/a.jpg")}body{');
-check("Xavfsiz bo'lmagan havola: ogohlantirish", (await admin.locator("text=https:// bilan boshlanadigan").count()) === 1);
-await admin.click('[data-testid="bg-dark-default"]');
+await admin.setInputFiles('[data-testid="bg-dark-file"]', new URL("../mock/book.pdf", import.meta.url).pathname);
+await admin.waitForSelector('[data-testid="bg-dark-error"]', { timeout: 3000 });
+check("Noto'g'ri tur (PDF): xato, serverga yuborilmadi", ((await admin.textContent('[data-testid="bg-dark-error"]')) ?? "").includes("JPEG, PNG yoki WebP") && !(await mockGet("/__app-images")).background);
+const imgB64 = readFileSync(new URL("../../public/bg/article-960.webp", import.meta.url)).toString("base64");
+const dropFile = async (sel, name) => {
+  const dt = await admin.evaluateHandle(([b64, n]) => {
+    const bin = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+    const d = new DataTransfer();
+    d.items.add(new File([bin], n, { type: "image/webp" }));
+    return d;
+  }, [imgB64, name]);
+  await admin.dispatchEvent(sel, "dragover", { dataTransfer: dt });
+  await admin.dispatchEvent(sel, "drop", { dataTransfer: dt });
+};
+await dropFile('[data-testid="bg-dark-drop"]', "night.webp");
+await admin.waitForSelector('[data-testid="bg-dark-thumb"]', { timeout: 15000 });
+let imgs = await mockGet("/__app-images");
+check("Drag & drop: rasm siqilib yuklandi (WebP, ≤ asl hajm), kichik ko'rinish chiqdi", imgs.background?.dark?.type === "image/webp" && imgs.background.dark.size > 0 && imgs.background.dark.size <= Buffer.from(imgB64, "base64").length * 1.2, JSON.stringify(imgs));
+const v1 = imgs.background.dark.v;
 await admin.click('[data-testid="bg-light-color"]');
 await admin.locator('[data-testid="bg-light"] input.font-mono').fill("#eef2ff");
 await admin.click('[data-testid="appearance-font"] button:has-text("Tizim shrifti")');
@@ -58,7 +74,7 @@ await admin.screenshot({ path: OUT + "87-admin-appearance.png", fullPage: true }
 await admin.click('[data-testid="appearance-save"]');
 await admin.waitForSelector("text=Saqlandi", { timeout: 5000 });
 const st = (await mockGet("/__app-settings")).appearance;
-check("Saqlandi: rang, yorug' fon, standart qorong'i fon, tizim shrifti", st?.primary_color === "#2563eb" && st?.background_light === "#eef2ff" && st?.background_dark === "default" && st?.font === "system", JSON.stringify(st));
+check("Saqlandi: rang, yorug' fon, qorong'i fon — yuklangan rasm, tizim shrifti", st?.primary_color === "#2563eb" && st?.background_light === "#eef2ff" && st?.background_dark === "upload" && st?.font === "system" && !("images" in st), JSON.stringify(st));
 
 // Boshqa foydalanuvchi — login sahifasidan boshlab yangi ko'rinish
 const guest = await newPage();
@@ -77,16 +93,46 @@ await dark.goto(`${BASE}/catalog`);
 await dark.waitForFunction(() => getComputedStyle(document.documentElement).getPropertyValue("--accent").trim().toLowerCase() !== "#f2b705", null, { timeout: 10000 });
 const da = await accent(dark);
 check("Qorong'i mavzu: aksent ochroq varianti (qorong'i fonda o'qiladi)", da !== "#2563eb" && da.startsWith("#"), da);
+await dark.waitForSelector('[data-testid="book-card"]', { timeout: 20000 });
+const darkBg = await dark.evaluate(() => getComputedStyle(document.querySelector(".client-bg"), "::before").backgroundImage);
+check("Qorong'i fon: yuklangan rasm (versiyali URL)", darkBg.includes("/api/v1/app-settings/images/background?theme=dark&v="), darkBg);
+const served = await dark.evaluate(async (u) => { const r = await fetch(u); return { ok: r.ok, type: r.headers.get("content-type") }; }, darkBg.match(/url\("(.+?)"\)/)[1]);
+check("Rasm public serve qilinadi (image/webp)", served.ok && served.type === "image/webp", JSON.stringify(served));
+
+// Almashtirish — versiya (URL) yangilanadi, fon darhol yangi rasm
+await dropFile('[data-testid="bg-dark-drop"]', "night2.webp");
+await admin.waitForTimeout(1500);
+imgs = await mockGet("/__app-images");
+check("Almashtirildi: yangi versiya (?v= o'zgardi)", imgs.background?.dark?.v > v1, `${v1} → ${imgs.background?.dark?.v}`);
+await admin.click('[data-testid="appearance-save"]');
+await admin.waitForSelector("text=Saqlandi", { timeout: 5000 });
+await dark.reload();
+await dark.waitForSelector('[data-testid="book-card"]', { timeout: 20000 });
+await dark.waitForTimeout(800);
+const darkBg2 = await dark.evaluate(() => getComputedStyle(document.querySelector(".client-bg"), "::before").backgroundImage);
+check("Foydalanuvchida yangi versiya URL'i", darkBg2.includes(`v=${imgs.background.dark.v}`), darkBg2);
+
+// Fon boshqa turga o'tib saqlansa — rasm storage'dan o'chadi
+await admin.click('[data-testid="bg-dark-default"]');
+await admin.click('[data-testid="appearance-save"]');
+await admin.waitForTimeout(1200);
+check("Standart fonga o'tdi → yuklangan rasm o'chirildi (yetim fayl yo'q)", !(await mockGet("/__app-images")).background && (await mockGet("/__app-settings")).appearance?.background_dark === "default");
 // Qayta ochish — keshdan birinchi chizishdanoq (sozlama so'rovi kechiksa ham)
 await guest.route("**/api/v1/app-settings", async (r) => { await new Promise((x) => setTimeout(x, 3000)); await r.continue(); });
 await guest.goto(`${BASE}/login`, { waitUntil: "domcontentloaded" });
 check("Qayta ochilganda keshdan darhol (server javobini kutmasdan)", (await accent(guest)) === "#2563eb");
 await guest.unroute("**/api/v1/app-settings");
 
-// Standartga qaytarish
+// Standartga qaytarish (yuklangan rasm bo'lsa — u ham o'chadi)
+await admin.click('[data-testid="bg-dark-image"]');
+await dropFile('[data-testid="bg-dark-drop"]', "night3.webp");
+await admin.waitForSelector('[data-testid="bg-dark-thumb"]', { timeout: 15000 });
+await admin.click('[data-testid="appearance-save"]');
+await admin.waitForSelector("text=Saqlandi", { timeout: 5000 });
+await admin.locator('[data-testid="bg-dark"]').screenshot({ path: OUT + "88-admin-bg-drop.png" });
 await admin.click('[data-testid="appearance-reset"]');
 await admin.waitForSelector("text=Standart ko'rinish tiklandi", { timeout: 5000 });
-check("Qaytarish: server kaliti o'chdi, --accent #f2b705", !("appearance" in (await mockGet("/__app-settings"))) && (await accent(admin)) === "#f2b705");
+check("Qaytarish: server kaliti va yuklangan rasm o'chdi, --accent #f2b705", !("appearance" in (await mockGet("/__app-settings"))) && !(await mockGet("/__app-images")).background && (await accent(admin)) === "#f2b705");
 
 check("Sahifa xatolari yo'q", pageErrors.length === 0, pageErrors.join(" | ").slice(0, 300));
 await browser.close();

@@ -3,30 +3,86 @@
 /**
  * 44.8: admin "Ko'rinish" — global ko'rinish sozlamalari (`PUT /admin/app-settings`, kalit `appearance`; hamma
  * foydalanuvchi — hatto login sahifasi — public `GET /app-settings` dan o'qiydi). Asosiy rang (qolganlari avtomatik,
- * kontrast ko'rsatiladi), yorug'/qorong'i fon (standart · rang · rasm havolasi), shrift. O'zgarish darhol oldindan
+ * kontrast ko'rsatiladi), yorug'/qorong'i fon (standart · rang · rasm), shrift. O'zgarish darhol oldindan
  * ko'rinadi (faqat shu brauzerda); "Saqlash" — hammaga; "Standartga qaytarish" — `DELETE …/appearance`.
+ * 46: rasm — sudrab tashlash / tanlash; brauzerda WebP'ga siqilib `PUT /admin/app-settings/images/background?theme=`
+ * bilan yuklanadi (rasmning o'zi storage'da). Fon boshqa turga o'tib saqlansa — yuklangan rasm o'chiriladi.
  */
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import { Alert, Badge, Button, Card, Field, Input, PageHeader, Spinner, cn } from "@/components/ui";
 import * as I from "@/components/ui/icons";
-import { adminApi, errorMessage } from "@/lib/api";
-import { DEFAULT_PRIMARY, appearanceCss, contrast, deriveColors, isHex, isSafeImageUrl, type Appearance } from "@/lib/appearance";
+import { adminApi, errorMessage, type AppImageTheme } from "@/lib/api";
+import { BACKGROUND_IMAGE, DEFAULT_PRIMARY, appearanceCss, contrast, deriveColors, isHex, isSafeAssetUrl, isSafeImageUrl, type Appearance } from "@/lib/appearance";
+import { compressImage } from "@/lib/image-compress";
 import { applyAppearance, useAppearanceSettings } from "@/providers/appearance-provider";
 import { useT } from "@/i18n";
 
 const PRESETS = ["#f2b705", "#e8590c", "#e11d48", "#7c3aed", "#2563eb", "#0d9488", "#16a34a", "#334155"];
 type BgKind = "default" | "color" | "image";
-const kindOf = (v: string | null | undefined): BgKind => (isHex(v) ? "color" : isSafeImageUrl(v) ? "image" : "default");
+const kindOf = (v: string | null | undefined): BgKind => (v === "upload" || isSafeImageUrl(v) ? "image" : isHex(v) ? "color" : "default");
+const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
+const IMAGE_MAX_MB = 25;
 
-function BgField({ label, value, onChange, testid }: { label: string; value: string | null | undefined; onChange: (v: string) => void; testid: string }) {
+/** Yorug'/qorong'i fon: standart · rang · rasm (sudrab tashlash yoki tanlash → siqiladi → yuklanadi) */
+function BgField({
+  label,
+  theme,
+  value,
+  imageUrl,
+  onChange,
+  testid,
+}: {
+  label: string;
+  theme: AppImageTheme;
+  value: string | null | undefined;
+  /** Shu mavzu uchun serverdagi (yoki yangi yuklangan) rasm URL'i */
+  imageUrl: string | null | undefined;
+  onChange: (value: string, imageUrl?: string) => void;
+  testid: string;
+}) {
   const { t } = useT();
   const [kind, setKind] = useState<BgKind>(kindOf(value));
   const [color, setColor] = useState(isHex(value) ? value : "#f4f2ec");
-  const [url, setUrl] = useState(isSafeImageUrl(value) ? value : "");
+  const [over, setOver] = useState(false);
+  const [progress, setProgress] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const shownUrl = value === "upload" || kind === "image" ? (isSafeAssetUrl(imageUrl) ? imageUrl : isSafeImageUrl(value) ? value : null) : null;
+
   const pick = (k: BgKind) => {
     setKind(k);
-    onChange(k === "color" ? color : k === "image" && isSafeImageUrl(url) ? url : "default");
+    setError(null);
+    if (k === "color") onChange(color);
+    else if (k === "image") onChange(isSafeAssetUrl(imageUrl) ? "upload" : (value ?? "default"));
+    else onChange("default");
   };
+
+  async function upload(file: File | undefined) {
+    if (!file) return;
+    setError(null);
+    if (!IMAGE_TYPES.includes(file.type)) return setError(t("appearance.bg.badType"));
+    if (file.size > IMAGE_MAX_MB * 1024 * 1024) return setError(t("appearance.bg.tooBig", { n: IMAGE_MAX_MB }));
+    setProgress(0);
+    try {
+      const { blob, ext } = await compressImage(file, 1920);
+      const img = await adminApi.uploadAppImage(BACKGROUND_IMAGE, theme, blob, `${BACKGROUND_IMAGE}-${theme}.${ext}`, {
+        onProgress: (l, tot) => setProgress(tot ? Math.round((l / tot) * 100) : 0),
+        timeoutMs: 120_000,
+      });
+      onChange("upload", img.url);
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setProgress(null);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  }
+  const onDrop = (e: DragEvent) => {
+    e.preventDefault();
+    setOver(false);
+    void upload(e.dataTransfer.files?.[0]);
+  };
+
   return (
     <Field label={label}>
       <div className="space-y-2" data-testid={testid}>
@@ -45,8 +101,41 @@ function BgField({ label, value, onChange, testid }: { label: string; value: str
         )}
         {kind === "image" && (
           <>
-            <Input value={url} placeholder="https://…/fon.webp" onChange={(e) => (setUrl(e.target.value), onChange(isSafeImageUrl(e.target.value) ? e.target.value : "default"))} data-testid={`${testid}-url`} />
-            {url && !isSafeImageUrl(url) && <p className="text-xs text-danger">{t("appearance.bg.urlInvalid")}</p>}
+            <div
+              role="button"
+              tabIndex={0}
+              className={cn("bg-drop", over && "over", progress !== null && "busy")}
+              onClick={() => progress === null && fileRef.current?.click()}
+              onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), fileRef.current?.click())}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setOver(true);
+              }}
+              onDragLeave={() => setOver(false)}
+              onDrop={onDrop}
+              aria-label={t("appearance.bg.drop")}
+              data-testid={`${testid}-drop`}
+            >
+              {shownUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element -- admin oldindan ko'rish, tashqi/versiyali URL
+                <img src={shownUrl} alt="" className="bg-drop-thumb" data-testid={`${testid}-thumb`} />
+              ) : (
+                <span className="bg-drop-icon">
+                  <I.Image size={22} />
+                </span>
+              )}
+              <span className="min-w-0">
+                <span className="block text-sm font-semibold text-text">{progress !== null ? t("appearance.bg.uploading", { n: progress }) : shownUrl ? t("appearance.bg.replace") : t("appearance.bg.drop")}</span>
+                <span className="block text-xs text-muted">{t("appearance.bg.dropHint", { n: IMAGE_MAX_MB })}</span>
+              </span>
+              <input ref={fileRef} type="file" accept={IMAGE_TYPES.join(",")} className="hidden" onChange={(e) => void upload(e.target.files?.[0])} data-testid={`${testid}-file`} />
+            </div>
+            {progress !== null && (
+              <div className="progress thin" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress}>
+                <i style={{ width: `${progress}%` }} />
+              </div>
+            )}
+            {error && <p className="text-xs text-danger" data-testid={`${testid}-error`}>{error}</p>}
           </>
         )}
       </div>
@@ -87,13 +176,26 @@ export default function AdminAppearancePage() {
   const set = (patch: Partial<Appearance>) => setDraft({ ...a, ...patch });
 
   async function save() {
-    setBusy(true);
     setMsg(null);
+    const themes: AppImageTheme[] = ["light", "dark"];
+    // "Rasm" tanlangan, lekin hali yuklanmagan
+    if (themes.some((th) => a[`background_${th}`] === "upload" && !a.images?.[th])) {
+      setMsg({ tone: "danger", text: t("appearance.bg.needImage") });
+      return;
+    }
+    setBusy(true);
     try {
-      await adminApi.saveAppSettings({ appearance: { ...a, primary_color: primary } });
+      const { images: _images, ...appearance } = a;
+      void _images;
+      await adminApi.saveAppSettings({ appearance: { ...appearance, primary_color: primary } });
+      // Fon rasmdan boshqa turga o'tdi — storage'dagi rasm o'chiriladi (yetim fayl qolmasin)
+      for (const th of themes) {
+        if (appearance[`background_${th}`] !== "upload" && saved.images?.[th]) await adminApi.deleteAppImage(BACKGROUND_IMAGE, th).catch(() => undefined);
+      }
+      await reload();
+      // Fon maydonlari serverdagi YANGI qiymatdan qayta boshlanadi (reload'dan keyin — eski holat olib qolinmasin)
       setDraft(null);
       setVersion((v) => v + 1);
-      await reload();
       setMsg({ tone: "success", text: t("appearance.saved") });
     } catch (e) {
       setMsg({ tone: "danger", text: errorMessage(e) });
@@ -106,9 +208,14 @@ export default function AdminAppearancePage() {
     setMsg(null);
     try {
       await adminApi.deleteAppSetting("appearance");
+      // Yuklangan fon rasmlari ham o'chiriladi (storage'da yetim qolmasin)
+      for (const th of ["light", "dark"] as const) {
+        if (saved.images?.[th]) await adminApi.deleteAppImage(BACKGROUND_IMAGE, th).catch(() => undefined);
+      }
+      await reload();
+      // Fon maydonlari serverdagi YANGI qiymatdan qayta boshlanadi (reload'dan keyin — eski holat olib qolinmasin)
       setDraft(null);
       setVersion((v) => v + 1);
-      await reload();
       setMsg({ tone: "success", text: t("appearance.resetDone") });
     } catch (e) {
       setMsg({ tone: "danger", text: errorMessage(e) });
@@ -140,8 +247,24 @@ export default function AdminAppearancePage() {
                   </div>
                 </div>
               </Field>
-              <BgField key={`l${version}`} label={t("appearance.bgLight")} value={a.background_light} onChange={(v) => set({ background_light: v })} testid="bg-light" />
-              <BgField key={`d${version}`} label={t("appearance.bgDark")} value={a.background_dark} onChange={(v) => set({ background_dark: v })} testid="bg-dark" />
+              <BgField
+                key={`l${version}`}
+                label={t("appearance.bgLight")}
+                theme="light"
+                value={a.background_light}
+                imageUrl={a.images?.light}
+                onChange={(v, url) => set({ background_light: v, ...(url ? { images: { ...a.images, light: url } } : {}) })}
+                testid="bg-light"
+              />
+              <BgField
+                key={`d${version}`}
+                label={t("appearance.bgDark")}
+                theme="dark"
+                value={a.background_dark}
+                imageUrl={a.images?.dark}
+                onChange={(v, url) => set({ background_dark: v, ...(url ? { images: { ...a.images, dark: url } } : {}) })}
+                testid="bg-dark"
+              />
               <Field label={t("appearance.font")}>
                 <div>
                 <div className="seg" role="group" aria-label={t("appearance.font")} data-testid="appearance-font">

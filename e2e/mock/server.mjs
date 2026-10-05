@@ -69,6 +69,11 @@ let questions = [];
 // 44.6: kunlik o'qish seriyasi — userId → { current, longest, total, last } (last: "YYYY-MM-DD", UTC)
 let streaks = {};
 let appSettings = {}; // 44.8: global ilova sozlamalari (erkin JSON, kalit [a-z0-9_.-])
+// 46: yuklangan rasmlar — name → theme → { data, type, v }; URL'da ?v= (almashtirilsa yangilanadi)
+let appImages = {};
+let appImageVersion = 0;
+const appImageUrl = (name, theme) => `/api/v1/app-settings/images/${name}?theme=${theme}&v=${appImages[name][theme].v}`;
+const appImagesOut = () => Object.fromEntries(Object.entries(appImages).map(([n, th]) => [n, Object.fromEntries(Object.keys(th).map((t) => [t, appImageUrl(n, t)]))]));
 let extraLeaders = []; // /__seed-streak — reytingdagi boshqa o'quvchilar
 const todayUtc = () => new Date().toISOString().slice(0, 10);
 const bumpStreak = (uid) => {
@@ -112,6 +117,7 @@ function reset(opts = {}) {
   questions = [];
   streaks = {};
   appSettings = {};
+  appImages = {};
   extraLeaders = [];
   translateOn = false;
   translateDelay = 0;
@@ -213,6 +219,7 @@ createServer(async (req, res) => {
   if (path === "/__users") return json(res, 200, users);
   if (path === "/__questions") return json(res, 200, questions);
   if (path === "/__app-settings") return json(res, 200, appSettings);
+  if (path === "/__app-images") return json(res, 200, Object.fromEntries(Object.entries(appImages).map(([n, th]) => [n, Object.fromEntries(Object.entries(th).map(([t, x]) => [t, { type: x.type, size: x.data.length, v: x.v }]))])));
   if (path === "/__streaks") return json(res, 200, streaks);
   // ?user=<id>&current=&longest=&total=&today=1 — foydalanuvchi seriyasini o'rnatish; ?leaders=N — soxta o'quvchilar
   if (path === "/__seed-streak") {
@@ -285,7 +292,15 @@ createServer(async (req, res) => {
     return json(res, 200, { book_id: b.id, title: b.title, author: b.author, description: b.description, category_name: b.category?.name ?? null, price: b.price, is_free: !!b.is_free, has_cover: b.has_cover, article_count: articles.filter((a) => a.book_id === b.id).length });
   }
   if (path === "/categories") return json(res, 200, categories.filter((c) => c.status === "ACTIVE"));
-  if (path === "/app-settings" && m === "GET") return json(res, 200, { settings: appSettings });
+  if (path === "/app-settings" && m === "GET") return json(res, 200, { settings: appSettings, images: appImagesOut() });
+  const aim = /^\/app-settings\/images\/([^/]+)$/.exec(path);
+  if (aim && m === "GET") {
+    const set = appImages[aim[1]]; const th = q.get("theme") === "dark" ? "dark" : "light";
+    const img = set?.[th] ?? set?.[th === "dark" ? "light" : "dark"];
+    if (!img) return err(res, 404, "IMAGE_NOT_FOUND", "Image not found");
+    res.writeHead(200, { "Content-Type": img.type, "Content-Length": img.data.length, "Cache-Control": "public, max-age=300" });
+    return res.end(img.data);
+  }
   if (m === "POST" && path === "/auth/login") {
     const b = await readBody(req);
     if (b.identifier === "limit@articles365.local") return err(res, 403, "DEVICE_NOT_ALLOWED", "This account is already linked to 2 devices", { limit: 2, devices: [{ name: "Chrome · Windows", bound_at: now(), last_seen_at: now() }, { name: "Safari · iOS", bound_at: now(), last_seen_at: now() }] });
@@ -588,6 +603,20 @@ createServer(async (req, res) => {
   if (path.startsWith("/admin/")) {
     if (me.role !== "ADMIN") return err(res, 403, "PERMISSION_DENIED", "Admin only");
     if (path === "/admin/stats") return json(res, 200, { users: { total: users.length, by_status: { ACTIVE: users.length }, by_role: { USER: users.length - 1, ADMIN: 1 } }, books: { total: books.length, by_status: { ACTIVE: books.length } }, articles: { total: articles.length, by_processing: { READY: articles.filter((a) => a.processing_status === "READY").length, PROCESSING: articles.filter((a) => a.processing_status === "PROCESSING").length } }, categories: categories.length, access: { total: access.length, by_status: { ACTIVE: access.filter((a) => a.status === "ACTIVE").length } }, annotations: annotations.length, active_sessions: 3 });
+    // 46: fon rasmlari (multipart `file`, ?theme=light|dark)
+    const aimg = /^\/admin\/app-settings\/images\/([^/]+)$/.exec(path);
+    if (aimg) {
+      const name = aimg[1]; const th = q.get("theme") === "dark" ? "dark" : "light";
+      if (m === "PUT") {
+        const ct = req.headers["content-type"] ?? "";
+        if (!ct.startsWith("multipart/form-data")) return err(res, 422, "VALIDATION_ERROR", "Expected multipart/form-data");
+        const f = parseMultipart(await readRaw(req), ct)?.files.file;
+        if (!f || !/^image\/(jpeg|png|webp)$/.test(f.type)) return err(res, 422, "VALIDATION_ERROR", "Image required (jpeg/png/webp)");
+        appImages[name] = appImages[name] ?? {}; appImages[name][th] = { data: f.data, type: f.type, v: ++appImageVersion };
+        return json(res, 200, { name, theme: th, url: appImageUrl(name, th) });
+      }
+      if (m === "DELETE") { if (!appImages[name]?.[th]) return err(res, 404, "IMAGE_NOT_FOUND", "Image not found"); delete appImages[name][th]; if (!Object.keys(appImages[name]).length) delete appImages[name]; return json(res, 200, { message: "Deleted" }); }
+    }
     // 44.8: global ko'rinish sozlamalari
     if (path === "/admin/app-settings") {
       if (m === "GET") return json(res, 200, { settings: appSettings });

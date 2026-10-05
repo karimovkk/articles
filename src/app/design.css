@@ -2900,3 +2900,49 @@ a.track:hover {
 .appearance-contrast dd.warn {
   color: var(--warning);
 }
+
+/* 46: fon rasmi — sudrab tashlash / tanlash zonasi */
+.bg-drop {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1.5px dashed var(--border-strong, var(--border));
+  background: var(--surface-2);
+  cursor: pointer;
+  transition:
+    border-color 140ms var(--ease),
+    background 140ms var(--ease);
+}
+.bg-drop:hover,
+.bg-drop.over {
+  border-color: var(--accent);
+  background: var(--accent-softer);
+}
+.bg-drop:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+.bg-drop.busy {
+  cursor: progress;
+  opacity: 0.8;
+}
+.bg-drop-thumb {
+  width: 112px;
+  height: 64px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  object-fit: cover;
+  box-shadow: 0 0 0 1px var(--border);
+}
+.bg-drop-icon {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  flex-shrink: 0;
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--muted);
+}

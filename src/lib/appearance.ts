@@ -3,7 +3,8 @@
  * Server qiymatni erkin JSON sifatida saqlaydi — sxema shu yerda (`settings.appearance`):
  *   primary_color   "#rrggbb" — asosiy (aksent) rang; qolganlari avtomatik: tugma matni (qora/oq), yorug' fondagi
  *                   matn varianti (≥ 4.5:1), qorong'i mavzu varianti (qorong'i fonda ≥ 4.5:1)
- *   background_light / background_dark — "default" | "#rrggbb" | "https://…" (rasm havolasi)
+ *   background_light / background_dark — "default" | "#rrggbb" | "upload" (46: yuklangan rasm — `images.background[theme]`)
+ *                   | "https://…" (eski: rasm havolasi)
  *   font            "manrope" | "system"
  * Natija — `<style id="a365-appearance">` dagi CSS o'zgaruvchilar; birinchi chizishda "sakrash" bo'lmasligi uchun
  * localStorage'da keshlanadi va layout'dagi inline skript uni hydration'dan oldin qo'yadi.
@@ -14,7 +15,12 @@ export interface Appearance {
   background_light?: string | null;
   background_dark?: string | null;
   font?: "manrope" | "system" | null;
+  /** 46: serverdagi yuklangan fon rasmlari URL'lari (sozlamaga yozilmaydi — `GET /app-settings` `images` dan) */
+  images?: { light?: string | null; dark?: string | null };
 }
+
+/** 46: fon rasmi nomi (`/admin/app-settings/images/{name}`) */
+export const BACKGROUND_IMAGE = "background";
 
 export const APPEARANCE_CACHE_KEY = "a365.appearance.css";
 export const APPEARANCE_STYLE_ID = "a365-appearance";
@@ -28,6 +34,9 @@ const SAFE_URL = /^https:\/\/[^\s"'()<>\\]{4,500}$/i;
 
 export const isHex = (v: unknown): v is string => typeof v === "string" && HEX.test(v);
 export const isSafeImageUrl = (v: unknown): v is string => typeof v === "string" && SAFE_URL.test(v);
+/** 46: backend bergan rasm URL'i — to'liq https yoki shu sayt ichidagi yo'l (`/api/v1/app-settings/images/…?v=`) */
+const SAFE_PATH = /^\/[^\s"'()<>\\]{1,500}$/;
+export const isSafeAssetUrl = (v: unknown): v is string => isSafeImageUrl(v) || (typeof v === "string" && SAFE_PATH.test(v) && !v.startsWith("//"));
 
 function rgb(hex: string): [number, number, number] {
   const n = parseInt(hex.slice(1), 16);
@@ -80,9 +89,10 @@ export function deriveColors(primary: string): DerivedColors {
   return { accent, contrastText, ink, darkAccent, darkContrastText };
 }
 
-function bgCss(value: string | null | undefined, selector: string): string {
-  if (isHex(value)) return `${selector}{background:${value} !important;}`;
-  if (isSafeImageUrl(value)) return `${selector}{background:url("${value}") center top / cover no-repeat !important;}`;
+function bgCss(value: string | null | undefined, uploaded: string | null | undefined, selector: string): string {
+  if (value && HEX.test(value)) return `${selector}{background:${value} !important;}`;
+  const url = value === "upload" ? uploaded : value;
+  if (isSafeAssetUrl(url)) return `${selector}{background:url("${url}") center top / cover no-repeat !important;}`;
   return "";
 }
 
@@ -96,22 +106,25 @@ export function appearanceCss(a: Appearance | null | undefined): string {
     out.push(`:root.dark,.dark{--accent:${c.darkAccent};--accent-contrast:${c.darkContrastText};--accent-ink:${c.darkAccent};}`);
   }
   if (a.font === "system") out.push(`:root{--font-sans:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;}`);
-  out.push(bgCss(a.background_light, "html:not(.dark) .client-bg::before"));
-  out.push(bgCss(a.background_dark, "html.dark .client-bg::before"));
+  out.push(bgCss(a.background_light, a.images?.light, "html:not(.dark) .client-bg::before"));
+  out.push(bgCss(a.background_dark, a.images?.dark, "html.dark .client-bg::before"));
   return out.filter(Boolean).join("\n");
 }
 
 /** Server javobidan `appearance` ni xavfsiz ajratib olish (begona maydonlar/noto'g'ri turlar tashlanadi) */
-export function parseAppearance(settings: unknown): Appearance | null {
+export function parseAppearance(settings: unknown, images?: Record<string, Partial<Record<"light" | "dark", string>>> | null): Appearance | null {
   const raw = (settings as { appearance?: unknown } | null)?.appearance;
-  if (!raw || typeof raw !== "object") return null;
+  const bgImg = images?.[BACKGROUND_IMAGE];
+  const imgs = { light: isSafeAssetUrl(bgImg?.light) ? bgImg.light : null, dark: isSafeAssetUrl(bgImg?.dark) ? bgImg.dark : null };
+  if (!raw || typeof raw !== "object") return imgs.light || imgs.dark ? { images: imgs } : null;
   const r = raw as Record<string, unknown>;
-  const bg = (v: unknown) => (v === "default" || isHex(v) || isSafeImageUrl(v) ? (v as string) : null);
+  const bg = (v: unknown) => (v === "default" || v === "upload" || isHex(v) || isSafeImageUrl(v) ? (v as string) : null);
   return {
     primary_color: isHex(r.primary_color) ? r.primary_color : null,
     background_light: bg(r.background_light),
     background_dark: bg(r.background_dark),
     font: r.font === "system" ? "system" : r.font === "manrope" ? "manrope" : null,
+    images: imgs,
   };
 }
 

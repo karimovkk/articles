@@ -36,7 +36,7 @@ export function loadAppearance(): Promise<void> {
   inFlight = appApi
     .settings()
     .then((r) => {
-      settings = parseAppearance(r.settings);
+      settings = parseAppearance(r.settings, r.images);
       applyAppearance(appearanceCss(settings));
     })
     .catch(() => undefined) // endpoint yo'q / tarmoq — keshdagi (yoki standart) ko'rinish qoladi

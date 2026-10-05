@@ -1,5 +1,6 @@
 /** Admin API — barcha yo'llar ADMIN rolini talab qiladi (server tomonda tekshiriladi). Manba: OpenAPI 2026-09-21. */
 import { api, apiErrorFrom, apiRaw, apiUpload, type UploadOptions } from "./client";
+import type { AppImage, AppImageTheme } from "./app";
 import type {
   AdminDevice,
   AdminStats,
@@ -51,6 +52,15 @@ export const adminApi = {
   },
   deleteAppSetting(key: string) {
     return api<MessageResponse>(`/admin/app-settings/${encodeURIComponent(key)}`, { method: "DELETE" });
+  },
+  /** 46: fon rasmi (rasmning o'zi, object storage'da); almashtirilsa eskisi o'chadi */
+  uploadAppImage(name: string, theme: AppImageTheme, file: Blob, filename: string, opts?: UploadOptions) {
+    const fd = new FormData();
+    fd.append("file", file, filename);
+    return apiUpload<AppImage>(`/admin/app-settings/images/${encodeURIComponent(name)}?theme=${theme}`, fd, { ...opts, method: "PUT" });
+  },
+  deleteAppImage(name: string, theme: AppImageTheme) {
+    return api<MessageResponse>(`/admin/app-settings/images/${encodeURIComponent(name)}`, { method: "DELETE", query: { theme } });
   },
 
   // ---- Users
