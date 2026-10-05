@@ -10,7 +10,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 const AUTH_COOKIE = "a365_auth";
-const PROTECTED = ["/library", "/books", "/profile", "/admin", "/notifications", "/vocabulary"];
+const PROTECTED = ["/library", "/books", "/profile", "/admin", "/notifications", "/vocabulary", "/leaderboard"];
 const GUEST_ONLY = ["/login", "/register"];
 
 export function proxy(request: NextRequest) {

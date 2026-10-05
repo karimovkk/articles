@@ -244,6 +244,8 @@ export function isNetworkError(e: unknown): boolean {
 export interface UploadOptions {
   onProgress?: (loaded: number, total: number) => void;
   signal?: AbortSignal;
+  /** 44.2: javob shuncha ms ichida kelmasa — `ApiError(0, "UPLOAD_TIMEOUT")` (cheksiz "yuklanmoqda" bo'lmasin) */
+  timeoutMs?: number;
 }
 
 function xhrOnce(url: string, form: FormData, opts: UploadOptions): Promise<{ status: number; body: string }> {
@@ -260,6 +262,10 @@ function xhrOnce(url: string, form: FormData, opts: UploadOptions): Promise<{ st
     xhr.onload = () => resolve({ status: xhr.status, body: xhr.responseText });
     xhr.onerror = () => reject(new TypeError("Failed to fetch"));
     xhr.onabort = () => reject(new DOMException("Aborted", "AbortError"));
+    if (opts.timeoutMs) {
+      xhr.timeout = opts.timeoutMs;
+      xhr.ontimeout = () => reject(new ApiError(0, "UPLOAD_TIMEOUT", "Upload timed out"));
+    }
     opts.signal?.addEventListener("abort", () => xhr.abort(), { once: true });
     xhr.send(form);
   });

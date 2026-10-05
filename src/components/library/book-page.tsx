@@ -119,15 +119,15 @@ export function BookPage({ bookId }: { bookId: string }) {
           <div className="mt-auto grid gap-3 sm:grid-cols-3" data-testid="book-stats">
             <div className="rounded-[14px] bg-surface-2 px-4 py-3">
               <div className="stat-label">{t("book.articles")}</div>
-              <div className="mt-1 font-display text-xl font-semibold tabular-nums">{sorted.length}</div>
+              <div className="mt-1 text-xl font-bold tabular-nums">{sorted.length}</div>
             </div>
             <div className="rounded-[14px] bg-surface-2 px-4 py-3">
               <div className="stat-label">{t("admin.books.pages")}</div>
-              <div className="mt-1 font-display text-xl font-semibold tabular-nums">{totalPages || "—"}</div>
+              <div className="mt-1 text-xl font-bold tabular-nums">{totalPages || "—"}</div>
             </div>
             <div className="rounded-[14px] bg-surface-2 px-4 py-3">
               <div className="stat-label">{t("book.progress")}</div>
-              <div className="mt-1 font-display text-xl font-semibold tabular-nums">{clampPercent(overall)}%</div>
+              <div className="mt-1 text-xl font-bold tabular-nums">{clampPercent(overall)}%</div>
             </div>
           </div>
 

@@ -62,7 +62,6 @@ export default function ProfilePage() {
         <div className="flex min-w-0 items-center gap-4">
           <Avatar name={displayName} size="lg" tone="accent" />
           <div className="min-w-0">
-            <span className="page-eyebrow">{t("nav.profile")}</span>
             <h1 className="page-title">{displayName}</h1>
             <p className="page-sub">{t("profile.description")}</p>
           </div>

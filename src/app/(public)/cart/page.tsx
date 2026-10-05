@@ -166,7 +166,7 @@ export default function CartPage() {
     if (ok) cart.clear();
   };
 
-  const header = <PageHeader eyebrow={t("cart.eyebrow")} title={t("cart.title")} description={t("cart.sub")} icon={<I.ShoppingBag size={26} />} />;
+  const header = <PageHeader title={t("cart.title")} description={t("cart.sub")} icon={<I.ShoppingBag size={26} />} />;
 
   if (cfg === undefined)
     return (

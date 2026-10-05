@@ -1,6 +1,6 @@
 /**
  * Auth (OpenAPI): POST /auth/login {identifier, password, device_name?, totp_code?} → LoginResponse;
- * POST /auth/register {email|phone, password, full_name?} → UserResponse (token YO'Q → keyin login);
+ * POST /auth/register {phone, password, full_name?} → UserResponse (44.1: faqat telefon; token YO'Q → keyin login);
  * POST /auth/logout {refresh_token}; GET /auth/me; PATCH /me; POST /me/password; /me/2fa/*; GET /me/devices (38).
  */
 import { api, emitAuthChanged, resetSessionEndReason } from "./client";
@@ -8,11 +8,25 @@ import { tokenStore } from "./token-store";
 import { shortAgent } from "@/lib/agent";
 import type { LoginResponse, MessageResponse, MyDevicesResponse, TwoFactorSetup, User } from "./types";
 
-/** Email yoki telefon ekanini aniqlab, backend kutgan maydonlarga ajratadi (register uchun). */
-export function splitIdentifier(identifier: string): { email?: string; phone?: string } {
+/**
+ * 44.1: telefon → E.164 (`+998901234567`). Qabul qilinadi: "90 123 45 67", "998901234567", "+998 (90) 123-45-67",
+ * "00998…" va boshqa davlat raqamlari (`+…`, 10–15 raqam). Noto'g'ri bo'lsa — `null`.
+ */
+export function normalizePhone(raw: string): string | null {
+  const v = raw.trim().replace(/[\s\-().]/g, "");
+  let d = v.startsWith("+") ? v.slice(1) : v.startsWith("00") ? v.slice(2) : v;
+  if (!/^\d+$/.test(d)) return null;
+  if (d.length === 9) d = `998${d}`; // mahalliy: 90 123 45 67
+  if (d.startsWith("998") && d.length !== 12) return null;
+  if (d.length < 10 || d.length > 15) return null;
+  return `+${d}`;
+}
+
+/** Login identifikatori: email bo'lsa — o'zi; telefon bo'lsa — E.164 ga keltiriladi (backend shu ko'rinishda saqlaydi) */
+export function loginIdentifier(identifier: string): string {
   const v = identifier.trim();
-  if (v.includes("@")) return { email: v.toLowerCase() };
-  return { phone: v.replace(/[\s-]/g, "") };
+  if (v.includes("@")) return v.toLowerCase();
+  return normalizePhone(v) ?? v;
 }
 
 /** Sessiyalar ro'yxatida ko'rinadigan qisqa qurilma nomi (brauzer · OS). */
@@ -21,8 +35,10 @@ export function deviceName(): string {
   return (shortAgent(navigator.userAgent) || "Browser").slice(0, 100);
 }
 
+/** 44.1: ro'yxatdan faqat telefon bilan (email shart emas) */
 export interface RegisterInput {
-  identifier: string;
+  /** E.164 (`normalizePhone` natijasi) */
+  phone: string;
   password: string;
   full_name?: string;
 }
@@ -35,7 +51,7 @@ export const authApi = {
       method: "POST",
       auth: false,
       headers: secret ? { "X-Device-Secret": secret } : undefined,
-      body: { identifier: identifier.trim(), password, device_name: deviceName(), ...(totpCode ? { totp_code: totpCode } : {}) },
+      body: { identifier: loginIdentifier(identifier), password, device_name: deviceName(), ...(totpCode ? { totp_code: totpCode } : {}) },
     });
     if (!data.access_token) throw new Error("Backend access_token qaytarmadi");
     if (data.device_secret) tokenStore.setDeviceSecret(data.device_secret);
@@ -50,9 +66,9 @@ export const authApi = {
     await api<User>("/auth/register", {
       method: "POST",
       auth: false,
-      body: { ...splitIdentifier(input.identifier), password: input.password, full_name: input.full_name || null },
+      body: { phone: input.phone, password: input.password, full_name: input.full_name?.trim() || null },
     });
-    return authApi.login(input.identifier, input.password);
+    return authApi.login(input.phone, input.password);
   },
 
   async logout(): Promise<void> {

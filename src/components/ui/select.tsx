@@ -257,7 +257,7 @@ export function Select<V extends string = string>({
                   {o.icon}
                   <span className="min-w-0 flex-1">
                     <span className="block truncate">{o.label}</span>
-                    {o.description && <span className="block truncate text-[11.5px] font-medium text-muted">{o.description}</span>}
+                    {o.description && <span className="block truncate text-xs font-medium text-muted">{o.description}</span>}
                   </span>
                   {isSel && <I.Check size={15} />}
                 </div>

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Alert, Button, Field, PasswordInput, passwordStrength } from "@/components/ui";
 import * as I from "@/components/ui/icons";
-import { authApi, errorMessage } from "@/lib/api";
+import { authApi, errorMessage, normalizePhone } from "@/lib/api";
 import { useT } from "@/i18n";
 import { useHydrated } from "@/lib/use-hydrated";
 
@@ -14,7 +14,7 @@ export default function RegisterPage() {
   const hydrated = useHydrated();
   const router = useRouter();
   const [fullName, setFullName] = useState("");
-  const [identifier, setIdentifier] = useState("");
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -23,6 +23,12 @@ export default function RegisterPage() {
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
+    // 44.1: faqat telefon — E.164 ga keltiriladi
+    const e164 = normalizePhone(phone);
+    if (!e164) {
+      setError(t("auth.phoneInvalid"));
+      return;
+    }
     if (password !== confirm) {
       setError(t("auth.passwordMismatch"));
       return;
@@ -33,7 +39,7 @@ export default function RegisterPage() {
     }
     setLoading(true);
     try {
-      await authApi.register({ identifier, password, full_name: fullName });
+      await authApi.register({ phone: e164, password, full_name: fullName });
       router.replace("/library");
     } catch (err) {
       setError(errorMessage(err, t("auth.registerFailed")));
@@ -53,10 +59,10 @@ export default function RegisterPage() {
           <input className="input" autoComplete="name" value={fullName} readOnly={!hydrated} onChange={(e) => setFullName(e.target.value)} autoFocus />
         </div>
       </Field>
-      <Field label={t("auth.identifier")} hint={t("auth.identifierHint")}>
+      <Field label={t("auth.phone")} hint={t("auth.phoneHint")}>
         <div className="input-wrap">
-          <I.Mail size={16} />
-          <input className="input" autoComplete="username" placeholder={t("auth.identifierPlaceholder")} value={identifier} readOnly={!hydrated} onChange={(e) => setIdentifier(e.target.value)} required />
+          <I.Phone size={16} />
+          <input className="input" type="tel" inputMode="tel" autoComplete="tel" placeholder="+998 90 123 45 67" value={phone} readOnly={!hydrated} onChange={(e) => setPhone(e.target.value)} required data-testid="register-phone" />
         </div>
       </Field>
       <Field label={t("auth.password")}>

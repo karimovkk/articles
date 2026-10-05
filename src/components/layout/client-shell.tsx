@@ -21,6 +21,7 @@ import { useUnreadCount } from "@/components/notifications/use-unread-count";
 import { useCatalogCategories } from "@/lib/catalog-categories";
 import { env } from "@/lib/env";
 import { useOpenOrders } from "@/lib/admin-open-orders";
+import { StreakChip } from "@/components/streak/streak-chip";
 import { useT, type DictKey } from "@/i18n";
 import { LocaleSwitcher } from "@/i18n/locale-switcher";
 
@@ -63,42 +64,18 @@ function ClientHeader({ menuOpen, onMenu }: { menuOpen: boolean; onMenu: () => v
   const { t } = useT();
   const pathname = usePathname();
   const displayName = user ? user.full_name || user.email || user.phone || t("common.user") : "";
-  const nav: Array<{ href: string; label: DictKey; auth?: boolean; wide?: boolean }> = [
-    { href: "/catalog", label: "nav.catalog" },
-    { href: "/library", label: "nav.library", auth: true },
-    // 33: 1280px dan tor header'da joy yo'q (brend markazda) — u yerda sidebar'da bor
-    { href: "/vocabulary", label: "nav.vocabulary", auth: true, wide: true },
-    { href: "/profile", label: "nav.profile", auth: true },
-  ];
-
   return (
     <header className="client-header">
       <button type="button" className="icon-btn plain client-burger" onClick={onMenu} aria-expanded={menuOpen} aria-label={t(menuOpen ? "ui.nav.closeMenu" : "ui.nav.openMenu")} data-testid="client-menu">
         {menuOpen ? <I.X size={20} /> : <I.Menu size={20} />}
       </button>
-      <nav className="client-nav" aria-label={t("client.nav")}>
-        {nav
-          .filter((n) => !n.auth || user)
-          .map((n) => (
-            <Link key={n.href} href={n.href} className={cn(isActive(pathname, n.href) && "active", n.wide && "max-[1279px]:!hidden")} aria-current={isActive(pathname, n.href) ? "page" : undefined}>
-              {t(n.label)}
-            </Link>
-          ))}
-        {isAdmin && (
-          <Link href="/admin" prefetch={false}>
-            {t("nav.admin")}
-            <I.ArrowUpRight size={13} />
-          </Link>
-        )}
-      </nav>
-
       {/* 25/30: brend "365" markazda — yilning nechanchi kuni doim ko'rinib turadi, halqa vaqti-vaqti bilan yonadi */}
       <div className="client-brand-wrap">
         <Link href={user ? "/library" : "/catalog"} className="client-brand" aria-label={env.appName} data-testid="header-brand">
           <YearEmblem />
           <span className="client-brand-name">{env.appName}</span>
         </Link>
-        <YearDayChip className="max-[400px]:hidden min-[641px]:max-[1100px]:hidden" />
+        <YearDayChip className="max-[420px]:hidden min-[641px]:max-[1180px]:hidden" />
       </div>
 
       <div className="client-actions">
@@ -120,6 +97,7 @@ function ClientHeader({ menuOpen, onMenu }: { menuOpen: boolean; onMenu: () => v
         <LocaleSwitcher variant="menu" />
         <ThemeSwitch />
         <CartHeaderButton />
+        {user && <StreakChip className="max-[700px]:hidden" />}
         {user && <NotificationBell />}
         {user ? (
           <Menu
@@ -182,6 +160,7 @@ function ClientSidebar({ open, onNavigate }: { open: boolean; onNavigate: () => 
     { href: "/catalog", label: "nav.catalog", icon: <I.Grid size={19} /> },
     { href: "/library", label: "nav.library", icon: <I.Library size={19} />, auth: true },
     { href: "/vocabulary", label: "nav.vocabulary", icon: <I.Languages size={19} />, auth: true },
+    { href: "/leaderboard", label: "nav.leaderboard", icon: <I.Trophy size={19} />, auth: true },
     // 35: savatcha (chegirma yoqilgan bo'lsa; mehmonlar uchun ham)
     ...(cartNav.enabled ? [{ href: "/cart", label: "cart.title" as DictKey, icon: <I.ShoppingBag size={19} />, badge: cartNav.count }] : []),
     { href: "/notifications", label: "notifications.title", icon: <I.Bell size={19} />, auth: true, badge: unread },

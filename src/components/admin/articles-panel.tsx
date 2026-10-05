@@ -6,10 +6,11 @@
  * Amallar — qatorda asosiy tugma (PDF) + qo'lbola menyu (mundarija, tahrirlash, o'chirish).
  */
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Alert, Badge, Button, Field, IconButton, Input, Menu, MenuItem, MenuSep, Modal, Select, statusTone, useConfirm } from "@/components/ui";
+import { Alert, Badge, Button, Field, IconButton, Input, Menu, MenuItem, MenuSep, Modal, Select, Switch, statusTone, useConfirm } from "@/components/ui";
 import * as I from "@/components/ui/icons";
 import { adminApi, errorMessage, type Article } from "@/lib/api";
 import { formatMb, validatePdf } from "@/lib/uploads";
+import { QuestionsEditor } from "./questions-editor";
 import { env } from "@/lib/env";
 import { useT } from "@/i18n";
 
@@ -21,7 +22,7 @@ interface TocRow {
 
 const LEVELS = [1, 2, 3].map((l) => ({ value: String(l), label: `H${l}` }));
 
-export function ArticlesPanel({ bookId, articles, onChanged }: { bookId: string; articles: Article[]; onChanged: () => void }) {
+export function ArticlesPanel({ bookId, articles, onChanged, bookFree }: { bookId: string; articles: Article[]; onChanged: () => void; bookFree?: boolean }) {
   const { t } = useT();
   const confirm = useConfirm();
   const [error, setError] = useState<string | null>(null);
@@ -30,6 +31,8 @@ export function ArticlesPanel({ bookId, articles, onChanged }: { bookId: string;
   const [renaming, setRenaming] = useState<Article | null>(null);
   const [renameTitle, setRenameTitle] = useState("");
   const [tocFor, setTocFor] = useState<Article | null>(null);
+  // 44.5: maqola testi savollari
+  const [quizFor, setQuizFor] = useState<Article | null>(null);
   const [tocRows, setTocRows] = useState<TocRow[]>([]);
   const [upload, setUpload] = useState<{ id: string; loaded: number; total: number } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -151,6 +154,7 @@ export function ArticlesPanel({ bookId, articles, onChanged }: { bookId: string;
                   <th>{t("common.status")}</th>
                   <th className="text-right">{t("admin.books.pages")}</th>
                   <th>{t("admin.books.file")}</th>
+                  <th title={t("admin.articles.watermarkHint")}>{t("admin.articles.watermark")}</th>
                   <th />
                 </tr>
               </thead>
@@ -192,6 +196,18 @@ export function ArticlesPanel({ bookId, articles, onChanged }: { bookId: string;
                         </div>
                       )}
                     </td>
+                    <td>
+                      {/* 44.3: suv belgisi tanlov bo'yicha; tekin kitobda doim o'chiq (backend qoidasi) */}
+                      <span title={bookFree ? t("admin.articles.watermarkFree") : t("admin.articles.watermarkHint")} className="inline-flex">
+                        <Switch
+                          checked={!bookFree && a.watermark_enabled !== false}
+                          disabled={bookFree || !!busyId}
+                          onChange={(v) => void run(a.id, () => adminApi.updateArticle(bookId, a.id, { watermark_enabled: v }))}
+                          aria-label={t("admin.articles.watermark")}
+                          data-testid="article-watermark"
+                        />
+                      </span>
+                    </td>
                     <td className="text-right">
                       <div className="flex justify-end gap-1">
                         <Button
@@ -217,6 +233,9 @@ export function ArticlesPanel({ bookId, articles, onChanged }: { bookId: string;
                         >
                           <MenuItem icon={<I.List size={15} />} onSelect={() => openToc(a)}>
                             {t("admin.articles.toc")}
+                          </MenuItem>
+                          <MenuItem icon={<I.CheckCircle size={15} />} onSelect={() => setQuizFor(a)} data-testid="article-questions">
+                            {t("quiz.admin.menu")}
                           </MenuItem>
                           <MenuItem
                             icon={<I.Pencil size={15} />}
@@ -267,6 +286,8 @@ export function ArticlesPanel({ bookId, articles, onChanged }: { bookId: string;
           </div>
         </form>
       </Modal>
+
+      {quizFor && <QuestionsEditor articleId={quizFor.id} title={quizFor.title} open onClose={() => setQuizFor(null)} />}
 
       <Modal open={!!tocFor} onClose={() => setTocFor(null)} title={`${t("admin.articles.toc")}: ${tocFor?.title ?? ""}`} size="lg" icon={<I.List size={18} />}>
         <form onSubmit={saveToc} className="space-y-4">

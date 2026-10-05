@@ -303,7 +303,7 @@ export function AdminBookDetail({ bookId }: { bookId: string }) {
       {tab === "articles" && (
         <Card title={`${t("admin.articles.title")} (${articles.length})`} padded={false}>
           <div className="p-5">
-            <ArticlesPanel bookId={bookId} articles={articles} onChanged={load} />
+            <ArticlesPanel bookId={bookId} articles={articles} onChanged={load} bookFree={isFreeBook(book)} />
           </div>
         </Card>
       )}

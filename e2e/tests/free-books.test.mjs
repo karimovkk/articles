@@ -53,7 +53,7 @@ await page.waitForURL(`${BASE}/reader/${FREE_ART}`, { timeout: 15000 });
 await page.waitForFunction(() => document.querySelector('[data-page="1"] canvas')?.width > 0 && document.querySelectorAll('[data-page="1"] .textLayer span').length > 3, null, { timeout: 30000 });
 check("Mehmon reader'da (login'ga yo'naltirilmadi)", page.url().endsWith(`/reader/${FREE_ART}`));
 check("Mehmon banneri: ro'yxatdan o'tish / kirish", (await page.locator('[data-testid="guest-banner"] a[href^="/register"]').count()) === 1 && (await page.locator('[data-testid="guest-banner"] a[href^="/login"]').count()) === 1);
-check("Suv belgisi: mehmon", (await page.locator("text=mehmon").count()) > 0);
+check("Tekin kitob: suv belgisi yo'q va /watermark so'ralmadi (44.3)", (await page.locator('[data-testid="watermark-overlay"]').count()) === 0 && !(await mockGet("/__log")).slice(before).some((l) => l.endsWith("/watermark")));
 await page.screenshot({ path: OUT + "52-free-reader-guest.png" });
 
 // Panel: faqat mundarija va qidiruv

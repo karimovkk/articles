@@ -45,7 +45,7 @@ export default function AdminAuditLogsPage() {
       render: (l) => (
         <span className="flex flex-col gap-0.5">
           <span className="font-bold text-text">{auditActionLabel(l.action)}</span>
-          <span className="font-mono text-[11.5px] text-muted">{l.action}</span>
+          <span className="font-mono text-xs text-muted">{l.action}</span>
         </span>
       ),
     },
@@ -78,7 +78,6 @@ export default function AdminAuditLogsPage() {
   return (
     <div>
       <PageHeader
-        eyebrow={t("admin.nav.system")}
         title={t("admin.audit.title")}
         description={t("admin.audit.description")}
         icon={<I.History size={26} />}

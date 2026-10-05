@@ -41,7 +41,7 @@ export default function AdminCategoriesPage() {
 
   return (
     <div>
-      <PageHeader eyebrow={t("admin.nav.content")} title={t("admin.categories.title")} icon={<I.Tag size={26} />} />
+      <PageHeader title={t("admin.categories.title")} icon={<I.Tag size={26} />} />
       {(error ?? loadError) && <Alert className="mb-4">{error ?? loadError}</Alert>}
       <div className="grid gap-5 md:grid-cols-3">
         <Card className="md:col-span-1" title={t("admin.categories.new")}>

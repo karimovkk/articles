@@ -53,7 +53,6 @@ export default function LibraryPage() {
   return (
     <div>
       <PageHeader
-        eyebrow={t("nav.library")}
         title={t("library.title")}
         description={t("library.description")}
         icon={<I.Library size={26} />}
@@ -79,7 +78,7 @@ export default function LibraryPage() {
           <BookCover bookId={continueItem.book_id} title={continueItem.title} hasCover={continueItem.has_cover} className="w-16 shrink-0 rounded-[10px]" />
           <div className="min-w-0 flex-1">
             <span className="section-label mb-1">{t("book.continue")}</span>
-            <p className="truncate text-[15px] font-extrabold text-text">{continueItem.title}</p>
+            <p className="truncate text-[15px] font-bold text-text">{continueItem.title}</p>
             <p className="truncate text-xs font-semibold text-muted">
               {continueItem.author ? `${continueItem.author} · ` : ""}
               {continueItem.last_read_at ? formatDateTime(new Date(continueItem.last_read_at)) : ""}

@@ -117,7 +117,7 @@ await page.fill('input[type="password"]', "User12345!");
 await page.click('button[type="submit"]');
 await page.waitForURL(`${BASE}/library`);
 await page.waitForSelector("header", { timeout: 8000 });
-check("AppShell nav'da Katalog havolasi", (await page.locator('header a[href="/catalog"]').count()) > 0);
+check("AppShell nav'da Katalog havolasi", (await page.locator('.client-sidebar a[href="/catalog"]').count()) > 0);
 await page.goto(`${BASE}/catalog/${BOOK}`);
 await page.waitForSelector("text=Bu kitob kutubxonangizda bor", { timeout: 8000 });
 const readHref = await page.getAttribute('a:has-text("O\'qish")', "href");
@@ -125,7 +125,7 @@ check("Ruxsati bor kitob: 'O'qish' → kitob sahifasi", readHref === `/books/${B
 await page.goto(`${BASE}/catalog/${page2Book}`);
 await page.waitForSelector('button:has-text("Buyurtma berish")', { timeout: 8000 });
 check("Ruxsati yo'q kitob: 'Buyurtma berish'", true);
-check("Kirgan foydalanuvchi qobig'i: Kutubxona havolasi, Kirish tugmasi yo'q", (await page.locator('header a[href="/library"]').count()) > 0 && (await page.locator('header a[href="/login"]').count()) === 0);
+check("Kirgan foydalanuvchi qobig'i: Kutubxona havolasi, Kirish tugmasi yo'q", (await page.locator('.client-sidebar a[href="/library"]').count()) > 0 && (await page.locator('header a[href="/login"]').count()) === 0);
 
 // ---- Reader: seed highlight (`location_data`) chiziladi; yangi highlight `location_data` bilan yuboriladi
 await page.goto(`${BASE}/reader/${ART}`);

@@ -25,6 +25,8 @@ import {
   readerApi,
   readingApi,
   vocabularyApi,
+  quizApi,
+  type QuizQuestion,
   type Annotation,
   type VocabEntry,
   type ArticleListItem,
@@ -36,6 +38,7 @@ import { HIGHLIGHT_COLORS, getHighlightRects, normalizeColor, overlappingHighlig
 import { VocabDialog, type VocabFormValues } from "@/components/vocabulary/vocab-dialog";
 import { canSpeak, speak } from "@/components/vocabulary/speak";
 import { LocaleSwitcher } from "@/i18n/locale-switcher";
+import { refreshStreak } from "@/lib/streak-store";
 import { useT } from "@/i18n";
 import * as I from "@/components/ui/icons";
 import { PdfViewer, type PdfViewerHandle, type TextSelection, type ViewMode } from "./pdf-viewer";
@@ -136,6 +139,8 @@ export function ReaderView({ articleId }: { articleId: string }) {
   const highlights = useMemo(() => annotations.filter((a) => a.type === "HIGHLIGHT"), [annotations]);
   // 38: lug'at so'zlari — `/articles/{id}/vocabulary`; eski "vocab" annotatsiyalari (backend ko'chirgan) eslatmalarga tushmaydi
   const [vocab, setVocab] = useState<VocabEntry[]>([]);
+  // 44.5: maqola testi (savollar bo'lmasa — bo'sh, "Test" tabi ko'rinmaydi)
+  const [quiz, setQuiz] = useState<QuizQuestion[]>([]);
   const plainAnnotations = useMemo(() => annotations.filter((a) => !isVocab(a)), [annotations]);
   const [vocabDraft, setVocabDraft] = useState<{ values: VocabFormValues; page: number | null; rects: HighlightRect[]; existing: VocabEntry | null; mode: "add" | "edit" } | null>(null);
   const [vocabPop, setVocabPop] = useState<{ id: string; x: number; y: number; w: number } | null>(null);
@@ -162,8 +167,11 @@ export function ReaderView({ articleId }: { articleId: string }) {
     if (authLoading) return;
     let cancelled = false;
     (async () => {
+      // 44.3: suv belgisi tanlov bo'yicha (admin o'chirgan yoki kitob tekin) — `false` bo'lsa so'ralmaydi ham
+      let wantWatermark = true;
       try {
         const m = await readerApi.meta(articleId);
+        wantWatermark = m.features?.watermark !== false;
         if (cancelled) return;
         setMeta(m);
         setPageCount(m.page_count ?? 0);
@@ -186,15 +194,21 @@ export function ReaderView({ articleId }: { articleId: string }) {
         setFatal({ code: isApiError(e) ? e.code : "ERROR", message: errorMessage(e) });
         return;
       }
-      readerApi
-        .watermark(articleId)
-        .then((w) => !cancelled && setWatermark(w))
-        .catch(() => {
-          // Watermark olinmasa ham o'qishga ruxsat bor; minimal label ko'rsatamiz (mehmonda — "mehmon")
-          if (cancelled) return;
-          const who = user ? (user.email ?? user.phone ?? user.id.slice(0, 8)) : "Articles365 · guest";
-          setWatermark({ watermark_text: `${who} · ${new Date().toISOString().slice(0, 10)}` });
-        });
+      quizApi
+        .questions(articleId)
+        .then((q) => !cancelled && setQuiz(q))
+        .catch(() => undefined);
+      if (wantWatermark) {
+        readerApi
+          .watermark(articleId)
+          .then((w) => !cancelled && setWatermark(w))
+          .catch(() => {
+            // Watermark olinmasa ham o'qishga ruxsat bor; minimal label ko'rsatamiz (mehmonda — "mehmon")
+            if (cancelled) return;
+            const who = user ? (user.email ?? user.phone ?? user.id.slice(0, 8)) : "Articles365 · guest";
+            setWatermark({ watermark_text: `${who} · ${new Date().toISOString().slice(0, 10)}` });
+          });
+      }
       if (!user) return; // mehmon: annotatsiya va progress yo'q
       readingApi
         .listAnnotations(articleId)
@@ -228,11 +242,20 @@ export function ReaderView({ articleId }: { articleId: string }) {
   // ---- Progress'ni saqlash (debounce) — TZ §4.7
   const saveTimer = useRef<number | null>(null);
   const lastSaved = useRef<number>(0);
+  // 44.6: o'qish saqlangach seriya (streak) bir marta yangilanadi — header'dagi 🔥 "bugun o'qidingiz" bo'ladi
+  const streakSynced = useRef(false);
   const persistProgress = useCallback(
     (p: number) => {
       if (guest || !pageCount || p === lastSaved.current) return;
       lastSaved.current = p;
-      readingApi.saveProgress(articleId, { current_page: p, total_pages: pageCount }).catch(() => undefined);
+      readingApi
+        .saveProgress(articleId, { current_page: p, total_pages: pageCount })
+        .then(() => {
+          if (streakSynced.current) return;
+          streakSynced.current = true;
+          void refreshStreak();
+        })
+        .catch(() => undefined);
     },
     [articleId, pageCount, guest],
   );
@@ -629,9 +652,9 @@ export function ReaderView({ articleId }: { articleId: string }) {
             <I.PanelLeft size={18} />
           </button>
           <div className="min-w-0 flex-1 pl-1 max-[420px]:order-last max-[420px]:w-full max-[420px]:basis-full max-[420px]:pb-0.5">
-            <p className="truncate text-[13.5px] font-bold">{meta.title}</p>
+            <p className="truncate text-sm font-bold">{meta.title}</p>
             {(prev || next) && (
-              <p className="flex gap-2 text-[11.5px] font-semibold text-muted max-[420px]:hidden">
+              <p className="flex gap-2 text-xs font-semibold text-muted max-[420px]:hidden">
                 {prev && (
                   <Link href={`/reader/${prev.article_id}`} className="inline-flex min-h-[28px] min-w-[32px] shrink-0 items-center justify-center gap-0.5 hover:text-text" title={prev.title} aria-label={t("reader.prevArticle")}>
                     <I.ChevronLeft size={13} /> <span className="max-[420px]:hidden">{t("reader.prevArticle")}</span>
@@ -732,6 +755,8 @@ export function ReaderView({ articleId }: { articleId: string }) {
                 searching={searching}
                 onSearch={onSearch}
                 guest={guest}
+                articleId={articleId}
+                quiz={quiz}
                 annotations={plainAnnotations}
                 vocab={vocab}
                 onVocabGo={goToVocab}
@@ -774,6 +799,21 @@ export function ReaderView({ articleId }: { articleId: string }) {
               }}
             />
             {meta.features?.watermark !== false && <WatermarkOverlay payload={watermark} night={night} />}
+            {/* 44.5: maqola oxiriga yetdi — test taklifi (panel "Test" tabida ochiladi) */}
+            {quiz.length > 0 && pageCount > 0 && page >= pageCount - (shownMode === "spread" ? 1 : 0) && !(sidebarOpen && tab === "test") && (
+              <button
+                type="button"
+                className="quiz-cta"
+                onClick={() => {
+                  setTab("test");
+                  setSidebarOpen(true);
+                }}
+                data-testid="quiz-cta"
+              >
+                <I.CheckCircle size={16} />
+                {t("quiz.cta", { n: quiz.length })}
+              </button>
+            )}
             {guest && !guestBannerHidden && (
               <div className="guest-banner" data-testid="guest-banner" role="status">
                 <div className="min-w-0">
@@ -990,7 +1030,7 @@ function VocabPopover({
     >
       <div className="flex items-start gap-2">
         <div className="user-text min-w-0 flex-1">
-          <p className="text-[15px] font-extrabold text-text">{entry.word}</p>
+          <p className="text-[15px] font-bold text-text">{entry.word}</p>
           <p className={cn("mt-0.5 text-sm", entry.translation ? "text-text-2" : "italic text-muted")} data-testid="vocab-popover-translation">
             {entry.translation ?? t("vocab.noTranslation")}
           </p>

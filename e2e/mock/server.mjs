@@ -65,10 +65,24 @@ let deviceLimitOn = false;
 let deviceRemovedOnRefresh = false; // /__device-removed?on=1 — refresh → 401 DEVICE_REMOVED
 // 38: lug'at (`/me/vocabulary`, BACKEND_TASKS.md 1-qism)
 let vocab = [];
+let questions = [];
+// 44.6: kunlik o'qish seriyasi — userId → { current, longest, total, last } (last: "YYYY-MM-DD", UTC)
+let streaks = {};
+let appSettings = {}; // 44.8: global ilova sozlamalari (erkin JSON, kalit [a-z0-9_.-])
+let extraLeaders = []; // /__seed-streak — reytingdagi boshqa o'quvchilar
+const todayUtc = () => new Date().toISOString().slice(0, 10);
+const bumpStreak = (uid) => {
+  const s = streaks[uid] ?? { current: 0, longest: 0, total: 0, last: null };
+  const today = todayUtc(); if (s.last === today) return;
+  const y = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  s.current = s.last === y ? s.current + 1 : 1; s.longest = Math.max(s.longest, s.current); s.total += 1; s.last = today; streaks[uid] = s;
+}; // 44.5: { id, article_id, prompt, options, correct_index, explanation, order_index }
+const passwords = new Map(); // ro'yxatdan o'tganlar: user.id → parol (44.1)
 // 41: avtomatik tarjima (`POST /translate`) — jonli saytdagidek standart o'chiq (503); `/__translate?on=1[&ms=..]`
 let translateOn = false;
 let translateDelay = 0;
-let translateNoUz = false; // LibreTranslate (prod'dagi provayder) o'zbek tilini qo'llamaydi → uz uchun 502
+let translateNoUz = false;
+let receiptDelay = 0; // 44.2: /__slow-receipt?ms= — chek javobi kechikadi (100% dan keyingi "tekshirilmoqda" holati) // LibreTranslate (prod'dagi provayder) o'zbek tilini qo'llamaydi → uz uchun 502
 const translateLog = [];
 const TR = { uz: { quick: "tez", brown: "jigarrang", fox: "tulki", dog: "it", lazy: "dangasa" }, ru: { quick: "быстрый", fox: "лиса", dog: "собака" }, en: {} };
 const normWord = (w) => String(w ?? "").toLocaleLowerCase().replace(/[‘’ʻʼ`]/g, "'").replace(/^[\s"'«»“”.,;:!?()[\]{}—–-]+|[\s"'«»“”.,;:!?()[\]{}—–-]+$/g, "").replace(/\s+/g, " ");
@@ -94,9 +108,15 @@ function reset(opts = {}) {
   deviceLimitOn = false;
   deviceRemovedOnRefresh = false;
   vocab = [];
+  passwords.clear();
+  questions = [];
+  streaks = {};
+  appSettings = {};
+  extraLeaders = [];
   translateOn = false;
   translateDelay = 0;
   translateNoUz = false;
+  receiptDelay = 0;
   translateLog.length = 0;
   books = withFree(freshBooks());
   articles = freshArticles();
@@ -190,6 +210,29 @@ createServer(async (req, res) => {
   if (path === "/__log") return json(res, 200, log);
   if (path === "/__headers") return json(res, 200, headersSeen);
   if (path === "/__devices") return json(res, 200, devices);
+  if (path === "/__users") return json(res, 200, users);
+  if (path === "/__questions") return json(res, 200, questions);
+  if (path === "/__app-settings") return json(res, 200, appSettings);
+  if (path === "/__streaks") return json(res, 200, streaks);
+  // ?user=<id>&current=&longest=&total=&today=1 — foydalanuvchi seriyasini o'rnatish; ?leaders=N — soxta o'quvchilar
+  if (path === "/__seed-streak") {
+    if (q.get("user")) { const y = new Date(Date.now() - 86400000).toISOString().slice(0, 10); streaks[q.get("user")] = { current: Number(q.get("current") ?? 0), longest: Number(q.get("longest") ?? q.get("current") ?? 0), total: Number(q.get("total") ?? q.get("current") ?? 0), last: q.get("today") === "1" ? todayUtc() : y }; }
+    if (q.get("leaders")) extraLeaders = Array.from({ length: Number(q.get("leaders")) }, (_, i) => ({ display_name: `O'quvchi ${i + 1}`, current_streak: Math.max(1, 40 - i), longest_streak: Math.max(1, 45 - i) }));
+    return json(res, 200, { streaks, extraLeaders: extraLeaders.length });
+  }
+  // 44.4: grafik uchun bir necha oylik tasdiqlangan buyurtmalar (oy: yyyy-mm, miqdor) — ?months=6
+  if (path === "/__seed-payments") {
+    const n = Number(q.get("months") ?? 6); const base = new Date(Date.UTC(2026, 9, 15));
+    for (let i = n - 1; i >= 0; i--) {
+      const d = new Date(base); d.setUTCMonth(base.getUTCMonth() - i);
+      for (let k = 0; k <= (i % 3); k++) {
+        const bk = books[2 + ((i + k) % 5)];
+        orders.push({ id: randomUUID(), user_id: USER.id, book_id: bk.id, amount: bk.price === "0" ? "49000.00" : bk.price, status: "APPROVED", receipt_note: null, has_receipt_file: false, reviewed_by_admin_id: ADMIN.id, reviewed_at: d.toISOString(), reject_reason: null, created_at: d.toISOString(), updated_at: d.toISOString() });
+      }
+    }
+    return json(res, 200, { orders: orders.length });
+  }
+  if (path === "/__slow-receipt") { receiptDelay = Number(q.get("ms") ?? 0); return json(res, 200, { receiptDelay }); }
   if (path === "/__devicelimit") { deviceLimitOn = q.get("on") === "1"; return json(res, 200, { deviceLimitOn }); }
   if (path === "/__device-removed") { deviceRemovedOnRefresh = q.get("on") === "1"; return json(res, 200, { deviceRemovedOnRefresh }); }
   if (path === "/__vocab") return json(res, 200, vocab);
@@ -241,6 +284,7 @@ createServer(async (req, res) => {
     return json(res, 200, { book_id: b.id, title: b.title, author: b.author, description: b.description, category_name: b.category?.name ?? null, price: b.price, is_free: !!b.is_free, has_cover: b.has_cover, article_count: articles.filter((a) => a.book_id === b.id).length });
   }
   if (path === "/categories") return json(res, 200, categories.filter((c) => c.status === "ACTIVE"));
+  if (path === "/app-settings" && m === "GET") return json(res, 200, { settings: appSettings });
   if (m === "POST" && path === "/auth/login") {
     const b = await readBody(req);
     if (b.identifier === "limit@articles365.local") return err(res, 403, "DEVICE_NOT_ALLOWED", "This account is already linked to 2 devices", { limit: 2, devices: [{ name: "Chrome · Windows", bound_at: now(), last_seen_at: now() }, { name: "Safari · iOS", bound_at: now(), last_seen_at: now() }] });
@@ -266,14 +310,20 @@ createServer(async (req, res) => {
       sessions.push({ id: randomUUID(), user: USER.id, device: b.device_name });
       return json(res, 200, { access_token: "access-token-1", refresh_token: "refresh-1", token_type: "bearer", expires_in: 900, user: USER, device_secret: newSecret });
     }
+    // Ro'yxatdan o'tgan foydalanuvchi (telefon yoki email bilan)
+    const reg = users.find((x) => x.id !== USER.id && (x.phone === b.identifier || (x.email && x.email === b.identifier)) && passwords.get(x.id) === b.password);
+    if (reg) { TOKENS["access-token-new"] = reg; return json(res, 200, { access_token: "access-token-new", refresh_token: "refresh-new", token_type: "bearer", expires_in: 900, user: reg }); }
     return err(res, 401, "INVALID_CREDENTIALS", "Invalid credentials");
   }
   if (m === "POST" && path === "/auth/register") {
     const b = await readBody(req);
     if (!b.password) return err(res, 422, "VALIDATION_ERROR", "Validation failed", [{ type: "missing", loc: ["body", "password"], msg: "Field required" }]);
-    if (b.email === USER.email) return err(res, 409, "ALREADY_EXISTS", "User exists");
+    // 44.1: email yoki telefondan kamida bittasi; telefon — E.164
+    if (!b.email && !b.phone) return err(res, 422, "VALIDATION_ERROR", "Validation failed", [{ loc: ["body"], msg: "email or phone required" }]);
+    if (b.phone && !/^\+\d{10,15}$/.test(b.phone)) return err(res, 422, "VALIDATION_ERROR", "Validation failed", [{ loc: ["body", "phone"], msg: "Invalid phone" }]);
+    if (b.email === USER.email || (b.phone && users.some((x) => x.phone === b.phone))) return err(res, 409, "ALREADY_EXISTS", "User exists");
     const u = { ...USER, id: randomUUID(), email: b.email ?? null, phone: b.phone ?? null, full_name: b.full_name ?? null };
-    users.push(u); TOKENS["access-token-new"] = u;
+    users.push(u); TOKENS["access-token-new"] = u; passwords.set(u.id, b.password);
     return json(res, 201, u);
   }
   if (m === "POST" && path === "/auth/refresh") {
@@ -294,7 +344,7 @@ createServer(async (req, res) => {
   // 37: tekin kitob — reader (meta, content, watermark, maqolalar, mundarija, qidiruv) kirishsiz ham ochiq
   if (!me && !auth && m === "GET") {
     const fb = /^\/reader\/books\/([^/]+)\/articles$/.exec(path)?.[1];
-    const fa = /^\/reader\/articles\/([^/]+)(?:\/content|\/watermark)?$/.exec(path)?.[1] ?? /^\/articles\/([^/]+)\/(?:toc|search)$/.exec(path)?.[1];
+    const fa = /^\/reader\/articles\/([^/]+)(?:\/content|\/watermark|\/questions)?$/.exec(path)?.[1] ?? /^\/articles\/([^/]+)\/(?:toc|search)$/.exec(path)?.[1];
     const bid = fb ?? articles.find((x) => x.id === fa)?.book_id;
     if (bid && isFreeId(bid)) me = GUEST;
   }
@@ -336,13 +386,29 @@ createServer(async (req, res) => {
     if (q.get("size") && !/^(original|thumb|medium)$/.test(q.get("size"))) return err(res, 422, "VALIDATION_ERROR", "Validation failed", [{ loc: ["query", "size"], msg: "String should match pattern '^(original|thumb|medium)$'" }]);
     return json(res, 200, articles.filter((a) => a.book_id === bid).sort((a, b) => a.order_index - b.order_index).map((a) => { const p = getProg(me.id, a.id); return { article_id: a.id, title: a.title, order_index: a.order_index, page_count: a.page_count, processing_status: a.processing_status, reading_percentage: p.percentage, current_page: p.current_page, is_read: p.is_read }; }));
   }
+  // ---- 44.5: maqola testi
+  const rq = /^\/reader\/articles\/([^/]+)\/(questions|quiz)$/.exec(path);
+  if (rq) {
+    const a = articles.find((x) => x.id === rq[1]);
+    if (!a) return err(res, 404, "ARTICLE_NOT_FOUND", "Article not found");
+    if (!canRead(me.id, a.book_id)) return err(res, 403, "BOOK_ACCESS_DENIED", "Access to this book has not been granted");
+    const qs = questions.filter((q) => q.article_id === a.id).sort((x, y) => x.order_index - y.order_index);
+    if (rq[2] === "questions" && m === "GET") return json(res, 200, qs.map(({ id, prompt, options, order_index }) => ({ id, prompt, options, order_index })));
+    if (rq[2] === "quiz" && m === "POST") {
+      if (me === GUEST) return err(res, 401, "AUTHENTICATION_REQUIRED", "Authentication required");
+      const b = await readBody(req); const ans = new Map((b.answers ?? []).map((x) => [x.question_id, x.selected_index]));
+      const results = qs.map((q) => { const sel = ans.has(q.id) ? ans.get(q.id) : null; return { question_id: q.id, selected_index: sel, correct_index: q.correct_index, is_correct: sel === q.correct_index, explanation: q.explanation ?? null }; });
+      const score = results.filter((r) => r.is_correct).length;
+      return json(res, 200, { score, total: qs.length, percentage: qs.length ? (score / qs.length) * 100 : 0, results });
+    }
+  }
   const ra = /^\/reader\/articles\/([^/]+)(\/content|\/watermark)?$/.exec(path);
   if (ra) {
     const [, aid, sub] = ra;
     const a = articles.find((x) => x.id === aid);
     if (!a) return err(res, 404, "ARTICLE_NOT_FOUND", "Article not found");
     if (!canRead(me.id, a.book_id)) return err(res, 403, "BOOK_ACCESS_DENIED", "Access to this book has not been granted");
-    if (!sub) { const p = getProg(me.id, aid); return json(res, 200, { article_id: aid, book_id: a.book_id, title: a.title, format: a.format, mime_type: a.mime_type, page_count: a.page_count, processing_status: a.processing_status, text_extractable: a.text_extractable, file_version: a.file_version, content_updated_at: null, reading_percentage: p.percentage, current_page: p.current_page, features: { can_read: a.processing_status === "READY", can_download: false, can_print: false, can_search: a.text_extractable, has_toc: aid === ART_ID, watermark: true } }); }
+    if (!sub) { const p = getProg(me.id, aid); return json(res, 200, { article_id: aid, book_id: a.book_id, title: a.title, format: a.format, mime_type: a.mime_type, page_count: a.page_count, processing_status: a.processing_status, text_extractable: a.text_extractable, file_version: a.file_version, content_updated_at: null, reading_percentage: p.percentage, current_page: p.current_page, features: { can_read: a.processing_status === "READY", can_download: false, can_print: false, can_search: a.text_extractable, has_toc: aid === ART_ID, watermark: a.watermark_enabled !== false && !isFreeId(a.book_id) } }); }
     if (sub === "/watermark" && me === GUEST) return json(res, 200, { watermark_text: `Articles365 • mehmon • 127.0.0.x`, trace_id: "TRACE-GUEST", user_ref: "GUEST", issued_at: Math.floor(Date.now() / 1000), signature: "guest" });
     if (sub === "/watermark") return json(res, 200, { watermark_text: `U-${me.id.slice(0, 5).toUpperCase()} • u***@articles365.local`, trace_id: "TRACE-42", user_ref: "U-TEST", issued_at: Math.floor(Date.now() / 1000), signature: "abc" });
     if (a.processing_status !== "READY") return err(res, 409, "ARTICLE_NOT_READY", "Article is not ready");
@@ -368,10 +434,10 @@ createServer(async (req, res) => {
     if (!canRead(me.id, a.book_id)) return err(res, 403, "BOOK_ACCESS_DENIED", "Access to this book has not been granted");
     const key = progKey(me.id, aid);
     if (what === "progress") {
-      if (m === "PUT") { const b = await readBody(req); progress[key] = { ...getProg(me.id, aid), current_page: b.current_page, current_location: b.current_location ?? null, percentage: b.percentage ?? 0, updated_at: now() }; }
+      if (m === "PUT") { bumpStreak(me.id); const b = await readBody(req); progress[key] = { ...getProg(me.id, aid), current_page: b.current_page, current_location: b.current_location ?? null, percentage: b.percentage ?? 0, updated_at: now() }; }
       return json(res, 200, getProg(me.id, aid));
     }
-    if (what === "reading-heartbeat") { const b = await readBody(req); const p = getProg(me.id, aid); progress[key] = { ...p, reading_seconds: p.reading_seconds + (b.seconds ?? 0), current_page: b.current_page ?? p.current_page, last_read_at: now(), updated_at: now() }; return json(res, 200, progress[key]); }
+    if (what === "reading-heartbeat") { bumpStreak(me.id); const b = await readBody(req); const p = getProg(me.id, aid); progress[key] = { ...p, reading_seconds: p.reading_seconds + (b.seconds ?? 0), current_page: b.current_page ?? p.current_page, last_read_at: now(), updated_at: now() }; return json(res, 200, progress[key]); }
     if (what === "mark-read") { progress[key] = { ...getProg(me.id, aid), is_read: q.get("is_read") === "true", updated_at: now() }; return json(res, 200, progress[key]); }
     if (what === "toc") return json(res, 200, { article_id: aid, entries: aid === ART_ID ? [{ level: 1, title: "Bob 1", page: 1 }, { level: 1, title: "Bob 2", page: 3 }, { level: 2, title: "2.1 Kichik bo'lim", page: 4 }] : [] });
     if (what === "search") { const s = q.get("q") ?? ""; return json(res, 200, { article_id: aid, query: s, text_available: a.text_extractable, total_matches: 1, matches: [{ page: 2, snippet: `... ${s} of page 2 ...` }] }); }
@@ -398,6 +464,20 @@ createServer(async (req, res) => {
     const same = /^(salom|kitob)$/i.test(text) && target === "uz";
     const tr = same ? null : (TR[target][normWord(text)] ?? `${text} (${target})`);
     return json(res, 200, { text, translation: tr, detected_source_lang: same ? "uz" : "en", target_lang: target, same_language: same, provider: "google", cached: false });
+  }
+
+  // ---- 44.6: seriya va reyting
+  if (path === "/me/streak" && m === "GET") {
+    const st = streaks[me.id] ?? { current: 0, longest: 0, total: 0, last: null };
+    const y = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+    const current = st.last === todayUtc() || st.last === y ? st.current : 0;
+    return json(res, 200, { current_streak: current, longest_streak: st.longest, total_days: st.total, last_activity_date: st.last, active_today: st.last === todayUtc() });
+  }
+  if (path === "/streak/leaderboard" && m === "GET") {
+    const limit = Math.min(100, Number(q.get("limit") ?? 20));
+    const mine = users.filter((u) => streaks[u.id]).map((u) => ({ display_name: u.full_name ?? u.email ?? "—", current_streak: streaks[u.id].current, longest_streak: streaks[u.id].longest, is_me: u.id === me.id }));
+    const all = [...extraLeaders.map((x) => ({ ...x, is_me: false })), ...mine].sort((a, b) => b.current_streak - a.current_streak || b.longest_streak - a.longest_streak).map((x, i) => ({ rank: i + 1, ...x }));
+    return json(res, 200, { entries: all.slice(0, limit), me: all.find((x) => x.is_me) ?? null });
   }
 
   // ---- 38: bog'langan qurilmalar
@@ -492,6 +572,7 @@ createServer(async (req, res) => {
       if (!isImageBytes(f.data) && !isPdfBytes(f.data)) return err(res, 422, "INVALID_FILE", "Receipt must be a JPEG, PNG, WebP image or PDF");
       receiptFiles[o.id] = { data: f.data, type: isPdfBytes(f.data) ? "application/pdf" : f.type };
     }
+    if (receiptDelay) await new Promise((r) => setTimeout(r, receiptDelay));
     receipts.push({ order_id: o.id, note: form.fields.receipt_note ?? null, file: f ? { filename: f.filename, type: f.type, size: f.data.length } : null });
     Object.assign(o, { status: "AWAITING_REVIEW", receipt_note: form.fields.receipt_note ?? null, has_receipt_file: !!receiptFiles[o.id], updated_at: now() });
     return json(res, 200, o);
@@ -506,6 +587,40 @@ createServer(async (req, res) => {
   if (path.startsWith("/admin/")) {
     if (me.role !== "ADMIN") return err(res, 403, "PERMISSION_DENIED", "Admin only");
     if (path === "/admin/stats") return json(res, 200, { users: { total: users.length, by_status: { ACTIVE: users.length }, by_role: { USER: users.length - 1, ADMIN: 1 } }, books: { total: books.length, by_status: { ACTIVE: books.length } }, articles: { total: articles.length, by_processing: { READY: articles.filter((a) => a.processing_status === "READY").length, PROCESSING: articles.filter((a) => a.processing_status === "PROCESSING").length } }, categories: categories.length, access: { total: access.length, by_status: { ACTIVE: access.filter((a) => a.status === "ACTIVE").length } }, annotations: annotations.length, active_sessions: 3 });
+    // 44.8: global ko'rinish sozlamalari
+    if (path === "/admin/app-settings") {
+      if (m === "GET") return json(res, 200, { settings: appSettings });
+      if (m === "PUT") { const b = await readBody(req); const st = b.settings; if (!st || typeof st !== "object" || !Object.keys(st).length || Object.keys(st).some((k) => !/^[a-z0-9_.-]{1,64}$/.test(k))) return err(res, 422, "VALIDATION_ERROR", "Validation failed", [{ loc: ["body", "settings"], msg: "Invalid settings" }]); appSettings = { ...appSettings, ...st }; return json(res, 200, { settings: appSettings }); }
+    }
+    const asm = /^\/admin\/app-settings\/([^/]+)$/.exec(path);
+    if (asm && m === "DELETE") { if (!(asm[1] in appSettings)) return err(res, 404, "NOT_FOUND", "Setting not found"); delete appSettings[asm[1]]; return json(res, 200, { message: "Deleted" }); }
+    // 44.5: admin — maqola savollari
+    const aq = /^\/admin\/articles\/([^/]+)\/questions(?:\/([^/]+))?$/.exec(path);
+    if (aq) {
+      const [, aid, qid] = aq;
+      if (!articles.some((x) => x.id === aid)) return err(res, 404, "ARTICLE_NOT_FOUND", "Article not found");
+      const valid = (b) => typeof b.prompt === "string" && b.prompt.trim() && Array.isArray(b.options) && b.options.length >= 2 && b.options.length <= 6 && Number.isInteger(b.correct_index) && b.correct_index >= 0 && b.correct_index < b.options.length;
+      if (!qid && m === "GET") return json(res, 200, questions.filter((q) => q.article_id === aid).sort((x, y) => x.order_index - y.order_index));
+      if (!qid && m === "POST") { const b = await readBody(req); if (!valid(b)) return err(res, 422, "VALIDATION_ERROR", "Validation failed", [{ loc: ["body"], msg: "Invalid question" }]); const q = { id: randomUUID(), article_id: aid, prompt: b.prompt, options: b.options, correct_index: b.correct_index, explanation: b.explanation ?? null, order_index: b.order_index ?? 0 }; questions.push(q); return json(res, 201, q); }
+      const q = questions.find((x) => x.id === qid && x.article_id === aid);
+      if (!q) return err(res, 404, "QUESTION_NOT_FOUND", "Question not found");
+      if (m === "PATCH") { const b = await readBody(req); const next = { ...q, ...Object.fromEntries(Object.entries(b).filter(([, v]) => v !== undefined)) }; if (!valid(next)) return err(res, 422, "VALIDATION_ERROR", "Validation failed", [{ loc: ["body"], msg: "Invalid question" }]); Object.assign(q, next); return json(res, 200, q); }
+      if (m === "DELETE") { questions = questions.filter((x) => x.id !== q.id); return json(res, 200, { message: "Question deleted" }); }
+    }
+    // 44.4: to'lovlar statistikasi — tushum = APPROVED buyurtmalar
+    if (path === "/admin/stats/payments" && m === "GET") {
+      const approved = orders.filter((o) => o.status === "APPROVED");
+      const by = {}; const byBook = {};
+      for (const o of approved) {
+        const mon = (o.reviewed_at ?? o.updated_at).slice(0, 7); const amt = Number(o.amount);
+        by[mon] = by[mon] ?? { month: mon, revenue: 0, orders: 0 }; by[mon].revenue += amt; by[mon].orders += 1;
+        const ids = orderBookIds(o); const per = amt / ids.length;
+        for (const id of ids) { const bk = books.find((x) => x.id === id); byBook[id] = byBook[id] ?? { book_id: id, title: bk?.title ?? null, revenue: 0, sold: 0 }; byBook[id].revenue += per; byBook[id].sold += 1; }
+      }
+      const total = approved.reduce((a, o) => a + Number(o.amount), 0);
+      const st = {}; for (const o of orders) st[o.status] = (st[o.status] ?? 0) + 1;
+      return json(res, 200, { currency: "UZS", total_revenue: total, approved_orders: approved.length, average_order_value: approved.length ? total / approved.length : 0, orders_by_status: st, revenue_by_month: Object.values(by).sort((a, b) => a.month.localeCompare(b.month)), revenue_by_book: Object.values(byBook).sort((a, b) => b.revenue - a.revenue).slice(0, 50) });
+    }
     if (path === "/admin/audit-logs") { if (audit500 || q.get("boom")) return err(res, 500, "INTERNAL_ERROR", "boom"); return json(res, 200, paged([{ id: "l1", admin_id: ADMIN.id, action: "BOOK_ACCESS_GRANTED", entity_type: "book_access", entity_id: "acc-1", meta: { book_id: BOOK_ID, user_id: USER.id }, ip_address: "127.0.0.1", created_at: now() }, { id: "l2", admin_id: null, action: "SUSPICIOUS_ACTIVITY", entity_type: "user", entity_id: USER.id, meta: {}, ip_address: null, created_at: now() }].filter((l) => !q.get("action") || l.action === q.get("action")).filter((l) => !q.get("entity_type") || l.entity_type === q.get("entity_type")))); }
     if (path === "/admin/categories" && m === "GET") return json(res, 200, paged(categories.filter((c) => !q.get("status") || c.status === q.get("status"))));
     if (path === "/admin/categories" && m === "POST") { const b = await readBody(req); if (categories.some((c) => c.name === b.name)) return err(res, 409, "ALREADY_EXISTS", "Category exists"); const c = { id: randomUUID(), name: b.name, slug: b.slug ?? b.name.toLowerCase().replace(/\s+/g, "-"), description: b.description ?? null, status: "ACTIVE", created_at: now(), updated_at: now() }; categories.push(c); return json(res, 201, c); }

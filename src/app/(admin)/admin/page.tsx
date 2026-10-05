@@ -88,7 +88,7 @@ export default function AdminHome() {
 
   return (
     <div>
-      <PageHeader eyebrow={t("nav.admin")} title={t("admin.title")} description={t("admin.description")} icon={<I.Sparkles size={26} />} />
+      <PageHeader title={t("admin.title")} description={t("admin.description")} icon={<I.Sparkles size={26} />} />
       {!!open?.total && (
         <div className="mb-4" data-testid="open-orders-alert">
           <Alert tone="warning">

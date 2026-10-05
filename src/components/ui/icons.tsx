@@ -112,3 +112,6 @@ export const Languages = make("Languages", <><path d="m5 8 6 6" /><path d="m4 14
 export const Volume = make("Volume", <><path d="M11 5 6 9H2v6h4l5 4z" /><path d="M15.5 8.5a5 5 0 0 1 0 7" /><path d="M19 5a10 10 0 0 1 0 14" /></>);
 export const Shuffle = make("Shuffle", <><path d="M2 18h1.4a4 4 0 0 0 3.3-1.8l6.6-9.4A4 4 0 0 1 16.6 5H22" /><path d="m18 2 4 3-4 3" /><path d="M2 6h1.4a4 4 0 0 1 3.3 1.8l.8 1.2" /><path d="M22 19h-5.4a4 4 0 0 1-3.3-1.8l-.8-1.2" /><path d="m18 16 4 3-4 3" /></>);
 export const RotateCcw = make("RotateCcw", <><path d="M3 12a9 9 0 1 0 2.6-6.4" /><path d="M3 3v6h6" /></>);
+// 44.6: streak va reyting
+export const Flame = make("Flame", <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.07-2.14-.22-4.05 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.15.43-2.29 1-3a2.5 2.5 0 0 0 2.5 2.5z" />);
+export const Trophy = make("Trophy", <><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" /><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" /><path d="M4 22h16" /><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" /><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" /><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" /></>);

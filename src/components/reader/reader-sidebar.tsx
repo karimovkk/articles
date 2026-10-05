@@ -5,12 +5,13 @@ import { Button, Spinner, Textarea, cn, formatDate } from "@/components/ui";
 import * as I from "@/components/ui/icons";
 import { useDebouncedCallback } from "@/lib/use-debounce";
 import Link from "next/link";
-import type { Annotation, SearchMatch, TocEntry, VocabEntry } from "@/lib/api";
+import type { Annotation, QuizQuestion, SearchMatch, TocEntry, VocabEntry } from "@/lib/api";
+import { QuizPanel } from "./quiz-panel";
 import { canSpeak, speak } from "@/components/vocabulary/speak";
 import { HIGHLIGHT_COLORS, getHighlightRects, normalizeColor } from "@/lib/reader/highlights";
 import { useT, type DictKey } from "@/i18n";
 
-export type SidebarTab = "toc" | "search" | "bookmarks" | "notes" | "highlights" | "vocab";
+export type SidebarTab = "toc" | "search" | "bookmarks" | "notes" | "highlights" | "vocab" | "test";
 
 interface Props {
   tab: SidebarTab;
@@ -43,6 +44,9 @@ interface Props {
   onVocabGo: (v: VocabEntry) => void;
   onVocabEdit: (v: VocabEntry) => void;
   onVocabDelete: (v: VocabEntry) => void;
+  /** 44.5: maqola testi — savollar bo'lsa "Test" tabi ko'rinadi (mehmonga ham) */
+  articleId: string;
+  quiz: QuizQuestion[];
 }
 
 const TABS: Array<{ id: SidebarTab; label: DictKey }> = [
@@ -52,6 +56,7 @@ const TABS: Array<{ id: SidebarTab; label: DictKey }> = [
   { id: "highlights", label: "reader.tab.highlights" },
   { id: "notes", label: "reader.tab.notes" },
   { id: "vocab", label: "reader.tab.vocab" },
+  { id: "test", label: "reader.tab.test" },
 ];
 
 export function ReaderSidebar(p: Props) {
@@ -60,7 +65,7 @@ export function ReaderSidebar(p: Props) {
     <aside className="flex h-full w-full flex-col border-r border-border bg-surface md:w-80">
       <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
         <div className="tabs wrap" role="tablist">
-          {TABS.filter((tab) => !p.guest || tab.id === "toc" || tab.id === "search").map((tab) => (
+          {TABS.filter((tab) => (tab.id !== "test" || p.quiz.length > 0) && (!p.guest || tab.id === "toc" || tab.id === "search" || tab.id === "test")).map((tab) => (
             <button key={tab.id} type="button" role="tab" aria-selected={p.tab === tab.id} onClick={() => p.onTab(tab.id)} className={cn("tab !h-7 !px-2.5 !text-xs", p.tab === tab.id && "active")}>
               {t(tab.label)}
             </button>
@@ -73,6 +78,7 @@ export function ReaderSidebar(p: Props) {
       <div className="min-h-0 flex-1 overflow-auto p-3 text-sm">
         {p.tab === "toc" && <TocPanel toc={p.toc} available={p.tocAvailable} goToPage={p.goToPage} />}
         {p.tab === "search" && <SearchPanel {...p} />}
+        {p.tab === "test" && p.quiz.length > 0 && <QuizPanel articleId={p.articleId} questions={p.quiz} />}
         {p.tab === "bookmarks" && (
           <AnnotationList
             items={p.annotations.filter((a) => a.type === "BOOKMARK")}
@@ -223,7 +229,7 @@ function AnnotationList({
                         {t("common.pageN", { n: pageNo })}
                       </button>
                       {onChangeColor && !hasRects && (
-                        <span className="text-[10px] text-muted" title={t("reader.noPositionHint")}>
+                        <span className="text-[11px] text-muted" title={t("reader.noPositionHint")}>
                           {t("reader.noPosition")}
                         </span>
                       )}

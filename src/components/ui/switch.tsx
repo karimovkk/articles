@@ -35,7 +35,7 @@ export function Switch({ checked, onChange, disabled, label, description, classN
     <label className={cn("flex cursor-pointer items-center gap-3", disabled && "cursor-not-allowed", className)}>
       {control}
       <span className="min-w-0">
-        <span className="block text-[13.5px] font-semibold text-text">{label}</span>
+        <span className="block text-sm font-semibold text-text">{label}</span>
         {description && <span className="block text-xs text-muted">{description}</span>}
       </span>
     </label>

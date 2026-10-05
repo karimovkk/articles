@@ -78,7 +78,7 @@ await page.keyboard.press("Escape");
 await page.screenshot({ path: OUT + "21-library-ru.png" });
 
 // ---- Profil (ru)
-await page.click('header a[href="/profile"]');
+await page.click('.client-sidebar a[href="/profile"]');
 await page.waitForSelector("text=Мои устройства");
 check("ru: profil sahifasi", (await has("Личный кабинет")) && (await has("Сохранить")));
 

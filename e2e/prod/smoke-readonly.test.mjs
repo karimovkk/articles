@@ -47,7 +47,7 @@ await page.fill('input[type="password"]', PASS);
 await page.click('button[type="submit"]');
 await page.waitForURL(`${BASE}/library`, { timeout: 15000 });
 await page.waitForSelector("header", { timeout: 10000 });
-check("Login OK → /library, header'da Admin", (await page.locator('header a[href="/admin"]').count()) > 0);
+check("Login OK → /library, sidebar'da Admin", (await page.locator('.client-sidebar a[href="/admin"]').count()) > 0);
 
 // ---- Kutubxona (tekis LibraryItem) — admin'da ruxsat yo'q → bo'sh holat
 await page.waitForSelector("text=Kutubxonangiz bo'sh", { timeout: 15000 });

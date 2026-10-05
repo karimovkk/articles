@@ -246,12 +246,12 @@ export function RoundPagination({ page, pages, onChange }: { page: number; pages
   );
 }
 
-export function PageHeader({ title, description, eyebrow, actions, icon, className }: { title: ReactNode; description?: ReactNode; eyebrow?: ReactNode; actions?: ReactNode; icon?: ReactNode; className?: string }) {
+/** 43: minimal sarlavha — sarlavha, izoh, amallar (sarlavhani takrorlaydigan "eyebrow" yo'q) */
+export function PageHeader({ title, description, actions, icon, className }: { title: ReactNode; description?: ReactNode; actions?: ReactNode; icon?: ReactNode; className?: string }) {
   return (
     <div className={cn("page-head", className)}>
       {icon && <div className="page-icon">{icon}</div>}
       <div>
-        {eyebrow && <span className="page-eyebrow">{eyebrow}</span>}
         <h1 className="page-title">{title}</h1>
         {description && <p className="page-sub">{description}</p>}
       </div>

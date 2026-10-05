@@ -57,7 +57,7 @@ export function PaymentDetails({ className }: { className?: string }) {
 
   return (
     <div className={cn("space-y-2 rounded-[14px] border border-border bg-surface-2 p-3", className)} data-testid="payment-details">
-      {(card || recipient) && <p className="text-[11px] font-extrabold uppercase tracking-wider text-muted">{t("orders.payTo")}</p>}
+      {(card || recipient) && <p className="text-[11px] font-bold uppercase tracking-wider text-muted">{t("orders.payTo")}</p>}
       {card && (
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs text-muted">{t("orders.cardNumber")}:</span>

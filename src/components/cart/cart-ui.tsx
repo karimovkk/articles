@@ -67,8 +67,8 @@ export function CartHeaderButton() {
   if (!cfg) return null;
   const n = items.length;
   return (
-    // ≤400px header'da joy yo'q (brend markazda) — u yerda savatcha yon menyuda va aksiya bannerida
-    <Link href="/cart" className="icon-btn plain max-[400px]:hidden" aria-label={`${t("cart.title")}${n ? ` (${n})` : ""}`} title={t("cart.title")} data-testid="header-cart">
+    // ≤640px header'da joy yo'q (brend + yil kuni) — u yerda savatcha yon menyuda va aksiya bannerida
+    <Link href="/cart" className="icon-btn plain max-[640px]:hidden" aria-label={`${t("cart.title")}${n ? ` (${n})` : ""}`} title={t("cart.title")} data-testid="header-cart">
       <I.ShoppingBag size={19} />
       {n > 0 && (
         <span className="dot" data-testid="cart-count">

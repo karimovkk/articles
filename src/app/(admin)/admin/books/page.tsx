@@ -75,7 +75,6 @@ export default function AdminBooksPage() {
   return (
     <div>
       <PageHeader
-        eyebrow={t("admin.nav.content")}
         title={t("admin.books.title")}
         icon={<I.Book size={26} />}
         actions={

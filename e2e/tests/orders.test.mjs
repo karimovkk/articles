@@ -2,7 +2,7 @@
 // (multipart), HEIC, validatsiya, chekni almashtirish (AWAITING), 409 INVALID_ORDER_STATE, bekor qilish (CANCELLED),
 // 409 ORDER_ALREADY_PENDING → mavjud buyurtma, kuzatuv GET /orders/{id} (APPROVED/REJECTED),
 // 409 ALREADY_HAS_ACCESS, bildirishnoma havolasi + 2FA login
-import { launch, BASE, API, reset, mockGet, confirmDialog, IS_CHROMIUM, ignorablePageError } from "../lib.mjs";
+import { launch, BASE, API_HOST, API, reset, mockGet, confirmDialog, IS_CHROMIUM, ignorablePageError } from "../lib.mjs";
 import { mkdirSync, writeFileSync } from "node:fs";
 const BOOK2 = "33333333-3333-4333-8333-333333333333";
 const OUT = new URL("../out/", import.meta.url).pathname;
@@ -88,8 +88,14 @@ await page.waitForSelector("text=Fayl turi noto'g'ri", { timeout: 5000 });
 check("Server 422 INVALID_FILE → tushunarli xabar, forma saqlandi", (await page.locator('[data-testid="receipt-preview"]').count()) === 1);
 await page.unroute("**/api/v1/orders/*/receipt");
 await page.fill('textarea[placeholder^="Chek raqami"]', "Payme 555");
+// 44.2: server javobi kechiksa — 100% dan keyin "Yuborildi, tekshirilmoqda…", javob kelishi bilan forma yopiladi
+await fetch(`${API_HOST}/__slow-receipt?ms=2000`);
 await page.click('[data-testid="receipt-submit"]');
-await page.waitForSelector('[data-testid="awaiting-hint"]', { timeout: 5000 });
+await page.waitForFunction(() => document.querySelector('[data-testid="receipt-progress"]')?.textContent.includes("tekshirilmoqda"), null, { timeout: 5000 });
+check("Chek yuklangach (100%): 'Yuborildi, tekshirilmoqda…' holati", true);
+await page.waitForSelector('[data-testid="awaiting-hint"]', { timeout: 8000 });
+check("Javob kelishi bilan spinner yopildi (cheksiz yuklanish yo'q)", (await page.locator('[data-testid="receipt-progress"]').count()) === 0);
+await fetch(`${API_HOST}/__slow-receipt?ms=0`);
 const rc = await mockGet("/__receipts");
 check("Chek multipart yuborildi: file (image/png) + receipt_note", rc.length === 1 && rc[0].file?.type === "image/png" && rc[0].file.size > 0 && rc[0].note === "Payme 555", JSON.stringify(rc));
 check("AWAITING_REVIEW: kutish matni, rekvizitlar yashirildi", (await bodyHas("Chek administrator tekshiruvida")) && (await page.locator('[data-testid="payment-details"]').count()) === 0);

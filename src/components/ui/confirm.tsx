@@ -49,7 +49,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
     <Ctx.Provider value={value}>
       {children}
       <Modal open={!!state} onClose={() => settle(false)} title={state?.title ?? ""} size="sm" data-testid="confirm-dialog" icon={state?.tone === "danger" ? <I.AlertTriangle size={20} /> : <I.Info size={20} />}>
-        {state?.message && <p className="text-[14px] leading-relaxed text-text-2">{state.message}</p>}
+        {state?.message && <p className="text-sm leading-relaxed text-text-2">{state.message}</p>}
         <div className="mt-5 flex flex-wrap justify-end gap-2">
           <button type="button" className="btn ghost" onClick={() => settle(false)} data-testid="confirm-cancel">
             {state?.cancelLabel ?? t("common.cancel")}

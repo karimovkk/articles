@@ -80,7 +80,6 @@ export default function AdminAccessPage() {
   return (
     <div>
       <PageHeader
-        eyebrow={t("admin.nav.people")}
         title={t("admin.access.title")}
         description={t("admin.access.description")}
         icon={<I.Key size={26} />}

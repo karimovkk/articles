@@ -925,6 +925,43 @@ Backend: `POST /translate` (Google Cloud Translation v2, kesh, limitlar) — tay
 - [x] 42.2 ≤380px'da toolbar tugmalari 32px — 320px'da hammasi bitta qatorda (oy tugmasi alohida qatorga tushmaydi)
 - [x] 42.3 e2e `i18n`: reader'da en ga o'tish (bet 3 saqlanadi), 320/360/768/1280 — toshish yo'q
 
+## 43. Minimalistik dizayn: shriftlar va tuzilish (2026-10-05)
+
+Audit: 3 ta shrift oilasi (Manrope, Unbounded, Playfair); 32 xil `font-size` (10–128px, yarim piksellar: 11.5, 12.5,
+13.5 …) + 5 ta `clamp`; 7 xil qalinlik (500–800, 550/650/750 ham); 15 xil `letter-spacing` (0.42em gacha keng
+bosh harfli yozuvlar); kompyuterda yuqori menyu va chap menyu bir xil havolalarni takrorlaydi; sahifa sarlavhasi
+ustidagi "eyebrow" yozuv sarlavhaning o'zini takrorlaydi ("KUTUBXONA" → "Mening kutubxonam").
+Qarorlar (mahsulot egasi): **Playfair (sarlavhalar) + Manrope (qolgan hammasi)**, Unbounded olib tashlanadi;
+**chap menyu qoladi**, yuqoridagi takror havolalar olib tashlanadi.
+
+- [x] 43.1 Shriftlar: Unbounded yuklanmaydi; `--font-display` = Playfair (sahifa, kitob, kirish sahifasi
+      sarlavhalari, muqova nomi); raqamlar, modal sarlavhalari, brend, statistika — Manrope (tabular)
+- [x] 43.2 O'lchamlar shkalasi: 11 · 12 · 13 · 14 · 15 · 16 · 18 · 20 · 24 · 28 · 32 · 40 (+ katta displey raqamlari);
+      yarim piksellar yo'q; CSS va Tailwind `text-[…px]`
+- [x] 43.3 Qalinlik: 400 · 500 · 600 · 700 (550/650/750/800 yo'q)
+- [x] 43.4 Harf oralig'i: sarlavhalar −0.02em, bosh harfli yorliqlar ≤ 0.08em (keng "K U T U B X O N A" yo'q)
+- [x] 43.5 Tuzilish: yuqoridagi takror menyu olib tashlanadi (header — brend + amallar); sahifa sarlavhasi ustidagi
+      takror "eyebrow" olib tashlanadi
+- [x] 43.6 Tekshiruv: yorug'/qorong'i, 320–1920px skrinshotlar; e2e to'liq (dev + prod)
+
+## 44. Boshliq o'zgarishlari — backend tayyor, frontend ulash (2026-10-05)
+
+Manba: `Articles365_Frontend_Vazifa_Boshliq_Ozgarishlar_v1.0.md`, hisobot v1.0, jonli `/openapi.json`.
+
+- [x] 44.1 Ro'yxatdan o'tish faqat telefon bilan (+998 …, E.164 ga keltiriladi); email maydoni yo'q; login — telefon yoki email
+- [x] 44.2 Chek yuborish: javob kelishi bilan spinner yopiladi; tarmoq osilib qolsa — vaqt chegarasi va tushunarli xato
+- [x] 44.3 Watermark tanlov bo'yicha: `features.watermark=false` → overlay ham, `/watermark` so'rovi ham yo'q;
+      admin maqolalar ro'yxatida "Suv belgisi" kaliti (`watermark_enabled`)
+- [x] 44.4 Admin "To'lovlar" sahifasi (`GET /admin/stats/payments`): jami tushum, tasdiqlangan buyurtmalar, o'rtacha chek,
+      holatlar, oylik tushum grafigi, kitoblar jadvali
+- [x] 44.5 Maqola testi: reader'da "Test" (savollar → javob → ball, to'g'ri javob va izoh); admin maqolada savol muharriri
+      (2–6 variant, to'g'ri javob, izoh, tartib)
+- [x] 44.6 Streak: header'da 🔥 kunlar soni ("bugun o'qidingiz"), "Reyting" sahifasi (top + o'zingiz)
+- [x] 44.7 Mock + e2e; dev + prod
+- [x] 44.8 Global ko'rinish (`GET /app-settings` public, `PUT/DELETE /admin/app-settings`): admin "Ko'rinish" sahifasi —
+      asosiy rang (qolganlari avtomatik, WCAG kontrast), yorug'/qorong'i fon (standart · rang · https rasm), shrift
+      (Manrope · tizim); oldindan ko'rish; keshdan birinchi chizishdan oldin qo'llanadi; xavfsiz URL/qiymat filtrlari
+
 ## 31. Keyingi vazifalar
 
 - [ ] 31.1 Safari (WebKit): varaqlash rejimida oldingi sahifaga qaytilganda (3-sahifa) belgilash qatlami

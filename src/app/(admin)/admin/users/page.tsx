@@ -81,7 +81,6 @@ export default function AdminUsersPage() {
   return (
     <div>
       <PageHeader
-        eyebrow={t("admin.nav.people")}
         title={t("admin.users.title")}
         icon={<I.Users size={26} />}
         actions={

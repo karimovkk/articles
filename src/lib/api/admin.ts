@@ -3,6 +3,7 @@ import { api, apiErrorFrom, apiRaw, apiUpload, type UploadOptions } from "./clie
 import type {
   AdminDevice,
   AdminStats,
+  PaymentStats,
   Article,
   AuditAction,
   AuditLog,
@@ -39,6 +40,17 @@ export const adminApi = {
   // ---- Stats (FE-6.9)
   stats() {
     return api<AdminStats>("/admin/stats");
+  },
+  /** 44.4: to'lovlar statistikasi (jami tushum, oy va kitob bo'yicha) */
+  paymentStats() {
+    return api<PaymentStats>("/admin/stats/payments");
+  },
+  /** 44.8: global ko'rinish sozlamalari — merge/upsert (boshqa kalitlar saqlanadi) */
+  saveAppSettings(settings: Record<string, unknown>) {
+    return api<{ settings: Record<string, unknown> }>("/admin/app-settings", { method: "PUT", body: { settings } });
+  },
+  deleteAppSetting(key: string) {
+    return api<MessageResponse>(`/admin/app-settings/${encodeURIComponent(key)}`, { method: "DELETE" });
   },
 
   // ---- Users
@@ -109,7 +121,7 @@ export const adminApi = {
   createArticle(bookId: string, input: { title: string; order_index?: number }) {
     return api<Article>(`/admin/books/${bookId}/articles`, { method: "POST", body: input });
   },
-  updateArticle(bookId: string, articleId: string, patch: { title?: string | null; order_index?: number | null }) {
+  updateArticle(bookId: string, articleId: string, patch: { title?: string | null; order_index?: number | null; watermark_enabled?: boolean }) {
     return api<Article>(`/admin/books/${bookId}/articles/${articleId}`, { method: "PATCH", body: patch });
   },
   deleteArticle(bookId: string, articleId: string) {

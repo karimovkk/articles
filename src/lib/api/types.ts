@@ -405,6 +405,8 @@ export interface Article {
   created_at: string;
   updated_at: string;
   has_source_file: boolean;
+  /** 44.3: o'quvchiga suv belgisi chiziladimi (admin tanlovi; tekin kitobda backend baribir o'chiradi) */
+  watermark_enabled?: boolean;
 }
 
 export interface BookAccess {
@@ -444,4 +446,17 @@ export interface AdminStats {
   access: { total: number; by_status?: Record<string, number> };
   annotations: number;
   active_sessions: number;
+}
+
+/** 44.4: GET /admin/stats/payments — tushum = tasdiqlangan (APPROVED) buyurtmalar */
+export interface PaymentStats {
+  currency: string;
+  total_revenue: number;
+  approved_orders: number;
+  average_order_value: number;
+  orders_by_status: Partial<Record<OrderStatus, number>>;
+  /** Eskidan yangiga, 24 oygacha; `month` — "YYYY-MM" */
+  revenue_by_month: Array<{ month: string; revenue: number; orders: number }>;
+  /** Top 50 kitob */
+  revenue_by_book: Array<{ book_id: string; title: string | null; revenue: number; sold: number }>;
 }

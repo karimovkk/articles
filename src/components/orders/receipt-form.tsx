@@ -13,6 +13,9 @@ import { errorMessage, isApiError, ordersApi, type Order } from "@/lib/api";
 import { RECEIPT_MAX_MB, formatMb, heicToJpeg, receiptKind, validateReceipt } from "@/lib/uploads";
 import { useT } from "@/i18n";
 
+/** 44.2: server javobini kutish chegarasi (backend endi ~0.5 s da javob beradi; tarmoq osilsa — cheksiz kutilmaydi) */
+const RECEIPT_TIMEOUT_MS = 90_000;
+
 export function ReceiptForm({
   orderId,
   onDone,
@@ -86,11 +89,12 @@ export function ReceiptForm({
     setError(null);
     setProgress(0);
     try {
-      const o = await ordersApi.submitReceipt(orderId, { file, note }, { onProgress: (loaded, total) => setProgress(total ? Math.round((loaded / total) * 100) : 0) });
+      const o = await ordersApi.submitReceipt(orderId, { file, note }, { onProgress: (loaded, total) => setProgress(total ? Math.round((loaded / total) * 100) : 0), timeoutMs: RECEIPT_TIMEOUT_MS });
       onDone(o);
     } catch (err) {
       setError(errorMessage(err));
-      if (isApiError(err) && err.code === "INVALID_ORDER_STATE") onStale?.();
+      // Vaqt tugadi — chek yetib borgan bo'lishi mumkin: holat qayta so'raladi
+      if (isApiError(err) && (err.code === "INVALID_ORDER_STATE" || err.code === "UPLOAD_TIMEOUT")) onStale?.();
     } finally {
       setProgress(null);
     }
@@ -168,7 +172,9 @@ export function ReceiptForm({
 
       {busy && (
         <div role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress ?? 0}>
-          <div className="mb-1 text-xs font-semibold text-muted">{t("orders.uploading", { n: progress ?? 0 })}</div>
+          <div className="mb-1 text-xs font-semibold text-muted" data-testid="receipt-progress">
+            {(progress ?? 0) >= 100 ? t("orders.receiptProcessing") : t("orders.uploading", { n: progress ?? 0 })}
+          </div>
           <div className="progress thin">
             <i style={{ width: `${progress ?? 0}%` }} />
           </div>

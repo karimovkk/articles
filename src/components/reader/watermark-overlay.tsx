@@ -15,7 +15,7 @@ export function WatermarkOverlay({ payload, night }: { payload: WatermarkLike | 
   const label = payload.watermark_text || [payload.user_ref, payload.trace_id].filter(Boolean).join(" · ");
   const cells = Array.from({ length: 24 });
   return (
-    <div className="pointer-events-none absolute inset-0 z-20 select-none overflow-hidden" aria-hidden>
+    <div className="pointer-events-none absolute inset-0 z-20 select-none overflow-hidden" aria-hidden data-testid="watermark-overlay">
       <div className="grid h-full w-full grid-cols-3 grid-rows-8 place-items-center">
         {cells.map((_, i) => (
           <span

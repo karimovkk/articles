@@ -76,7 +76,6 @@ export default function NotificationsPage() {
   return (
     <div>
       <PageHeader
-        eyebrow={t("client.nav")}
         title={t("notifications.title")}
         icon={<I.Bell size={26} />}
         actions={
@@ -121,7 +120,7 @@ export default function NotificationsPage() {
                 </span>
                 <span className="min-w-0">
                   <span className="flex flex-wrap items-center gap-2">
-                    <span className={cn("user-text text-sm", n.is_read ? "font-semibold text-text-2" : "font-extrabold text-text")}>{n.title}</span>
+                    <span className={cn("user-text text-sm", n.is_read ? "font-semibold text-text-2" : "font-bold text-text")}>{n.title}</span>
                     <Badge>{t(TYPE_KEY[n.type] ?? "notifications.type.GENERAL")}</Badge>
                   </span>
                   {n.body && <span className="user-text mt-0.5 block text-sm text-muted">{n.body}</span>}

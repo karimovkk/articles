@@ -167,7 +167,6 @@ export default function VocabularyPage() {
   return (
     <div className="vocab-page">
       <PageHeader
-        eyebrow={t("vocab.eyebrow")}
         title={t("vocab.title")}
         description={t("vocab.sub")}
         icon={<I.Languages size={26} />}

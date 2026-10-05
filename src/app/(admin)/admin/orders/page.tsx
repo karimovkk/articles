@@ -131,7 +131,7 @@ export default function AdminOrdersPage() {
 
   return (
     <div>
-      <PageHeader eyebrow={t("admin.nav.people")} title={t("admin.orders.title")} description={t("admin.orders.description")} icon={<I.ShoppingBag size={26} />} />
+      <PageHeader title={t("admin.orders.title")} description={t("admin.orders.description")} icon={<I.ShoppingBag size={26} />} />
       <Toolbar meta={data ? `${t("common.total")}: ${data.total}` : undefined}>
         <Select
           value={status}

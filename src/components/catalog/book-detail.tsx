@@ -89,7 +89,7 @@ export function CatalogBookDetail({ bookId }: { bookId: string }) {
             {item.author && <p className="mt-1 text-[15px] font-semibold text-muted">{item.author}</p>}
           </div>
           <p className="max-w-2xl whitespace-pre-wrap text-sm leading-relaxed text-text-2">{item.description || t("catalog.noDescription")}</p>
-          <p className="font-display text-2xl font-semibold tracking-tight text-text">
+          <p className="text-2xl font-bold tabular-nums tracking-tight text-text">
             {isFreeBook(item) ? <span className="text-success" data-testid="book-free-price">{t("catalog.free")}</span> : <Price value={item.price} />}
           </p>
 

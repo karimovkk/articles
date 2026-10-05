@@ -31,7 +31,13 @@ interface NavSection {
 }
 
 export const ADMIN_NAV: NavSection[] = [
-  { label: "admin.nav.overview", items: [{ href: "/admin", label: "nav.admin.dashboard", icon: I.Home }] },
+  {
+    label: "admin.nav.overview",
+    items: [
+      { href: "/admin", label: "nav.admin.dashboard", icon: I.Home },
+      { href: "/admin/payments", label: "nav.admin.payments", icon: I.Wallet },
+    ],
+  },
   {
     label: "admin.nav.content",
     items: [
@@ -47,7 +53,13 @@ export const ADMIN_NAV: NavSection[] = [
       { href: "/admin/orders", label: "nav.admin.orders", icon: I.ShoppingBag },
     ],
   },
-  { label: "admin.nav.system", items: [{ href: "/admin/audit-logs", label: "nav.admin.audit", icon: I.History }] },
+  {
+    label: "admin.nav.system",
+    items: [
+      { href: "/admin/appearance", label: "nav.admin.appearance", icon: I.Sparkles },
+      { href: "/admin/audit-logs", label: "nav.admin.audit", icon: I.History },
+    ],
+  },
 ];
 
 export function isNavActive(pathname: string, href: string) {
