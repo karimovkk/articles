@@ -4,8 +4,9 @@
  * `503 TRANSLATE_UNAVAILABLE` / `TRANSLATE_QUOTA_EXCEEDED` → shu sessiyada qayta so'ralmaydi.
  * Provayder biror tilni qo'llamasa (hozirgi self-hosted LibreTranslate — `uz` yo'q, faqat ru/en): shu til uchun ketma-ket
  * `502 TRANSLATE_FAILED` → o'sha til shu sessiyada o'chiriladi (bir martalik uzilish uchun 2 ta urinish qoldiriladi).
- * O'zbekcha interfeysda o'zbekcha tarjima bo'lmasa — **ruscha** beriladi (mahsulot qarori: foydalanuvchi ko'radi va
- * xohlasa o'zi o'zbekchasini yozadi). Backend uz'ni qo'llay boshlasa (Google) — o'zbekcha o'z-o'zidan qaytadi.
+ * Tarjima tilini o'quvchi o'zi tanlaydi (47 — sayt tili emas). O'zbekcha tanlanib, o'zbekcha tarjima bo'lmasa —
+ * **ruscha** beriladi (mahsulot qarori: ko'radi va xohlasa o'zi o'zbekchasini yozadi). Backend uz'ni qo'llasa
+ * (Google kaliti) — o'zbekcha o'z-o'zidan qaytadi.
  */
 import { api, isApiError } from "./client";
 
@@ -23,7 +24,7 @@ interface TranslateResponse {
 
 export const TRANSLATE_TEXT_MAX = 200;
 
-/** Interfeys tili → qaysi tillarda so'raladi (tartib bo'yicha) */
+/** Tanlangan til → qaysi tillarda so'raladi (tartib bo'yicha) */
 const FALLBACK: Record<TranslateLang, TranslateLang[]> = { uz: ["uz", "ru"], ru: ["ru"], en: ["en"] };
 
 export interface AutoTranslation {
@@ -46,16 +47,16 @@ export const translateApi = {
     return !disabled && (!target || (langFails.get(target) ?? 0) < LANG_FAIL_LIMIT);
   },
 
-  /** Interfeys tili uchun avtomatik tarjima mavjudmi (uz — uz yoki zaxira ru) */
-  availableFor(locale: TranslateLang): boolean {
-    return FALLBACK[locale].some((l) => translateApi.enabled(l));
+  /** Tanlangan tilga avtomatik tarjima mavjudmi (uz — uz yoki zaxira ru) */
+  availableFor(target: TranslateLang): boolean {
+    return FALLBACK[target].some((l) => translateApi.enabled(l));
   },
 
-  /** Interfeys tiliga tarjima (uz bo'lmasa — ruscha) yoki `null` (bir xil til, xato, o'chiq) */
-  async translate(text: string, locale: TranslateLang): Promise<AutoTranslation | null> {
+  /** Tanlangan tilga tarjima (uz bo'lmasa — ruscha) yoki `null` (bir xil til, xato, o'chiq) */
+  async translate(text: string, target: TranslateLang): Promise<AutoTranslation | null> {
     const q = text.trim().slice(0, TRANSLATE_TEXT_MAX);
     if (!q) return null;
-    for (const lang of FALLBACK[locale]) {
+    for (const lang of FALLBACK[target]) {
       if (!translateApi.enabled(lang)) continue;
       const r = await attempt(q, lang);
       if (r === null) return null; // so'z allaqachon shu tilda — boshqa tilga o'girish shart emas

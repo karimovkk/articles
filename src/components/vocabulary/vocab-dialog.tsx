@@ -3,15 +3,19 @@
 /**
  * Lug'at oynasi (33.2, 33.4): reader'dan yangi so'z qo'shish va lug'at sahifasida tahrirlash — bitta forma.
  * So'z majburiy, tarjima va kontekst ixtiyoriy. Dublikat bo'lsa ogohlantiradi (saqlash — tarjimani yangilaydi).
- * 41: `autoTranslate` — oyna ochilishi bilan tarjima `POST /translate` dan so'raladi (interfeys tiliga); foydalanuvchi
- * bu orada o'zi yozsa, kelgan tarjima uni bosib ketmaydi. "Tarjima qilish" tugmasi — joriy so'zni qo'lda tarjima.
+ * 41/47: tarjima tilini o'quvchi o'zi tanlaydi (O'zbekcha · Русский · English — sayt tili emas); tanlov eslab qolinadi.
+ * Til tanlangan bo'lsa — `autoTranslate` da oyna ochilishi bilan shu tilga tarjima so'raladi; tanlanmagan bo'lsa —
+ * tanlanguncha so'ralmaydi. Til tugmasini bosish — joriy so'zni shu tilga (qayta) tarjima qilish. Foydalanuvchi
+ * o'zi yozsa, kech kelgan avtomatik tarjima uni bosib ketmaydi.
  * Tarjima ishlamasa (backend o'chiq/xato) — forma odatdagidek ishlaydi.
  */
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Alert, Button, Field, Input, Modal, Textarea } from "@/components/ui";
+import { Alert, Button, Field, Input, Modal, Textarea, cn } from "@/components/ui";
 import * as I from "@/components/ui/icons";
 import { translateApi, VOCAB_TRANSLATION_MAX, VOCAB_WORD_MAX } from "@/lib/api";
-import { useT } from "@/i18n";
+import { LOCALES, useT } from "@/i18n";
+import { setTranslateLang, useTranslateLang } from "@/lib/translate-lang";
+import type { TranslateLang } from "@/lib/api";
 
 export interface VocabFormValues {
   word: string;
@@ -38,15 +42,16 @@ export function VocabDialog({
   onSave: (v: VocabFormValues) => Promise<void>;
   onClose: () => void;
 }) {
-  const { t, locale } = useT();
+  const { t } = useT();
+  const lang = useTranslateLang();
   const [values, setValues] = useState(initial);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // 41: avtomatik tarjima holati; `fromGoogle` — maydondagi matn avtomatik (foydalanuvchi o'zgartirmagan)
   const [translating, setTranslating] = useState(false);
   const [fromGoogle, setFromGoogle] = useState(false);
-  // O'zbekcha interfeysda o'zbekcha tarjima bo'lmasa — ruscha keladi (izoh boshqacha)
-  const [autoLang, setAutoLang] = useState<string | null>(null);
+  // O'zbekcha tanlanib, o'zbekcha tarjima bo'lmasa — ruscha keladi (izoh boshqacha)
+  const [fallbackLang, setFallbackLang] = useState(false);
   const touched = useRef(false); // foydalanuvchi tarjima maydoniga yozdi — avtomatik natija uni bosmaydi
   const reqId = useRef(0);
   // Oyna yangi so'z bilan qayta ochilsa — forma boshlang'ich qiymatga qaytadi (render fazasida)
@@ -59,16 +64,16 @@ export function VocabDialog({
     setTranslating(false);
   }
 
-  const runTranslate = (word: string, force: boolean) => {
+  const runTranslate = (word: string, target: TranslateLang, force: boolean) => {
     const id = ++reqId.current;
     setTranslating(true);
-    void translateApi.translate(word, locale).then((tr) => {
+    void translateApi.translate(word, target).then((tr) => {
       if (id !== reqId.current) return; // eskirgan javob (boshqa so'z / oyna yopildi)
       setTranslating(false);
       if (!tr || (!force && touched.current)) return;
       setValues((v) => (force || !v.translation.trim() ? { ...v, translation: tr.text.slice(0, VOCAB_TRANSLATION_MAX) } : v));
       setFromGoogle(true);
-      setAutoLang(tr.lang);
+      setFallbackLang(tr.lang !== target);
     });
   };
 
@@ -76,9 +81,10 @@ export function VocabDialog({
   useEffect(() => {
     touched.current = false;
     reqId.current++;
-    if (!open || !autoTranslate || initial.translation.trim() || !initial.word.trim() || !translateApi.availableFor(locale)) return;
+    // 47: til hali tanlanmagan — tanlanguncha so'ralmaydi
+    if (!open || !autoTranslate || !lang || initial.translation.trim() || !initial.word.trim() || !translateApi.availableFor(lang)) return;
     const id = reqId.current;
-    queueMicrotask(() => id === reqId.current && runTranslate(initial.word, false));
+    queueMicrotask(() => id === reqId.current && runTranslate(initial.word, lang, false));
     // eslint-disable-next-line react-hooks/exhaustive-deps -- faqat yangi so'z/oyna ochilganda
   }, [open, initial, autoTranslate]);
 
@@ -129,6 +135,28 @@ export function VocabDialog({
           <Input value={values.word} maxLength={VOCAB_WORD_MAX} onChange={(e) => setValues((v) => ({ ...v, word: e.target.value }))} data-testid="vocab-word" autoComplete="off" required />
         </Field>
         <Field label={t("vocab.translation")} hint={fromGoogle ? undefined : t("vocab.translationHint")}>
+          {/* 47: tarjima tili — o'quvchi tanlaydi (sayt tili emas); bosish — shu tilga tarjima */}
+          {translateApi.enabled() && (
+            <div className="vocab-langs" role="group" aria-label={t("vocab.translateTo")} data-testid="vocab-langs">
+              <span className={cn("vocab-langs-label", !lang && "pick")}>{lang ? t("vocab.translateTo") : t("vocab.pickLang")}</span>
+              {LOCALES.map((l) => (
+                <button
+                  key={l.code}
+                  type="button"
+                  className={cn(lang === l.code && "active")}
+                  aria-pressed={lang === l.code}
+                  disabled={!values.word.trim() || !translateApi.availableFor(l.code) || translating}
+                  onClick={() => {
+                    setTranslateLang(l.code);
+                    runTranslate(values.word, l.code, true);
+                  }}
+                  data-testid={`vocab-lang-${l.code}`}
+                >
+                  {l.label}
+                </button>
+              ))}
+            </div>
+          )}
           <div className="vocab-tr">
             <Input
               value={values.translation}
@@ -144,27 +172,11 @@ export function VocabDialog({
               autoComplete="off"
               autoFocus
             />
-            {translateApi.availableFor(locale) && (
-              <Button
-                type="button"
-                variant="soft"
-                size="sm"
-                loading={translating}
-                disabled={!values.word.trim()}
-                onClick={() => runTranslate(values.word, true)}
-                title={t("vocab.translateNow")}
-                aria-label={t("vocab.translateNow")}
-                icon={<I.Languages size={15} />}
-                data-testid="vocab-translate"
-              >
-                <span className="max-sm:hidden">{t("vocab.translateNow")}</span>
-              </Button>
-            )}
           </div>
           {fromGoogle && (
             <p className="vocab-tr-badge" data-testid="vocab-auto-badge">
               <I.Sparkles size={12} />
-              {autoLang && autoLang !== locale ? t("vocab.autoTranslatedRu") : t("vocab.autoTranslated")}
+              {fallbackLang ? t("vocab.autoTranslatedRu") : t("vocab.autoTranslated")}
             </p>
           )}
         </Field>

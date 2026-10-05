@@ -983,6 +983,14 @@ public `GET /app-settings` → `{settings, images: {name: {light, dark}}}` (URL'
       yuklangan rasm o'chiriladi (storage'da yetim fayl qolmaydi)
 - [x] 46.3 Mock (rasm yuklash/serve/o'chirish, `images`) + e2e `appearance`
 
+## 47. Lug'at oynasida tarjima tilini o'quvchi tanlaydi (2026-10-05)
+
+- [x] 47.1 Tarjima maydoni ustida tillar: O'zbekcha · Русский · English — sayt interfeysi tili ishlatilmaydi
+- [x] 47.2 Til tanlanmaguncha tarjima so'ralmaydi ("Qaysi tilga tarjima qilinsin?"); tanlov eslab qolinadi
+      (`a365.vocab.lang`) — keyingi so'zlarda shu tilga avtomatik; boshqa til bosilsa — qayta tarjima ("Tarjima qilish"
+      tugmasi o'rniga); o'zbekcha bo'lmasa (502) — ruscha + izoh (avvalgidek)
+- [x] 47.3 e2e `translate` qayta yozildi (sayt ru + tanlov uz → target uz)
+
 ## 31. Keyingi vazifalar
 
 - [ ] 31.1 Safari (WebKit): varaqlash rejimida oldingi sahifaga qaytilganda (3-sahifa) belgilash qatlami

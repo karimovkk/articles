@@ -2604,3 +2604,47 @@
   background: var(--pill-bg);
   color: var(--pill-text);
 }
+
+/* 47: lug'at oynasi — tarjima tili (o'quvchi tanlaydi) */
+.vocab-langs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.vocab-langs-label {
+  flex-basis: 100%;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.vocab-langs-label.pick {
+  color: var(--accent-ink);
+}
+.vocab-langs button {
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-2);
+  font-size: 13px;
+  font-weight: 600;
+}
+.vocab-langs button:not(.active):hover:not(:disabled) {
+  border-color: var(--accent-border);
+  color: var(--text);
+}
+.vocab-langs button.active {
+  border-color: transparent;
+  background: var(--pill-bg);
+  color: var(--pill-text);
+}
+.vocab-langs button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.vocab-langs button.active:disabled {
+  opacity: 0.75;
+}
