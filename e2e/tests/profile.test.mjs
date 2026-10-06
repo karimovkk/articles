@@ -1,6 +1,6 @@
-// Task 7.4 / 15 — profil: parol o'zgartirish, 2FA (QR, enable/disable), buyurtmalarim (rekvizitlar, receipt → admin
+// Task 7.4 / 15 / 56 — profil: parol o'zgartirish, 2FA (QR, enable/disable), buyurtmalarim (Telegram bot orqali to'lov → admin
 // approve, bekor qilish → CANCELLED)
-import { launch, BASE, API, reset, mockGet, confirmDialog, ignorablePageError } from "../lib.mjs";
+import { launch, BASE, API, API_HOST, reset, mockGet, confirmDialog, ignorablePageError } from "../lib.mjs";
 import { mkdirSync } from "node:fs";
 const BOOK2 = "33333333-3333-4333-8333-333333333333";
 const OUT = new URL("../out/", import.meta.url).pathname;
@@ -66,21 +66,16 @@ await page.click("text=O'chirish");
 await page.waitForSelector("text=2FA o'chirildi", { timeout: 5000 });
 check("2FA: o'chirildi", true);
 
-// ---- Buyurtmalarim: PENDING → To'ladim → AWAITING_REVIEW → admin approve → APPROVED
+// ---- Buyurtmalarim: PENDING → Telegram orqali to'lash (bot) → AWAITING_REVIEW → admin approve → APPROVED
 await page.waitForSelector("text=Ruxsatsiz kitob", { timeout: 8000 });
 check("Buyurtma: kitob nomi (katalogdan), narx, holat 'To'lov kutilmoqda'", (await bodyHas("70 000 so'm")) && (await bodyHas("To'lov kutilmoqda")));
-await page.waitForSelector('[data-testid="payment-details"]', { timeout: 5000 });
-check("Buyurtmalarim: PENDING'da to'lov rekvizitlari (karta)", (await page.textContent('[data-testid="payment-card"]'))?.trim() === "8600 1234 1234 5678");
-await page.click("text=To'ladim — chek yuborish");
-// Chek rasmi (1×1 PNG) + izoh — multipart
-await page.setInputFiles('[data-testid="receipt-file"]', { name: "chek.png", mimeType: "image/png", buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==", "base64") });
-await page.waitForSelector('[data-testid="receipt-preview"]', { timeout: 3000 });
-await page.fill('textarea[placeholder^="Chek raqami"]', "Chek #123");
-await page.click('[data-testid="receipt-submit"]');
-await page.waitForSelector("text=Tekshirilmoqda", { timeout: 5000 });
-const o1 = (await mockGet("/__orders"))[0];
-const r1 = (await mockGet("/__receipts"))[0];
-check("Buyurtmalarim: chek rasmi + izoh (multipart) → AWAITING_REVIEW", o1.status === "AWAITING_REVIEW" && o1.receipt_note === "Chek #123" && r1?.file?.type === "image/png", JSON.stringify(r1));
+await page.waitForSelector('[data-testid="tg-pay-btn"]', { timeout: 5000 });
+check("Buyurtmalarim: PENDING'da 'Telegram orqali to'lash' (karta/chek formasi yo'q)", (await page.locator('[data-testid="payment-details"], [data-testid="receipt-form"]').count()) === 0);
+// Bot chekni qabul qildi → AWAITING_REVIEW (kuzatuv PENDING'da ham — sahifaga qaytish/focus)
+await fetch(`${API_HOST}/__set-order?id=${order.id}&status=AWAITING_REVIEW`);
+await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+await page.waitForSelector("text=Tekshirilmoqda", { timeout: 10000 });
+check("Bot → AWAITING_REVIEW: reload'siz 'Tekshirilmoqda' + 'Telegram botni ochish'", ((await page.textContent('[data-testid="tg-pay-btn"]')) ?? "").includes("Telegram botni ochish"));
 await page.screenshot({ path: OUT + "70-profile-orders.png" });
 await fetch(`${API}/admin/orders/${order.id}/approve`, { method: "POST", headers: ah });
 // Kuzatuv: reload'siz — sahifaga qaytish (focus) holatni yangilaydi

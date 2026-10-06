@@ -1,9 +1,9 @@
 "use client";
 
 /**
- * Buyurtmalarim (buyurtma oqimi v1.0): PENDING → rekvizitlar + "To'ladim" (chek rasmi/PDF + izoh, multipart) →
- * AWAITING_REVIEW (chekni almashtirish mumkin) → admin (Telegram yoki web) APPROVED/REJECTED; ochiq buyurtmani
- * bekor qilish → CANCELLED. AWAITING_REVIEW bo'lsa ro'yxat `GET /orders` bilan kuzatiladi.
+ * Buyurtmalarim (buyurtma oqimi v1.0): PENDING → 56: "Telegram orqali to'lash" (karta, chek, tasdiq — botda) →
+ * AWAITING_REVIEW (chekni almashtirish — botda) → admin APPROVED/REJECTED; ochiq buyurtmani bekor qilish → CANCELLED.
+ * Ochiq buyurtma bo'lsa ro'yxat `GET /orders` bilan kuzatiladi (holatni bot o'zgartiradi).
  * Kitob nomi `OrderResponse` da bo'lmasa (eski backend) — katalogdan olinadi (kesh).
  */
 import { useEffect, useState } from "react";
@@ -12,8 +12,7 @@ import { Alert, Button, Card, Spinner, formatDate, useConfirm } from "@/componen
 import * as I from "@/components/ui/icons";
 import { Price } from "@/components/catalog/price";
 import { OrderStatusBadge } from "./order-status";
-import { ReceiptForm } from "./receipt-form";
-import { PaymentDetails } from "./payment-info";
+import { TelegramPay } from "./telegram-pay";
 import { useOrderPoll } from "./use-order-poll";
 import { catalogApi, errorMessage, ordersApi, type Order } from "@/lib/api";
 import { useAsync } from "@/lib/use-async";
@@ -23,11 +22,10 @@ export function MyOrders() {
   const { t } = useT();
   const { data: orders, error, reload } = useAsync(() => ordersApi.mine(), []);
   const [titles, setTitles] = useState<Record<string, string>>({});
-  const [receiptFor, setReceiptFor] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [cancelling, setCancelling] = useState<string | null>(null);
   const confirm = useConfirm();
-  useOrderPoll(!!orders?.some((o) => o.status === "AWAITING_REVIEW"), reload);
+  useOrderPoll(!!orders?.some((o) => o.status === "PENDING" || o.status === "AWAITING_REVIEW"), reload);
 
   // Kitob nomlari (public katalog, keshlanadi)
   useEffect(() => {
@@ -50,7 +48,6 @@ export function MyOrders() {
     setActionError(null);
     try {
       await ordersApi.cancel(o.id);
-      setReceiptFor(null);
     } catch (e) {
       setActionError(errorMessage(e));
     } finally {
@@ -112,39 +109,24 @@ export function MyOrders() {
               </div>
               {(o.status === "PENDING" || o.status === "AWAITING_REVIEW") && (
                 <div className="mt-2 space-y-2">
-                  {o.status === "PENDING" && <PaymentDetails />}
                   {o.status === "AWAITING_REVIEW" && (
                     <p className="flex items-start gap-1.5 text-xs text-muted">
                       <Spinner className="mt-0.5 size-3 shrink-0" />
                       {t("orders.awaitingHint")}
                     </p>
                   )}
-                  {receiptFor === o.id ? (
-                    <ReceiptForm
-                      orderId={o.id}
-                      compact
-                      replace={o.status === "AWAITING_REVIEW"}
-                      onDone={() => {
-                        setReceiptFor(null);
-                        reload();
-                      }}
-                      onCancel={() => setReceiptFor(null)}
-                      onStale={() => {
-                        setReceiptFor(null);
-                        setActionError(t("error.INVALID_ORDER_STATE"));
-                        reload();
-                      }}
-                    />
-                  ) : (
-                    <div className="flex flex-wrap gap-2">
-                      <Button size="sm" variant="secondary" onClick={() => setReceiptFor(o.id)} icon={o.status === "AWAITING_REVIEW" ? <I.Upload size={14} /> : undefined}>
-                        {o.status === "PENDING" ? t("orders.paid") : t("orders.replaceReceipt")}
-                      </Button>
-                      <Button size="sm" variant="danger-ghost" loading={cancelling === o.id} onClick={() => void cancel(o)} data-testid="cancel-order">
-                        {t("orders.cancel")}
-                      </Button>
-                    </div>
-                  )}
+                  <TelegramPay
+                    order={o}
+                    compact
+                    onStale={() => {
+                      setActionError(t("error.INVALID_ORDER_STATE"));
+                      reload();
+                    }}
+                  >
+                    <Button size="sm" variant="danger-ghost" loading={cancelling === o.id} onClick={() => void cancel(o)} data-testid="cancel-order">
+                      {t("orders.cancel")}
+                    </Button>
+                  </TelegramPay>
                 </div>
               )}
               {o.status === "APPROVED" && (

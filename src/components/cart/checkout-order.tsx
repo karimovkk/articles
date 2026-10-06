@@ -2,15 +2,14 @@
 
 /**
  * 35.3: savatchadan yaratilgan buyurtma — kitoblar (asl/chegirmali narx), jami va chegirma, holat; PENDING —
- * to'lov rekvizitlari + "To'ladim" (chek), AWAITING_REVIEW — kuzatiladi (chekni almashtirish mumkin), APPROVED —
- * kutubxonaga havola. Chek yuborish va bekor qilish — mavjud buyurtma oqimi (`/orders/{id}/receipt`, `/cancel`).
+ * 56: "Telegram orqali to'lash" (karta, chek, tasdiq — botda), AWAITING_REVIEW — kuzatiladi (chekni almashtirish —
+ * botda), APPROVED — kutubxonaga havola. Holat PENDING'da ham kuzatiladi (bot o'zgartiradi); bekor qilish — saytda.
  */
 import { useState } from "react";
 import Link from "next/link";
 import { Price } from "@/components/catalog/price";
 import { OrderStatusBadge } from "@/components/orders/order-status";
-import { PaymentDetails } from "@/components/orders/payment-info";
-import { ReceiptForm } from "@/components/orders/receipt-form";
+import { TelegramPay } from "@/components/orders/telegram-pay";
 import { useOrderPoll } from "@/components/orders/use-order-poll";
 import { Alert, Button, Spinner, buttonClass, formatDate, useConfirm } from "@/components/ui";
 import * as I from "@/components/ui/icons";
@@ -21,7 +20,6 @@ import { useT } from "@/i18n";
 export function CheckoutOrder({ order, onChange }: { order: Order; onChange: (o: Order) => void }) {
   const { t } = useT();
   const confirm = useConfirm();
-  const [receiptOpen, setReceiptOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const open = order.status === "PENDING" || order.status === "AWAITING_REVIEW";
@@ -34,7 +32,7 @@ export function CheckoutOrder({ order, onChange }: { order: Order; onChange: (o:
         onChange(o);
       })
       .catch(() => undefined);
-  useOrderPoll(order.status === "AWAITING_REVIEW", () => void refresh());
+  useOrderPoll(open, () => void refresh());
 
   const cancel = async () => {
     const ok = await confirm({ title: t("orders.cancel"), message: t("orders.cancelConfirm"), confirmLabel: t("orders.cancel"), tone: "danger" });
@@ -96,43 +94,18 @@ export function CheckoutOrder({ order, onChange }: { order: Order; onChange: (o:
         </div>
       </dl>
 
-      {order.status === "PENDING" && <PaymentDetails />}
-      {open && receiptOpen && (
-        <ReceiptForm
-          orderId={order.id}
-          replace={order.status === "AWAITING_REVIEW"}
-          onDone={(o) => {
-            onChange(o);
-            setReceiptOpen(false);
-          }}
-          onCancel={() => setReceiptOpen(false)}
-          onStale={() => {
-            setReceiptOpen(false);
-            void refresh();
-          }}
-        />
-      )}
       {order.status === "AWAITING_REVIEW" && (
         <p className="flex items-start gap-2 text-xs text-muted" data-testid="awaiting-hint">
           <Spinner className="mt-0.5 size-3.5 shrink-0" />
           {t("orders.awaitingHint")}
         </p>
       )}
-      {open && !receiptOpen && (
-        <div className="flex flex-wrap gap-2">
-          {order.status === "PENDING" ? (
-            <Button onClick={() => setReceiptOpen(true)} icon={<I.Upload size={15} />} data-testid="checkout-paid">
-              {t("orders.paid")}
-            </Button>
-          ) : (
-            <Button variant="secondary" onClick={() => setReceiptOpen(true)} icon={<I.Upload size={15} />}>
-              {t("orders.replaceReceipt")}
-            </Button>
-          )}
+      {open && (
+        <TelegramPay order={order} onStale={() => void refresh()}>
           <Button variant="danger-ghost" loading={busy} onClick={() => void cancel()} data-testid="checkout-cancel">
             {t("orders.cancel")}
           </Button>
-        </div>
+        </TelegramPay>
       )}
       {order.status === "APPROVED" && (
         <div className="space-y-2">

@@ -2,6 +2,19 @@
 import { api, apiErrorFrom, apiRaw, apiUpload, type UploadOptions } from "./client";
 import type { AppImage, AppImageTheme } from "./app";
 import { backendUrl } from "@/lib/env";
+
+/** 57: bitta integratsiya kaliti (`GET /admin/integration-settings`) — maxfiyda `value` yo'q, `preview` ("••••1234") */
+export interface IntegrationSetting {
+  is_secret: boolean;
+  is_set: boolean;
+  /** Qiymat qayerdan: "db" (admin o'rnatgan) | "env" (server) | … */
+  source?: string | null;
+  value?: string | null;
+  preview?: string | null;
+}
+export interface IntegrationSettings {
+  settings: Record<string, IntegrationSetting>;
+}
 import type {
   AdminDevice,
   AdminStats,
@@ -63,6 +76,19 @@ export const adminApi = {
   },
   deleteAppImage(name: string, theme: AppImageTheme) {
     return api<MessageResponse>(`/admin/app-settings/images/${encodeURIComponent(name)}`, { method: "DELETE", query: { theme } });
+  },
+
+  // ---- 57: integratsiya sozlamalari (Telegram bot, to'lov) — maxfiylari niqoblangan; o'zgarish darhol kuchga kiradi
+  integrationSettings() {
+    return api<IntegrationSettings>("/admin/integration-settings");
+  },
+  /** Faqat o'zgargan kalitlar; `""` — tozalash (server env qiymatiga qaytadi) */
+  saveIntegrationSettings(settings: Record<string, string>) {
+    return api<IntegrationSettings>("/admin/integration-settings", { method: "PUT", body: { settings } });
+  },
+  /** Bot token o'zgargach webhook'ni joriy token bilan qayta ulash (URL — backend o'zi) */
+  setTelegramWebhook() {
+    return api<Record<string, unknown>>("/admin/integration-settings/telegram/set-webhook", { method: "POST", body: {} });
   },
 
   // ---- Users

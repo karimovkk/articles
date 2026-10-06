@@ -1,6 +1,16 @@
-/** Buyurtmalar (PM S-16): yaratish → to'lov → chek yuborish → admin tasdiqlaydi → ruxsat. */
-import { api, apiUpload, type UploadOptions } from "./client";
-import type { Order, OrderQuote, PaymentInfo, PricingConfig } from "./types";
+/**
+ * Buyurtmalar (PM S-16): yaratish → to'lov → admin tasdiqlaydi → ruxsat. 56: to'lov faqat Telegram bot orqali —
+ * sayt `telegram-link` bilan botga yo'naltiradi (karta, chek, tasdiq — botda), holatni `GET /orders/{id}` bilan kuzatadi.
+ */
+import { api } from "./client";
+import type { Order, OrderQuote, PricingConfig } from "./types";
+
+/** 56: botda to'lovni boshlash havolasi (`deep_link` bo'sh — bot sozlanmagan) */
+export interface TelegramLink {
+  deep_link: string | null;
+  token: string;
+  bot_username: string | null;
+}
 
 export const ordersApi = {
   mine(): Promise<Order[]> {
@@ -15,17 +25,11 @@ export const ordersApi = {
     return api<Order>("/orders", { method: "POST", body: { book_id: bookId } });
   },
   /**
-   * "To'ladim" — chek **rasmi yoki PDF** (tavsiya) va ixtiyoriy izoh, `multipart/form-data` (buyurtma oqimi v1.0).
-   * Adminlar chatiga fayl + izoh ketadi; holat AWAITING_REVIEW. Rasmsiz (faqat izoh) ham qabul qilinadi.
-   * PENDING va AWAITING_REVIEW'da yuboriladi (qayta yuborish = almashtirish), boshqasida 409 `INVALID_ORDER_STATE`.
-   * `Content-Type` qo'lda qo'yilmaydi — boundary'ni brauzer qo'yadi (XHR, yuklash progressi bilan).
+   * 56: "To'lash" — botda to'lovni boshlash uchun deep-link (bot foydalanuvchi va buyurtmani o'zi taniydi). Faqat ochiq
+   * buyurtma (PENDING/AWAITING_REVIEW), aks holda 409 `INVALID_ORDER_STATE`; begona — 404.
    */
-  submitReceipt(orderId: string, input: { file?: File | null; note?: string }, opts?: UploadOptions): Promise<Order> {
-    const fd = new FormData();
-    if (input.file) fd.append("file", input.file);
-    const note = input.note?.trim();
-    if (note) fd.append("receipt_note", note);
-    return apiUpload<Order>(`/orders/${orderId}/receipt`, fd, opts);
+  telegramLink(orderId: string): Promise<TelegramLink> {
+    return api<TelegramLink>(`/orders/${orderId}/telegram-link`, { method: "POST" });
   },
   /** Ochiq buyurtmani bekor qilish → CANCELLED (ochiq bo'lmasa 409) */
   cancel(orderId: string): Promise<Order> {
@@ -41,10 +45,6 @@ export const ordersApi = {
    */
   checkout(bookIds: string[]): Promise<Order> {
     return api<Order>("/orders/checkout", { method: "POST", body: { book_ids: bookIds } });
-  },
-  /** To'lov rekvizitlari (karta, qabul qiluvchi, ko'rsatma) */
-  paymentInfo(): Promise<PaymentInfo> {
-    return api<PaymentInfo>("/payment-info");
   },
 };
 

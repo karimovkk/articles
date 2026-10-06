@@ -2954,3 +2954,50 @@ a.track:hover {
   background: var(--surface);
   color: var(--muted);
 }
+
+/* 57: admin "Integratsiya" — kalit qatorlari, niqoblangan qiymat, saqlash paneli */
+.int-row {
+  display: grid;
+  grid-template-columns: minmax(0, 260px) minmax(0, 1fr);
+  gap: 8px 24px;
+  padding: 16px 0;
+}
+@media (max-width: 760px) {
+  .int-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.int-preview {
+  display: inline-flex;
+  align-items: center;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 10px;
+  background: var(--surface-2);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  color: var(--text-2);
+}
+.int-preview.empty {
+  font-family: inherit;
+  letter-spacing: 0;
+  color: var(--muted);
+}
+.integrations-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  backdrop-filter: blur(8px);
+}
+.integrations-bar.dirty {
+  position: sticky;
+  bottom: 12px;
+  z-index: 5;
+  box-shadow: var(--shadow-lg);
+}

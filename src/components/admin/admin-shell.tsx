@@ -57,6 +57,7 @@ export const ADMIN_NAV: NavSection[] = [
     label: "admin.nav.system",
     items: [
       { href: "/admin/appearance", label: "nav.admin.appearance", icon: I.Sparkles },
+      { href: "/admin/integrations", label: "nav.admin.integrations", icon: I.Settings },
       { href: "/admin/audit-logs", label: "nav.admin.audit", icon: I.History },
     ],
   },

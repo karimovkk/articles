@@ -1,9 +1,9 @@
-// Task 7.5 / 14 / 15 — buyurtma oqimi v1.0 (katalog): to'lov rekvizitlari (/payment-info), chek RASMI yoki PDF
-// (multipart), HEIC, validatsiya, chekni almashtirish (AWAITING), 409 INVALID_ORDER_STATE, bekor qilish (CANCELLED),
-// 409 ORDER_ALREADY_PENDING → mavjud buyurtma, kuzatuv GET /orders/{id} (APPROVED/REJECTED),
+// Task 7.5 / 14 / 15 / 56 — buyurtma oqimi (katalog): to'lov FAQAT Telegram bot orqali (deep-link — saytda karta va
+// chek formasi yo'q), bot holatni o'zgartiradi → sayt kuzatadi (PENDING'da ham), bot sozlanmagan / 409 INVALID_ORDER_STATE,
+// bekor qilish (CANCELLED), 409 ORDER_ALREADY_PENDING → mavjud buyurtma, kuzatuv GET /orders/{id} (APPROVED/REJECTED),
 // 409 ALREADY_HAS_ACCESS, bildirishnoma havolasi + 2FA login
-import { launch, BASE, API_HOST, API, reset, mockGet, confirmDialog, IS_CHROMIUM, ignorablePageError } from "../lib.mjs";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { launch, BASE, API_HOST, API, reset, mockGet, confirmDialog, ignorablePageError } from "../lib.mjs";
+import { mkdirSync } from "node:fs";
 const BOOK2 = "33333333-3333-4333-8333-333333333333";
 const OUT = new URL("../out/", import.meta.url).pathname;
 mkdirSync(OUT, { recursive: true });
@@ -13,20 +13,11 @@ await reset("");
 const ah = { Authorization: "Bearer access-token-admin", "Content-Type": "application/json" };
 const browser = await launch();
 const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
-if (IS_CHROMIUM) await ctx.grantPermissions(["clipboard-read", "clipboard-write"], { origin: BASE });
 const page = await ctx.newPage();
 const pageErrors = [];
 page.on("pageerror", (e) => !ignorablePageError(e.message) && pageErrors.push(e.message));
 process.on("unhandledRejection", async (e) => { console.log("❌ XATO:", e.message.split("\n")[0]); await page.screenshot({ path: OUT + "99-orders-failure.png" }).catch(() => {}); await browser.close(); process.exit(1); });
 const bodyHas = async (text) => page.evaluate((t) => document.body.innerText.replace(/ /g, " ").includes(t), text);
-// Test fayllari: haqiqiy 1×1 PNG, kichik PDF, HEIC sarlavhali fayl, matn fayli, 10 MB dan katta "JPEG"
-const PNG = OUT + "receipt.png", PDFR = OUT + "receipt.pdf", HEIC = OUT + "receipt.heic", TXT = OUT + "receipt.txt", BIG = OUT + "receipt-big.jpg";
-writeFileSync(PDFR, "%PDF-1.4\n1 0 obj<</Type/Catalog>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n");
-writeFileSync(HEIC, Buffer.concat([Buffer.from([0, 0, 0, 0x18]), Buffer.from("ftypheic"), Buffer.alloc(64, 0)]));
-writeFileSync(PNG, Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==", "base64"));
-writeFileSync(TXT, "bu rasm emas");
-writeFileSync(BIG, Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(10 * 1024 * 1024 + 10, 1)]));
-const pickReceipt = (file) => page.setInputFiles('[data-testid="receipt-file"]', file);
 // Kuzatuvni (polling) tezlashtirish: sahifaga "qaytish" — focus hodisasi
 const nudge = () => page.evaluate(() => window.dispatchEvent(new Event("focus")));
 
@@ -43,115 +34,54 @@ await page.click('button[type="submit"]');
 await page.waitForURL(`${BASE}/catalog/${BOOK2}`, { timeout: 10000 });
 check("Login'dan keyin katalog sahifasiga qaytdi", true);
 
-// ---- Buyurtma berish → PENDING → To'ladim (chek rasmi) → AWAITING_REVIEW
+// ---- Buyurtma berish → PENDING → Telegram orqali to'lash (bot) → AWAITING_REVIEW
 await page.waitForSelector("text=Buyurtma berish", { timeout: 10000 });
 await page.click("text=Buyurtma berish");
 await page.waitForSelector("text=Buyurtma yaratildi", { timeout: 5000 });
 check("POST /orders → PENDING + ko'rsatma", await bodyHas("To'lov kutilmoqda"));
 let orders = await mockGet("/__orders");
 check("Buyurtma summasi kitob narxidan", orders[0]?.amount === "70000.00" && orders[0]?.status === "PENDING" && orders[0]?.has_receipt_file === false);
-// To'lov rekvizitlari (GET /payment-info): karta 4 talik guruhlarda, qabul qiluvchi, ko'rsatma, nusxalash
-await page.waitForSelector('[data-testid="payment-details"]', { timeout: 5000 });
-check("Rekvizitlar: karta '8600 1234 1234 5678' + qabul qiluvchi + ko'rsatma", (await page.textContent('[data-testid="payment-card"]'))?.trim() === "8600 1234 1234 5678" && (await page.textContent('[data-testid="payment-recipient"]')) === "Articles365 MChJ" && (await bodyHas("buyurtma raqamini yozing")));
-await page.click('[data-testid="payment-copy"]');
-await page.waitForSelector('[data-testid="payment-copy"]:has-text("Nusxalandi")', { timeout: 3000 });
-check("Nusxalash: karta raqami (bo'shliqsiz) buferda", IS_CHROMIUM ? (await page.evaluate(() => navigator.clipboard.readText())) === "8600123412345678" : true);
+// ---- 56: to'lov — faqat Telegram bot: saytda karta/chek formasi yo'q, "Telegram orqali to'lash" → deep-link
+await ctx.route("https://t.me/**", (r) => r.fulfill({ status: 200, contentType: "text/html", body: "<html><body>Telegram</body></html>" }));
+await page.waitForSelector('[data-testid="tg-pay-btn"]', { timeout: 5000 });
+check(
+  "PENDING: 'Telegram orqali to'lash' + izoh; karta va chek formasi yo'q",
+  ((await page.textContent('[data-testid="tg-pay-btn"]')) ?? "").includes("Telegram orqali to'lash") &&
+    (await bodyHas("Karta raqami, chek yuborish va tasdiq — Telegram botda")) &&
+    (await page.locator('[data-testid="payment-details"], [data-testid="receipt-form"], [data-testid="receipt-file"]').count()) === 0 &&
+    !(await bodyHas("To'ladim")),
+);
 await page.screenshot({ path: OUT + "81-order-payment.png" });
-await page.click("text=To'ladim — chek yuborish");
-await page.waitForSelector('[data-testid="receipt-form"]');
-check("Chek formasi: tanlash zonasi + tavsiya (rasm yoki PDF)", (await page.locator('[data-testid="receipt-drop"]').count()) === 1 && (await bodyHas("JPEG, PNG, WebP yoki PDF")));
-check("Fayl tanlash: accept rasm + PDF", (await page.getAttribute('[data-testid="receipt-file"]', "accept")) === "image/jpeg,image/png,image/webp,application/pdf");
-// Klient tekshiruvi: rasm/PDF emas / 10 MB dan katta / dekodlanmaydigan HEIC — so'rov ketmaydi
-await pickReceipt(TXT);
-await page.waitForSelector("text=Chek JPEG, PNG, WebP rasm yoki PDF bo'lishi kerak", { timeout: 3000 });
-await pickReceipt(BIG);
-await page.waitForSelector("text=Chek rasmi 10 MB dan oshmasligi kerak", { timeout: 3000 });
-await pickReceipt(HEIC);
-await page.waitForSelector("text=HEIC rasmni bu brauzer o'qiy olmadi", { timeout: 3000 });
-check("Klient: noto'g'ri tur, > 10 MB, HEIC (brauzer o'qiy olmaydi) — xato, serverga so'rov yo'q", (await mockGet("/__receipts")).length === 0);
-// PDF chek → fayl kartochkasi (rasm emas)
-await pickReceipt(PDFR);
-await page.waitForSelector('[data-testid="receipt-pdf"]', { timeout: 3000 });
-check("PDF chek: kartochka + fayl nomi (rasm preview yo'q)", (await page.locator('[data-testid="receipt-preview"] img').count()) === 0 && (await bodyHas("receipt.pdf")));
-// Yaroqli PNG → oldindan ko'rish → olib tashlash → qayta tanlash
-await pickReceipt(PNG);
-await page.waitForSelector('[data-testid="receipt-preview"] img', { timeout: 3000 });
-check("Yaroqli rasm: oldindan ko'rish (blob) + fayl nomi", (await page.locator('[data-testid="receipt-preview"] img').getAttribute("src"))?.startsWith("blob:") && (await bodyHas("receipt.png")));
-await page.click('button[aria-label="Rasmni olib tashlash"]');
-check("Rasm olib tashlandi → qayta tanlash zonasi", (await page.locator('[data-testid="receipt-drop"]').count()) === 1);
-// 55: katta haqiqiy rasm (≈ 15 MB PNG, 2600×2000) → brauzerda siqiladi (JPEG, eni 1600) va 10 MB chegarasidan o'tadi
-const bigSize = await page.evaluate(async () => {
-  const c = document.createElement("canvas");
-  c.width = 2600;
-  c.height = 2000;
-  const ctx = c.getContext("2d");
-  const img = ctx.createImageData(c.width, c.height);
-  for (let i = 0; i < img.data.length; i += 4) {
-    img.data[i] = (Math.random() * 255) | 0;
-    img.data[i + 1] = (Math.random() * 255) | 0;
-    img.data[i + 2] = (Math.random() * 255) | 0;
-    img.data[i + 3] = 255;
-  }
-  ctx.putImageData(img, 0, 0);
-  const blob = await new Promise((r) => c.toBlob(r, "image/png"));
-  const dt = new DataTransfer();
-  dt.items.add(new File([blob], "telefon-foto.png", { type: "image/png" }));
-  const input = document.querySelector('[data-testid="receipt-file"]');
-  input.files = dt.files;
-  input.dispatchEvent(new Event("change", { bubbles: true }));
-  return blob.size;
-});
-await page.waitForSelector('[data-testid="receipt-preview"] img', { timeout: 20000 });
-const shrunk = await page.evaluate(async () => {
-  const img = document.querySelector('[data-testid="receipt-preview"] img');
-  const b = await (await fetch(img.src)).blob();
-  return { type: b.type, size: b.size, w: img.naturalWidth, name: document.querySelector('[data-testid="receipt-preview"] p')?.textContent };
-});
-check("Katta foto (10 MB+) → siqildi: JPEG, eni 1600, 4× kichik, nomi .jpg", bigSize > 10 * 1024 * 1024 && shrunk.type === "image/jpeg" && shrunk.w === 1600 && shrunk.size * 4 < bigSize && shrunk.name === "telefon-foto.jpg", JSON.stringify({ bigSize, ...shrunk }));
-check("Izoh: 'Rasm siqildi: … → …'", await bodyHas("Rasm siqildi"));
-await page.click('[data-testid="receipt-preview"] button[aria-label]');
-await pickReceipt(PNG);
-await page.waitForSelector('[data-testid="receipt-preview"]');
-// Server xatosi INVALID_FILE (422) → tarjima qilingan matn
-await page.route("**/api/v1/orders/*/receipt", (r) => r.fulfill({ status: 422, contentType: "application/json", body: JSON.stringify({ error: { code: "INVALID_FILE", message: "bad", details: null } }) }));
-await page.click('[data-testid="receipt-submit"]');
-await page.waitForSelector("text=Fayl turi noto'g'ri", { timeout: 5000 });
-check("Server 422 INVALID_FILE → tushunarli xabar, forma saqlandi", (await page.locator('[data-testid="receipt-preview"]').count()) === 1);
-await page.unroute("**/api/v1/orders/*/receipt");
-await page.fill('textarea[placeholder^="Chek raqami"]', "Payme 555");
-// 44.2: server javobi kechiksa — 100% dan keyin "Yuborildi, tekshirilmoqda…", javob kelishi bilan forma yopiladi
-await fetch(`${API_HOST}/__slow-receipt?ms=2000`);
-await page.click('[data-testid="receipt-submit"]');
-await page.waitForFunction(() => document.querySelector('[data-testid="receipt-progress"]')?.textContent.includes("tekshirilmoqda"), null, { timeout: 5000 });
-check("Chek yuklangach (100%): 'Yuborildi, tekshirilmoqda…' holati", true);
-await page.waitForSelector('[data-testid="awaiting-hint"]', { timeout: 8000 });
-check("Javob kelishi bilan spinner yopildi (cheksiz yuklanish yo'q)", (await page.locator('[data-testid="receipt-progress"]').count()) === 0);
-await fetch(`${API_HOST}/__slow-receipt?ms=0`);
-const rc = await mockGet("/__receipts");
-check("Chek multipart yuborildi: file (image/png) + receipt_note", rc.length === 1 && rc[0].file?.type === "image/png" && rc[0].file.size > 0 && rc[0].note === "Payme 555", JSON.stringify(rc));
-check("AWAITING_REVIEW: kutish matni, rekvizitlar yashirildi", (await bodyHas("Chek administrator tekshiruvida")) && (await page.locator('[data-testid="payment-details"]').count()) === 0);
-check("has_receipt_file = true", (await mockGet("/__orders"))[0]?.has_receipt_file === true);
+const [popup] = await Promise.all([page.waitForEvent("popup"), page.click('[data-testid="tg-pay-btn"]')]);
+await popup.waitForURL(/t\.me\/articles365_test_bot\?start=/, { timeout: 8000 });
+check("Bosildi → POST /orders/{id}/telegram-link, Telegram yangi oynada (deep-link, start=token)", (await mockGet("/__log")).includes(`POST /orders/${orders[0].id}/telegram-link`) && popup.url().startsWith("https://t.me/articles365_test_bot?start=tg"), popup.url());
+await popup.close();
+await page.waitForSelector("text=Telegram ochildi", { timeout: 3000 });
+check("Izoh: 'Telegram ochildi — to'lovni botda yakunlang'", true);
+
+// Bot chekni qabul qildi (AWAITING_REVIEW) → sayt kuzatuvda (PENDING'da ham) reload'siz yangilanadi
+await fetch(`${API_HOST}/__set-order?id=${orders[0].id}&status=AWAITING_REVIEW`);
+await nudge();
+await page.waitForSelector('[data-testid="awaiting-hint"]', { timeout: 10000 });
+check("Bot → AWAITING_REVIEW: reload'siz 'Chek administrator tekshiruvida' + 'Telegram botni ochish'", (await bodyHas("Chek administrator tekshiruvida")) && ((await page.textContent('[data-testid="tg-pay-btn"]')) ?? "").includes("Telegram botni ochish"));
 await page.screenshot({ path: OUT + "80-order-awaiting.png" });
 
-// ---- AWAITING_REVIEW'da chekni almashtirish (PDF) — holat o'zgarmaydi
-await page.click('[data-testid="replace-receipt"]');
-await page.waitForSelector('[data-testid="receipt-form"]:has-text("Chekni almashtirish")', { timeout: 3000 });
-await pickReceipt(PDFR);
-await page.waitForSelector('[data-testid="receipt-pdf"]', { timeout: 3000 });
-await page.click('[data-testid="receipt-submit"]');
-await page.waitForSelector('[data-testid="receipt-form"]', { state: "detached", timeout: 5000 });
-const rc2 = await mockGet("/__receipts");
-check("Chek almashtirildi: PDF multipart, holat AWAITING_REVIEW", rc2.length === 2 && rc2[1].file?.type === "application/pdf" && (await mockGet("/__orders"))[0]?.status === "AWAITING_REVIEW" && (await page.locator('[data-testid="awaiting-hint"]').count()) === 1, JSON.stringify(rc2[1]));
+// Bot sozlanmagan (deep_link: null) → tushunarli xabar, ochilgan bo'sh oyna yopiladi
+await fetch(`${API_HOST}/__tg-link?off=1`);
+const pagesBefore = ctx.pages().length;
+await page.click('[data-testid="tg-pay-btn"]');
+await page.waitForSelector("text=Telegram bot hozircha sozlanmagan", { timeout: 5000 });
+await page.waitForTimeout(400);
+check("deep_link bo'sh → 'bot hozircha sozlanmagan', bo'sh oyna yopildi", ctx.pages().length === pagesBefore, `${ctx.pages().length}/${pagesBefore}`);
+await fetch(`${API_HOST}/__tg-link?off=0`);
 
-// ---- 409 INVALID_ORDER_STATE (Telegram'da hal qilingan) → tushunarli xabar, forma yopiladi, holat yangilanadi
-await page.route("**/api/v1/orders/*/receipt", (r) => r.fulfill({ status: 409, contentType: "application/json", body: JSON.stringify({ error: { code: "INVALID_ORDER_STATE", message: "x", details: null } }) }));
-await page.click('[data-testid="replace-receipt"]');
-await pickReceipt(PNG);
-await page.waitForSelector('[data-testid="receipt-preview"] img', { timeout: 3000 });
-await page.click('[data-testid="receipt-submit"]');
+// ---- 409 INVALID_ORDER_STATE (Telegram'da hal qilingan) → tushunarli xabar, holat yangilanadi
+await page.route("**/api/v1/orders/*/telegram-link", (r) => r.fulfill({ status: 409, contentType: "application/json", body: JSON.stringify({ error: { code: "INVALID_ORDER_STATE", message: "x", details: null } }) }));
+await page.click('[data-testid="tg-pay-btn"]');
 await page.waitForSelector("text=Buyurtma holati allaqachon o'zgargan", { timeout: 5000 });
-check("409 INVALID_ORDER_STATE → xabar + forma yopildi", (await page.locator('[data-testid="receipt-form"]').count()) === 0);
-await page.unroute("**/api/v1/orders/*/receipt");
+await page.waitForTimeout(400);
+check("409 INVALID_ORDER_STATE → xabar, oyna yopildi", ctx.pages().length === pagesBefore);
+await page.unroute("**/api/v1/orders/*/telegram-link");
 
 // ---- Reload: holat saqlangan (ordersApi.mine dan)
 await page.reload();
@@ -184,13 +114,9 @@ await page.waitForSelector("text=ochiq buyurtmangiz bor", { timeout: 5000 });
 const log = await mockGet("/__log");
 check("409 ORDER_ALREADY_PENDING → GET /orders/{details.order_id}, mavjud PENDING ko'rsatildi (xato emas)", log.includes(`GET /orders/${other.id}`) && (await page.getAttribute('[data-testid="order-panel"]', "data-status")) === "PENDING" && (await mockGet("/__orders")).filter((o) => o.status === "PENDING").length === 1);
 
-// ---- Chek RASMSIZ (faqat izoh, fallback) → admin tasdiqlaydi → kuzatuv (GET /orders/{id}) → APPROVED
-await page.click("text=To'ladim — chek yuborish");
-await page.fill('textarea[placeholder^="Chek raqami"]', "Naqd to'landi");
-await page.click('[data-testid="receipt-submit"]');
-await page.waitForSelector('[data-testid="awaiting-hint"]', { timeout: 5000 });
-check("Rasmsiz chek (faqat izoh) → AWAITING_REVIEW", (await mockGet("/__receipts")).at(-1)?.file === null);
+// ---- Bot to'lovni qabul qildi → admin tasdiqlaydi → kuzatuv (GET /orders/{id}) → APPROVED (reload'siz)
 orders = await mockGet("/__orders");
+await fetch(`${API_HOST}/__set-order?id=${orders[0].id}&status=AWAITING_REVIEW`);
 await fetch(`${API}/admin/orders/${orders[0].id}/approve`, { method: "POST", headers: ah });
 await nudge();
 await page.waitForSelector("text=To'lov tasdiqlandi", { timeout: 10000 });

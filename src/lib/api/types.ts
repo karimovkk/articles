@@ -350,13 +350,6 @@ export interface OrderQuote {
   skipped?: Array<{ book_id: string; reason: string }>;
 }
 
-/** GET /payment-info — to'lov rekvizitlari (backend config'dan; bo'sh satr = sozlanmagan) */
-export interface PaymentInfo {
-  card_number: string;
-  recipient: string;
-  instructions: string;
-}
-
 export interface Notification {
   id: UUID;
   type: NotificationType;

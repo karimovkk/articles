@@ -1070,6 +1070,27 @@ Backend: server qismi endi ~0.1 s; 60 s — katta telefon rasmi (3–10 MB) + se
       (katta foto ham qabul qilinadi); "Tayyorlanmoqda…" holati va "Rasm siqildi: 4.2 MB → 310 KB" izohi
 - [x] 55.3 e2e `orders`: 10 MB+ haqiqiy rasm → siqilib (JPEG, < 2 MB) yuborildi; dev + prod
 
+## 56. To'lov — faqat Telegram bot orqali (deep-link) (2026-10-06)
+
+Manba: `Articles365_Frontend_Toliq_Vazifa_v1.0.md` §9. Qaror: **faqat bot** — saytda karta raqami va chek formasi yo'q.
+
+- [x] 56.1 `POST /orders/{id}/telegram-link` → `deep_link`; "Telegram orqali to'lash" (PENDING) / "Telegram botni ochish"
+      (AWAITING_REVIEW) — oyna bosish paytida ochiladi (pop-up bloklanmasin), keyin havola qo'yiladi; bloklansa — shu tab
+- [x] 56.2 Uch joyda (kitob paneli, savatcha, "Buyurtmalarim"): karta/chek o'rniga shu tugma + "Karta, chek va tasdiq —
+      Telegram botda"; bekor qilish saytda qoladi; `deep_link` bo'sh — "bot hozircha sozlanmagan"; 409 — holat yangilanadi
+- [x] 56.3 Holat kuzatuvi PENDING'da ham (bot holatni o'zgartiradi): fokus/qaytish va 20 s; ishlatilmay qolgan chek
+      formasi va rekvizitlar komponentlari olib tashlandi
+- [x] 56.4 Mock (`telegram-link`, holatni o'zgartirish) + e2e `orders`, `cart`, `profile`; dev + prod
+
+## 57. Admin: integratsiya sozlamalari (token / guruh / karta) (2026-10-06)
+
+- [x] 57.1 `GET/PUT /admin/integration-settings`: Telegram (bot token 🔒, bot username, webhook secret 🔒, admin chat id,
+      buyurtmalar guruhi id) va To'lov (karta, qabul qiluvchi, ko'rsatma); manba belgisi (sozlama / server / yo'q)
+- [x] 57.2 Maxfiy kalitlar: qiymat ko'rsatilmaydi (`preview` "••••1234"), "O'zgartirish" → parol maydoni; faqat
+      o'zgargan kalitlar yuboriladi; "Tozalash" → `""` (server qiymatiga qaytadi)
+- [x] 57.3 Bot token o'zgarsa — "Webhook'ni yangilash" (`POST …/telegram/set-webhook`); menyu "Integratsiya"
+- [x] 57.4 Mock + e2e `integrations`; dev + prod
+
 ## 31. Keyingi vazifalar
 
 - [ ] 31.1 Safari (WebKit): varaqlash rejimida oldingi sahifaga qaytilganda (3-sahifa) belgilash qatlami

@@ -4,8 +4,8 @@
  * Katalogdagi "Sotib olish" paneli (FE-2.3, buyurtma oqimi v1.0):
  *   mehmon → login; buyurtma yo'q → POST /orders (409 ALREADY_HAS_ACCESS → "kutubxonangizda";
  *   409 ORDER_ALREADY_PENDING → `details.order_id` dagi mavjud buyurtma ochiladi);
- *   PENDING → to'lov rekvizitlari (`GET /payment-info`) + "To'ladim" (chek rasmi/PDF + izoh, multipart);
- *   AWAITING_REVIEW → kutish (chekni almashtirish mumkin), holat `GET /orders/{id}` bilan kuzatiladi;
+ *   PENDING → 56: "Telegram orqali to'lash" (karta, chek, tasdiq — botda; sayt faqat yo'naltiradi);
+ *   AWAITING_REVIEW → kutish (chekni almashtirish — botda); holat `GET /orders/{id}` bilan kuzatiladi (PENDING'da ham);
  *   PENDING/AWAITING → "Bekor qilish" (CANCELLED); APPROVED → "Kitob kutubxonangizda"; REJECTED → sabab + qayta.
  * Savatchada kitob bo'lsa (chegirma yoqilgan) — "Sotib olish" alohida buyurtma ochmaydi: kitob savatga qo'shilib,
  * savatchaga o'tiladi (hammasi bitta buyurtmada, chegirma bilan). Aks holda alohida buyurtma savatdagi shu kitobni
@@ -18,8 +18,7 @@ import { useAuth } from "@/providers/auth-provider";
 import { Alert, Button, Spinner, buttonClass, formatDate, useConfirm } from "@/components/ui";
 import * as I from "@/components/ui/icons";
 import { OrderStatusBadge } from "./order-status";
-import { ReceiptForm } from "./receipt-form";
-import { PaymentDetails } from "./payment-info";
+import { TelegramPay } from "./telegram-pay";
 import { useOrderPoll } from "./use-order-poll";
 import { errorMessage, isApiError, ordersApi, type Order, orderBookIds } from "@/lib/api";
 import { clearOwnedBooks } from "@/lib/owned-books";
@@ -47,7 +46,6 @@ export function OrderPanel({ bookId, cartBook }: { bookId: string; cartBook?: Om
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [receiptOpen, setReceiptOpen] = useState(false);
   const [owned, setOwned] = useState(false); // 409 ALREADY_HAS_ACCESS
 
   const statusRef = useRef<string | undefined>(undefined);
@@ -59,7 +57,7 @@ export function OrderPanel({ bookId, cartBook }: { bookId: string; cartBook?: Om
   const apply = useCallback(
     (next: Order | null) => {
       // Kuzatuv paytida tasdiqlandi — foydalanuvchiga darhol xabar
-      if (statusRef.current === "AWAITING_REVIEW" && next?.status === "APPROVED") setNotice(t("orders.approvedTitle"));
+      if ((statusRef.current === "AWAITING_REVIEW" || statusRef.current === "PENDING") && next?.status === "APPROVED") setNotice(t("orders.approvedTitle"));
       // Kutubxona o'zgardi — katalogdagi "Kutubxonada" keshi eskirdi (26.4)
       if (next?.status === "APPROVED" && statusRef.current !== "APPROVED") clearOwnedBooks();
       setOrder(next);
@@ -81,7 +79,8 @@ export function OrderPanel({ bookId, cartBook }: { bookId: string; cartBook?: Om
   }, [user, loading, load]);
   // Kuzatuv — yengil `GET /orders/{id}` (bitta buyurtma)
   const orderId = order?.id;
-  useOrderPoll(order?.status === "AWAITING_REVIEW", () => {
+  // 56: PENDING'da ham — to'lov botda, holatni bot o'zgartiradi
+  useOrderPoll(order?.status === "PENDING" || order?.status === "AWAITING_REVIEW", () => {
     if (orderId) void ordersApi.get(orderId).then(apply, () => undefined);
   });
 
@@ -111,7 +110,6 @@ export function OrderPanel({ bookId, cartBook }: { bookId: string; cartBook?: Om
     setError(null);
     try {
       setOrder(await ordersApi.cancel(o.id));
-      setReceiptOpen(false);
       setNotice(t("orders.cancelled"));
     } catch (e) {
       setError(errorMessage(e));
@@ -203,45 +201,25 @@ export function OrderPanel({ bookId, cartBook }: { bookId: string; cartBook?: Om
               {t("orders.inBundle", { n: active.items!.length })} · <Price value={active.amount} />
             </p>
           )}
-          {active.status === "PENDING" && <PaymentDetails />}
-          {(active.status === "PENDING" || active.status === "AWAITING_REVIEW") && receiptOpen && (
-            <ReceiptForm
-              orderId={active.id}
-              replace={active.status === "AWAITING_REVIEW"}
-              onDone={(o) => {
-                setOrder(o);
-                setReceiptOpen(false);
-                setNotice(null);
-              }}
-              onCancel={() => setReceiptOpen(false)}
-              onStale={() => {
-                setReceiptOpen(false);
-                setError(t("error.INVALID_ORDER_STATE"));
-                void load().catch(() => undefined);
-              }}
-            />
-          )}
           {active.status === "AWAITING_REVIEW" && (
             <p className="flex items-start gap-2 text-xs text-muted" data-testid="awaiting-hint">
               <Spinner className="mt-0.5 size-3.5 shrink-0" />
               {t("orders.awaitingHint")}
             </p>
           )}
-          {(active.status === "PENDING" || active.status === "AWAITING_REVIEW") && !receiptOpen && (
-            <div className="flex flex-wrap gap-2">
-              {active.status === "PENDING" ? (
-                <Button size="sm" onClick={() => setReceiptOpen(true)}>
-                  {t("orders.paid")}
-                </Button>
-              ) : (
-                <Button size="sm" variant="secondary" onClick={() => setReceiptOpen(true)} icon={<I.Upload size={14} />} data-testid="replace-receipt">
-                  {t("orders.replaceReceipt")}
-                </Button>
-              )}
+          {(active.status === "PENDING" || active.status === "AWAITING_REVIEW") && (
+            <TelegramPay
+              order={active}
+              compact
+              onStale={() => {
+                setNotice(null);
+                void load().catch(() => undefined);
+              }}
+            >
               <Button size="sm" variant="danger-ghost" loading={busy} onClick={() => void cancel(active)} data-testid="cancel-order">
                 {t("orders.cancel")}
               </Button>
-            </div>
+            </TelegramPay>
           )}
           {active.status === "APPROVED" && (
             <div className="space-y-2">

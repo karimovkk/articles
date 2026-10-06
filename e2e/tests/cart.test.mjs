@@ -92,7 +92,7 @@ await page.waitForSelector('[data-testid="checkout-order"]', { timeout: 10000 })
 const orders = await mockGet("/__orders");
 const o = orders[0];
 check("Server: bitta buyurtma, 2 kitob, subtotal 98 000, chegirma 20 000, summa 78 000", o?.items?.length === 2 && o.subtotal === "98000.00" && o.discount === "20000.00" && o.amount === "78000.00" && o.status === "PENDING", JSON.stringify({ n: o?.items?.length, s: o?.subtotal, d: o?.discount, a: o?.amount }));
-check("To'lov bosqichi: jami 78 000, rekvizitlar, 'To'ladim'", (await text('[data-testid="checkout-total"]')).startsWith("78 000") && (await page.locator('[data-testid="checkout-paid"]').count()) === 1);
+check("To'lov bosqichi: jami 78 000, 'Telegram orqali to'lash' (karta/chek formasi yo'q)", (await text('[data-testid="checkout-total"]')).startsWith("78 000") && ((await page.textContent('[data-testid="checkout-order"] [data-testid="tg-pay-btn"]')) ?? "").includes("Telegram orqali to'lash") && (await page.locator('[data-testid="payment-details"], [data-testid="receipt-form"]').count()) === 0);
 check("Buyurtmadan keyin savatcha bo'shadi", (await page.locator('[data-testid="cart-count"]').count()) === 0);
 await page.screenshot({ path: OUT + "41-cart-checkout.png", fullPage: true });
 

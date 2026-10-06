@@ -87,6 +87,15 @@ const passwords = new Map(); // ro'yxatdan o'tganlar: user.id → parol (44.1)
 let translateOn = false;
 let translateDelay = 0;
 let translateNoUz = false;
+// 57: integratsiya sozlamalari — server (env) qiymatlari + admin o'zgartirishlari (db); maxfiylar niqoblanadi
+const INTEG_ENV = { "telegram.bot_token": "123456:ENVTOKENabcd", "telegram.bot_username": "articles365_test_bot", "telegram.webhook_secret": "", "telegram.admin_chat_id": "111222333", "telegram.order_group_id": "", "payment.card_number": "8600123412345678", "payment.recipient": "Test Admin", "payment.instructions": "Izohga buyurtma raqamini yozing" };
+const INTEG_SECRET = new Set(["telegram.bot_token", "telegram.webhook_secret"]);
+let integ = {}, integLog = [], webhookCalls = 0;
+const integOut = () => ({ settings: Object.fromEntries(Object.keys(INTEG_ENV).map((k) => {
+  const v = integ[k] ?? (INTEG_ENV[k] || null); const sec = INTEG_SECRET.has(k);
+  return [k, { is_secret: sec, is_set: !!v, source: integ[k] != null ? "db" : INTEG_ENV[k] ? "env" : null, ...(sec ? { value: null, preview: v ? `••••${v.slice(-4)}` : null } : { value: v }) }];
+})) });
+let tgLinkOff = false; // 56: /__tg-link?off=1 — bot sozlanmagan (deep_link: null)
 let receiptDelay = 0; // 44.2: /__slow-receipt?ms= — chek javobi kechikadi (100% dan keyingi "tekshirilmoqda" holati) // LibreTranslate (prod'dagi provayder) o'zbek tilini qo'llamaydi → uz uchun 502
 const translateLog = [];
 const TR = { uz: { quick: "tez", brown: "jigarrang", fox: "tulki", dog: "it", lazy: "dangasa" }, ru: { quick: "быстрый", fox: "лиса", dog: "собака" }, en: {} };
@@ -123,6 +132,8 @@ function reset(opts = {}) {
   translateDelay = 0;
   translateNoUz = false;
   receiptDelay = 0;
+  tgLinkOff = false;
+  integ = {}; integLog = []; webhookCalls = 0;
   translateLog.length = 0;
   books = withFree(freshBooks());
   articles = freshArticles();
@@ -246,6 +257,10 @@ createServer(async (req, res) => {
     }
     return json(res, 200, { orders: orders.length });
   }
+  if (path === "/__integrations") return json(res, 200, { db: integ, log: integLog, webhookCalls });
+  if (path === "/__tg-link") { tgLinkOff = q.get("off") === "1"; return json(res, 200, { tgLinkOff }); }
+  // 56: bot oqimini taqlid — buyurtma holatini o'zgartirish (botda chek yuborildi → AWAITING_REVIEW va h.k.)
+  if (path === "/__set-order") { const o = orders.find((x) => x.id === q.get("id")); if (!o) return err(res, 404, "ORDER_NOT_FOUND", "Not found"); Object.assign(o, { status: q.get("status"), has_receipt_file: q.get("status") !== "PENDING", updated_at: now() }); return json(res, 200, o); }
   if (path === "/__slow-receipt") { receiptDelay = Number(q.get("ms") ?? 0); return json(res, 200, { receiptDelay }); }
   if (path === "/__devicelimit") { deviceLimitOn = q.get("on") === "1"; return json(res, 200, { deviceLimitOn }); }
   if (path === "/__device-removed") { deviceRemovedOnRefresh = q.get("on") === "1"; return json(res, 200, { deviceRemovedOnRefresh }); }
@@ -579,6 +594,14 @@ createServer(async (req, res) => {
     return json(res, 200, withNames(o));
   }
   if (path === "/payment-info" && m === "GET") return json(res, 200, paymentInfo);
+  // 56: botda to'lov — deep-link (faqat ochiq buyurtma; begona — 404)
+  const tg = /^\/orders\/([^/]+)\/telegram-link$/.exec(path);
+  if (tg && m === "POST") {
+    const o = orders.find((x) => x.id === tg[1] && x.user_id === me.id); if (!o) return err(res, 404, "ORDER_NOT_FOUND", "Not found");
+    if (!isOpen(o)) return err(res, 409, "INVALID_ORDER_STATE", `Order is ${o.status}`);
+    const token = `tg${o.id.slice(0, 8)}`;
+    return json(res, 200, { deep_link: tgLinkOff ? null : `https://t.me/articles365_test_bot?start=${token}`, token, bot_username: tgLinkOff ? null : "articles365_test_bot" });
+  }
   const om = /^\/orders\/([^/]+)\/receipt$/.exec(path);
   if (om && m === "POST") {
     // Oqim v1.0: multipart/form-data — `file` (JPEG/PNG/WebP/PDF, ≤ 10 MB, tavsiya) + `receipt_note` (ixtiyoriy).
@@ -610,6 +633,17 @@ createServer(async (req, res) => {
   if (path.startsWith("/admin/")) {
     if (me.role !== "ADMIN") return err(res, 403, "PERMISSION_DENIED", "Admin only");
     if (path === "/admin/stats") return json(res, 200, { users: { total: users.length, by_status: { ACTIVE: users.length }, by_role: { USER: users.length - 1, ADMIN: 1 } }, books: { total: books.length, by_status: { ACTIVE: books.length } }, articles: { total: articles.length, by_processing: { READY: articles.filter((a) => a.processing_status === "READY").length, PROCESSING: articles.filter((a) => a.processing_status === "PROCESSING").length } }, categories: categories.length, access: { total: access.length, by_status: { ACTIVE: access.filter((a) => a.status === "ACTIVE").length } }, annotations: annotations.length, active_sessions: 3 });
+    // 57: integratsiya sozlamalari
+    if (path === "/admin/integration-settings" && m === "GET") return json(res, 200, integOut());
+    if (path === "/admin/integration-settings" && m === "PUT") {
+      const b = await readBody(req); const st = b?.settings;
+      if (!st || typeof st !== "object" || !Object.keys(st).length) return err(res, 422, "VALIDATION_ERROR", "settings must have at least 1 key");
+      const bad = Object.keys(st).filter((k) => !(k in INTEG_ENV)); if (bad.length) return err(res, 422, "VALIDATION_ERROR", `Unknown keys: ${bad.join(", ")}`);
+      integLog.push(st);
+      for (const [k, v] of Object.entries(st)) { if (v === "" || v == null) delete integ[k]; else integ[k] = String(v); }
+      return json(res, 200, integOut());
+    }
+    if (path === "/admin/integration-settings/telegram/set-webhook" && m === "POST") { webhookCalls++; return json(res, 200, { ok: true, url: "https://articles.api.cognilabs.org/api/v1/telegram/webhook" }); }
     // 46: fon rasmlari (multipart `file`, ?theme=light|dark)
     const aimg = /^\/admin\/app-settings\/images\/([^/]+)$/.exec(path);
     if (aimg) {
