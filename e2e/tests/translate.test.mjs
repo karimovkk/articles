@@ -104,9 +104,11 @@ let last = (await trLog()).at(-1);
 check("O'zbekcha tanlandi → 'quick' → 'tez' (target uz, sayt tili ru bo'lsa ham)", last?.target_lang === "uz" && last?.source_lang === "auto");
 check("Tanlangan til belgilangan, 'Avtomatik tarjima' izohi", (await page.getAttribute('[data-testid="vocab-lang-uz"]', "aria-pressed")) === "true" && (await page.locator('[data-testid="vocab-auto-badge"]').count()) === 1);
 await page.screenshot({ path: OUT + "71-vocab-auto-translate.png" });
+// 54: English — tarjima so'ralmaydi, maydonga so'zning o'zi yoziladi
+const cEn = (await trLog()).length;
 await lang("en");
-await waitTr("quick (en)");
-check("Boshqa til (English) bosildi → qayta tarjima, target en", (await trLog()).at(-1)?.target_lang === "en");
+await waitTr("quick");
+check("English bosildi → so'zning o'zi ('quick'), /translate so'ralmadi, izoh chiqdi", (await trLog()).length === cEn && (await page.locator('[data-testid="vocab-auto-badge"]').count()) === 1, ((await page.textContent('[data-testid="vocab-auto-badge"]')) ?? "").trim());
 await lang("uz");
 await waitTr("tez");
 await page.fill('[data-testid="vocab-translation"]', "tez, chaqqon");

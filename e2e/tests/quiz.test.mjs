@@ -81,8 +81,33 @@ const reader = await ctxPage();
 await login(reader, "user@articles365.local", "User12345!");
 await reader.goto(`${BASE}/reader/${ART}`);
 await reader.waitForFunction(() => document.querySelector('[data-page="1"] canvas')?.width > 0, null, { timeout: 30000 });
+check("Kitob scroll rejimida ochildi (default)", ((await reader.textContent("button[aria-label=\"O'qish rejimi\"]")) ?? "").includes("Scroll"));
+// 53: o'qib tugatildi (o'quvchi o'zi oxirgi betga o'tdi) → "Test yechib ko'rasizmi?" modali
+/** O'quvchidek — g'ildirak bilan hujjat oxirigacha (modal chiqsa to'xtaydi) */
+const wheelToEnd = async (p) => {
+  await p.mouse.move(800, 450);
+  for (let i = 0; i < 40 && !(await p.locator('[data-testid="quiz-prompt"]').count()); i++) {
+    await p.mouse.wheel(0, 1200);
+    await p.waitForTimeout(100);
+  }
+};
 await reader.fill('input[aria-label="Sahifa"]', "6");
 await reader.press('input[aria-label="Sahifa"]', "Enter");
+await reader.waitForTimeout(400);
+await wheelToEnd(reader);
+await reader.waitForSelector('[data-testid="quiz-prompt"]', { timeout: 10000 });
+const invite = ((await reader.textContent('[data-testid="quiz-prompt"]')) ?? "").replace(/\s+/g, " ");
+check("O'qib tugatilgach modal: sarlavha, taklif, savollar soni, 2 tugma", invite.includes("Maqolani o'qib tugatdingiz") && invite.includes("sinab ko'rishni xohlaysizmi") && invite.includes("2 ta qisqa savol") && (await reader.locator('[data-testid="quiz-prompt-start"]').count()) === 1 && (await reader.locator('[data-testid="quiz-prompt-later"]').count()) === 1, invite.slice(0, 160));
+await reader.screenshot({ path: OUT + "85-reader-quiz-invite.png" });
+await reader.click('[data-testid="quiz-prompt-later"]');
+await reader.waitForSelector('[data-testid="quiz-prompt"]', { state: "detached", timeout: 5000 });
+// Yuqoriga va yana oxiriga — shu sessiyada qayta chiqmaydi
+await reader.fill('input[aria-label="Sahifa"]', "1");
+await reader.press('input[aria-label="Sahifa"]', "Enter");
+await reader.waitForTimeout(600);
+await wheelToEnd(reader);
+await reader.waitForTimeout(800);
+check("'Keyinroq' → yopildi; shu sessiyada qayta chiqmaydi", (await reader.locator('[data-testid="quiz-prompt"]').count()) === 0);
 await reader.waitForSelector('[data-testid="quiz-cta"]', { timeout: 10000 });
 check("Oxirgi bet: 'Test: 2 ta savol' taklifi", ((await reader.textContent('[data-testid="quiz-cta"]')) ?? "").includes("2 ta savol"));
 await reader.click('[data-testid="quiz-cta"]');
@@ -95,10 +120,43 @@ await reader.click('[data-testid="quiz-submit"]');
 await reader.waitForSelector('[data-testid="quiz-score"]', { timeout: 5000 });
 const score = ((await reader.textContent('[data-testid="quiz-score"]')) ?? "").replace(/\s+/g, " ");
 check("Natija: 1 / 2, 50%", score.includes("1 / 2") && score.includes("50%"), score);
+// 53: savol darajasida — to'g'risi yashil, xatosi qizil; xato savolda to'g'ri javob alohida
+await reader.waitForTimeout(400); // fon rangi o'tishi (200ms) tugasin
+const verdicts = await reader.evaluate(() => [...document.querySelectorAll('[data-testid="quiz-question"]')].map((li) => ({
+  r: li.dataset.result,
+  bg: getComputedStyle(li).backgroundColor,
+  verdict: li.querySelector('[data-testid="quiz-verdict"]')?.textContent?.trim(),
+  answer: li.querySelector('[data-testid="quiz-correct-answer"]')?.textContent?.replace(/\s+/g, " ").trim() ?? null,
+  tags: [...li.querySelectorAll(".quiz-opt-tag")].map((x) => x.textContent),
+})));
+const greenish = (c) => { const [r, g, b] = c.match(/\d+(\.\d+)?/g).map(Number); return g > r && g >= b; };
+const reddish = (c) => { const [r, g, b] = c.match(/\d+(\.\d+)?/g).map(Number); return r > g && r > b; };
+check("1-savol (to'g'ri): yashil, 'To'g'ri', to'g'ri javob qatori yo'q", verdicts[0].r === "correct" && greenish(verdicts[0].bg) && verdicts[0].verdict === "To'g'ri" && verdicts[0].answer === null, JSON.stringify(verdicts[0]));
+check("2-savol (xato): qizil, 'Xato', 'To'g'ri javob: Dangasa', 'Sizning javobingiz' yorlig'i", verdicts[1].r === "wrong" && reddish(verdicts[1].bg) && verdicts[1].verdict === "Xato" && verdicts[1].answer === "To'g'ri javob: Dangasa" && verdicts[1].tags.includes("Sizning javobingiz") && verdicts[1].tags.includes("To'g'ri javob"), JSON.stringify(verdicts[1]));
+check("Natija xulosasi: '1 ta to'g'ri · 1 ta xato'", ((await reader.textContent('[data-testid="quiz-summary"]')) ?? "").replace(/\s+/g, " ").includes("1 ta to'g'ri") && ((await reader.textContent('[data-testid="quiz-summary"]')) ?? "").includes("1 ta xato"));
 check("Belgilar: 2 ta to'g'ri (yashil), 1 ta noto'g'ri (qizil), izoh ko'rinadi", (await reader.locator(".quiz-opt.correct").count()) === 2 && (await reader.locator(".quiz-opt.wrong").count()) === 1 && (await reader.locator('[data-testid="quiz-explanation"]').count()) === 1);
 await reader.screenshot({ path: OUT + "84-reader-quiz-result.png" });
 await reader.click('[data-testid="quiz-retry"]');
 check("Qayta yechish: javoblar tozalandi", (await reader.locator(".quiz-opt.correct, .quiz-opt.wrong").count()) === 0 && (await reader.locator('[data-testid="quiz-submit"]').isDisabled()));
+
+// 53: yangi sessiya — modal "Testni boshlash" → panel "Test" tabida
+const reader2 = await ctxPage();
+await login(reader2, "user@articles365.local", "User12345!");
+await reader2.goto(`${BASE}/reader/${ART}`);
+await reader2.waitForFunction(() => [...document.querySelectorAll("[data-page] canvas")].some((c) => c.width > 0), null, { timeout: 30000 });
+// Saqlangan joydan (oxirgi bet) ochildi — o'quvchi harakatisiz modal chiqmaydi
+await reader2.waitForTimeout(1500);
+check("Oxirgi betdan ochilganda (harakatsiz) modal chiqmadi", (await reader2.locator('[data-testid="quiz-prompt"]').count()) === 0);
+await reader2.fill('input[aria-label="Sahifa"]', "1");
+await reader2.press('input[aria-label="Sahifa"]', "Enter");
+await reader2.waitForTimeout(500);
+await wheelToEnd(reader2);
+await reader2.waitForSelector('[data-testid="quiz-prompt"]', { timeout: 5000 });
+check("Scroll bilan oxiriga yetdi → modal chiqdi", true);
+await reader2.click('[data-testid="quiz-prompt-start"]');
+await reader2.waitForSelector('[data-testid="quiz-panel"]', { timeout: 5000 });
+check("'Testni boshlash' → panel 'Test' tabida, savollar ko'rinadi", (await reader2.locator('[data-testid="quiz-question"]').count()) === 2 && (await reader2.locator('[data-testid="quiz-prompt"]').count()) === 0);
+await reader2.context().close();
 
 // Savolsiz maqola — "Test" tabi yo'q
 await reader.goto(`${BASE}/reader/${ART2}`);

@@ -241,10 +241,12 @@ await page.locator('button[aria-label="Ko\'k rang bilan belgilash"]').click();
 await page.waitForSelector('[data-page="3"] .highlightLayer > div', { timeout: 5000 });
 check("Varaqlash rejimida highlight ishlaydi", true);
 
-// Reload → rejim eslab qolinadi
+// 53: Reload → kitob har doim scroll rejimida ochiladi (oldingi rejim eslab qolinmaydi); keyin yana varaqlashga
 await page.reload();
+await page.waitForFunction(() => [...document.querySelectorAll("[data-page] canvas")].some((c) => c.width > 0), null, { timeout: 20000 });
+check("Reload'dan keyin kitob scroll rejimida ochildi (default)", (await page.$eval("button[aria-label=\"O'qish rejimi\"]", (b) => b.textContent)).includes("Scroll") && !(await page.$('[data-testid="flip-stage"]')));
+await page.click('button[aria-label="O\'qish rejimi"]');
 await page.waitForFunction(() => document.querySelector('[data-testid="flip-stage"]') && ([...document.querySelectorAll(".flip-leaf")].find((l) => getComputedStyle(l).visibility === "visible"))?.querySelector("canvas")?.width > 0, null, { timeout: 20000 });
-check("Reload'dan keyin varaqlash rejimi saqlandi", (await page.$eval("button[aria-label=\"O'qish rejimi\"]", (b) => b.textContent)).includes("Varaq"));
 
 // 32B: Varaq → Kitob (ikki sahifa yonma-yon, 180° varaqlash). Reload'dan keyingi bet serverdagi progress'ga bog'liq
 // (brauzerga qarab saqlanib ulgurmasligi mumkin) — shuning uchun avval aniq 3-betga o'tamiz

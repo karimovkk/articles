@@ -2419,6 +2419,131 @@
   flex-shrink: 0;
   margin-top: 2px;
 }
+/* 53: natija — savol darajasida yashil/qizil, to'g'ri javob alohida */
+.quiz-q {
+  padding: 10px;
+  border-radius: 14px;
+  border: 1px solid transparent;
+  transition:
+    background 200ms var(--ease),
+    border-color 200ms var(--ease);
+}
+.quiz-q.is-correct {
+  border-color: color-mix(in srgb, var(--success) 38%, var(--border));
+  background: color-mix(in srgb, var(--success) 6%, transparent);
+}
+.quiz-q.is-wrong {
+  border-color: color-mix(in srgb, var(--danger) 38%, var(--border));
+  background: color-mix(in srgb, var(--danger) 5%, transparent);
+}
+.quiz-q.is-correct .quiz-num {
+  background: var(--success);
+  color: #fff;
+}
+.quiz-q.is-wrong .quiz-num {
+  background: var(--danger);
+  color: #fff;
+}
+.quiz-verdict {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin: 6px 0 0 30px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.quiz-verdict.correct {
+  color: var(--success);
+}
+.quiz-verdict.wrong {
+  color: var(--danger);
+}
+.quiz-opt.correct {
+  border-color: color-mix(in srgb, var(--success) 70%, var(--border));
+  background: color-mix(in srgb, var(--success) 14%, var(--surface));
+  font-weight: 600;
+}
+.quiz-opt.wrong {
+  border-color: color-mix(in srgb, var(--danger) 65%, var(--border));
+  background: color-mix(in srgb, var(--danger) 10%, var(--surface));
+}
+.quiz-opt.dim {
+  opacity: 0.55;
+}
+/* `.quiz-opt > span { flex: 1 }` dan kuchliroq — yorliq o'z kengligida, toraymaydi */
+.quiz-opt > .quiz-opt-tag {
+  flex: 0 0 auto;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.quiz-opt.correct .quiz-opt-tag {
+  background: color-mix(in srgb, var(--success) 18%, transparent);
+  color: var(--success);
+}
+.quiz-opt.wrong .quiz-opt-tag {
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+  color: var(--danger);
+}
+.quiz-answer {
+  display: flex;
+  gap: 6px;
+  margin: 10px 0 0 30px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text-2);
+}
+.quiz-answer svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--success);
+}
+.quiz-answer strong {
+  color: var(--text);
+}
+.quiz-score-sum {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  font-weight: 600;
+}
+.quiz-score-sum i {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+}
+.quiz-score-sum i.ok {
+  background: var(--success);
+}
+.quiz-score-sum i.bad {
+  margin-left: 6px;
+  background: var(--danger);
+}
+/* 53: o'qib tugatilganda test taklifi (modal) */
+.quiz-invite {
+  display: grid;
+  gap: 10px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-2);
+}
+.quiz-invite-lead {
+  font-family: var(--font-display);
+  font-size: 19px;
+  line-height: 1.3;
+  color: var(--text);
+}
+.quiz-invite-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
 .quiz-cta {
   position: absolute;
   z-index: 25;

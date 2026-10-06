@@ -7,6 +7,7 @@
  * Til tanlangan bo'lsa — `autoTranslate` da oyna ochilishi bilan shu tilga tarjima so'raladi; tanlanmagan bo'lsa —
  * tanlanguncha so'ralmaydi. Til tugmasini bosish — joriy so'zni shu tilga (qayta) tarjima qilish. Foydalanuvchi
  * o'zi yozsa, kech kelgan avtomatik tarjima uni bosib ketmaydi.
+ * 54: "English" — tarjima so'ralmaydi, maydonga so'zning o'zi yoziladi (maqolalar inglizcha).
  * Tarjima ishlamasa (backend o'chiq/xato) — forma odatdagidek ishlaydi.
  */
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
@@ -53,6 +54,8 @@ export function VocabDialog({
   const [fromGoogle, setFromGoogle] = useState(false);
   // O'zbekcha tanlanib, o'zbekcha tarjima bo'lmasa — ruscha keladi (izoh boshqacha)
   const [fallbackLang, setFallbackLang] = useState(false);
+  // 54: inglizcha — so'zning o'zi yozildi (izoh boshqacha)
+  const [sameWord, setSameWord] = useState(false);
   const touched = useRef(false); // foydalanuvchi tarjima maydoniga yozdi — avtomatik natija uni bosmaydi
   const reqId = useRef(0);
   // Oyna yangi so'z bilan qayta ochilsa — forma boshlang'ich qiymatga qaytadi (render fazasida)
@@ -62,11 +65,23 @@ export function VocabDialog({
     setValues(initial);
     setError(null);
     setFromGoogle(false);
+    setSameWord(false);
     setTranslating(false);
   }
 
   const runTranslate = (word: string, target: TranslateLang, force: boolean) => {
     const id = ++reqId.current;
+    // 54: ingliz tili — so'zning o'zi (API so'ralmaydi)
+    if (target === "en") {
+      setTranslating(false);
+      if (!force && touched.current) return;
+      setValues((v) => (force || !v.translation.trim() ? { ...v, translation: word.trim().slice(0, VOCAB_TRANSLATION_MAX) } : v));
+      setFromGoogle(true);
+      setFallbackLang(false);
+      setSameWord(true);
+      return;
+    }
+    setSameWord(false);
     setTranslating(true);
     void translateApi.translate(word, target).then((tr) => {
       if (id !== reqId.current) return; // eskirgan javob (boshqa so'z / oyna yopildi)
@@ -83,7 +98,7 @@ export function VocabDialog({
     touched.current = false;
     reqId.current++;
     // 47: til hali tanlanmagan — tanlanguncha so'ralmaydi
-    if (!open || !autoTranslate || !lang || initial.translation.trim() || !initial.word.trim() || !translateApi.availableFor(lang)) return;
+    if (!open || !autoTranslate || !lang || initial.translation.trim() || !initial.word.trim() || (lang !== "en" && !translateApi.availableFor(lang))) return;
     const id = reqId.current;
     queueMicrotask(() => id === reqId.current && runTranslate(initial.word, lang, false));
     // eslint-disable-next-line react-hooks/exhaustive-deps -- faqat yangi so'z/oyna ochilganda
@@ -147,7 +162,7 @@ export function VocabDialog({
                   type="button"
                   className={cn(lang === l.code && "active")}
                   aria-pressed={lang === l.code}
-                  disabled={!values.word.trim() || !translateApi.availableFor(l.code) || translating}
+                  disabled={!values.word.trim() || (l.code !== "en" && !translateApi.availableFor(l.code)) || translating}
                   onClick={() => {
                     setTranslateLang(l.code);
                     runTranslate(values.word, l.code, true);
@@ -167,6 +182,7 @@ export function VocabDialog({
               onChange={(e) => {
                 touched.current = true;
                 setFromGoogle(false);
+                setSameWord(false);
                 setValues((v) => ({ ...v, translation: e.target.value }));
               }}
               id={trId}
@@ -179,7 +195,7 @@ export function VocabDialog({
           {fromGoogle && (
             <p className="vocab-tr-badge" data-testid="vocab-auto-badge">
               <I.Sparkles size={12} />
-              {fallbackLang ? t("vocab.autoTranslatedRu") : t("vocab.autoTranslated")}
+              {sameWord ? t("vocab.sameWord") : fallbackLang ? t("vocab.autoTranslatedRu") : t("vocab.autoTranslated")}
             </p>
           )}
         </Field>

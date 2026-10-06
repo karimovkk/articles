@@ -63,6 +63,12 @@ export interface PdfViewerProps {
   watermarkText?: string | null;
   onReady?: (info: { pageCount: number; size: number }) => void;
   onPageChange?: (page: number) => void;
+  /**
+   * 53: o'quvchi maqola oxiriga yetdi — scroll rejimida hujjat pastiga, varaq/kitob rejimida oxirgi sahifaga. Faqat
+   * o'quvchining o'z harakatidan keyin (g'ildirak, teginish, klavish, bosish) — saqlangan joydan (oxirgi bet) ochilganda
+   * o'z-o'zidan chaqirilmaydi. Har safar oxirga "kirganda" bir marta.
+   */
+  onReachEnd?: () => void;
   /** `error` — asl xato (ApiError bo'lsa kod bo'yicha xabar ko'rsatish uchun) */
   onError?: (message: string, error?: unknown) => void;
   onTextSelected?: (sel: TextSelection | null) => void;
@@ -86,7 +92,7 @@ interface PageHighlight {
 }
 
 export const PdfViewer = forwardRef<PdfViewerHandle, PdfViewerProps>(function PdfViewer(
-  { articleId, initialPage = 1, zoom, night, mode: requestedMode, highlights, searchHit, watermarkText, onReady, onPageChange, onError, onTextSelected, onProgress, onHighlightPick, onSpreadAvailable, vocabMarks, onVocabPick },
+  { articleId, initialPage = 1, zoom, night, mode: requestedMode, highlights, searchHit, watermarkText, onReady, onPageChange, onReachEnd, onError, onTextSelected, onProgress, onHighlightPick, onSpreadAvailable, vocabMarks, onVocabPick },
   ref,
 ) {
   const { t } = useT();
@@ -195,14 +201,39 @@ export const PdfViewer = forwardRef<PdfViewerHandle, PdfViewerProps>(function Pd
     return map;
   }, [vocabMarks]);
 
+  // 53: oxirga yetish — faqat o'quvchi harakatidan keyin; `atEnd` — oxirgi holat (qayta-qayta chaqirilmasin)
+  const interacted = useRef(false);
+  const atEnd = useRef(false);
+  const onReachEndRef = useRef(onReachEnd);
+  const endInfo = useRef({ mode: "scroll" as ViewMode, pageCount: 0 });
+  useLayoutEffect(() => {
+    onReachEndRef.current = onReachEnd;
+    endInfo.current = { mode, pageCount };
+  });
+  useEffect(() => {
+    const mark = () => {
+      interacted.current = true;
+    };
+    const evs = ["wheel", "touchstart", "keydown", "pointerdown"] as const;
+    evs.forEach((e) => window.addEventListener(e, mark, { passive: true, capture: true }));
+    return () => evs.forEach((e) => window.removeEventListener(e, mark, { capture: true }));
+  }, []);
+  const reportEnd = useCallback((reached: boolean) => {
+    if (reached && !atEnd.current && interacted.current) onReachEndRef.current?.();
+    atEnd.current = reached;
+  }, []);
+
   const setCurrent = useCallback(
     (p: number) => {
       if (p === currentPageRef.current) return;
       currentPageRef.current = p;
       setPageNo(p);
       onPageChange?.(p);
+      // Varaq/kitob rejimi: oxirgi sahifa (kitobda — oxirgi juft)
+      const { mode: m, pageCount: n } = endInfo.current;
+      if (m !== "scroll" && n > 0) reportEnd(p >= n - (m === "spread" ? 1 : 0));
     },
-    [onPageChange],
+    [onPageChange, reportEnd],
   );
 
   // ---- Joriy sahifani aniqlash (faqat scroll rejimi)
@@ -215,6 +246,8 @@ export const PdfViewer = forwardRef<PdfViewerHandle, PdfViewerProps>(function Pd
       raf = requestAnimationFrame(() => {
         const center = el.scrollTop + el.clientHeight / 3;
         setCurrent(Math.min(pageCount, Math.max(1, Math.floor(center / stride) + 1)));
+        // 53: scroll rejimi — hujjat pastiga yetdi
+        reportEnd(el.scrollTop + el.clientHeight >= el.scrollHeight - 40);
       });
     };
     el.addEventListener("scroll", onScroll, { passive: true });
@@ -222,7 +255,7 @@ export const PdfViewer = forwardRef<PdfViewerHandle, PdfViewerProps>(function Pd
       el.removeEventListener("scroll", onScroll);
       cancelAnimationFrame(raf);
     };
-  }, [pageCount, stride, mode, setCurrent]);
+  }, [pageCount, stride, mode, setCurrent, reportEnd]);
 
   /** Scroll rejimida: topilgan birinchi moslik ekran o'rtasiga keltiriladi */
   const onSearchRects = useCallback(

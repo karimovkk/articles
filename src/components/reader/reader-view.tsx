@@ -15,7 +15,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/providers/auth-provider";
-import { Alert, IconButton, Spinner, cn, useConfirm } from "@/components/ui";
+import { Alert, Button, IconButton, Modal, Spinner, cn, useConfirm } from "@/components/ui";
 import {
   errorMessage,
   isApiError,
@@ -49,7 +49,7 @@ import { WatermarkOverlay, type WatermarkLike } from "./watermark-overlay";
 const ZOOMS = [0.6, 0.75, 0.9, 1, 1.15, 1.3, 1.5, 1.75, 2];
 const EMPTY_VOCAB: VocabFormValues = { word: "", translation: "", context: "" };
 const NIGHT_KEY = "a365.reader.night";
-const MODE_KEY = "a365.reader.mode";
+// 53: o'qish rejimi saqlanmaydi — kitob har doim scroll'da ochiladi (o'qish davomida almashtirish mumkin)
 const COLOR_KEY = "a365.reader.hlcolor";
 /** Faol o'qish vaqti (T1-21): har 30 s, faqat sahifa ko'rinayotganda (B10 — backend limiti aniqlanmagan) */
 const HEARTBEAT_MS = 30_000;
@@ -102,10 +102,7 @@ export function ReaderView({ articleId }: { articleId: string }) {
   const [pageCount, setPageCount] = useState(0);
   const [zoomIdx, setZoomIdx] = useState(3);
   const [night, setNight] = useState(() => readPref(NIGHT_KEY) === "1");
-  const [mode, setMode] = useState<ViewMode>(() => {
-    const saved = readPref(MODE_KEY);
-    return saved === "page" || saved === "spread" ? saved : "scroll";
-  });
+  const [mode, setMode] = useState<ViewMode>("scroll");
   // 32B: kitob rejimi (ikki sahifa) joriy o'lchamda sig'adimi — viewer aytadi; sig'masa bitta varaq ko'rsatiladi
   const [spreadOk, setSpreadOk] = useState(false);
   const shownMode: ViewMode = mode === "spread" && !spreadOk ? "page" : mode;
@@ -141,6 +138,8 @@ export function ReaderView({ articleId }: { articleId: string }) {
   const [vocab, setVocab] = useState<VocabEntry[]>([]);
   // 44.5: maqola testi (savollar bo'lmasa — bo'sh, "Test" tabi ko'rinmaydi)
   const [quiz, setQuiz] = useState<QuizQuestion[]>([]);
+  // 53: maqola oxiriga yetganda — "Test yechib ko'rasizmi?" (har maqola uchun sessiyada bir marta)
+  const [quizPrompt, setQuizPrompt] = useState(false);
   const plainAnnotations = useMemo(() => annotations.filter((a) => !isVocab(a)), [annotations]);
   const [vocabDraft, setVocabDraft] = useState<{ values: VocabFormValues; page: number | null; rects: HighlightRect[]; existing: VocabEntry | null; mode: "add" | "edit" } | null>(null);
   const [vocabPop, setVocabPop] = useState<{ id: string; x: number; y: number; w: number } | null>(null);
@@ -341,6 +340,24 @@ export function ReaderView({ articleId }: { articleId: string }) {
     void toggleRead(true);
   }, [page, pageCount, isRead, ready, toggleRead, guest]);
 
+  // ---- 53: o'qib tugatildi → test taklifi (savol bo'lsa; panel "Test"da ochiq bo'lsa yoki sessiyada ko'rsatilgan bo'lsa — yo'q)
+  const quizPromptKey = `a365.quiz-prompt.${articleId}`;
+  const onReachEnd = () => {
+    if (!quiz.length || (sidebarOpen && tab === "test")) return;
+    try {
+      if (sessionStorage.getItem(quizPromptKey)) return;
+      sessionStorage.setItem(quizPromptKey, "1");
+    } catch {
+      /* private rejim — baribir bir marta (state) */
+    }
+    setQuizPrompt(true);
+  };
+  const startQuiz = () => {
+    setQuizPrompt(false);
+    setTab("test");
+    setSidebarOpen(true);
+  };
+
   // ---- Nusxalashni to'sish (S-41, 21.2): `copy`/`cut` hujjat darajasida ushlanadi — Ctrl+A bilan butun
   // sahifa tanlanganda ham matn buferga tushmaydi. O'z matnini yozadigan maydonlar (input/textarea) tegilmaydi.
   useEffect(() => {
@@ -403,9 +420,7 @@ export function ReaderView({ articleId }: { articleId: string }) {
   /** Scroll → Varaq → Kitob (sig'sa) → Scroll */
   const nextModeOf = (m: ViewMode): ViewMode => (m === "scroll" ? "page" : m === "page" && spreadOk ? "spread" : "scroll");
   const toggleMode = () => {
-    const nextMode = nextModeOf(shownMode);
-    writePref(MODE_KEY, nextMode);
-    setMode(nextMode);
+    setMode(nextModeOf(shownMode));
   };
 
   // ---- Annotatsiyalar
@@ -785,6 +800,7 @@ export function ReaderView({ articleId }: { articleId: string }) {
               watermarkText={meta.features?.watermark !== false ? (watermark?.watermark_text ?? null) : null}
               onReady={({ pageCount: n }) => setPageCount((c) => c || n)}
               onPageChange={onPageChange}
+              onReachEnd={onReachEnd}
               onError={(m, e) => setFatal({ code: isApiError(e) ? e.code : "CONTENT_ERROR", message: contentErrorMessage(m, e) })}
               onTextSelected={setSelection}
               onHighlightPick={(id, x, y) => {
@@ -907,6 +923,34 @@ export function ReaderView({ articleId }: { articleId: string }) {
               onSave={saveVocab}
               onClose={() => setVocabDraft(null)}
             />
+            {/* 53: o'qib tugatildi — test taklifi */}
+            <Modal
+              open={quizPrompt}
+              onClose={() => setQuizPrompt(false)}
+              size="sm"
+              icon={<I.Trophy size={18} />}
+              title={t("quiz.prompt.title")}
+              data-testid="quiz-prompt"
+              footer={
+                <>
+                  <Button variant="secondary" onClick={() => setQuizPrompt(false)} data-testid="quiz-prompt-later">
+                    {t("quiz.prompt.later")}
+                  </Button>
+                  <Button onClick={startQuiz} icon={<I.CheckCircle size={16} />} data-testid="quiz-prompt-start">
+                    {t("quiz.prompt.start")}
+                  </Button>
+                </>
+              }
+            >
+              <div className="quiz-invite">
+                <p className="quiz-invite-lead">{t("quiz.prompt.lead")}</p>
+                <p>{t("quiz.prompt.body", { n: quiz.length })}</p>
+                <p className="quiz-invite-note">
+                  <I.Clock size={14} />
+                  {t("quiz.prompt.note")}
+                </p>
+              </div>
+            </Modal>
 
             {hlMenu && hlAnnotation && (
               <HighlightMenu

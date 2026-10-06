@@ -1044,6 +1044,22 @@ bosilsa birinchi rang ("Oltin"), lug'at oynasida "Tarjima" yorlig'i bosilsa "O'z
       oy yozuvi ajraladi; klaviatura (Tab, ← →) bilan ham; "Jadval" ko'rinishi saqlanadi; qorong'i mavzu; telefon
 - [x] 52.4 e2e `payments` yangilandi; dev + prod
 
+## 53. Test natijasi rangli, o'qib tugatilganda test taklifi, kitob doim scroll'da (2026-10-06)
+
+- [x] 53.1 Test natijasi: to'g'ri topilgan savol — yashil, xatosi — qizil (raqam o'rnida ✓/✗, "To'g'ri"/"Xato" yozuvi);
+      xato savolda tanlangan javob "Sizning javobingiz", to'g'risi "To'g'ri javob" yorlig'i va alohida "To'g'ri javob: …"
+      qatori; ball kartasida "N ta to'g'ri · M ta xato"; natijadan keyin panel boshiga
+- [x] 53.2 O'qib tugatildi (scroll — hujjat pastiga, varaq/kitob — oxirgi sahifaga; faqat o'quvchi harakatidan keyin —
+      saqlangan joydan ochilganda emas) → modal "Maqolani o'qib tugatdingiz!" — test yechib o'zini sinab ko'rish taklifi
+      ("Testni boshlash" → panel "Test" tabida; "Keyinroq"); har maqola uchun sessiyada bir marta; savolsiz maqolada yo'q
+- [x] 53.3 Kitob har doim scroll rejimida ochiladi (oldingi rejim eslab qolinmaydi; o'qish davomida almashtirish mumkin)
+- [x] 53.4 e2e: `quiz` (modal, rangli natija, to'g'ri javob), `reader` (reload → scroll); dev + prod
+
+## 54. Lug'at: "English" tanlansa — so'zning o'zi (2026-10-06)
+
+- [x] 54.1 Tarjima tili "English" — tarjima so'ralmaydi, maydonga so'zning o'zi yoziladi (izoh: "Inglizcha — so'zning
+      o'zi yozildi"); eslab qolingan til "English" bo'lsa — oyna ochilishi bilan; e2e `translate`
+
 ## 31. Keyingi vazifalar
 
 - [ ] 31.1 Safari (WebKit): varaqlash rejimida oldingi sahifaga qaytilganda (3-sahifa) belgilash qatlami
