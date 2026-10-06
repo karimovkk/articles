@@ -1,4 +1,4 @@
-// 44.6 — Kunlik o'qish seriyasi (streak) va reyting: header'da 🔥 N (bugun o'qilmagan bo'lsa — xira); reader'da sahifa
+// 44.6 / 59 — Kunlik o'qish seriyasi (streak) va reyting: header'da 🔥 N (bugun o'qilmagan bo'lsa — xira); reader'da sahifa
 // almashsa (progress) seriya "bugun" bo'ladi va chip darhol yangilanadi; "Reyting" sahifasi — o'z ko'rsatkichlarim,
 // top-20, o'zim topda bo'lmasam alohida qatorda; menyuda "Reyting"; telefonda toshish yo'q.
 import { launch, BASE, API_HOST, reset, mockGet, ignorablePageError } from "../lib.mjs";
@@ -58,6 +58,25 @@ await page.waitForTimeout(300);
 const sw = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
 check("360px: reyting sig'adi", sw <= 1, `+${sw}`);
 await page.screenshot({ path: OUT + "86-leaderboard-360.png", fullPage: true });
+
+// 59: telefonda olovcha header'da ko'rinadi (avval ≤ 700 px da yashirilgan edi); eng og'ir holat — 3 xonali seriya
+await fetch(`${API_HOST}/__seed-streak?user=${USER_ID}&current=123&longest=123&total=130`);
+for (const w of [320, 360, 390, 430]) {
+  await page.setViewportSize({ width: w, height: 760 });
+  await page.goto(`${BASE}/catalog`);
+  await page.waitForFunction(() => document.querySelector('[data-testid="streak-chip"]')?.textContent?.includes("123"), null, { timeout: 10000 });
+  const g = await page.evaluate(() => {
+    const vis = (el) => el && getComputedStyle(el).display !== "none" && el.getBoundingClientRect().width > 0;
+    const chipEl = document.querySelector('[data-testid="streak-chip"]');
+    const c = chipEl.getBoundingClientRect();
+    const brand = document.querySelector('[data-testid="header-brand"]').getBoundingClientRect();
+    const actions = [...document.querySelector(".client-actions").children].filter(vis).map((e) => e.getBoundingClientRect());
+    return { chipVisible: vis(chipEl) && c.left >= 0 && c.right <= innerWidth, gap: Math.round(Math.min(...actions.map((r) => r.left)) - brand.right), sw: document.documentElement.scrollWidth - innerWidth };
+  });
+  // gap — logo va birinchi tugma orasi (header grid oralig'i 6 px — kamida shuncha)
+  check(`${w}px: header'da olovcha (123) ko'rinadi, logo bilan ustma-ust emas, toshish yo'q`, g.chipVisible && g.gap >= 6 && g.sw <= 1, JSON.stringify(g));
+}
+await page.screenshot({ path: OUT + "87-streak-header-320.png", clip: { x: 0, y: 0, width: 430, height: 70 } });
 
 check("Sahifa xatolari yo'q", pageErrors.length === 0, pageErrors.join(" | ").slice(0, 300));
 await browser.close();

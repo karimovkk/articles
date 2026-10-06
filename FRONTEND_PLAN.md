@@ -1102,6 +1102,14 @@ eksport/OCR kerak; (2) bizda: satr oxiri `<br>` — `Range.toString()` uni tashl
 - [x] 58.2 Qo'shni satrlar ramkalari ustma-ust tushmaydi (o'rtadan kesiladi) — yangi va saqlangan belgilashlarda
 - [x] 58.3 e2e: ikki satrli belgilash — matnda satrlar orasida bo'sh joy, ramkalar ustma-ust emas
 
+## 59. Telefonda 🔥 streak header'da ko'rinadi (2026-10-06)
+
+Avval ≤ 700 px da yashirilgan edi (header'ga sig'magan) — telefonda streak faqat "Reyting" sahifasida ko'rinardi.
+
+- [x] 59.1 Telefonda ixcham ko'rinish (🔥 + son); joy uchun: til — faqat bayroq (< 640 px), mavzu — bitta yumaloq tugma
+      (≤ 430 px), ≤ 340 px da tugmalar oralig'i 2 px; 320–700 px da header toshmaydi (3 xonali seriyada ham)
+- [x] 59.2 e2e: 320/360/390/430 px — olovcha ko'rinadi, header va sahifa gorizontal toshmaydi; dev + prod
+
 ## 31. Keyingi vazifalar
 
 - [ ] 31.1 Safari (WebKit): varaqlash rejimida oldingi sahifaga qaytilganda (3-sahifa) belgilash qatlami

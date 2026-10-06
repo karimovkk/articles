@@ -2587,6 +2587,41 @@
 .streak-chip.active svg {
   color: #e8590c;
 }
+/* 59: telefonda olovcha header'da — ixcham; joy uchun mavzu almashtirgich bitta yumaloq tugma (joriy rejim ikonkasi) */
+@media (max-width: 430px) {
+  .streak-chip {
+    height: 32px;
+    gap: 3px;
+    padding: 0 8px;
+    font-size: 13px;
+  }
+  .streak-chip svg {
+    width: 15px;
+    height: 15px;
+  }
+  .theme-switch.ts-phone-compact {
+    width: 30px;
+  }
+  .theme-switch.ts-phone-compact .ts-icon {
+    display: none;
+  }
+  .theme-switch.ts-phone-compact .ts-knob,
+  .theme-switch.ts-phone-compact.is-dark .ts-knob {
+    transform: none;
+  }
+}
+@media (max-width: 360px) {
+  .streak-chip {
+    padding: 0 6px;
+  }
+}
+/* Eng tor telefonlar (≤ 340 px): tugmalar oralig'i 2 px — 3 xonali seriyada ham logo ustuni torayib, tugmalar
+   ostiga kirmaydi (logo bilan oraliq — header grid'ining 6 px oralig'i) */
+@media (max-width: 340px) {
+  .client-actions {
+    gap: 2px;
+  }
+}
 .streak-card {
   display: grid;
   gap: 6px;

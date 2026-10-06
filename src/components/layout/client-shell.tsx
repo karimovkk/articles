@@ -94,10 +94,11 @@ function ClientHeader({ menuOpen, onMenu }: { menuOpen: boolean; onMenu: () => v
         >
           <I.Search size={18} />
         </Link>
-        <LocaleSwitcher variant="menu" />
-        <ThemeSwitch />
+        {/* 59: telefonda joy olovcha uchun — til faqat bayroq, mavzu bitta yumaloq tugma */}
+        <LocaleSwitcher variant="menu" compact className="max-sm:!px-1.5" />
+        <ThemeSwitch className="ts-phone-compact" />
         <CartHeaderButton />
-        {user && <StreakChip className="max-[700px]:hidden" />}
+        {user && <StreakChip />}
         {user && <NotificationBell />}
         {user ? (
           <Menu
