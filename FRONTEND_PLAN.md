@@ -991,6 +991,36 @@ public `GET /app-settings` → `{settings, images: {name: {light, dark}}}` (URL'
       tugmasi o'rniga); o'zbekcha bo'lmasa (502) — ruscha + izoh (avvalgidek)
 - [x] 47.3 e2e `translate` qayta yozildi (sayt ru + tanlov uz → target uz)
 
+## 48. Kirish sahifasida maydon — "Telefon raqam" (2026-10-06)
+
+- [x] 48.1 Login maydoni: yorlig'i "Telefon raqam", placeholder `+998 90 123 45 67`, telefon belgisi; email ham qabul
+      qilinadi (admin biladi), UI'da ko'rsatilmaydi; klaviatura matnli qoladi (admin telefondan email yoza olsin)
+- [x] 48.2 "@" siz va telefon formatiga to'g'ri kelmasa — so'rov yuborilmaydi, "Telefon raqamni +998 … ko'rinishida" xatosi
+- [x] 48.3 e2e `register` (yorliq, noto'g'ri raqam, telefon bilan kirish) + admin email bilan kirishi; dev + prod
+
+## 49. Ko'rinish: faqat tayyor ranglar; rangli fonda matnlar ko'rinmay qolishi tuzatildi (2026-10-06)
+
+Sabab: qorong'i fon uchun "Rang" tanlanganda boshlang'ich rang och krem (#f4f2ec) edi — qorong'i mavzuning och matni och
+fonda ko'rinmasdi; ixtiyoriy rang kodi ham xuddi shunday xavfli; qorong'i mavzuda rasm uchun mo'ljallangan qoraytiruvchi
+parda rangli fon ustida ham qolardi.
+
+- [x] 49.1 Fon rangi — har mavzu uchun 8 tadan tayyor rang (yorug': och, qorong'i: to'q); har biri shu mavzudagi matn,
+      ikkinchi darajali va xira matn bilan ≥ 4.5:1 (hisoblab tekshirilgan); rang tanlagich va rang kodi maydoni olib tashlandi
+- [x] 49.2 Asosiy rang — faqat 8 ta tayyor rang (tanlagich va kod maydoni yo'q); ranglarning nomi (uz/ru/en), tanlangani yozuvda
+- [x] 49.3 Ko'rsatishda himoya: serverdagi fon rangi shu mavzu to'plamida bo'lmasa — standart fon (eski xavfli qiymat ham
+      matnni yashirmaydi); rangli fonda rasm pardasi o'chiriladi, fon butun ekranni qoplaydi
+- [x] 49.4 e2e `appearance` yangilandi (tayyor ranglar, kod maydoni yo'q, xavfli eski qiymat → standart, matn ko'rinadi); dev + prod
+
+## 50. Fon rasmi jonli saytda 404 — "standartga qaytib qoladi" (2026-10-06)
+
+Sabab: backend rasm URL'ini nisbiy yo'l (`/api/v1/app-settings/images/…`) qilib beradi; Vercel'da brauzer backend'ga
+to'g'ridan-to'g'ri murojaat qiladi (`NEXT_PUBLIC_API_URL`), `/api/v1` rewrite yo'q — rasm frontend domenidan so'ralib 404,
+fon "standart"dek bo'sh ko'rinadi (backend domenida shu URL 200 image/webp).
+
+- [x] 50.1 `backendUrl()` — backend bergan nisbiy yo'l backend manziliga ulanadi (`GET /app-settings` `images`, yuklash javobi);
+      same-origin (dev/mock) rejimda o'zgarmaydi
+- [ ] 50.2 Jonli saytda tekshiruv: fon rasmi URL'i backend domenida, 200
+
 ## 31. Keyingi vazifalar
 
 - [ ] 31.1 Safari (WebKit): varaqlash rejimida oldingi sahifaga qaytilganda (3-sahifa) belgilash qatlami

@@ -1,5 +1,6 @@
 /** 44.8: global ilova sozlamalari — public `GET /app-settings` (login sahifasi ham o'qiydi; sir saqlanmaydi) */
 import { api } from "./client";
+import { backendUrl } from "@/lib/env";
 
 export type AppImageTheme = "light" | "dark";
 
@@ -17,7 +18,12 @@ export interface AppImage {
 }
 
 export const appApi = {
-  settings(): Promise<AppSettings> {
-    return api<AppSettings>("/app-settings", { auth: false });
+  async settings(): Promise<AppSettings> {
+    const r = await api<AppSettings>("/app-settings", { auth: false });
+    // 50: rasm URL'lari nisbiy yo'l — backend manziliga ulanadi
+    const images = Object.fromEntries(
+      Object.entries(r.images ?? {}).map(([name, th]) => [name, Object.fromEntries(Object.entries(th).map(([k, u]) => [k, typeof u === "string" ? backendUrl(u) : u]))]),
+    );
+    return { ...r, images };
   },
 };

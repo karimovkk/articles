@@ -1,6 +1,7 @@
 /** Admin API — barcha yo'llar ADMIN rolini talab qiladi (server tomonda tekshiriladi). Manba: OpenAPI 2026-09-21. */
 import { api, apiErrorFrom, apiRaw, apiUpload, type UploadOptions } from "./client";
 import type { AppImage, AppImageTheme } from "./app";
+import { backendUrl } from "@/lib/env";
 import type {
   AdminDevice,
   AdminStats,
@@ -54,10 +55,11 @@ export const adminApi = {
     return api<MessageResponse>(`/admin/app-settings/${encodeURIComponent(key)}`, { method: "DELETE" });
   },
   /** 46: fon rasmi (rasmning o'zi, object storage'da); almashtirilsa eskisi o'chadi */
-  uploadAppImage(name: string, theme: AppImageTheme, file: Blob, filename: string, opts?: UploadOptions) {
+  async uploadAppImage(name: string, theme: AppImageTheme, file: Blob, filename: string, opts?: UploadOptions): Promise<AppImage> {
     const fd = new FormData();
     fd.append("file", file, filename);
-    return apiUpload<AppImage>(`/admin/app-settings/images/${encodeURIComponent(name)}?theme=${theme}`, fd, { ...opts, method: "PUT" });
+    const img = await apiUpload<AppImage>(`/admin/app-settings/images/${encodeURIComponent(name)}?theme=${theme}`, fd, { ...opts, method: "PUT" });
+    return { ...img, url: backendUrl(img.url) }; // 50: nisbiy yo'l → backend manzili
   },
   deleteAppImage(name: string, theme: AppImageTheme) {
     return api<MessageResponse>(`/admin/app-settings/images/${encodeURIComponent(name)}`, { method: "DELETE", query: { theme } });

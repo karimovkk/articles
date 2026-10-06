@@ -218,6 +218,8 @@ createServer(async (req, res) => {
   if (path === "/__devices") return json(res, 200, devices);
   if (path === "/__users") return json(res, 200, users);
   if (path === "/__questions") return json(res, 200, questions);
+  // 49: test uchun — sozlamani to'g'ridan-to'g'ri yozish (masalan, eski xavfli fon rangi)
+  if (path === "/__app-settings" && q.get("set")) { appSettings = { ...appSettings, ...JSON.parse(q.get("set")) }; return json(res, 200, appSettings); }
   if (path === "/__app-settings") return json(res, 200, appSettings);
   if (path === "/__app-images") return json(res, 200, Object.fromEntries(Object.entries(appImages).map(([n, th]) => [n, Object.fromEntries(Object.entries(th).map(([t, x]) => [t, { type: x.type, size: x.data.length, v: x.v }]))])));
   if (path === "/__streaks") return json(res, 200, streaks);

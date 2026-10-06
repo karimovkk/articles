@@ -2874,15 +2874,6 @@ a.track:hover {
 .appearance-swatch.active {
   box-shadow: 0 0 0 2px var(--text);
 }
-.appearance-swatch-input {
-  width: 40px;
-  height: 36px;
-  padding: 2px;
-  border-radius: 10px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  cursor: pointer;
-}
 .appearance-contrast {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;

@@ -35,3 +35,12 @@ export function purchaseLink(bookId: string): string | null {
 }
 
 export const API_PREFIX = "/api/v1";
+
+/**
+ * 50: backend bergan nisbiy yo'l (`/api/v1/app-settings/images/…`) — backend manziliga ulanadi. Brauzer backend'ga
+ * to'g'ridan-to'g'ri murojaat qilsa (`NEXT_PUBLIC_API_URL`, Vercel), aks holda rasm frontend domenidan so'ralib 404 bo'ladi.
+ * Same-origin (rewrite) rejimda va to'liq URL'da o'zgarmaydi.
+ */
+export function backendUrl(url: string): string {
+  return url.startsWith("/") && !url.startsWith("//") ? `${env.apiBaseUrl}${url}` : url;
+}

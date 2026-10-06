@@ -44,6 +44,20 @@ check("Darhol kirildi (/library)", page.url().endsWith("/library"));
 // Chiqish → boshqa ko'rinishda yozilgan shu raqam bilan kirish
 await page.evaluate(() => { localStorage.removeItem("a365.access"); localStorage.removeItem("a365.refresh"); document.cookie = "a365_auth=; path=/; max-age=0"; });
 await page.goto(`${BASE}/login`);
+// 48: kirish maydoni UI'da — telefon raqam (email ham o'tadi, lekin ko'rsatilmaydi)
+await page.waitForSelector('[data-testid="login-identifier"]');
+const loginField = await page.evaluate(() => {
+  const i = document.querySelector('[data-testid="login-identifier"]');
+  return { ph: i.placeholder, form: document.querySelector('[data-testid="login-form"]').textContent };
+});
+check("Login: yorliq 'Telefon raqam', placeholder +998, 'Email' so'zi yo'q", loginField.form.includes("Telefon raqam") && loginField.ph.startsWith("+998") && !/email/i.test(loginField.form), JSON.stringify({ ph: loginField.ph }));
+const logBefore = (await mockGet("/__log")).length;
+await page.fill('input[autocomplete="username"]', "12345");
+await page.fill('input[type="password"]', "Parol12345");
+await page.click('button[type="submit"]');
+await page.waitForSelector('[data-testid="login-form"] .alert', { timeout: 5000 });
+const loginLog = (await mockGet("/__log")).slice(logBefore).filter((x) => String(x.path ?? x).includes("/auth/login"));
+check("Noto'g'ri raqam (12345): xato, so'rov yuborilmadi", ((await page.textContent('[data-testid="login-form"] .alert')) ?? "").includes("+998") && loginLog.length === 0);
 await page.fill('input[autocomplete="username"]', "+998 (90) 123-45-67");
 await page.fill('input[type="password"]', "Parol12345");
 await page.click('button[type="submit"]');

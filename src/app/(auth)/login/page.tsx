@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Alert, Button, Field, PasswordInput, formatDate } from "@/components/ui";
 import * as I from "@/components/ui/icons";
-import { authApi, errorMessage, isApiError } from "@/lib/api";
+import { authApi, errorMessage, isApiError, normalizePhone } from "@/lib/api";
 import { useT } from "@/i18n";
 import { useHydrated } from "@/lib/use-hydrated";
 
@@ -49,6 +49,11 @@ function LoginForm() {
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
+    // 48: maydon — telefon raqam (email ham o'tadi: admin shu bilan kiradi)
+    if (!identifier.includes("@") && !normalizePhone(identifier)) {
+      setError({ code: "PHONE_INVALID", text: t("auth.phoneInvalid") });
+      return;
+    }
     setLoading(true);
     try {
       await authApi.login(identifier, password, needTotp ? totp.trim() : undefined);
@@ -99,10 +104,21 @@ function LoginForm() {
       ) : error ? (
         <Alert>{error.text}</Alert>
       ) : null}
-      <Field label={t("auth.identifier")}>
+      {/* 48: UI'da faqat telefon; email ham qabul qilinadi (admin). Klaviatura matnli — admin telefondan email yoza olsin */}
+      <Field label={t("auth.phone")}>
         <div className="input-wrap">
-          <I.User size={16} />
-          <input className="input" autoComplete="username" placeholder={t("auth.identifierPlaceholder")} value={identifier} readOnly={!hydrated} onChange={(e) => setIdentifier(e.target.value)} required autoFocus />
+          <I.Phone size={16} />
+          <input
+            className="input"
+            autoComplete="username"
+            placeholder="+998 90 123 45 67"
+            value={identifier}
+            readOnly={!hydrated}
+            onChange={(e) => setIdentifier(e.target.value)}
+            required
+            autoFocus
+            data-testid="login-identifier"
+          />
         </div>
       </Field>
       <Field label={t("auth.password")}>

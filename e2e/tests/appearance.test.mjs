@@ -35,16 +35,19 @@ await admin.waitForSelector('[data-testid="appearance-page"] [data-testid="appea
 check("Menyu: 'Ko'rinish' → /admin/appearance", admin.url().endsWith("/admin/appearance"));
 
 // Oldindan ko'rish (saqlanmaguncha faqat shu brauzerda)
-await admin.locator('[data-testid="appearance-preset"][aria-label="#2563eb"]').click();
+await admin.locator('[data-testid="appearance-preset"][data-id="blue"]').click();
 await admin.waitForFunction(() => getComputedStyle(document.documentElement).getPropertyValue("--accent").trim().toLowerCase() === "#2563eb", null, { timeout: 5000 });
 check("Oldindan ko'rish: --accent darhol #2563eb, server o'zgarmagan", Object.keys(await mockGet("/__app-settings")).length === 0);
 check("Tugma matni avtomatik oq (ko'k fonda)", (await admin.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--accent-contrast").trim().toLowerCase())) === "#ffffff");
 
-// Past kontrastli rang — ogohlantirish
-await admin.fill('[data-testid="appearance-primary"]', "#6366f1");
-await admin.waitForSelector('[data-testid="contrast-warn"]', { timeout: 3000 });
-check("Past kontrast (#6366f1 → 4.5:1 dan kam): ogohlantirish", true);
-await admin.locator('[data-testid="appearance-preset"][aria-label="#2563eb"]').click();
+// 49: faqat tayyor ranglar — ixtiyoriy rang tanlagich va rang kodi maydoni yo'q; tanlangan rang nomi
+const pickers = await admin.evaluate(() => ({
+  color: document.querySelectorAll('[data-testid="appearance-page"] input[type="color"]').length,
+  mono: document.querySelectorAll('[data-testid="appearance-page"] input.font-mono').length,
+  presets: document.querySelectorAll('[data-testid="appearance-preset"]').length,
+}));
+check("Asosiy rang: 8 ta tayyor rang, rang tanlagich va kod maydoni yo'q", pickers.color === 0 && pickers.mono === 0 && pickers.presets === 8, JSON.stringify(pickers));
+check("Tanlangan rang nomi ko'rinadi ('Ko'k')", ((await admin.textContent('[data-testid="appearance-preset-name"]')) ?? "").trim() === "Ko'k");
 
 // 46: qorong'i fon — rasm (sudrab tashlash); noto'g'ri tur rad etiladi
 await admin.click('[data-testid="bg-dark-image"]');
@@ -68,13 +71,15 @@ let imgs = await mockGet("/__app-images");
 check("Drag & drop: rasm siqilib yuklandi (WebP, ≤ asl hajm), kichik ko'rinish chiqdi", imgs.background?.dark?.type === "image/webp" && imgs.background.dark.size > 0 && imgs.background.dark.size <= Buffer.from(imgB64, "base64").length * 1.2, JSON.stringify(imgs));
 const v1 = imgs.background.dark.v;
 await admin.click('[data-testid="bg-light-color"]');
-await admin.locator('[data-testid="bg-light"] input.font-mono').fill("#eef2ff");
+const lightSw = await admin.locator('[data-testid="bg-light-swatch"]').count();
+check("Yorug' fon: 8 ta tayyor rang, kod maydoni yo'q", lightSw === 8 && (await admin.locator('[data-testid="bg-light"] input').count()) === 0, `${lightSw}`);
+await admin.click('[data-testid="bg-light-swatch"][data-id="sky"]');
 await admin.click('[data-testid="appearance-font"] button:has-text("Tizim shrifti")');
 await admin.screenshot({ path: OUT + "87-admin-appearance.png", fullPage: true });
 await admin.click('[data-testid="appearance-save"]');
 await admin.waitForSelector("text=Saqlandi", { timeout: 5000 });
 const st = (await mockGet("/__app-settings")).appearance;
-check("Saqlandi: rang, yorug' fon, qorong'i fon — yuklangan rasm, tizim shrifti", st?.primary_color === "#2563eb" && st?.background_light === "#eef2ff" && st?.background_dark === "upload" && st?.font === "system" && !("images" in st), JSON.stringify(st));
+check("Saqlandi: rang, yorug' fon, qorong'i fon — yuklangan rasm, tizim shrifti", st?.primary_color === "#2563eb" && st?.background_light === "#e9f0f8" && st?.background_dark === "upload" && st?.font === "system" && !("images" in st), JSON.stringify(st));
 
 // Boshqa foydalanuvchi — login sahifasidan boshlab yangi ko'rinish
 const guest = await newPage();
@@ -86,7 +91,7 @@ await guest.goto(`${BASE}/catalog`);
 await guest.waitForSelector('[data-testid="book-card"]', { timeout: 20000 });
 await guest.waitForTimeout(500);
 const bg = await guest.evaluate(() => getComputedStyle(document.querySelector(".client-bg"), "::before").backgroundColor);
-check("Katalog: yorug' fon rangi (#eef2ff)", bg === "rgb(238, 242, 255)", bg);
+check("Katalog: yorug' fon rangi ('Osmon')", bg === "rgb(233, 240, 248)", bg);
 // Qorong'i mavzu — rang qorong'i fonga moslashtirilgan
 const dark = await newPage("dark");
 await dark.goto(`${BASE}/catalog`);
@@ -117,6 +122,40 @@ await admin.click('[data-testid="bg-dark-default"]');
 await admin.click('[data-testid="appearance-save"]');
 await admin.waitForTimeout(1200);
 check("Standart fonga o'tdi → yuklangan rasm o'chirildi (yetim fayl yo'q)", !(await mockGet("/__app-images")).background && (await mockGet("/__app-settings")).appearance?.background_dark === "default");
+
+// 49: qorong'i fon — "Rang" tanlanganda to'q rang (avval och krem tanlanib, matn ko'rinmay qolardi)
+await admin.click('[data-testid="bg-dark-color"]');
+const darkSw = await admin.evaluate(() => [...document.querySelectorAll('[data-testid="bg-dark-swatch"]')].map((b) => ({ id: b.dataset.id, on: b.getAttribute("aria-pressed") === "true" })));
+check("Qorong'i fon: 8 ta to'q rang, boshlang'ichi 'Grafit'", darkSw.length === 8 && darkSw.find((x) => x.on)?.id === "graphite", JSON.stringify(darkSw.filter((x) => x.on)));
+await admin.click('[data-testid="bg-dark-swatch"][data-id="midnight"]');
+await admin.click('[data-testid="appearance-save"]');
+await admin.waitForSelector("text=Saqlandi", { timeout: 5000 });
+await dark.reload();
+await dark.waitForSelector('[data-testid="book-card"]', { timeout: 20000 });
+await dark.waitForTimeout(800);
+/** Fon (::before) rangi va sahifa sarlavhasi/xira matn rangi orasidagi kontrast */
+const textOnBg = (p) => p.evaluate(() => {
+  const rgb = (s) => s.match(/\d+(\.\d+)?/g).slice(0, 3).map(Number);
+  const lum = ([r, g, b]) => [r, g, b].map((c) => { c /= 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; }).reduce((a, c, i) => a + c * [0.2126, 0.7152, 0.0722][i], 0);
+  const ratio = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((m, n) => n - m); return (x + 0.05) / (y + 0.05); };
+  const bgc = getComputedStyle(document.querySelector(".client-bg"), "::before").backgroundColor;
+  const after = getComputedStyle(document.querySelector(".client-bg"), "::after").backgroundImage;
+  const h1 = document.querySelector("h1");
+  const muted = getComputedStyle(document.documentElement).getPropertyValue("--muted").trim();
+  const m = muted.startsWith("#") ? [parseInt(muted.slice(1, 3), 16), parseInt(muted.slice(3, 5), 16), parseInt(muted.slice(5, 7), 16)] : rgb(muted);
+  return { bg: bgc, after, title: ratio(rgb(getComputedStyle(h1).color), rgb(bgc)), muted: ratio(m, rgb(bgc)) };
+});
+const dt = await textOnBg(dark);
+check("Qorong'i fon 'Tungi ko'k': sarlavha va xira matn o'qiladi (≥ 4.5:1), rasm pardasi o'chdi", dt.bg === "rgb(11, 20, 38)" && dt.title >= 4.5 && dt.muted >= 4.5 && dt.after === "none", JSON.stringify(dt));
+
+// Serverda eski xavfli qiymat (qorong'i fon uchun och rang) — standart fon ko'rsatiladi, matn yashirinmaydi
+await mockGet(`/__app-settings?set=${encodeURIComponent(JSON.stringify({ appearance: { ...(await mockGet("/__app-settings")).appearance, background_dark: "#f4f2ec" } }))}`);
+await dark.reload();
+await dark.waitForSelector('[data-testid="book-card"]', { timeout: 20000 });
+await dark.waitForTimeout(800);
+const unsafe = await textOnBg(dark);
+check("Eski xavfli qiymat (#f4f2ec qorong'ida) → standart qorong'i fon, matn o'qiladi", !unsafe.bg.includes("244, 242, 236") && (await dark.evaluate(() => document.getElementById("a365-appearance")?.textContent ?? "")).includes("html.dark") === false && unsafe.title >= 4.5, JSON.stringify(unsafe));
+await dark.screenshot({ path: OUT + "89-dark-unsafe-fallback.png" });
 // Qayta ochish — keshdan birinchi chizishdanoq (sozlama so'rovi kechiksa ham)
 await guest.route("**/api/v1/app-settings", async (r) => { await new Promise((x) => setTimeout(x, 3000)); await r.continue(); });
 await guest.goto(`${BASE}/login`, { waitUntil: "domcontentloaded" });

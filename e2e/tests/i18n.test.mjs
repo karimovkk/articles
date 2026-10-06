@@ -38,7 +38,7 @@ check("Til almashtirgich (uz/ru/en) bor", (await page.locator('[role="group"] bu
 // ---- ru
 await page.click('[role="group"] button:has-text("ru")');
 await page.waitForSelector("text=Защищённая электронная библиотека");
-check("ru: sarlavha, tugma, maydonlar", (await has("Войти")) && (await has("Email или телефон")) && (await has("Пароль")));
+check("ru: sarlavha, tugma, maydonlar", (await has("Войти")) && (await has("Номер телефона")) && (await has("Пароль")));
 check("ru: <html lang>", (await lang()) === "ru");
 await page.screenshot({ path: OUT + "20-login-ru.png" });
 

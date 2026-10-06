@@ -9,17 +9,62 @@
  * bilan yuklanadi (rasmning o'zi storage'da). Fon boshqa turga o'tib saqlansa — yuklangan rasm o'chiriladi.
  */
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type DragEvent } from "react";
-import { Alert, Badge, Button, Card, Field, Input, PageHeader, Spinner, cn } from "@/components/ui";
+import { Alert, Badge, Button, Card, Field, PageHeader, Spinner, cn } from "@/components/ui";
 import * as I from "@/components/ui/icons";
 import { adminApi, errorMessage, type AppImageTheme } from "@/lib/api";
-import { BACKGROUND_IMAGE, DEFAULT_PRIMARY, appearanceCss, contrast, deriveColors, isHex, isSafeAssetUrl, isSafeImageUrl, type Appearance } from "@/lib/appearance";
+import {
+  BACKGROUND_IMAGE,
+  BG_PRESETS,
+  DEFAULT_PRIMARY,
+  PRIMARY_PRESETS,
+  appearanceCss,
+  contrast,
+  deriveColors,
+  findPreset,
+  isHex,
+  isSafeAssetUrl,
+  isSafeImageUrl,
+  type Appearance,
+  type ColorPreset,
+} from "@/lib/appearance";
 import { compressImage } from "@/lib/image-compress";
 import { applyAppearance, useAppearanceSettings } from "@/providers/appearance-provider";
-import { useT } from "@/i18n";
+import { useT, type DictKey } from "@/i18n";
 
-const PRESETS = ["#f2b705", "#e8590c", "#e11d48", "#7c3aed", "#2563eb", "#0d9488", "#16a34a", "#334155"];
 type BgKind = "default" | "color" | "image";
 const kindOf = (v: string | null | undefined): BgKind => (v === "upload" || isSafeImageUrl(v) ? "image" : isHex(v) ? "color" : "default");
+
+/** 49: faqat tayyor ranglar (nomi bilan) — ixtiyoriy rang tanlagich va rang kodi maydoni yo'q */
+function Swatches({ presets, value, onPick, label, testid }: { presets: readonly ColorPreset[]; value: string | null | undefined; onPick: (hex: string) => void; label: string; testid: string }) {
+  const { t } = useT();
+  const active = findPreset(presets, value);
+  const name = (p: ColorPreset) => t(`appearance.c.${p.id}` as DictKey);
+  return (
+    <div className="space-y-1.5">
+      <div className="flex flex-wrap gap-2" role="group" aria-label={label}>
+        {presets.map((p) => (
+          <button
+            key={p.id}
+            type="button"
+            className={cn("appearance-swatch", active?.id === p.id && "active")}
+            style={{ background: p.hex }}
+            onClick={() => onPick(p.hex)}
+            aria-label={name(p)}
+            title={name(p)}
+            aria-pressed={active?.id === p.id}
+            data-testid={testid}
+            data-id={p.id}
+          />
+        ))}
+      </div>
+      {active && (
+        <p className="text-xs font-semibold text-text-2" data-testid={`${testid}-name`}>
+          {name(active)}
+        </p>
+      )}
+    </div>
+  );
+}
 const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const IMAGE_MAX_MB = 25;
 
@@ -42,7 +87,9 @@ function BgField({
 }) {
   const { t } = useT();
   const [kind, setKind] = useState<BgKind>(kindOf(value));
-  const [color, setColor] = useState(isHex(value) ? value : "#f4f2ec");
+  const presets = BG_PRESETS[theme];
+  // 49: "Rang"ga o'tilganda — shu mavzu to'plamidagi rang (qorong'i fon uchun och rang tanlanib qolmasin)
+  const [color, setColor] = useState(findPreset(presets, value)?.hex ?? presets[0].hex);
   const [over, setOver] = useState(false);
   const [progress, setProgress] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -94,10 +141,16 @@ function BgField({
           ))}
         </div>
         {kind === "color" && (
-          <div className="flex items-center gap-2">
-            <input type="color" value={color} onChange={(e) => (setColor(e.target.value), onChange(e.target.value))} className="appearance-swatch-input" aria-label={label} />
-            <Input value={color} onChange={(e) => (setColor(e.target.value), isHex(e.target.value) && onChange(e.target.value))} className="w-32 font-mono" maxLength={7} />
-          </div>
+          <Swatches
+            presets={presets}
+            value={color}
+            onPick={(hex) => {
+              setColor(hex);
+              onChange(hex);
+            }}
+            label={label}
+            testid={`${testid}-swatch`}
+          />
         )}
         {kind === "image" && (
           <>
@@ -128,7 +181,16 @@ function BgField({
                 <span className="block text-sm font-semibold text-text">{progress !== null ? t("appearance.bg.uploading", { n: progress }) : shownUrl ? t("appearance.bg.replace") : t("appearance.bg.drop")}</span>
                 <span className="block text-xs text-muted">{t("appearance.bg.dropHint", { n: IMAGE_MAX_MB })}</span>
               </span>
-              <input ref={fileRef} type="file" accept={IMAGE_TYPES.join(",")} className="hidden" onChange={(e) => void upload(e.target.files?.[0])} data-testid={`${testid}-file`} />
+              <input
+                ref={fileRef}
+                type="file"
+                accept={IMAGE_TYPES.join(",")}
+                className="hidden"
+                // Zona ichida: bosish ota zonaga ko'tarilib, tanlash oynasini qayta chaqirmasin
+                onClick={(e) => e.stopPropagation()}
+                onChange={(e) => void upload(e.target.files?.[0])}
+                data-testid={`${testid}-file`}
+              />
             </div>
             {progress !== null && (
               <div className="progress thin" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress}>
@@ -235,17 +297,7 @@ export default function AdminAppearancePage() {
           <Card title={t("appearance.settings")}>
             <div className="card-body space-y-5">
               <Field label={t("appearance.primary")} hint={t("appearance.primaryHint")}>
-                <div className="space-y-3">
-                  <div className="flex flex-wrap gap-2" role="group" aria-label={t("appearance.primary")}>
-                    {PRESETS.map((c) => (
-                      <button key={c} type="button" className={cn("appearance-swatch", primary === c && "active")} style={{ background: c }} onClick={() => set({ primary_color: c })} aria-label={c} aria-pressed={primary === c} data-testid="appearance-preset" />
-                    ))}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <input type="color" value={primary} onChange={(e) => set({ primary_color: e.target.value })} className="appearance-swatch-input" aria-label={t("appearance.primary")} />
-                    <Input value={a.primary_color ?? primary} onChange={(e) => set({ primary_color: e.target.value })} className="w-32 font-mono" maxLength={7} data-testid="appearance-primary" />
-                  </div>
-                </div>
+                <Swatches presets={PRIMARY_PRESETS} value={primary} onPick={(hex) => set({ primary_color: hex })} label={t("appearance.primary")} testid="appearance-preset" />
               </Field>
               <BgField
                 key={`l${version}`}
