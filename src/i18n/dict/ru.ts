@@ -237,6 +237,8 @@ export const ru: Dict = {
   "orders.existingOpened": "У вас уже есть открытый заказ на эту книгу — он показан.",
   "orders.receiptPdf": "PDF-чек",
   "orders.heicConverted": "Фото HEIC преобразовано в JPEG.",
+  "orders.receiptPreparing": "Подготовка изображения…",
+  "orders.receiptCompressed": "Изображение сжато: {from} → {to} — загрузится быстрее",
   "orders.payTo": "Реквизиты для оплаты",
   "orders.cardNumber": "Номер карты",
   "orders.recipient": "Получатель",

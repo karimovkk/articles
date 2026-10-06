@@ -111,7 +111,7 @@ function BgField({
     if (file.size > IMAGE_MAX_MB * 1024 * 1024) return setError(t("appearance.bg.tooBig", { n: IMAGE_MAX_MB }));
     setProgress(0);
     try {
-      const { blob, ext } = await compressImage(file, 1920);
+      const { blob, ext } = await compressImage(file, { maxWidth: 1920 });
       const img = await adminApi.uploadAppImage(BACKGROUND_IMAGE, theme, blob, `${BACKGROUND_IMAGE}-${theme}.${ext}`, {
         onProgress: (l, tot) => setProgress(tot ? Math.round((l / tot) * 100) : 0),
         timeoutMs: 120_000,

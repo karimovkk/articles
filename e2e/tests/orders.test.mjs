@@ -79,6 +79,37 @@ await page.waitForSelector('[data-testid="receipt-preview"] img', { timeout: 300
 check("Yaroqli rasm: oldindan ko'rish (blob) + fayl nomi", (await page.locator('[data-testid="receipt-preview"] img').getAttribute("src"))?.startsWith("blob:") && (await bodyHas("receipt.png")));
 await page.click('button[aria-label="Rasmni olib tashlash"]');
 check("Rasm olib tashlandi → qayta tanlash zonasi", (await page.locator('[data-testid="receipt-drop"]').count()) === 1);
+// 55: katta haqiqiy rasm (≈ 15 MB PNG, 2600×2000) → brauzerda siqiladi (JPEG, eni 1600) va 10 MB chegarasidan o'tadi
+const bigSize = await page.evaluate(async () => {
+  const c = document.createElement("canvas");
+  c.width = 2600;
+  c.height = 2000;
+  const ctx = c.getContext("2d");
+  const img = ctx.createImageData(c.width, c.height);
+  for (let i = 0; i < img.data.length; i += 4) {
+    img.data[i] = (Math.random() * 255) | 0;
+    img.data[i + 1] = (Math.random() * 255) | 0;
+    img.data[i + 2] = (Math.random() * 255) | 0;
+    img.data[i + 3] = 255;
+  }
+  ctx.putImageData(img, 0, 0);
+  const blob = await new Promise((r) => c.toBlob(r, "image/png"));
+  const dt = new DataTransfer();
+  dt.items.add(new File([blob], "telefon-foto.png", { type: "image/png" }));
+  const input = document.querySelector('[data-testid="receipt-file"]');
+  input.files = dt.files;
+  input.dispatchEvent(new Event("change", { bubbles: true }));
+  return blob.size;
+});
+await page.waitForSelector('[data-testid="receipt-preview"] img', { timeout: 20000 });
+const shrunk = await page.evaluate(async () => {
+  const img = document.querySelector('[data-testid="receipt-preview"] img');
+  const b = await (await fetch(img.src)).blob();
+  return { type: b.type, size: b.size, w: img.naturalWidth, name: document.querySelector('[data-testid="receipt-preview"] p')?.textContent };
+});
+check("Katta foto (10 MB+) → siqildi: JPEG, eni 1600, 4× kichik, nomi .jpg", bigSize > 10 * 1024 * 1024 && shrunk.type === "image/jpeg" && shrunk.w === 1600 && shrunk.size * 4 < bigSize && shrunk.name === "telefon-foto.jpg", JSON.stringify({ bigSize, ...shrunk }));
+check("Izoh: 'Rasm siqildi: … → …'", await bodyHas("Rasm siqildi"));
+await page.click('[data-testid="receipt-preview"] button[aria-label]');
 await pickReceipt(PNG);
 await page.waitForSelector('[data-testid="receipt-preview"]');
 // Server xatosi INVALID_FILE (422) → tarjima qilingan matn

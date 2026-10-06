@@ -4,6 +4,7 @@
  * Bu foydalanuvchiga tez javob berish uchun; asosiy tekshiruv backendda.
  */
 import { env } from "@/lib/env";
+import { compressImage } from "@/lib/image-compress";
 import { t } from "@/i18n";
 
 const MB = 1024 * 1024;
@@ -62,6 +63,25 @@ export async function validateReceipt(file: File): Promise<string | null> {
   if (kind === "heic") return t("upload.receiptHeic");
   if (!kind) return t("upload.receiptNotImage");
   return null;
+}
+
+/** 55: shu hajmgacha chek siqilmaydi (skrinshot kabi kichik rasm — siqish foyda bermaydi) */
+const RECEIPT_COMPRESS_FROM = 300 * 1024;
+
+/**
+ * 55: chek rasmini yuklashdan oldin siqish — eni ≤ 1600 px, bo'yi ≤ 3200 px, JPEG 0.8 (backend tavsiyasi): 3–10 MB lik
+ * telefon rasmi → odatda 200–500 KB, sekin internetda ham bir-ikki soniyada yuklanadi. Kichik fayl, siqilgani kattaroq
+ * chiqsa yoki brauzer uddalamasa — asl fayl qaytadi (tekshiruv keyin baribir bo'ladi).
+ */
+export async function compressReceipt(file: File): Promise<File> {
+  if (file.size <= RECEIPT_COMPRESS_FROM) return file;
+  try {
+    const { blob } = await compressImage(file, { maxWidth: 1600, maxHeight: 3200, quality: 0.8, type: "jpeg" });
+    if (blob.size >= file.size) return file;
+    return new File([blob], `${file.name.replace(/\.[^.]+$/, "") || "receipt"}.jpg`, { type: "image/jpeg" });
+  } catch {
+    return file;
+  }
 }
 
 /**

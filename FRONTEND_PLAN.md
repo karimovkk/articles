@@ -1060,6 +1060,16 @@ bosilsa birinchi rang ("Oltin"), lug'at oynasida "Tarjima" yorlig'i bosilsa "O'z
 - [x] 54.1 Tarjima tili "English" — tarjima so'ralmaydi, maydonga so'zning o'zi yoziladi (izoh: "Inglizcha — so'zning
       o'zi yozildi"); eslab qolingan til "English" bo'lsa — oyna ochilishi bilan; e2e `translate`
 
+## 55. Chek rasmini yuklashdan oldin siqish (2026-10-06)
+
+Backend: server qismi endi ~0.1 s; 60 s — katta telefon rasmi (3–10 MB) + sekin internet. Yechim — brauzerda siqish.
+
+- [x] 55.1 `compressImage` — parametrlar (eni/bo'yi chegarasi, sifat, format); JPEG'da shaffof fon oq (PNG skrinshot qora bo'lmasin)
+- [x] 55.2 Chek: rasm tanlanganda (HEIC → JPEG'dan keyin) eni ≤ 1600 px, bo'yi ≤ 3200 px, JPEG 0.8; 300 KB gacha va
+      siqilgani kattaroq chiqsa — asl fayl; brauzer uddalamasa — asl fayl; 10 MB chegarasi siqilgandan keyin tekshiriladi
+      (katta foto ham qabul qilinadi); "Tayyorlanmoqda…" holati va "Rasm siqildi: 4.2 MB → 310 KB" izohi
+- [x] 55.3 e2e `orders`: 10 MB+ haqiqiy rasm → siqilib (JPEG, < 2 MB) yuborildi; dev + prod
+
 ## 31. Keyingi vazifalar
 
 - [ ] 31.1 Safari (WebKit): varaqlash rejimida oldingi sahifaga qaytilganda (3-sahifa) belgilash qatlami

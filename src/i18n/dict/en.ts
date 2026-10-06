@@ -237,6 +237,8 @@ export const en: Dict = {
   "orders.existingOpened": "You already have an open order for this book — showing it.",
   "orders.receiptPdf": "PDF receipt",
   "orders.heicConverted": "The HEIC photo was converted to JPEG.",
+  "orders.receiptPreparing": "Preparing the image…",
+  "orders.receiptCompressed": "Image compressed: {from} → {to} — it will upload faster",
   "orders.payTo": "Payment details",
   "orders.cardNumber": "Card number",
   "orders.recipient": "Recipient",

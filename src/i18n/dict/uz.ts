@@ -247,6 +247,8 @@ export const uz = {
   "orders.existingOpened": "Bu kitob uchun ochiq buyurtmangiz bor — shu buyurtma ko'rsatildi.",
   "orders.receiptPdf": "PDF chek",
   "orders.heicConverted": "HEIC rasm JPEG formatiga o'girildi.",
+  "orders.receiptPreparing": "Rasm tayyorlanmoqda…",
+  "orders.receiptCompressed": "Rasm siqildi: {from} → {to} — tezroq yuklanadi",
   "orders.payTo": "To'lov rekvizitlari",
   "orders.cardNumber": "Karta raqami",
   "orders.recipient": "Qabul qiluvchi",

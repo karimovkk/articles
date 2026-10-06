@@ -5,13 +5,18 @@
  * tekshiruvi; HEIC → JPEG, brauzer uddalasa) + ixtiyoriy izoh → `POST /orders/{id}/receipt` (multipart). Tanlash yoki
  * sudrab tashlash, oldindan ko'rish (rasm — kichik rasm, PDF — fayl kartochkasi), yuklash progressi.
  * Rasmsiz (faqat izoh) yuborish ham mumkin — backend fallback'i. `replace` — AWAITING_REVIEW'da chekni almashtirish.
+ * 55: rasm yuklashdan oldin brauzerda siqiladi (eni ≤ 1600 px, JPEG 0.8) — 3–10 MB foto → ~200–500 KB, sekin internetda
+ * ham tez; 10 MB chegarasi siqilgan faylga qo'llanadi.
  */
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Alert, Button, Textarea, cn } from "@/components/ui";
+import { Alert, Button, Spinner, Textarea, cn } from "@/components/ui";
 import * as I from "@/components/ui/icons";
 import { errorMessage, isApiError, ordersApi, type Order } from "@/lib/api";
-import { RECEIPT_MAX_MB, formatMb, heicToJpeg, receiptKind, validateReceipt } from "@/lib/uploads";
+import { RECEIPT_MAX_MB, compressReceipt, formatMb, heicToJpeg, receiptKind, validateReceipt } from "@/lib/uploads";
 import { useT } from "@/i18n";
+
+/** Hajm: 1 MB dan kichik — KB (siqilgan chek odatda 200–500 KB) */
+const formatSize = (b: number) => (b < 1024 * 1024 ? `${Math.max(1, Math.round(b / 1024))} KB` : formatMb(b));
 
 /** 44.2: server javobini kutish chegarasi (backend endi ~0.5 s da javob beradi; tarmoq osilsa — cheksiz kutilmaydi) */
 const RECEIPT_TIMEOUT_MS = 90_000;
@@ -43,6 +48,8 @@ export function ReceiptForm({
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState<number | null>(null);
   const [drag, setDrag] = useState(false);
+  // 55: rasm siqilmoqda (tanlangandan keyin, oldindan ko'rishdan oldin)
+  const [preparing, setPreparing] = useState(false);
 
   // Oldindan ko'rish URL'i — almashtirilganda (setImage) va yopilganda bo'shatiladi
   const setImage = (f: File | null, pdf = false) => {
@@ -61,22 +68,35 @@ export function ReceiptForm({
     if (!f) return;
     setError(null);
     setInfo(null);
-    // HEIC (iPhone) — backend qabul qilmaydi: brauzer uddalasa JPEG'ga o'giramiz
-    if ((await receiptKind(f)) === "heic") {
-      const jpeg = await heicToJpeg(f);
-      if (!jpeg) {
-        setError(t("upload.receiptHeic"));
+    setPreparing(true);
+    try {
+      // HEIC (iPhone) — backend qabul qilmaydi: brauzer uddalasa JPEG'ga o'giramiz
+      let heic = false;
+      if ((await receiptKind(f)) === "heic") {
+        const jpeg = await heicToJpeg(f);
+        if (!jpeg) {
+          setError(t("upload.receiptHeic"));
+          return;
+        }
+        f = jpeg;
+        heic = true;
+      }
+      // 55: rasm — yuklashdan oldin siqiladi (PDF tegilmaydi)
+      if ((await receiptKind(f)) === "image") {
+        const before = f.size;
+        f = await compressReceipt(f);
+        if (f.size < before) setInfo(t("orders.receiptCompressed", { from: formatMb(before), to: formatSize(f.size) }));
+        else if (heic) setInfo(t("orders.heicConverted"));
+      } else if (heic) setInfo(t("orders.heicConverted"));
+      const problem = await validateReceipt(f);
+      if (problem) {
+        setError(problem);
         return;
       }
-      f = jpeg;
-      setInfo(t("orders.heicConverted"));
+      setImage(f, (await receiptKind(f)) === "pdf");
+    } finally {
+      setPreparing(false);
     }
-    const problem = await validateReceipt(f);
-    if (problem) {
-      setError(problem);
-      return;
-    }
-    setImage(f, (await receiptKind(f)) === "pdf");
   }
 
   function clear() {
@@ -127,7 +147,7 @@ export function ReceiptForm({
           )}
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold text-text">{file.name}</p>
-            <p className="text-xs text-muted">{formatMb(file.size)}</p>
+            <p className="text-xs text-muted">{formatSize(file.size)}</p>
           </div>
           <Button type="button" size="sm" variant="ghost" onClick={() => inputRef.current?.click()} disabled={busy}>
             {t("orders.receiptChange")}
@@ -143,7 +163,8 @@ export function ReceiptForm({
             "flex w-full flex-col items-center gap-1.5 rounded-[14px] border-[1.5px] border-dashed px-4 py-5 text-center transition-colors",
             drag ? "border-accent bg-[var(--accent-softer)]" : "border-border-strong hover:border-accent hover:bg-[var(--accent-softer)]",
           )}
-          onClick={() => inputRef.current?.click()}
+          onClick={() => !preparing && inputRef.current?.click()}
+          aria-busy={preparing}
           onDragOver={(e) => {
             e.preventDefault();
             setDrag(true);
@@ -156,10 +177,10 @@ export function ReceiptForm({
           }}
           data-testid="receipt-drop"
         >
-          <span className="grid size-10 place-items-center rounded-xl bg-surface-2 text-text-2">
-            <I.Image size={19} />
+          <span className="grid size-10 place-items-center rounded-xl bg-surface-2 text-text-2">{preparing ? <Spinner className="size-[19px]" /> : <I.Image size={19} />}</span>
+          <span className="text-sm font-bold text-text" data-testid="receipt-drop-title">
+            {preparing ? t("orders.receiptPreparing") : t("orders.receiptPick")}
           </span>
-          <span className="text-sm font-bold text-text">{t("orders.receiptPick")}</span>
           <span className="text-xs text-muted">{t("orders.receiptFormats", { max: RECEIPT_MAX_MB })}</span>
         </button>
       )}
@@ -182,7 +203,7 @@ export function ReceiptForm({
       )}
 
       <div className="flex flex-wrap gap-2">
-        <Button size="sm" type="submit" loading={busy} icon={<I.Send size={14} />} data-testid="receipt-submit">
+        <Button size="sm" type="submit" loading={busy} disabled={preparing} icon={<I.Send size={14} />} data-testid="receipt-submit">
           {t("orders.sendReceipt")}
         </Button>
         <Button size="sm" type="button" variant="ghost" onClick={onCancel} disabled={busy}>
