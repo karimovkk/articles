@@ -53,6 +53,31 @@ export function getHighlightRects(a: Annotation): HighlightRect[] {
     out.push(r as HighlightRect);
     if (out.length >= MAX_RECTS) break;
   }
+  // 58: avval saqlangan belgilashlarda ham qo'shni satrlar ustma-ust chizilmasin
+  return separateLines(out);
+}
+
+/**
+ * 58: qo'shni satrlar ramkalari ustma-ust tushsa (katta sarlavhalarda selection rect satr oralig'idan baland) — ikki
+ * yarim shaffof qatlam quyuq chiziq beradi. Ustma-ust qism o'rtadan kesiladi: har satr o'z yarmini oladi.
+ */
+export function separateLines(rects: HighlightRect[]): HighlightRect[] {
+  const out = rects.map((r) => [...r] as HighlightRect);
+  const order = out.map((_, i) => i).sort((a, b) => out[a][1] - out[b][1]);
+  for (let k = 0; k < order.length; k++) {
+    for (let m = k + 1; m < order.length; m++) {
+      const a = out[order[k]];
+      const b = out[order[m]];
+      const aBottom = a[1] + a[3];
+      const sameLine = Math.abs(b[1] - a[1]) < Math.min(a[3], b[3]) * 0.5;
+      const xOverlap = Math.min(a[0] + a[2], b[0] + b[2]) - Math.max(a[0], b[0]) > 0;
+      if (sameLine || !xOverlap || b[1] >= aBottom) continue;
+      const mid = round4((aBottom + b[1]) / 2);
+      a[3] = round4(mid - a[1]);
+      b[3] = round4(b[1] + b[3] - mid);
+      b[1] = mid;
+    }
+  }
   return out;
 }
 
@@ -99,14 +124,16 @@ export function rectsFromClientRects(rects: DOMRect[], pageEl: HTMLElement): Hig
     }
   }
 
-  return merged.slice(0, MAX_RECTS).map(
-    (m) =>
-      [
-        round4((m.l - page.left) / page.width),
-        round4((m.t - page.top) / page.height),
-        round4((m.r - m.l) / page.width),
-        round4((m.b - m.t) / page.height),
-      ] as HighlightRect,
+  return separateLines(
+    merged.slice(0, MAX_RECTS).map(
+      (m) =>
+        [
+          round4((m.l - page.left) / page.width),
+          round4((m.t - page.top) / page.height),
+          round4((m.r - m.l) / page.width),
+          round4((m.b - m.t) / page.height),
+        ] as HighlightRect,
+    ),
   );
 }
 

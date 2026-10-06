@@ -1091,6 +1091,17 @@ Manba: `Articles365_Frontend_Toliq_Vazifa_v1.0.md` §9. Qaror: **faqat bot** —
 - [x] 57.3 Bot token o'zgarsa — "Webhook'ni yangilash" (`POST …/telegram/set-webhook`); menyu "Integratsiya"
 - [x] 57.4 Mock + e2e `integrations`; dev + prod
 
+## 58. Belgilash: ko'p satrli matn va ustma-ust ramkalar (2026-10-06)
+
+Jonli: "Psychologies UK" (f2577a46…) sarlavhasi "A love letter to a broken heart" belgilansa, saqlangan matn
+"Alovel tertoabrokenheart". Sabablar: (1) PDF'ning o'zida sarlavha matni "Alovel" + "terto" + "abrokenheart" (jurnal
+shrifti: so'z oralig'i bo'sh joy sifatida yozilmagan, "et" ligaturasi unikodsiz) — frontend tuzata olmaydi, PDF qayta
+eksport/OCR kerak; (2) bizda: satr oxiri `<br>` — `Range.toString()` uni tashlaydi, satrlar yopishib qoladi.
+
+- [x] 58.1 Tanlangan matn: matn tugunlari + satr oxiri (`<br>`) → bo'sh joy ("-" bilan tugasa — bo'sh joysiz)
+- [x] 58.2 Qo'shni satrlar ramkalari ustma-ust tushmaydi (o'rtadan kesiladi) — yangi va saqlangan belgilashlarda
+- [x] 58.3 e2e: ikki satrli belgilash — matnda satrlar orasida bo'sh joy, ramkalar ustma-ust emas
+
 ## 31. Keyingi vazifalar
 
 - [ ] 31.1 Safari (WebKit): varaqlash rejimida oldingi sahifaga qaytilganda (3-sahifa) belgilash qatlami

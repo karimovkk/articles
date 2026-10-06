@@ -451,7 +451,7 @@ export const PdfViewer = forwardRef<PdfViewerHandle, PdfViewerProps>(function Pd
       const a = layer ? caretAt(from.x, from.y, layer) : null;
       const b = layer ? caretAt(e.clientX, e.clientY, layer) : null;
       const range = layer && a && b ? rangeBetween(layer, a, b) : null;
-      const text = range?.toString().trim() ?? "";
+      const text = range ? rangeText(range).trim() : "";
       if (!range || !text) {
         setPick(null);
         onTextSelected(null);
@@ -1147,4 +1147,28 @@ function drawWatermark(canvas: HTMLCanvasElement, text: string, dpr: number) {
     }
   }
   ctx.restore();
+}
+
+/**
+ * 58: tanlangan matn. pdf.js matn qatlamida satr oxiri — `<br>`; `Range.toString()` faqat matn tugunlarini qo'shadi va
+ * satrlar yopishib qoladi ("terto" + "abrokenheart" → "tertoabrokenheart"). Bu yerda `<br>` → bo'sh joy (satr "-" bilan
+ * tugasa — bo'sh joysiz), ortiqcha bo'shliqlar bittaga.
+ */
+function rangeText(range: Range): string {
+  const root = range.commonAncestorContainer;
+  if (root.nodeType === Node.TEXT_NODE) return range.toString();
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT);
+  let out = "";
+  for (let n: Node | null = walker.currentNode; n; n = walker.nextNode()) {
+    if (!range.intersectsNode(n)) continue;
+    if (n.nodeType === Node.TEXT_NODE) {
+      const data = (n as Text).data;
+      const start = n === range.startContainer ? range.startOffset : 0;
+      const end = n === range.endContainer ? range.endOffset : data.length;
+      out += data.slice(start, end);
+    } else if ((n as Element).tagName === "BR" && out && !/[\s-]$/.test(out)) {
+      out += " ";
+    }
+  }
+  return out.replace(/\s+/g, " ");
 }
