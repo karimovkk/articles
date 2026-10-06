@@ -9,7 +9,7 @@
  * o'zi yozsa, kech kelgan avtomatik tarjima uni bosib ketmaydi.
  * Tarjima ishlamasa (backend o'chiq/xato) — forma odatdagidek ishlaydi.
  */
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { Alert, Button, Field, Input, Modal, Textarea, cn } from "@/components/ui";
 import * as I from "@/components/ui/icons";
 import { translateApi, VOCAB_TRANSLATION_MAX, VOCAB_WORD_MAX } from "@/lib/api";
@@ -44,6 +44,7 @@ export function VocabDialog({
 }) {
   const { t } = useT();
   const lang = useTranslateLang();
+  const trId = useId();
   const [values, setValues] = useState(initial);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -134,7 +135,8 @@ export function VocabDialog({
         <Field label={t("vocab.word")}>
           <Input value={values.word} maxLength={VOCAB_WORD_MAX} onChange={(e) => setValues((v) => ({ ...v, word: e.target.value }))} data-testid="vocab-word" autoComplete="off" required />
         </Field>
-        <Field label={t("vocab.translation")} hint={fromGoogle ? undefined : t("vocab.translationHint")}>
+        {/* 51: yorliq faqat tarjima maydoniga — label ichidagi til tugmalari bosilib ketmasin */}
+        <Field label={t("vocab.translation")} hint={fromGoogle ? undefined : t("vocab.translationHint")} htmlFor={trId}>
           {/* 47: tarjima tili — o'quvchi tanlaydi (sayt tili emas); bosish — shu tilga tarjima */}
           {translateApi.enabled() && (
             <div className="vocab-langs" role="group" aria-label={t("vocab.translateTo")} data-testid="vocab-langs">
@@ -167,6 +169,7 @@ export function VocabDialog({
                 setFromGoogle(false);
                 setValues((v) => ({ ...v, translation: e.target.value }));
               }}
+              id={trId}
               data-testid="vocab-translation"
               data-state={translating ? "loading" : fromGoogle ? "auto" : undefined}
               autoComplete="off"

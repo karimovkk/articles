@@ -48,6 +48,11 @@ const pickers = await admin.evaluate(() => ({
 }));
 check("Asosiy rang: 8 ta tayyor rang, rang tanlagich va kod maydoni yo'q", pickers.color === 0 && pickers.mono === 0 && pickers.presets === 8, JSON.stringify(pickers));
 check("Tanlangan rang nomi ko'rinadi ('Ko'k')", ((await admin.textContent('[data-testid="appearance-preset-name"]')) ?? "").trim() === "Ko'k");
+// 51: nom/yorliq bosilsa birinchi rang ('Oltin') tanlanib qolmaydi
+await admin.click('[data-testid="appearance-preset-name"]');
+await admin.click("text=Tugmalar, belgilar va ajratishlar");
+await admin.waitForTimeout(300);
+check("Rang nomi va izoh bosildi — asosiy rang o'zgarmadi (Ko'k)", (await accent(admin)) === "#2563eb" && (await admin.getAttribute('[data-testid="appearance-preset"][data-id="gold"]', "aria-pressed")) === "false");
 
 // 46: qorong'i fon — rasm (sudrab tashlash); noto'g'ri tur rad etiladi
 await admin.click('[data-testid="bg-dark-image"]');
@@ -162,10 +167,17 @@ await guest.goto(`${BASE}/login`, { waitUntil: "domcontentloaded" });
 check("Qayta ochilganda keshdan darhol (server javobini kutmasdan)", (await accent(guest)) === "#2563eb");
 await guest.unroute("**/api/v1/app-settings");
 
-// Standartga qaytarish (yuklangan rasm bo'lsa — u ham o'chadi)
+// 51: yuklash zonasini HAQIQIY bosish (matni ustidan) → fayl tanlash oynasi → yuklash; tur "Rasm"da qoladi
+// (avval Field <label> edi — bosish label'ning birinchi tugmasi "Standart"ni bosib, zona yo'qolardi)
 await admin.click('[data-testid="bg-dark-image"]');
-await dropFile('[data-testid="bg-dark-drop"]', "night3.webp");
+const pressed = (k) => admin.getAttribute(`[data-testid="bg-dark-${k}"]`, "aria-pressed");
+await admin.click('.field:has(> [data-testid="bg-dark"]) > .label');
+check("Fon yorlig'i bosildi — tur o'zgarmadi ('Rasm')", (await pressed("image")) === "true" && (await pressed("default")) === "false");
+const [chooser] = await Promise.all([admin.waitForEvent("filechooser", { timeout: 5000 }), admin.click('[data-testid="bg-dark-drop"] >> text=JPEG, PNG yoki WebP')]);
+check("Zona bosildi: fayl tanlash oynasi ochildi, tur 'Rasm'da qoldi", (await pressed("image")) === "true" && (await admin.locator('[data-testid="bg-dark-drop"]').count()) === 1);
+await chooser.setFiles(new URL("../../public/bg/article-960.webp", import.meta.url).pathname);
 await admin.waitForSelector('[data-testid="bg-dark-thumb"]', { timeout: 15000 });
+check("Tanlangan fayl yuklandi, tur 'Rasm' (Standart'ga qaytmadi)", (await pressed("image")) === "true" && !!(await mockGet("/__app-images")).background?.dark);
 await admin.click('[data-testid="appearance-save"]');
 await admin.waitForSelector("text=Saqlandi", { timeout: 5000 });
 await admin.locator('[data-testid="bg-dark"]').screenshot({ path: OUT + "88-admin-bg-drop.png" });

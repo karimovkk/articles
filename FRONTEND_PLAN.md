@@ -1021,6 +1021,18 @@ fon "standart"dek bo'sh ko'rinadi (backend domenida shu URL 200 image/webp).
       same-origin (dev/mock) rejimda o'zgarmaydi
 - [ ] 50.2 Jonli saytda tekshiruv: fon rasmi URL'i backend domenida, 200
 
+## 51. Yuklash zonasi bosilsa fon "Standart"ga qaytadi (2026-10-06)
+
+Sabab: `Field` — `<label>`; label ichidagi bo'sh joy/matn bosilsa brauzer label'ning **birinchi** tugmasini bosadi —
+fon maydonida bu "Standart" (yuklash zonasi bosilganda tur "Standart"ga o'tib, zona yo'qolardi). Xuddi shunday: rang nomi
+bosilsa birinchi rang ("Oltin"), lug'at oynasida "Tarjima" yorlig'i bosilsa "O'zbekcha" tarjima so'rovi ketardi.
+
+- [x] 51.1 `Field group` — tugmalar guruhi uchun `<div role="group" aria-labelledby>` (label emas); `Field htmlFor` — yorliq
+      faqat o'z maydoniga bog'lanadi
+- [x] 51.2 "Ko'rinish": asosiy rang, fonlar, shrift — `group`; lug'at oynasi: "Tarjima" yorlig'i → tarjima maydoni (`htmlFor`)
+- [x] 51.3 e2e: yuklash zonasini haqiqiy bosish → fayl tanlash oynasi → yuklash, tur "Rasm"da qoladi; rang nomini bosish
+      rangni o'zgartirmaydi; lug'atda yorliq bosilsa tarjima so'ralmaydi, maydonga fokus
+
 ## 31. Keyingi vazifalar
 
 - [ ] 31.1 Safari (WebKit): varaqlash rejimida oldingi sahifaga qaytilganda (3-sahifa) belgilash qatlami

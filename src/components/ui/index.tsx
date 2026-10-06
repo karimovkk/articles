@@ -5,7 +5,7 @@
  * Qo'lbola boshqaruv elementlari alohida fayllarda va shu yerdan re-eksport qilinadi:
  * Select, DatePicker, Menu, Switch, ConfirmDialog (useConfirm), ikonkalar (`icons.tsx`).
  */
-import { forwardRef, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type TextareaHTMLAttributes } from "react";
+import { forwardRef, useId, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type TextareaHTMLAttributes } from "react";
 import Link from "next/link";
 import { formatDateTime, useT } from "@/i18n";
 import { cn } from "./cn";
@@ -94,9 +94,40 @@ export const SearchInput = forwardRef<HTMLInputElement, InputHTMLAttributes<HTML
 });
 
 /** Forma maydoni: yorliq + boshqaruv elementi (`<label>` — Input/Textarea bilan bevosita, qo'lbola Select/DatePicker'da yorliq bosilsa trigger ochiladi). */
-export function Field({ label, children, hint, className }: { label: string; children: ReactNode; hint?: string; className?: string }) {
+/**
+ * Forma maydoni. Oddiy holatda `<label>` — ichidagi bo'sh joy/matn bosilsa brauzer label'ning BIRINCHI boshqariladigan
+ * elementini bosadi. Shuning uchun (51):
+ *  - `group` — tugmalar guruhi (seg, ranglar, yuklash zonasi): `<div role="group">`, bosish hech narsani "tanlamaydi";
+ *  - `htmlFor` — label ichida tugmalar ham bo'lsa, yorliq faqat shu maydonga bog'lanadi.
+ */
+export function Field({
+  label,
+  children,
+  hint,
+  className,
+  htmlFor,
+  group,
+}: {
+  label: string;
+  children: ReactNode;
+  hint?: string;
+  className?: string;
+  htmlFor?: string;
+  group?: boolean;
+}) {
+  const id = useId();
+  if (group)
+    return (
+      <div className={cn("field", className)} role="group" aria-labelledby={id}>
+        <span id={id} className="label">
+          {label}
+        </span>
+        {children}
+        {hint && <span className="hint">{hint}</span>}
+      </div>
+    );
   return (
-    <label className={cn("field", className)}>
+    <label className={cn("field", className)} htmlFor={htmlFor}>
       <span className="label">{label}</span>
       {children}
       {hint && <span className="hint">{hint}</span>}

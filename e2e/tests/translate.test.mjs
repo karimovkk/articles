@@ -119,6 +119,12 @@ check("Saqlandi: foydalanuvchi tahriri bilan", (await mockGet("/__vocab")).some(
 await openDialog("dog");
 await waitTr("it");
 check("Keyingi so'z: eslab qolingan tilga (uz) avtomatik tarjima", (await trLog()).at(-1)?.target_lang === "uz");
+// 51: "Tarjima" yorlig'i / "Tarjima tili:" bosilsa — til tugmasi bosilmaydi (tarjima so'ralmaydi), maydonga fokus
+const c1 = (await trLog()).length;
+await page.click('[data-testid="vocab-dialog"] label.field:has([data-testid="vocab-translation"]) > .label');
+await page.click('[data-testid="vocab-langs"] .vocab-langs-label');
+await page.waitForTimeout(600);
+check("Yorliq bosildi: tarjima so'ralmadi, fokus tarjima maydonida", (await trLog()).length === c1 && (await page.evaluate(() => document.activeElement?.dataset?.testid)) === "vocab-translation" && (await trValue()) === "it");
 await closeDialog();
 
 // Dublikat — mavjud tarjima, /translate so'ralmaydi

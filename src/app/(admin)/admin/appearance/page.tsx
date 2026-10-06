@@ -131,7 +131,7 @@ function BgField({
   };
 
   return (
-    <Field label={label}>
+    <Field label={label} group>
       <div className="space-y-2" data-testid={testid}>
         <div className="seg" role="group" aria-label={label}>
           {(["default", "color", "image"] as BgKind[]).map((k) => (
@@ -296,7 +296,7 @@ export default function AdminAppearancePage() {
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
           <Card title={t("appearance.settings")}>
             <div className="card-body space-y-5">
-              <Field label={t("appearance.primary")} hint={t("appearance.primaryHint")}>
+              <Field label={t("appearance.primary")} hint={t("appearance.primaryHint")} group>
                 <Swatches presets={PRIMARY_PRESETS} value={primary} onPick={(hex) => set({ primary_color: hex })} label={t("appearance.primary")} testid="appearance-preset" />
               </Field>
               <BgField
@@ -317,7 +317,7 @@ export default function AdminAppearancePage() {
                 onChange={(v, url) => set({ background_dark: v, ...(url ? { images: { ...a.images, dark: url } } : {}) })}
                 testid="bg-dark"
               />
-              <Field label={t("appearance.font")}>
+              <Field label={t("appearance.font")} group>
                 <div>
                 <div className="seg" role="group" aria-label={t("appearance.font")} data-testid="appearance-font">
                   {(["manrope", "system"] as const).map((f) => (
