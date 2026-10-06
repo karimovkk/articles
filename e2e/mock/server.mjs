@@ -239,6 +239,11 @@ createServer(async (req, res) => {
         orders.push({ id: randomUUID(), user_id: USER.id, book_id: bk.id, amount: bk.price === "0" ? "49000.00" : bk.price, status: "APPROVED", receipt_note: null, has_receipt_file: false, reviewed_by_admin_id: ADMIN.id, reviewed_at: d.toISOString(), reject_reason: null, created_at: d.toISOString(), updated_at: d.toISOString() });
       }
     }
+    // 52: `mixed=1` — boshqa holatlar ham (rad etilgan 2, tekshiruvda 1, kutilmoqda 1) — holat filtri uchun
+    if (q.get("mixed") === "1") {
+      const mk = (status, bk) => orders.push({ id: randomUUID(), user_id: USER.id, book_id: bk.id, amount: bk.price === "0" ? "49000.00" : bk.price, status, receipt_note: null, has_receipt_file: status !== "PENDING", reviewed_by_admin_id: null, reviewed_at: null, reject_reason: status === "REJECTED" ? "test" : null, created_at: base.toISOString(), updated_at: base.toISOString() });
+      mk("REJECTED", books[2]); mk("REJECTED", books[3]); mk("AWAITING_REVIEW", books[4]); mk("PENDING", books[5]);
+    }
     return json(res, 200, { orders: orders.length });
   }
   if (path === "/__slow-receipt") { receiptDelay = Number(q.get("ms") ?? 0); return json(res, 200, { receiptDelay }); }

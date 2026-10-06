@@ -449,6 +449,8 @@ export const ru: Dict = {
   "admin.payments.approved": "Подтверждённые заказы",
   "admin.payments.average": "Средний чек",
   "admin.payments.byStatus": "Заказы по статусам",
+  "admin.payments.allOrders": "Всего заказов — все статусы",
+  "admin.payments.statusShare": "{status} — {share}% от всех заказов",
   "admin.payments.byMonth": "Выручка по месяцам",
   "admin.payments.byBook": "По книгам",
   "admin.payments.showTable": "Таблица",

@@ -1033,6 +1033,17 @@ bosilsa birinchi rang ("Oltin"), lug'at oynasida "Tarjima" yorlig'i bosilsa "O'z
 - [x] 51.3 e2e: yuklash zonasini haqiqiy bosish → fayl tanlash oynasi → yuklash, tur "Rasm"da qoladi; rang nomini bosish
       rangni o'zgartirmaydi; lug'atda yorliq bosilsa tarjima so'ralmaydi, maydonga fokus
 
+## 52. To'lovlar: holatlar — bitta filtr; oylik tushum — chiziqli grafik (2026-10-06)
+
+- [x] 52.1 "Buyurtmalar holati": har holatga alohida belgi o'rniga bitta filtr (Select: "Barcha holatlar" + har holat soni
+      bilan); tanlanganiga katta raqam, izoh va jami buyurtmalardagi ulushi (ingichka chiziq)
+- [x] 52.2 "Oylik tushum" — chiziqli grafik (dataviz): 2px silliq chiziq (monoton, pastga "sakramaydi"), ~10% yengil
+      to'ldirish, ingichka to'r chiziqlar, toza Y belgilari; oxirgi nuqta va qiymati yozilgan; rang validatordan o'tgan
+      (#8a6400 / #b8890a)
+- [x] 52.3 Hover: eng yaqin oyga yopishadigan vertikal chiziq + nuqta + maslahat (qiymat qalin, oy · buyurtmalar soni),
+      oy yozuvi ajraladi; klaviatura (Tab, ← →) bilan ham; "Jadval" ko'rinishi saqlanadi; qorong'i mavzu; telefon
+- [x] 52.4 e2e `payments` yangilandi; dev + prod
+
 ## 31. Keyingi vazifalar
 
 - [ ] 31.1 Safari (WebKit): varaqlash rejimida oldingi sahifaga qaytilganda (3-sahifa) belgilash qatlami

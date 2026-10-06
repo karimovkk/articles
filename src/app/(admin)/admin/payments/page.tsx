@@ -2,14 +2,13 @@
 
 /**
  * 44.4: admin "To'lovlar" — `GET /admin/stats/payments`. Tushum = tasdiqlangan (APPROVED) buyurtmalar.
- * Ko'rsatkichlar (jami tushum, tasdiqlangan buyurtmalar, o'rtacha chek), holatlar bo'yicha buyurtmalar, oylik tushum
- * grafigi (+ jadval ko'rinishi) va kitoblar bo'yicha tushum.
+ * Ko'rsatkichlar (jami tushum, tasdiqlangan buyurtmalar, o'rtacha chek), holatlar bo'yicha buyurtmalar (52: bitta filtr —
+ * tanlangan holat soni va ulushi), oylik tushum chiziqli grafigi (+ jadval ko'rinishi) va kitoblar bo'yicha tushum.
  */
 import { useState } from "react";
 import Link from "next/link";
-import { Alert, Button, Card, EmptyState, PageHeader, Spinner, Stat } from "@/components/ui";
+import { Alert, Button, Card, EmptyState, PageHeader, Select, Spinner, Stat } from "@/components/ui";
 import * as I from "@/components/ui/icons";
-import { OrderStatusBadge } from "@/components/orders/order-status";
 import { RevenueChart, monthLabel } from "@/components/admin/revenue-chart";
 import { adminApi, type OrderStatus } from "@/lib/api";
 import { useAsync } from "@/lib/use-async";
@@ -21,6 +20,7 @@ export default function AdminPaymentsPage() {
   const { t, locale } = useT();
   const { data, error } = useAsync(() => adminApi.paymentStats(), []);
   const [asTable, setAsTable] = useState(false);
+  const [status, setStatus] = useState<OrderStatus | "">(""); // 52: "Buyurtmalar holati" filtri
   const money = (n: number) => t("catalog.price", { price: formatNumber(Math.round(n), locale) });
 
   const header = <PageHeader title={t("admin.payments.title")} description={t("admin.payments.sub")} icon={<I.Wallet size={24} />} />;
@@ -41,7 +41,10 @@ export default function AdminPaymentsPage() {
 
   const months = data.revenue_by_month ?? [];
   const books = data.revenue_by_book ?? [];
-  const statuses = STATUS_ORDER.filter((s) => (data.orders_by_status?.[s] ?? 0) > 0);
+  const count = (s: OrderStatus) => data.orders_by_status?.[s] ?? 0;
+  const allOrders = STATUS_ORDER.reduce((sum, s) => sum + count(s), 0);
+  const shown = status ? count(status) : allOrders;
+  const share = allOrders > 0 ? Math.round((shown / allOrders) * 100) : 0;
 
   return (
     <div className="space-y-5" data-testid="payments-page">
@@ -53,16 +56,36 @@ export default function AdminPaymentsPage() {
         <Stat label={t("admin.payments.average")} value={<span data-testid="pay-average">{money(data.average_order_value)}</span>} icon={<I.ShoppingBag size={17} />} />
       </div>
 
-      {statuses.length > 0 && (
-        <Card title={t("admin.payments.byStatus")}>
-          <ul className="pay-statuses" data-testid="pay-statuses">
-            {statuses.map((s) => (
-              <li key={s}>
-                <OrderStatusBadge status={s} />
-                <strong>{formatNumber(data.orders_by_status[s] ?? 0, locale)}</strong>
-              </li>
-            ))}
-          </ul>
+      {allOrders > 0 && (
+        <Card
+          title={t("admin.payments.byStatus")}
+          actions={
+            <Select
+              size="sm"
+              value={status}
+              onChange={(v) => setStatus(v as OrderStatus | "")}
+              options={[
+                { value: "", label: t("admin.allStatuses"), description: t("admin.payments.ordersN", { n: allOrders }) },
+                ...STATUS_ORDER.map((s) => ({ value: s, label: t(`orders.status.${s}`), description: t("admin.payments.ordersN", { n: count(s) }) })),
+              ]}
+              matchWidth={false}
+              className="w-48"
+              aria-label={t("common.status")}
+              data-testid="pay-status-filter"
+            />
+          }
+        >
+          <div className="pay-status" data-testid="pay-status-summary">
+            <strong className="pay-status-num">{formatNumber(shown, locale)}</strong>
+            <span className="pay-status-cap">
+              {status ? t("admin.payments.statusShare", { status: t(`orders.status.${status}`), share }) : t("admin.payments.allOrders")}
+            </span>
+            {status && (
+              <div className="pay-status-meter" aria-hidden>
+                <i style={{ width: `${share}%` }} />
+              </div>
+            )}
+          </div>
         </Card>
       )}
 

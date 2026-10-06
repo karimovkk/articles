@@ -449,6 +449,8 @@ export const en: Dict = {
   "admin.payments.approved": "Approved orders",
   "admin.payments.average": "Average order",
   "admin.payments.byStatus": "Orders by status",
+  "admin.payments.allOrders": "All orders — every status",
+  "admin.payments.statusShare": "{status} — {share}% of all orders",
   "admin.payments.byMonth": "Monthly revenue",
   "admin.payments.byBook": "By book",
   "admin.payments.showTable": "Table",

@@ -462,6 +462,8 @@ export const uz = {
   "admin.payments.approved": "Tasdiqlangan buyurtmalar",
   "admin.payments.average": "O'rtacha chek",
   "admin.payments.byStatus": "Buyurtmalar holati",
+  "admin.payments.allOrders": "Jami buyurtmalar — barcha holatlar",
+  "admin.payments.statusShare": "{status} — barcha buyurtmalarning {share}%",
   "admin.payments.byMonth": "Oylik tushum",
   "admin.payments.byBook": "Kitoblar bo'yicha",
   "admin.payments.showTable": "Jadval",
