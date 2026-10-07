@@ -2854,11 +2854,32 @@ a.track:hover {
   --st-REJECTED: #c93a2e;
   --st-CANCELLED: #8b928d;
   --st-PENDING: #e0a106;
+  container-type: inline-size;
+  padding: 20px 24px 24px;
+}
+.status-donut-in {
   display: grid;
-  grid-template-columns: 220px minmax(0, 1fr);
+  grid-template-columns: 200px minmax(0, 1fr);
   align-items: center;
   gap: 28px;
-  padding: 20px 24px 24px;
+}
+/* 69: tor karta (masalan, grafik yonida) — donut tepada, legend ostida */
+@container (max-width: 480px) {
+  .status-donut-in {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+    gap: 18px;
+  }
+  .status-donut-in .donut-figure {
+    width: 176px;
+    height: 176px;
+  }
+  .status-donut-in .donut-center strong {
+    font-size: 30px;
+  }
+  .status-donut-in .donut-legend-row {
+    padding: 7px 10px;
+  }
 }
 .dark .status-donut {
   --st-APPROVED: #21804a;
@@ -2869,16 +2890,13 @@ a.track:hover {
 }
 @media (max-width: 640px) {
   .status-donut {
-    grid-template-columns: minmax(0, 1fr);
-    justify-items: center;
-    gap: 18px;
     padding: 16px;
   }
 }
 .donut-figure {
   position: relative;
-  width: 220px;
-  height: 220px;
+  width: 200px;
+  height: 200px;
 }
 .donut-svg {
   display: block;
@@ -3262,4 +3280,83 @@ circle.donut-slice {
   border-radius: 16px;
   border: 1px solid var(--border);
   background: var(--surface);
+}
+
+/* 69: to'lovlar — asosiy qator: tushum grafigi (~2/3) + holatlar donut'i (~1/3), bir xil balandlik */
+.pay-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 20px;
+  align-items: stretch;
+}
+@media (min-width: 1180px) {
+  .pay-main.with-side {
+    grid-template-columns: minmax(0, 2fr) minmax(320px, 1fr);
+  }
+}
+.pay-main > .card {
+  display: flex;
+  flex-direction: column;
+}
+/* Card sarlavhali bo'lsa tanani o'zi `card-body` bilan o'raydi — u qolgan balandlikni egallaydi */
+.pay-main > .card > .card-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+/* Grafik kartasi tanasi — qolgan balandlikni egallaydi; grafik ("fill") uni to'ldiradi */
+.pay-chart-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+.rev-chart.fill {
+  flex: 1;
+  height: auto;
+  min-height: 260px;
+}
+/* SVG joylashuvga ta'sir qilmasin — aks holda konteyner qisqara olmaydi (oyna kichraysa) */
+.rev-chart.fill .rev-svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+.pay-side-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+}
+/* Kitoblar jadvali — ulush: ingichka chiziq + foiz (grafik rangida) */
+.pay-share {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  width: 100%;
+}
+.pay-share-bar {
+  width: 96px;
+  height: 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--pay-share, #8a6400) 14%, transparent);
+  overflow: hidden;
+}
+.pay-share-bar i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--pay-share, #8a6400);
+}
+.dark .pay-share-bar {
+  --pay-share: #b8890a;
+}
+.pay-share span {
+  width: 36px;
+  text-align: right;
+}
+@media (max-width: 639px) {
+  .pay-kpis .stat-value {
+    font-size: 22px;
+  }
 }

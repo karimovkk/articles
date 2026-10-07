@@ -1198,11 +1198,13 @@ Jonli tekshiruv (`?date_from=2026-09-28&date_to=2026-10-28`): total_revenue 811 
 
 ## 69. To'lovlar sahifasi — yangi joylashuv (2026-10-07)
 
-- [ ] 69.1 Kompyuterda: filtrlar → 3 ta karta → [tushum grafigi ~2/3 | holatlar donut'i ~1/3] (bir xil balandlik) →
+- [x] 69.1 Kompyuterda: filtrlar → 3 ta karta → [tushum grafigi ~2/3 | holatlar donut'i ~1/3] (bir xil balandlik) →
       kitoblar jadvali; planshet/telefonda — bitta ustun
-- [ ] 69.2 Donut kartaning kengligiga moslashadi (container query): tor — donut tepada, legend ostida; keng — yonma-yon
-- [ ] 69.3 Kitoblar jadvalida ulush — ingichka chiziq + foiz (grafik rangida)
-- [ ] 69.4 e2e `payments` (joylashuv: grafik va donut yonma-yon, telefonda ustun), skrinshotlar; dev + prod
+- [x] 69.2 Donut kartaning kengligiga moslashadi (container query): tor — donut tepada, legend ostida; keng — yonma-yon
+- [x] 69.3 Kitoblar jadvalida ulush — ingichka chiziq + foiz (grafik rangida)
+- [x] 69.4 e2e `payments` (joylashuv: grafik va donut yonma-yon, telefonda ustun), skrinshotlar; dev + prod
+- [x] 69.5 Grafik kartani to'liq to'ldiradi ("fill" — Card ichki `card-body` qo'sh qatlami olib tashlandi); telefonda
+      kartalar ixcham (jami — to'liq, qolgan ikkitasi yonma-yon)
 
 ## 31. Keyingi vazifalar
 

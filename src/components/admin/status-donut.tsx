@@ -45,6 +45,8 @@ export function StatusDonut({ counts }: { counts: Partial<Record<OrderStatus, nu
 
   return (
     <div className="status-donut" data-testid="status-donut">
+      {/* 69: kartaning kengligiga moslashadi (container query): tor — donut tepada, legend ostida */}
+      <div className="status-donut-in">
       <div className="donut-figure" onPointerLeave={on(null)}>
         <svg viewBox={`0 0 ${SIZE} ${SIZE}`} className="donut-svg" role="img" aria-label={t("admin.payments.byStatus")}>
           {slices.length === 1 ? (
@@ -88,6 +90,7 @@ export function StatusDonut({ counts }: { counts: Partial<Record<OrderStatus, nu
           </li>
         ))}
       </ul>
+      </div>
     </div>
   );
 }

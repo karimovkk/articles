@@ -58,6 +58,15 @@ await page.locator('[data-testid="donut-legend-row"][data-status="APPROVED"]').b
 const sliceFill = await page.evaluate(() => getComputedStyle(document.querySelector('[data-testid="donut-slice"][data-status="APPROVED"]')).fill);
 check("Rang: tasdiqlangan — #1f9d55 (yorug')", sliceFill === "rgb(31, 157, 85)", sliceFill);
 await page.locator('[data-testid="status-donut"]').screenshot({ path: OUT + "94-status-donut.png" });
+// 69: joylashuv — grafik (~2/3) va donut (~1/3) yonma-yon, bir xil balandlikda
+const lay = await page.evaluate(() => {
+  const cards = [...document.querySelectorAll('[data-testid="pay-main"] > .card')].map((c) => c.getBoundingClientRect());
+  const [a, b] = cards;
+  return { n: cards.length, sameRow: a && b ? Math.abs(a.top - b.top) < 2 && b.left > a.right : false, ratio: a && b ? Math.round((a.width / b.width) * 10) / 10 : 0, dh: a && b ? Math.abs(a.height - b.height) : 99 };
+});
+check("Kompyuter: grafik va donut yonma-yon (≈2:1), balandligi teng", lay.n === 2 && lay.sameRow && lay.ratio >= 1.6 && lay.dh <= 2, JSON.stringify(lay));
+check("Kitoblar jadvalida ulush chizig'i", (await page.locator('[data-testid="pay-book-table"] .pay-share-bar').count()) === stats.revenue_by_book.length);
+await page.screenshot({ path: OUT + "82c-admin-payments-layout.png", fullPage: true });
 
 // 52: oylik tushum — chiziqli grafik
 const chart = await page.evaluate(() => ({

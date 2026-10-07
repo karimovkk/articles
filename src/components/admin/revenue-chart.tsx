@@ -75,7 +75,7 @@ function monotonePath(pts: ReadonlyArray<readonly [number, number]>): string {
   return d;
 }
 
-const HEIGHT = 260;
+const DEFAULT_HEIGHT = 260;
 const TOP = 26; // oxirgi qiymat yozuvi uchun joy
 const BOTTOM = 30; // oy yozuvlari
 const EDGE = 18; // chekka nuqtalar karta chetiga yopishmasin
@@ -85,25 +85,35 @@ export function RevenueChart({
   money,
   label,
   title,
+  height = DEFAULT_HEIGHT,
 }: {
   data: PeriodRevenue[];
   money: (n: number) => string;
   /** Davr yozuvi: `long` — maslahat va ekran o'quvchi uchun to'liq sana */
   label: (period: string, long: boolean) => string;
   title: string;
+  /** 69: son — qat'iy balandlik; "fill" — ota blok balandligini to'ldiradi (yonidagi donut kartasi bilan teng) */
+  height?: number | "fill";
 }) {
   const { t, locale } = useT();
   const gid = useId().replace(/:/g, "");
   const boxRef = useRef<HTMLDivElement>(null);
   const hitRefs = useRef<Array<HTMLDivElement | null>>([]);
   const [width, setWidth] = useState(0);
+  const [boxH, setBoxH] = useState(0);
+  const fill = height === "fill";
+  const HEIGHT = fill ? Math.max(DEFAULT_HEIGHT, boxH) : height;
   const [active, setActive] = useState<number | null>(null);
 
   useLayoutEffect(() => {
     const el = boxRef.current;
     if (!el) return;
-    setWidth(el.clientWidth);
-    const ro = new ResizeObserver(() => setWidth(el.clientWidth));
+    const measure = () => {
+      setWidth(el.clientWidth);
+      setBoxH(el.clientHeight);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
@@ -145,7 +155,7 @@ export function RevenueChart({
   const tipAlign = tipLeft < 110 ? "start" : tipLeft > width - 110 ? "end" : "center";
 
   return (
-    <div className="rev-chart" data-testid="revenue-chart" ref={boxRef} onPointerLeave={() => setActive(null)}>
+    <div className={cn("rev-chart", fill && "fill")} style={fill ? undefined : { height: HEIGHT }} data-testid="revenue-chart" ref={boxRef} onPointerLeave={() => setActive(null)}>
       {width > 0 && (
         <>
           <svg className="rev-svg" width={width} height={HEIGHT} aria-hidden>

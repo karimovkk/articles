@@ -104,63 +104,68 @@ export default function AdminPaymentsPage() {
 
       {/* Qayta so'rov paytida eski ko'rinish xira (sakrash yo'q) */}
       <div className={cn("space-y-5 transition-opacity", loading && "pointer-events-none opacity-60")} aria-busy={loading} data-testid="pay-content">
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Stat label={t("admin.payments.total")} value={<span data-testid="pay-total">{money(data.total_revenue)}</span>} icon={<I.Wallet size={17} />} />
+      {/* 69: telefonda ixcham — jami tushum to'liq kenglikda, qolgan ikkitasi yonma-yon */}
+      <div className="pay-kpis grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
+        <Stat className="col-span-2 sm:col-span-1" label={t("admin.payments.total")} value={<span data-testid="pay-total">{money(data.total_revenue)}</span>} icon={<I.Wallet size={17} />} />
         <Stat label={t("admin.payments.approved")} value={<span data-testid="pay-approved">{formatNumber(data.approved_orders, locale)}</span>} icon={<I.CheckCircle size={17} />} />
         <Stat label={t("admin.payments.average")} value={<span data-testid="pay-average">{money(data.average_order_value)}</span>} icon={<I.ShoppingBag size={17} />} />
       </div>
 
-      {allOrders > 0 && (
-        <Card title={t("admin.payments.byStatus")}>
-          <StatusDonut counts={data.orders_by_status ?? {}} />
-          {statusUnscoped && (
-            <p className="flex items-start gap-1.5 px-6 pb-5 text-xs text-muted" data-testid="status-unscoped">
-              <I.Info size={13} className="mt-0.5 shrink-0" />
-              {t("admin.payments.statusUnscoped")}
-            </p>
-          )}
-        </Card>
-      )}
-
-      <Card
-        title={t(`admin.payments.by.${g}`)}
-        actions={
-          hasRevenue && (
-            <Button size="sm" variant="ghost" onClick={() => setAsTable((v) => !v)} icon={asTable ? <I.Activity size={15} /> : <I.List size={15} />} data-testid="pay-toggle-table">
-              {asTable ? t("admin.payments.showChart") : t("admin.payments.showTable")}
-            </Button>
-          )
-        }
-      >
-        <div className="card-body">
-          {!hasRevenue ? (
-            <EmptyState icon={<I.Wallet size={22} />} title={t("admin.payments.empty")} description={range.from || range.to ? t("admin.payments.emptyRange") : t("admin.payments.emptyHint")} />
-          ) : asTable ? (
-            <div className="table-wrap">
-              <table className="table" data-testid="pay-month-table">
-                <thead>
-                  <tr>
-                    <th>{t(`admin.payments.g.${g}`)}</th>
-                    <th className="text-right">{t("admin.payments.orders")}</th>
-                    <th className="text-right">{t("admin.payments.revenue")}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {[...rows].sort((a, b) => b.period.localeCompare(a.period)).map((m) => (
-                    <tr key={m.period}>
-                      <td>{label(m.period, true)}</td>
-                      <td className="num text-right">{formatNumber(m.orders, locale)}</td>
-                      <td className="num text-right">{money(m.revenue)}</td>
+      {/* 69: tushum grafigi (~2/3) va holatlar donut'i (~1/3) yonma-yon, bir xil balandlikda; torda — ustun */}
+      <div className={cn("pay-main", allOrders > 0 && "with-side")} data-testid="pay-main">
+        <Card
+          title={t(`admin.payments.by.${g}`)}
+          actions={
+            hasRevenue && (
+              <Button size="sm" variant="ghost" onClick={() => setAsTable((v) => !v)} icon={asTable ? <I.Activity size={15} /> : <I.List size={15} />} data-testid="pay-toggle-table">
+                {asTable ? t("admin.payments.showChart") : t("admin.payments.showTable")}
+              </Button>
+            )
+          }
+        >
+          <div className="pay-chart-body">
+            {!hasRevenue ? (
+              <EmptyState icon={<I.Wallet size={22} />} title={t("admin.payments.empty")} description={range.from || range.to ? t("admin.payments.emptyRange") : t("admin.payments.emptyHint")} />
+            ) : asTable ? (
+              <div className="table-wrap">
+                <table className="table" data-testid="pay-month-table">
+                  <thead>
+                    <tr>
+                      <th>{t(`admin.payments.g.${g}`)}</th>
+                      <th className="text-right">{t("admin.payments.orders")}</th>
+                      <th className="text-right">{t("admin.payments.revenue")}</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {[...rows].sort((a, b) => b.period.localeCompare(a.period)).map((m) => (
+                      <tr key={m.period}>
+                        <td>{label(m.period, true)}</td>
+                        <td className="num text-right">{formatNumber(m.orders, locale)}</td>
+                        <td className="num text-right">{money(m.revenue)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <RevenueChart data={points} money={money} label={label} title={t(`admin.payments.by.${g}`)} height={allOrders > 0 ? "fill" : 260} />
+            )}
+          </div>
+        </Card>
+        {allOrders > 0 && (
+          <Card title={t("admin.payments.byStatus")} className="pay-side">
+            <div className="pay-side-body">
+              <StatusDonut counts={data.orders_by_status ?? {}} />
+              {statusUnscoped && (
+                <p className="flex items-start gap-1.5 px-6 pb-5 text-xs text-muted" data-testid="status-unscoped">
+                  <I.Info size={13} className="mt-0.5 shrink-0" />
+                  {t("admin.payments.statusUnscoped")}
+                </p>
+              )}
             </div>
-          ) : (
-            <RevenueChart data={points} money={money} label={label} title={t(`admin.payments.by.${g}`)} />
-          )}
-        </div>
-      </Card>
+          </Card>
+        )}
+      </div>
 
       <Card title={t("admin.payments.byBook")} padded={false}>
         {books.length === 0 ? (
@@ -188,7 +193,18 @@ export default function AdminPaymentsPage() {
                     </td>
                     <td className="num text-right">{formatNumber(b.sold, locale)}</td>
                     <td className="num text-right">{money(b.revenue)}</td>
-                    <td className="num muted text-right">{data.total_revenue > 0 ? `${Math.round((b.revenue / data.total_revenue) * 100)}%` : "—"}</td>
+                    <td className="num muted text-right">
+                      {data.total_revenue > 0 ? (
+                        <span className="pay-share">
+                          <span className="pay-share-bar" aria-hidden>
+                            <i style={{ width: `${Math.max(2, Math.round((b.revenue / data.total_revenue) * 100))}%` }} />
+                          </span>
+                          <span>{Math.round((b.revenue / data.total_revenue) * 100)}%</span>
+                        </span>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
