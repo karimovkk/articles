@@ -532,7 +532,6 @@ export const en: Dict = {
   "admin.payments.average": "Average order",
   "admin.payments.byStatus": "Orders by status",
   "admin.payments.statusUnscoped": "Statuses cover all time: the server doesn't filter order statuses by the date range yet.",
-  "admin.payments.groupBy": "Period",
   "admin.payments.g.year": "Year",
   "admin.payments.g.month": "Month",
   "admin.payments.g.day": "Day",

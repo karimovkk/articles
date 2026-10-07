@@ -532,7 +532,6 @@ export const ru: Dict = {
   "admin.payments.average": "Средний чек",
   "admin.payments.byStatus": "Заказы по статусам",
   "admin.payments.statusUnscoped": "Статусы — за всё время: сервер пока не фильтрует статусы заказов по диапазону дат.",
-  "admin.payments.groupBy": "Период",
   "admin.payments.g.year": "Год",
   "admin.payments.g.month": "Месяц",
   "admin.payments.g.day": "День",

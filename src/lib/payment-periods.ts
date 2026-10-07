@@ -5,7 +5,6 @@
  */
 
 export type Granularity = "year" | "month" | "day" | "hour";
-export const GRANULARITIES: Granularity[] = ["year", "month", "day", "hour"];
 export interface PeriodPoint {
   period: string;
   revenue: number;
@@ -95,25 +94,41 @@ export function periodLabel(period: string, g: Granularity, t: T, long = false):
   return long ? `${day}, ${hh}` : hh;
 }
 
-/** Tayyor oraliqlar (mahalliy sana bo'yicha) va ularga mos davr */
+/**
+ * 70: davr oraliqdan avtomatik (admin faqat oraliqni tanlaydi): bir kun — soat, ≤ 62 kun — kun, ≤ 3 yil — oy,
+ * undan ko'p — yil; oraliqsiz ("Butun davr") — oy. Faqat boshi berilsa — bugungacha.
+ */
+export function granularityFor(from?: string, to?: string, now = new Date()): Granularity {
+  if (!from && !to) return "month";
+  const a = keyToDate(from ?? "2000-01-01", "day");
+  const b = keyToDate(to ?? localDay(now), "day");
+  if (!a || !b) return "month";
+  const days = Math.round((b.getTime() - a.getTime()) / 86_400_000) + 1; // ≤ 0 (boshi kelajakda) — bir kun kabi
+  if (days <= 1) return "hour";
+  if (days <= 62) return "day";
+  if (days <= 3 * 366) return "month";
+  return "year";
+}
+
+/** Tayyor oraliqlar (mahalliy sana bo'yicha); davr — `granularityFor` */
 export type RangePreset = "all" | "today" | "7d" | "30d" | "month" | "year" | "custom";
 export const RANGE_PRESETS: RangePreset[] = ["all", "today", "7d", "30d", "month", "year", "custom"];
 const localDay = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-export function presetRange(p: RangePreset, now = new Date()): { from?: string; to?: string; g: Granularity } {
+export function presetRange(p: RangePreset, now = new Date()): { from?: string; to?: string } {
   const today = localDay(now);
   const back = (n: number) => localDay(new Date(now.getFullYear(), now.getMonth(), now.getDate() - n));
   switch (p) {
     case "today":
-      return { from: today, to: today, g: "hour" };
+      return { from: today, to: today };
     case "7d":
-      return { from: back(6), to: today, g: "day" };
+      return { from: back(6), to: today };
     case "30d":
-      return { from: back(29), to: today, g: "day" };
+      return { from: back(29), to: today };
     case "month":
-      return { from: localDay(new Date(now.getFullYear(), now.getMonth(), 1)), to: today, g: "day" };
+      return { from: localDay(new Date(now.getFullYear(), now.getMonth(), 1)), to: today };
     case "year":
-      return { from: `${now.getFullYear()}-01-01`, to: today, g: "month" };
+      return { from: `${now.getFullYear()}-01-01`, to: today };
     default:
-      return { g: "month" };
+      return {};
   }
 }

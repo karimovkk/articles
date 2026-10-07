@@ -86,6 +86,7 @@ export function RevenueChart({
   label,
   title,
   height = DEFAULT_HEIGHT,
+  animKey,
 }: {
   data: PeriodRevenue[];
   money: (n: number) => string;
@@ -94,6 +95,8 @@ export function RevenueChart({
   title: string;
   /** 69: son — qat'iy balandlik; "fill" — ota blok balandligini to'ldiradi (yonidagi donut kartasi bilan teng) */
   height?: number | "fill";
+  /** 70: o'zgarsa (masalan, oraliq) — chiziq qayta "chiziladi" (oyna o'lchami o'zgarganda emas) */
+  animKey?: string;
 }) {
   const { t, locale } = useT();
   const gid = useId().replace(/:/g, "");
@@ -173,14 +176,15 @@ export function RevenueChart({
                 </text>
               </g>
             ))}
-            {area && <path className="rev-area" d={area} fill={`url(#${gid})`} />}
-            {n > 1 && <path className="rev-line" d={line} pathLength={1} />}
+            {area && <path key={`a-${animKey}`} className="rev-area" d={area} fill={`url(#${gid})`} />}
+            {n > 1 && <path key={`l-${animKey}`} className="rev-line" d={line} pathLength={1} />}
             {active !== null && <line className="rev-cross" x1={Math.round(xAt(active)) + 0.5} x2={Math.round(xAt(active)) + 0.5} y1={TOP - 6} y2={base} />}
             {/* Oxirgi nuqta (va qiymati) doim; faol nuqta — hover/fokusda */}
-            {n > 0 && <circle className="rev-dot" cx={pts[last][0]} cy={pts[last][1]} r={4} />}
+            {n > 0 && <circle key={`d-${animKey}`} className="rev-dot end" cx={pts[last][0]} cy={pts[last][1]} r={4} />}
             {active !== null && <circle className="rev-dot active" cx={pts[active][0]} cy={pts[active][1]} r={5.5} data-testid="revenue-active-dot" />}
-            {n > 0 && active !== last && (
-              <text className="rev-end" x={pts[last][0] - (n > 1 ? 6 : 0)} y={endBelow ? pts[last][1] + 20 : pts[last][1] - 12} textAnchor={n > 1 ? "end" : "middle"} data-testid="revenue-end-label">
+            {/* Doim joyida (hover'da faqat yashiriladi) — paydo bo'lish animatsiyasi qayta o'ynamasin */}
+            {n > 0 && (
+              <text key={`e-${animKey}`} className={cn("rev-end", active === last && "hide")} x={pts[last][0] - (n > 1 ? 6 : 0)} y={endBelow ? pts[last][1] + 20 : pts[last][1] - 12} textAnchor={n > 1 ? "end" : "middle"} data-testid="revenue-end-label">
                 {compact(data[last].revenue, locale, t)}
               </text>
             )}

@@ -2,8 +2,8 @@
 
 /**
  * 44.4: admin "To'lovlar" — `GET /admin/stats/payments`. Tushum = tasdiqlangan (APPROVED) buyurtmalar.
- * 64: filtrlar bir qatorda, sahifa tepasida — davr (Yil · Oy · Kun · Soat → `group_by`) va oraliq (tayyor yoki ikki sana →
- * `date_from`/`date_to`); hamma narsa (kartalar, holatlar, grafik, kitoblar) shu oraliqqa bo'ysunadi. Grafik
+ * 64/70: filtr — faqat oraliq (tayyor yoki ikki sana → `date_from`/`date_to`); davr (`group_by`: soat / kun / oy / yil)
+ * oraliqdan avtomatik. Hamma narsa (kartalar, holatlar, grafik, kitoblar) shu oraliqqa bo'ysunadi. Grafik
  * `revenue_by_period` bo'yicha (bo'sh davrlar 0 bilan); qayta so'rovda eski ko'rinish xira holda qoladi.
  * Holatlar — donut + legend (60), kitoblar bo'yicha tushum jadvali.
  */
@@ -15,16 +15,17 @@ import { RevenueChart } from "@/components/admin/revenue-chart";
 import { StatusDonut } from "@/components/admin/status-donut";
 import { adminApi, type OrderStatus } from "@/lib/api";
 import { useAsync } from "@/lib/use-async";
-import { GRANULARITIES, RANGE_PRESETS, fillPeriods, periodLabel, presetRange, type Granularity, type RangePreset } from "@/lib/payment-periods";
+import { RANGE_PRESETS, fillPeriods, granularityFor, periodLabel, presetRange, type RangePreset } from "@/lib/payment-periods";
 import { formatNumber, useT } from "@/i18n";
 
 const STATUS_ORDER: OrderStatus[] = ["APPROVED", "AWAITING_REVIEW", "PENDING", "REJECTED", "CANCELLED"];
 
 export default function AdminPaymentsPage() {
   const { t, locale } = useT();
-  const [g, setG] = useState<Granularity>("month");
   const [preset, setPreset] = useState<RangePreset>("all");
   const [range, setRange] = useState<{ from?: string; to?: string }>({});
+  // 70: davr (yil / oy / kun / soat) oraliqdan avtomatik — admin faqat oraliqni tanlaydi
+  const g = granularityFor(range.from, range.to);
   const { data, error, loading } = useAsync(() => adminApi.paymentStats({ group_by: g, date_from: range.from, date_to: range.to }), [g, range.from, range.to]);
   const [asTable, setAsTable] = useState(false);
   const money = (n: number) => t("catalog.price", { price: formatNumber(Math.round(n), locale) });
@@ -35,19 +36,11 @@ export default function AdminPaymentsPage() {
     if (p === "custom") return; // sanalar tanlanadi
     const r = presetRange(p);
     setRange({ from: r.from, to: r.to });
-    setG(r.g); // oraliqqa mos davr (keyin o'zgartirish mumkin)
   };
 
   const header = <PageHeader title={t("admin.payments.title")} description={t("admin.payments.sub")} icon={<I.Wallet size={24} />} />;
   const filters = (
     <div className="pay-filters" data-testid="pay-filters">
-      <div className="seg" role="group" aria-label={t("admin.payments.groupBy")}>
-        {GRANULARITIES.map((x) => (
-          <button key={x} type="button" className={cn(g === x && "active")} aria-pressed={g === x} onClick={() => setG(x)} data-testid={`pay-g-${x}`}>
-            {t(`admin.payments.g.${x}`)}
-          </button>
-        ))}
-      </div>
       <Select
         size="sm"
         value={preset}
@@ -148,7 +141,7 @@ export default function AdminPaymentsPage() {
                 </table>
               </div>
             ) : (
-              <RevenueChart data={points} money={money} label={label} title={t(`admin.payments.by.${g}`)} height={allOrders > 0 ? "fill" : 260} />
+              <RevenueChart data={points} money={money} label={label} title={t(`admin.payments.by.${g}`)} height={allOrders > 0 ? "fill" : 260} animKey={`${g}|${range.from ?? ""}|${range.to ?? ""}`} />
             )}
           </div>
         </Card>

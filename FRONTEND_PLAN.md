@@ -1206,6 +1206,17 @@ Jonli tekshiruv (`?date_from=2026-09-28&date_to=2026-10-28`): total_revenue 811 
 - [x] 69.5 Grafik kartani to'liq to'ldiradi ("fill" — Card ichki `card-body` qo'sh qatlami olib tashlandi); telefonda
       kartalar ixcham (jami — to'liq, qolgan ikkitasi yonma-yon)
 
+## 70. To'lovlar: grafiklar animatsiya bilan; davr tugmalari o'rniga — faqat oraliq (2026-10-07)
+
+- [x] 70.1 "Yil · Oy · Kun · Soat" tugmalari olib tashlandi — davr oraliqdan avtomatik: bir kun — soat, ≤ 62 kun — kun,
+      ≤ 3 yil — oy, undan ko'p — yil; "Butun davr" — oy
+- [x] 70.2 Donut — tepadan soat yo'nalishida "aylanib" chiziladi (≈ 750 ms, ease-out); chiziqli grafik oraliq
+      o'zgarganda ham qayta chiziladi; kitoblar ulush chiziqlari o'sib chiqadi; `prefers-reduced-motion` — animatsiyasiz
+- [x] 70.3 e2e `payments`: tayyor oraliq → mos davr (bugun → soat, 7 kun → kun, shu yil → oy); davr tugmalari yo'q;
+      o'z oralig'i kalendardan (1 kun → soat, 45 kun → kun, 2023–2026 → yil); donut aylanishi kadrlar bo'yicha
+- [x] 70.4 Grafik: oxirgi nuqta chiziq yetib kelganda "paydo bo'ladi", qiymat yozuvi keyin chiqadi (hover'da faqat
+      yashiriladi — animatsiya qayta o'ynamaydi)
+
 ## 31. Keyingi vazifalar
 
 - [ ] 31.1 Safari (WebKit): varaqlash rejimida oldingi sahifaga qaytilganda (3-sahifa) belgilash qatlami

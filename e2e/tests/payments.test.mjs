@@ -105,46 +105,100 @@ await page.waitForSelector('[data-testid="pay-month-table"]');
 check("Jadval: 7 qator, eng yangi oy birinchi", (await page.locator('[data-testid="pay-month-table"] tbody tr').count()) === 7 && (await text('[data-testid="pay-month-table"] tbody tr:first-child')).includes("Okt 2026"));
 check("Kitoblar jadvali: serverdagi kitoblar soni", (await page.locator('[data-testid="pay-book-table"] tbody tr').count()) === stats.revenue_by_book.length);
 
-// ---- 64: davr (yil / oy / kun / soat) va oraliq — bitta filtr qatori, hamma narsaga ta'sir qiladi
+// ---- 64/70: filtr — faqat oraliq; davr (group_by: soat / kun / oy / yil) oraliqdan avtomatik
 // Brauzer yuborgan so'rovlar (mock logida query yo'q) — oxirgisi
 const statReqs = [];
 page.on("request", (r) => r.url().includes("/admin/stats/payments") && statReqs.push(r.url()));
 const lastReq = async () => statReqs.at(-1) ?? "";
+const lastQ = async () => new URLSearchParams((await lastReq()).split("?")[1] ?? "");
+const settle = async () => {
+  await page.waitForFunction(() => document.querySelector('[data-testid="pay-content"]')?.getAttribute("aria-busy") !== "true", null, { timeout: 8000 });
+  await page.waitForTimeout(400);
+};
+// Kalendardan sana: kerakli oyga o'tib, kunni bosadi
+async function pickDate(tid, iso) {
+  await page.click(`[data-testid="${tid}"]`);
+  const pop = page.locator(".cal-pop").last();
+  await pop.waitFor({ timeout: 4000 });
+  for (let k = 0; k < 80 && !(await pop.locator(`.cal-cell:not(.muted)[data-date="${iso}"]`).count()); k++) {
+    const cur = (await pop.locator(".cal-cell:not(.muted)").first().getAttribute("data-date")) ?? "";
+    await pop.locator(".cal-nav").nth(iso.slice(0, 7) < cur.slice(0, 7) ? 0 : 1).click();
+  }
+  await pop.locator(`.cal-cell:not(.muted)[data-date="${iso}"]`).click();
+  await settle();
+}
 await page.click('[data-testid="pay-toggle-table"]'); // grafikka qaytish
 await page.waitForSelector('[data-testid="revenue-chart"]');
-check("Filtrlar qatori: 4 davr + oraliq", (await page.locator('[data-testid^="pay-g-"]').count()) === 4 && (await page.locator('[data-testid="pay-range"]').count()) === 1);
-await page.click('[data-testid="pay-g-day"]');
-await page.waitForFunction(() => document.querySelector(".card-title")?.parentElement && [...document.querySelectorAll(".card-title")].some((e) => e.textContent.includes("kunlar bo'yicha")), null, { timeout: 8000 });
-await page.waitForFunction(() => document.querySelectorAll('[data-testid="revenue-point"]').length > 7, null, { timeout: 8000 });
-const dayPts = await page.locator('[data-testid="revenue-point"]').count();
+check("Filtr — faqat oraliq ('Yil · Oy · Kun · Soat' tugmalari yo'q)", (await page.locator('[data-testid^="pay-g-"]').count()) === 0 && (await page.locator('[data-testid="pay-range"]').count()) === 1);
+// Tayyor oraliq → davr. Kalendar chegaralari (oyning / yilning 1-kuni) uchun kutilgani shu kunning o'zidan
+const nowD = new Date();
+const daysSince = (d) => Math.round((Date.UTC(nowD.getFullYear(), nowD.getMonth(), nowD.getDate()) - Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())) / 86400000) + 1;
+const gFor = (days) => (days <= 1 ? "hour" : days <= 62 ? "day" : "month");
+const expected = { today: "hour", "7d": "day", "30d": "day", month: gFor(nowD.getDate()), year: gFor(daysSince(new Date(nowD.getFullYear(), 0, 1))), all: "month" };
+const got = {};
+for (const p of Object.keys(expected)) {
+  await selectPick(page, '[data-testid="pay-range"]', p);
+  await settle();
+  got[p] = (await lastQ()).get("group_by");
+}
+check("Tayyor oraliq → mos davr (bugun — soat, 7/30 kun — kun, butun davr — oy)", JSON.stringify(got) === JSON.stringify(expected), JSON.stringify(got));
+// Animatsiya: donut tepadan aylanib chiziladi (oxirgi bo'lak avval bo'sh, keyin to'ladi); grafik chizig'i qayta chiziladi
+await selectPick(page, '[data-testid="pay-range"]', "today"); // mock'da bugun to'lov yo'q — donut yo'qoladi
+await settle();
+await page.evaluate(() => {
+  window.__sweep = [];
+  const tick = () => {
+    const s = document.querySelectorAll('[data-testid="status-donut"] .donut-slice');
+    window.__sweep.push(s.length ? (s[s.length - 1].getAttribute("d") ?? "").length : -1);
+    if (window.__sweep.length < 240) requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+});
+await selectPick(page, '[data-testid="pay-range"]', "all");
+await settle();
 await page.waitForTimeout(900);
-await page.locator('[data-testid="revenue-chart"]').screenshot({ path: OUT + "97-payments-days.png" });
-check("Kun: so'rov group_by=day; bo'sh kunlar 0 bilan (nuqtalar > 7, ≤ 400)", (await lastReq()).includes("group_by=day") && dayPts > 7 && dayPts <= 400, `${dayPts}`);
-await page.click('[data-testid="pay-toggle-table"]');
-await page.waitForSelector('[data-testid="pay-month-table"]');
-check("Kun jadvali: faqat to'lovli kunlar, to'liq sana ('15 okt 2026')", (await page.locator('[data-testid="pay-month-table"] tbody tr').count()) === 7 && (await text('[data-testid="pay-month-table"] tbody tr:first-child')).includes("15 okt 2026"));
-await page.click('[data-testid="pay-toggle-table"]');
-await page.click('[data-testid="pay-g-year"]');
-await page.waitForFunction(() => document.querySelectorAll('[data-testid="revenue-point"]').length === 1, null, { timeout: 8000 });
-check("Yil: bitta nuqta ('2026')", ((await text('[data-testid="revenue-end-label"]')) ?? "").length > 0 && (await lastReq()).includes("group_by=year"));
-await page.click('[data-testid="pay-g-hour"]');
-await page.waitForFunction(() => document.querySelectorAll('[data-testid="revenue-point"]').length === 7, null, { timeout: 8000 });
-await page.locator('[data-testid="revenue-point"]').last().hover();
+const sweep = await page.evaluate(() => window.__sweep);
+const firstShown = sweep.findIndex((x) => x >= 0);
+check("Animatsiya: donut aylanib chiziladi (oxirgi bo'lak avval bo'sh, keyin to'liq)", firstShown >= 0 && sweep[firstShown] === 0 && sweep.at(-1) > 0, `${sweep.slice(firstShown, firstShown + 3)}…${sweep.at(-1)}`);
+check("Animatsiya: grafik chizig'i chizilish animatsiyasi bilan", (await page.evaluate(() => getComputedStyle(document.querySelector(".rev-line")).animationName)) === "rev-draw");
+// O'z oralig'i: bir kun → soat (UTC 00:00 → Toshkent 05:00)
+await selectPick(page, '[data-testid="pay-range"]', "custom");
+await page.waitForSelector('[data-testid="pay-from"]');
+await pickDate("pay-from", "2026-10-15");
+await pickDate("pay-to", "2026-10-15");
+const qh = await lastQ();
+await page.waitForFunction(() => document.querySelectorAll('[data-testid="revenue-point"]').length === 24, null, { timeout: 8000 });
+check("Bir kunlik oraliq → davr 'soat' (24 nuqta)", qh.get("group_by") === "hour" && qh.get("date_from") === "2026-10-15" && qh.get("date_to") === "2026-10-15", `${qh}`);
+await page.locator('[data-testid="revenue-point"]').first().hover();
 await page.waitForSelector('[data-testid="revenue-tip"]', { timeout: 3000 });
 const hourTip = await text('[data-testid="revenue-tip"]');
 check("Soat: UTC 00:00 → Toshkent '05:00' (maslahatda '15 okt, 05:00')", hourTip.includes("15 okt, 05:00"), hourTip);
 await page.mouse.move(5, 5);
+// 45 kun → kun (bo'sh kunlar 0 bilan)
+await pickDate("pay-from", "2026-09-01");
+await page.waitForFunction(() => document.querySelectorAll('[data-testid="revenue-point"]').length === 45, null, { timeout: 8000 });
+check("45 kunlik oraliq → davr 'kun' (bo'sh kunlar 0 bilan — 45 nuqta)", (await lastQ()).get("group_by") === "day");
+await page.waitForFunction(() => [...document.querySelectorAll(".card-title")].some((e) => e.textContent.includes("kunlar bo'yicha")), null, { timeout: 8000 });
+await page.waitForTimeout(900);
+await page.locator('[data-testid="revenue-chart"]').screenshot({ path: OUT + "97-payments-days.png" });
+await page.click('[data-testid="pay-toggle-table"]');
+await page.waitForSelector('[data-testid="pay-month-table"]');
+check("Kun jadvali: faqat to'lovli kunlar, to'liq sana ('15 okt 2026')", (await page.locator('[data-testid="pay-month-table"] tbody tr').count()) === 2 && (await text('[data-testid="pay-month-table"] tbody tr:first-child')).includes("15 okt 2026"));
+await page.click('[data-testid="pay-toggle-table"]');
+// 3 yildan uzun → yil
+await pickDate("pay-from", "2023-01-01");
+await page.waitForFunction(() => document.querySelectorAll('[data-testid="revenue-point"]').length === 4, null, { timeout: 8000 });
+check("3 yildan uzun oraliq → davr 'yil' (2023–2026: 4 nuqta)", (await lastQ()).get("group_by") === "year" && ((await text('[data-testid="revenue-end-label"]')) ?? "").length > 0);
 // Oraliq: "Oxirgi 7 kun" → date_from/date_to, davr — kun; kartalar shu oraliqdan
 await selectPick(page, '[data-testid="pay-range"]', "7d");
-await page.waitForFunction(() => !document.querySelector('[data-testid="pay-content"]')?.getAttribute("aria-busy")?.includes("true"), null, { timeout: 8000 });
-await page.waitForTimeout(400);
+await settle();
 const req7 = await lastReq();
 const q7 = new URLSearchParams(req7.split("?")[1] ?? "");
 const exp7 = await (await fetch(`${API_HOST}/api/v1/admin/stats/payments?${q7}`, { headers: { Authorization: "Bearer access-token-admin" } })).json();
-check("Oxirgi 7 kun: date_from/date_to yuborildi, davr avtomatik 'Kun'", !!q7.get("date_from") && !!q7.get("date_to") && q7.get("group_by") === "day" && (await page.getAttribute('[data-testid="pay-g-day"]', "aria-pressed")) === "true", req7);
+check("Oxirgi 7 kun: date_from/date_to yuborildi, davr avtomatik 'kun'", !!q7.get("date_from") && !!q7.get("date_to") && q7.get("group_by") === "day", req7);
 check("Kartalar oraliqqa bo'ysunadi (jami — serverdagidek)", (await text('[data-testid="pay-total"]')).startsWith(fmt(exp7.total_revenue)), `${await text('[data-testid="pay-total"]')} / ${exp7.total_revenue}`);
 await page.screenshot({ path: OUT + "96-payments-filters.png" });
-// 68: jonli backend holatlarni oraliqqa bo'ysundirmaydi — sayt buni sezib, donut ostida izoh beradi
+// 68: jonli backend holatlarni oraliqqa bo'ysundirmasa — sayt buni sezib, donut ostida izoh beradi
 check("Mock holatlarni filtrlasa — izoh yo'q", (await page.locator('[data-testid="status-unscoped"]').count()) === 0);
 await fetch(`${API_HOST}/__payments-unscoped?on=1`);
 await selectPick(page, '[data-testid="pay-range"]', "30d");
@@ -152,7 +206,6 @@ await page.waitForSelector('[data-testid="status-unscoped"]', { timeout: 8000 })
 check("Holatlar oraliqqa bo'ysunmasa (tasdiqlanganlar kartadagidan ko'p) — 'butun davr bo'yicha' izohi", (await text('[data-testid="status-unscoped"]')).includes("butun davr"));
 await fetch(`${API_HOST}/__payments-unscoped?on=0`);
 await selectPick(page, '[data-testid="pay-range"]', "all");
-await page.click('[data-testid="pay-g-month"]');
 await page.waitForFunction(() => document.querySelectorAll('[data-testid="revenue-point"]').length === 7, null, { timeout: 8000 });
 await page.click('[data-testid="pay-toggle-table"]'); // keyingi bo'lim jadval holatidan boshlaydi
 await page.waitForSelector('[data-testid="pay-month-table"]');

@@ -2840,9 +2840,30 @@ a.track:hover {
   color: var(--text);
   font-variant-numeric: tabular-nums;
 }
+/* 70: oxirgi qiymat yozuvi — chiziq yetib kelganda; oxirgi nuqtaga hover'da maslahat bor — yozuv yashiriladi */
+.rev-svg .rev-end {
+  animation: rev-fade 280ms ease-out 640ms both;
+}
+.rev-svg .rev-end.hide {
+  visibility: hidden;
+}
+/* 70: oxirgi nuqta — chiziq yetib kelganda "paydo bo'ladi" */
+.rev-dot.end {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: rev-pop 320ms cubic-bezier(0.34, 1.56, 0.64, 1) 620ms both;
+}
+@keyframes rev-pop {
+  from {
+    transform: scale(0);
+    opacity: 0;
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   .rev-line,
-  .rev-area {
+  .rev-area,
+  .rev-dot.end,
+  .rev-svg .rev-end {
     animation: none;
   }
 }
@@ -3347,6 +3368,19 @@ circle.donut-slice {
   height: 100%;
   border-radius: 999px;
   background: var(--pay-share, #8a6400);
+  transform-origin: left center;
+  animation: pay-grow 700ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+/* 70: ulush chiziqlari o'sib chiqadi */
+@keyframes pay-grow {
+  from {
+    transform: scaleX(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pay-share-bar i {
+    animation: none;
+  }
 }
 .dark .pay-share-bar {
   --pay-share: #b8890a;
