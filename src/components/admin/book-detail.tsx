@@ -64,7 +64,7 @@ export function AdminBookDetail({ bookId }: { bookId: string }) {
   const error = actionError ?? loadError;
 
   // Forma: foydalanuvchi tahrirlari serverdagi qiymatlar ustiga qo'yiladi
-  const [edits, setEdits] = useState<Partial<{ title: string; author: string; description: string; category_id: string; price: string; published_at: string; is_free: boolean }>>({});
+  const [edits, setEdits] = useState<Partial<{ title: string; author: string; description: string; category_id: string; price: string; published_at: string; is_free: boolean; watermark_enabled: boolean }>>({});
   const meta = (book?.book_metadata ?? {}) as Record<string, unknown>;
   const form = {
     title: edits.title ?? book?.title ?? "",
@@ -74,6 +74,8 @@ export function AdminBookDetail({ bookId }: { bookId: string }) {
     price: edits.price ?? (book?.price && Number(book.price) > 0 ? String(Number(book.price)) : ""),
     // 37: tekin kitob (is_free yoki narx 0)
     is_free: edits.is_free ?? isFreeBook(book),
+    // 65: kitob bo'yicha himoya kodi (yo'q bo'lsa — yoqiq)
+    watermark_enabled: edits.watermark_enabled ?? book?.watermark_enabled !== false,
     published_at: edits.published_at ?? (typeof meta.published_at === "string" ? meta.published_at.slice(0, 10) : ""),
   };
   const setForm = (next: typeof form) => setEdits(next);
@@ -131,6 +133,7 @@ export function AdminBookDetail({ bookId }: { bookId: string }) {
         category_id: form.category_id || null,
         price: form.is_free ? 0 : form.price.trim(),
         is_free: form.is_free,
+        watermark_enabled: form.is_free ? false : form.watermark_enabled,
         book_metadata: nextMeta,
       }),
     );
@@ -279,6 +282,15 @@ export function AdminBookDetail({ bookId }: { bookId: string }) {
                 <Input type="number" min={1} step="any" inputMode="decimal" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} data-testid="book-price" />
               </Field>
             )}
+            {/* 65: himoya kodi (suv belgisi) — kitob bo'yicha; tekin kitobda doim o'chiq */}
+            <Switch
+              checked={!form.is_free && form.watermark_enabled}
+              disabled={form.is_free}
+              onChange={(v) => setForm({ ...form, watermark_enabled: v })}
+              label={t("admin.books.watermark")}
+              description={form.is_free ? t("admin.articles.watermarkFree") : t("admin.books.watermarkHint")}
+              data-testid="book-watermark"
+            />
             <Field label={t("admin.books.publishedAt")} hint={t("admin.books.publishedAtHint")}>
               <DatePicker value={form.published_at} onChange={(v) => setForm({ ...form, published_at: v })} max={new Date().toISOString().slice(0, 10)} aria-label={t("admin.books.publishedAt")} data-testid="published-at" />
             </Field>
@@ -303,7 +315,7 @@ export function AdminBookDetail({ bookId }: { bookId: string }) {
       {tab === "articles" && (
         <Card title={`${t("admin.articles.title")} (${articles.length})`} padded={false}>
           <div className="p-5">
-            <ArticlesPanel bookId={bookId} articles={articles} onChanged={load} bookFree={isFreeBook(book)} />
+            <ArticlesPanel bookId={bookId} articles={articles} onChanged={load} bookFree={isFreeBook(book)} bookWatermark={book?.watermark_enabled !== false} />
           </div>
         </Card>
       )}

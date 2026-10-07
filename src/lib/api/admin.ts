@@ -48,6 +48,8 @@ export interface BookInput {
   price?: string | number | null;
   /** 37: tekin kitob — narx 0 bilan yuboriladi (backend `is_free` ni qo'shguncha e'tiborsiz qoldirishi mumkin) */
   is_free?: boolean;
+  /** 65: himoya kodi (suv belgisi) — kitob bo'yicha; default true. Reader: kitob AND maqola AND pullik */
+  watermark_enabled?: boolean;
   book_metadata?: Record<string, unknown>;
 }
 
@@ -57,8 +59,9 @@ export const adminApi = {
     return api<AdminStats>("/admin/stats");
   },
   /** 44.4: to'lovlar statistikasi (jami tushum, oy va kitob bo'yicha) */
-  paymentStats() {
-    return api<PaymentStats>("/admin/stats/payments");
+  /** 64: davr (`group_by`) va sana oralig'i — kartalar, holatlar, kitoblar ham oraliqqa bo'ysunadi */
+  paymentStats(params: { group_by?: "year" | "month" | "day" | "hour"; date_from?: string; date_to?: string; limit?: number } = {}) {
+    return api<PaymentStats>("/admin/stats/payments", { query: params });
   },
   /** 44.8: global ko'rinish sozlamalari — merge/upsert (boshqa kalitlar saqlanadi) */
   saveAppSettings(settings: Record<string, unknown>) {

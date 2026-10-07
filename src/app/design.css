@@ -2847,38 +2847,155 @@ a.track:hover {
   }
 }
 
-/* 52: "Buyurtmalar holati" — bitta filtr, tanlangan holat soni va ulushi */
-.pay-status {
+/* 60: "Buyurtmalar holati" — donut (holat ranglari validatordan o'tgan; yorug' / qorong'i alohida) */
+.status-donut {
+  --st-APPROVED: #1f9d55;
+  --st-AWAITING_REVIEW: #3b6fe0;
+  --st-REJECTED: #c93a2e;
+  --st-CANCELLED: #8b928d;
+  --st-PENDING: #e0a106;
   display: grid;
-  gap: 6px;
-  padding: 18px 20px 20px;
+  grid-template-columns: 220px minmax(0, 1fr);
+  align-items: center;
+  gap: 28px;
+  padding: 20px 24px 24px;
 }
-.pay-status-num {
+.dark .status-donut {
+  --st-APPROVED: #21804a;
+  --st-AWAITING_REVIEW: #5b86e5;
+  --st-REJECTED: #e0544a;
+  --st-CANCELLED: #5a645f;
+  --st-PENDING: #b8880f;
+}
+@media (max-width: 640px) {
+  .status-donut {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+    gap: 18px;
+    padding: 16px;
+  }
+}
+.donut-figure {
+  position: relative;
+  width: 220px;
+  height: 220px;
+}
+.donut-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.donut-slice {
+  stroke: var(--surface);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  transition:
+    opacity 160ms var(--ease),
+    d 200ms var(--ease);
+  cursor: default;
+}
+path.donut-slice {
+  fill: var(--slice);
+}
+circle.donut-slice {
+  stroke: var(--slice);
+}
+.donut-slice.dim {
+  opacity: 0.4;
+}
+.st-APPROVED {
+  --slice: var(--st-APPROVED);
+}
+.st-AWAITING_REVIEW {
+  --slice: var(--st-AWAITING_REVIEW);
+}
+.st-REJECTED {
+  --slice: var(--st-REJECTED);
+}
+.st-CANCELLED {
+  --slice: var(--st-CANCELLED);
+}
+.st-PENDING {
+  --slice: var(--st-PENDING);
+}
+.donut-center {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 2px;
+  pointer-events: none;
+  text-align: center;
+}
+.donut-center strong {
   font-size: 34px;
   font-weight: 700;
-  line-height: 1.1;
+  line-height: 1;
   letter-spacing: -0.02em;
   color: var(--text);
   font-variant-numeric: tabular-nums;
 }
-.pay-status-cap {
-  font-size: 13px;
+.donut-center span {
+  max-width: 120px;
+  font-size: 12px;
+  font-weight: 600;
   color: var(--muted);
 }
-.pay-status-meter {
-  height: 6px;
-  margin-top: 6px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--accent-ink) 14%, transparent);
+.donut-legend {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  max-width: 420px;
+  list-style: none;
+}
+.donut-legend-row {
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr) auto 44px;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 12px;
+  border-radius: 10px;
+  text-align: left;
+  font-size: 14px;
+  color: var(--text-2);
+  transition: background 140ms var(--ease);
+}
+.donut-legend-row:hover,
+.donut-legend-row.on {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.donut-legend-row:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+.donut-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 4px;
+  background: var(--slice);
+}
+.donut-legend-name {
+  min-width: 0;
   overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
 }
-.pay-status-meter i {
-  display: block;
-  height: 100%;
-  border-radius: 999px;
-  background: var(--accent-ink);
-  transition: width 300ms var(--ease);
+.donut-legend-n {
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
 }
+.donut-legend-pct {
+  text-align: right;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
 
 /* 44.8: admin "Ko'rinish" — rang namunalari va kontrast ko'rsatkichi */
 .appearance-swatch {
@@ -3000,4 +3117,47 @@ a.track:hover {
   bottom: 12px;
   z-index: 5;
   box-shadow: var(--shadow-lg);
+}
+
+/* 63: admin maqolalar — test savollari soni (bosilsa muharrir) */
+.q-count {
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px dashed var(--border-strong, var(--border));
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.q-count:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+.q-count.has {
+  border: 1px solid transparent;
+  background: var(--accent-softer);
+  color: var(--accent-ink);
+}
+
+/* 64: to'lovlar — filtrlar bir qatorda (davr + oraliq), hamma bo'limlarga ta'sir qiladi */
+.pay-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 12px;
+}
+.pay-dates {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.pay-dates > * {
+  width: 168px;
+}
+.pay-dates > span {
+  width: auto;
 }

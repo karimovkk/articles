@@ -91,6 +91,8 @@ let translateNoUz = false;
 const INTEG_ENV = { "telegram.bot_token": "123456:ENVTOKENabcd", "telegram.bot_username": "articles365_test_bot", "telegram.webhook_secret": "", "telegram.admin_chat_id": "111222333", "telegram.order_group_id": "", "payment.card_number": "8600123412345678", "payment.recipient": "Test Admin", "payment.instructions": "Izohga buyurtma raqamini yozing" };
 const INTEG_SECRET = new Set(["telegram.bot_token", "telegram.webhook_secret"]);
 let integ = {}, integLog = [], webhookCalls = 0;
+// 67: reklama (broadcast) — har GET'da jarayon oldinga siljiydi (5 ta qabul qiluvchi, 1 tasi xato)
+let broadcasts = [];
 const integOut = () => ({ settings: Object.fromEntries(Object.keys(INTEG_ENV).map((k) => {
   const v = integ[k] ?? (INTEG_ENV[k] || null); const sec = INTEG_SECRET.has(k);
   return [k, { is_secret: sec, is_set: !!v, source: integ[k] != null ? "db" : INTEG_ENV[k] ? "env" : null, ...(sec ? { value: null, preview: v ? `••••${v.slice(-4)}` : null } : { value: v }) }];
@@ -134,6 +136,7 @@ function reset(opts = {}) {
   receiptDelay = 0;
   tgLinkOff = false;
   integ = {}; integLog = []; webhookCalls = 0;
+  broadcasts = [];
   translateLog.length = 0;
   books = withFree(freshBooks());
   articles = freshArticles();
@@ -257,6 +260,7 @@ createServer(async (req, res) => {
     }
     return json(res, 200, { orders: orders.length });
   }
+  if (path === "/__broadcasts") return json(res, 200, broadcasts);
   if (path === "/__integrations") return json(res, 200, { db: integ, log: integLog, webhookCalls });
   if (path === "/__tg-link") { tgLinkOff = q.get("off") === "1"; return json(res, 200, { tgLinkOff }); }
   // 56: bot oqimini taqlid — buyurtma holatini o'zgartirish (botda chek yuborildi → AWAITING_REVIEW va h.k.)
@@ -276,6 +280,7 @@ createServer(async (req, res) => {
   if (path === "/__payment") { if (q.get("empty") === "1") paymentInfo = { card_number: "", recipient: "", instructions: "" }; return json(res, 200, paymentInfo); }
   if (path === "/__notify") { notifications.unshift({ id: randomUUID(), type: "GENERAL", title: q.get("title") ?? "Xabar", body: q.get("body") ?? null, is_read: false, meta: {}, created_at: now(), _user: USER.id }); return json(res, 200, { ok: true }); }
   if (path === "/__articles") return json(res, 200, articles);
+  if (path === "/__books") return json(res, 200, books);
   if (path === "/__set500") { audit500 = q.get("on") === "1"; return json(res, 200, { audit500 }); }
   if (path === "/__expire") { if (q.get("all") === "1") refreshBroken = true; if (q.get("token")) invalidTokens.add(q.get("token")); return json(res, 200, { invalid: [...invalidTokens], refreshBroken }); }
   if (path === "/__setbig") {
@@ -446,7 +451,7 @@ createServer(async (req, res) => {
     const a = articles.find((x) => x.id === aid);
     if (!a) return err(res, 404, "ARTICLE_NOT_FOUND", "Article not found");
     if (!canRead(me.id, a.book_id)) return err(res, 403, "BOOK_ACCESS_DENIED", "Access to this book has not been granted");
-    if (!sub) { const p = getProg(me.id, aid); return json(res, 200, { article_id: aid, book_id: a.book_id, title: a.title, format: a.format, mime_type: a.mime_type, page_count: a.page_count, processing_status: a.processing_status, text_extractable: a.text_extractable, file_version: a.file_version, content_updated_at: null, reading_percentage: p.percentage, current_page: p.current_page, features: { can_read: a.processing_status === "READY", can_download: false, can_print: false, can_search: a.text_extractable, has_toc: aid === ART_ID, watermark: a.watermark_enabled !== false && !isFreeId(a.book_id) } }); }
+    if (!sub) { const p = getProg(me.id, aid); return json(res, 200, { article_id: aid, book_id: a.book_id, title: a.title, format: a.format, mime_type: a.mime_type, page_count: a.page_count, processing_status: a.processing_status, text_extractable: a.text_extractable, file_version: a.file_version, content_updated_at: null, reading_percentage: p.percentage, current_page: p.current_page, features: { can_read: a.processing_status === "READY", can_download: false, can_print: false, can_search: a.text_extractable, has_toc: aid === ART_ID, watermark: a.watermark_enabled !== false && books.find((x) => x.id === a.book_id)?.watermark_enabled !== false && !isFreeId(a.book_id) } }); }
     if (sub === "/watermark" && me === GUEST) return json(res, 200, { watermark_text: `Articles365 • mehmon • 127.0.0.x`, trace_id: "TRACE-GUEST", user_ref: "GUEST", issued_at: Math.floor(Date.now() / 1000), signature: "guest" });
     if (sub === "/watermark") return json(res, 200, { watermark_text: `U-${me.id.slice(0, 5).toUpperCase()} • u***@articles365.local`, trace_id: "TRACE-42", user_ref: "U-TEST", issued_at: Math.floor(Date.now() / 1000), signature: "abc" });
     if (a.processing_status !== "READY") return err(res, 409, "ARTICLE_NOT_READY", "Article is not ready");
@@ -633,6 +638,29 @@ createServer(async (req, res) => {
   if (path.startsWith("/admin/")) {
     if (me.role !== "ADMIN") return err(res, 403, "PERMISSION_DENIED", "Admin only");
     if (path === "/admin/stats") return json(res, 200, { users: { total: users.length, by_status: { ACTIVE: users.length }, by_role: { USER: users.length - 1, ADMIN: 1 } }, books: { total: books.length, by_status: { ACTIVE: books.length } }, articles: { total: articles.length, by_processing: { READY: articles.filter((a) => a.processing_status === "READY").length, PROCESSING: articles.filter((a) => a.processing_status === "PROCESSING").length } }, categories: categories.length, access: { total: access.length, by_status: { ACTIVE: access.filter((a) => a.status === "ACTIVE").length } }, annotations: annotations.length, active_sessions: 3 });
+    // 67: reklama (broadcast)
+    const bout = (b) => ({ id: b.id, caption: b.caption, status: b.status, total: b.total, sent: b.sent, failed: b.failed, has_image: b.has_image, created_at: b.created_at });
+    if (path === "/admin/broadcast" && m === "POST") {
+      const ct = req.headers["content-type"] ?? "";
+      if (!ct.startsWith("multipart/form-data")) return err(res, 422, "VALIDATION_ERROR", "Expected multipart/form-data");
+      const form = parseMultipart(await readRaw(req), ct) ?? { fields: {}, files: {} };
+      const text = (form.fields.text ?? "").trim(); const f = form.files.file;
+      if (!text && !f) return err(res, 422, "VALIDATION_ERROR", "text or file is required");
+      if (f && !/^image\/(jpeg|png|webp)$/.test(f.type)) return err(res, 422, "VALIDATION_ERROR", "Image must be jpeg/png/webp");
+      if ((f && text.length > 1024) || text.length > 4096) return err(res, 422, "VALIDATION_ERROR", "Caption too long");
+      const b = { id: randomUUID(), caption: text || null, status: "PENDING", total: 0, sent: 0, failed: 0, has_image: !!f, created_at: now(), _file: f ? { type: f.type, size: f.data.length } : null, _ticks: 0 };
+      broadcasts.unshift(b);
+      return json(res, 201, bout(b));
+    }
+    if (path === "/admin/broadcast" && m === "GET") return json(res, 200, broadcasts.slice(0, Number(q.get("limit") ?? 50)).map(bout));
+    const bcm = /^\/admin\/broadcast\/([^/]+)$/.exec(path);
+    if (bcm && m === "GET") {
+      const b = broadcasts.find((x) => x.id === bcm[1]); if (!b) return err(res, 404, "BROADCAST_NOT_FOUND", "Not found");
+      b._ticks++;
+      if (b.status === "PENDING") Object.assign(b, { status: "SENDING", total: 5 });
+      else if (b.status === "SENDING") { b.sent = Math.min(4, b.sent + 2); if (b.sent >= 4) Object.assign(b, { failed: 1, status: "DONE" }); }
+      return json(res, 200, bout(b));
+    }
     // 57: integratsiya sozlamalari
     if (path === "/admin/integration-settings" && m === "GET") return json(res, 200, integOut());
     if (path === "/admin/integration-settings" && m === "PUT") {
@@ -680,17 +708,31 @@ createServer(async (req, res) => {
     }
     // 44.4: to'lovlar statistikasi — tushum = APPROVED buyurtmalar
     if (path === "/admin/stats/payments" && m === "GET") {
-      const approved = orders.filter((o) => o.status === "APPROVED");
-      const by = {}; const byBook = {};
+      // 64: group_by (year|month|day|hour), date_from/date_to (YYYY-MM-DD, `to` kun ichida ham), limit; davr — UTC
+      const g = ["year", "month", "day", "hour"].includes(q.get("group_by")) ? q.get("group_by") : "month";
+      const from = q.get("date_from"), to = q.get("date_to"), limit = Math.max(1, Math.min(1000, Number(q.get("limit") ?? 180)));
+      const at = (o) => o.reviewed_at ?? o.updated_at;
+      const inRange = (o) => (!from || at(o).slice(0, 10) >= from) && (!to || at(o).slice(0, 10) <= to);
+      const scoped = orders.filter(inRange);
+      const approved = scoped.filter((o) => o.status === "APPROVED");
+      const key = (iso) => (g === "year" ? iso.slice(0, 4) : g === "month" ? iso.slice(0, 7) : g === "day" ? iso.slice(0, 10) : `${iso.slice(0, 10)} ${iso.slice(11, 13)}:00`);
+      const by = {}; const byBook = {}; const byMonth = {};
       for (const o of approved) {
-        const mon = (o.reviewed_at ?? o.updated_at).slice(0, 7); const amt = Number(o.amount);
-        by[mon] = by[mon] ?? { month: mon, revenue: 0, orders: 0 }; by[mon].revenue += amt; by[mon].orders += 1;
+        const k = key(at(o)); const mon = at(o).slice(0, 7); const amt = Number(o.amount);
+        by[k] = by[k] ?? { period: k, revenue: 0, orders: 0 }; by[k].revenue += amt; by[k].orders += 1;
+        byMonth[mon] = byMonth[mon] ?? { month: mon, revenue: 0, orders: 0 }; byMonth[mon].revenue += amt; byMonth[mon].orders += 1;
         const ids = orderBookIds(o); const per = amt / ids.length;
         for (const id of ids) { const bk = books.find((x) => x.id === id); byBook[id] = byBook[id] ?? { book_id: id, title: bk?.title ?? null, revenue: 0, sold: 0 }; byBook[id].revenue += per; byBook[id].sold += 1; }
       }
       const total = approved.reduce((a, o) => a + Number(o.amount), 0);
-      const st = {}; for (const o of orders) st[o.status] = (st[o.status] ?? 0) + 1;
-      return json(res, 200, { currency: "UZS", total_revenue: total, approved_orders: approved.length, average_order_value: approved.length ? total / approved.length : 0, orders_by_status: st, revenue_by_month: Object.values(by).sort((a, b) => a.month.localeCompare(b.month)), revenue_by_book: Object.values(byBook).sort((a, b) => b.revenue - a.revenue).slice(0, 50) });
+      const st = {}; for (const o of scoped) st[o.status] = (st[o.status] ?? 0) + 1;
+      return json(res, 200, {
+        currency: "UZS", group_by: g, date_from: from, date_to: to,
+        total_revenue: total, approved_orders: approved.length, average_order_value: approved.length ? total / approved.length : 0, orders_by_status: st,
+        revenue_by_period: Object.values(by).sort((a, b) => b.period.localeCompare(a.period)).slice(0, limit),
+        revenue_by_month: g === "month" ? Object.values(byMonth).sort((a, b) => a.month.localeCompare(b.month)) : null,
+        revenue_by_book: Object.values(byBook).sort((a, b) => b.revenue - a.revenue).slice(0, 50),
+      });
     }
     if (path === "/admin/audit-logs") { if (audit500 || q.get("boom")) return err(res, 500, "INTERNAL_ERROR", "boom"); return json(res, 200, paged([{ id: "l1", admin_id: ADMIN.id, action: "BOOK_ACCESS_GRANTED", entity_type: "book_access", entity_id: "acc-1", meta: { book_id: BOOK_ID, user_id: USER.id }, ip_address: "127.0.0.1", created_at: now() }, { id: "l2", admin_id: null, action: "SUSPICIOUS_ACTIVITY", entity_type: "user", entity_id: USER.id, meta: {}, ip_address: null, created_at: now() }].filter((l) => !q.get("action") || l.action === q.get("action")).filter((l) => !q.get("entity_type") || l.entity_type === q.get("entity_type")))); }
     if (path === "/admin/categories" && m === "GET") return json(res, 200, paged(categories.filter((c) => !q.get("status") || c.status === q.get("status"))));
@@ -728,7 +770,7 @@ createServer(async (req, res) => {
     }
     if (path.startsWith("/admin/sessions/") && m === "DELETE") return json(res, 200, { message: "Session revoked" });
     if (path === "/admin/books" && m === "GET") { const s = (q.get("search") ?? "").toLowerCase(); return json(res, 200, paged(books.filter((b) => !s || b.title.toLowerCase().includes(s)).filter((b) => !q.get("status") || b.status === q.get("status")), Number(q.get("page") ?? 1), Number(q.get("page_size") ?? 20))); }
-    if (path === "/admin/books" && m === "POST") { const b = await readBody(req); const cat = categories.find((c) => c.id === b.category_id) ?? null; const bk = { id: randomUUID(), title: b.title, author: b.author ?? null, description: b.description ?? null, price: b.is_free ? "0.00" : Number(b.price ?? 0).toFixed(2), is_free: !!b.is_free || Number(b.price ?? 0) === 0, status: "INACTIVE", category_id: cat?.id ?? null, category: cat, book_metadata: b.book_metadata ?? {}, created_at: now(), updated_at: now(), has_cover: false }; books.unshift(bk); return json(res, 201, bk); }
+    if (path === "/admin/books" && m === "POST") { const b = await readBody(req); const cat = categories.find((c) => c.id === b.category_id) ?? null; const bk = { id: randomUUID(), title: b.title, author: b.author ?? null, description: b.description ?? null, price: b.is_free ? "0.00" : Number(b.price ?? 0).toFixed(2), is_free: !!b.is_free || Number(b.price ?? 0) === 0, watermark_enabled: b.watermark_enabled !== false, status: "INACTIVE", category_id: cat?.id ?? null, category: cat, book_metadata: b.book_metadata ?? {}, created_at: now(), updated_at: now(), has_cover: false }; books.unshift(bk); return json(res, 201, bk); }
     const bm = /^\/admin\/books\/([^/]+)(?:\/(cover|articles))?(?:\/([^/]+))?(?:\/(file|toc))?$/.exec(path);
     if (bm) {
       const [, bid, sub, aid, sub2] = bm;

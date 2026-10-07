@@ -1110,6 +1110,82 @@ Avval ≤ 700 px da yashirilgan edi (header'ga sig'magan) — telefonda streak f
       (≤ 430 px), ≤ 340 px da tugmalar oralig'i 2 px; 320–700 px da header toshmaydi (3 xonali seriyada ham)
 - [x] 59.2 e2e: 320/360/390/430 px — olovcha ko'rinadi, header va sahifa gorizontal toshmaydi; dev + prod
 
+## 60. To'lovlar: "Buyurtmalar holati" — donut (pie) grafik (2026-10-07)
+
+- [x] 60.1 Donut: 5 holat (bo'laklar orasida 2 px fon bo'shlig'i), markazda jami (hover'da — tanlangan holat soni va
+      ulushi); rang — sayt belgilari bilan bir xil ma'no (holat ranglari), validatordan: yorug' — CVD PASS; qorong'i —
+      7.0 (6–8 — yozuvlar bilan ruxsat); "bekor qilingan" — ataylab neytral kulrang
+- [x] 60.2 Legend: rang + nom + son + %; hover/fokus — bo'lak ajraladi, maslahat; klaviatura; telefon va qorong'i mavzu
+- [x] 60.3 e2e `payments` yangilandi
+
+## 61. Belgilash ustiga belgilash qo'yilmaydi — birlashtiriladi (2026-10-07)
+
+"Why" belgilangan, keyin "Why We" belgilansa — "Why" ustiga ikkinchi qatlam tushardi.
+- [x] 61.1 Yangi belgilash mavjudi bilan kesishsa: bitta belgilashga birlashadi (ramkalar birlashmasi, matn o'qish
+      tartibida ustma-ust qismsiz, yangi rang, eslatmalar saqlanadi); eskilari o'chiriladi
+- [x] 61.2 Mavjud belgilash ichidagi qism tanlansa — yangi qatlam emas, rangi yangilanadi
+- [x] 61.3 e2e
+
+## 62. Internetsiz: belgilash, xatcho'plar, eslatmalar (2026-10-07)
+
+- [x] 62.1 O'zgarishlar darhol ko'rinadi (optimistik) va qurilmadagi navbatga yoziladi (foydalanuvchi bo'yicha,
+      localStorage); internet bo'lsa — darhol, bo'lmasa — qaytganda orqa fonda ketma-ket, sekin yuboriladi
+- [x] 62.2 Navbatni ixchamlash: hali yuborilmagan yaratish → tahrir unga qo'shiladi, o'chirish — umuman yuborilmaydi;
+      vaqtinchalik id → server id almashtiriladi; 4xx — tashlanadi, tarmoq/5xx — keyin qayta
+- [x] 62.3 Ro'yxat: server + navbatdagi o'zgarishlar; oxirgi ro'yxat keshlanadi (internetsiz ham ko'rinadi)
+- [x] 62.4 Reader'da kichik holat belgisi ("Internet yo'q — N ta o'zgarish qurilmada"); ilova ochilganda ham yuboriladi
+- [x] 62.5 e2e (offline → online, sahifa yopilib qayta ochilganda ham)
+
+## 63. Admin: kitob maqolalarida nechta test savoli borligi (2026-10-07)
+
+Backend javobida savollar soni yo'q (`ArticleAdminResponse`) — hozircha har maqola uchun `GET /admin/articles/{id}/questions`
+(bir vaqtda 4 tadan); backend `questions_count` qo'shsa — so'rovsiz o'sha ishlatiladi.
+
+- [x] 63.1 Kitob sahifasi → maqolalar jadvalida "Test" ustuni: "N ta savol" (bosilsa — savol muharriri) yoki "Qo'shish"
+- [x] 63.2 Jadval tepasida kitob bo'yicha jami: "Testlar: X ta savol · Y/Z maqolada"; muharrir yopilganda son yangilanadi
+- [x] 63.3 e2e `quiz`
+
+## 64. To'lovlar: yil / oy / kun / soat va sana oralig'i (2026-10-07)
+
+Manba: `Articles365_Frontend_Toliq_Vazifa_v1.1.md` §4 — `GET /admin/stats/payments?group_by=&date_from=&date_to=&limit=`,
+javobda `revenue_by_period` (eng yangisi birinchi; soat — UTC, Toshkent +5). Kartalar, holatlar, kitoblar ham oraliqqa bo'ysunadi.
+
+- [x] 64.1 Filtrlar bir qatorda, sahifa tepasida (hamma narsaga ta'sir qiladi): davr (Yil · Oy · Kun · Soat) va oraliq
+      (Hammasi · Bugun · 7 kun · 30 kun · Bu oy · Bu yil · Tanlangan — ikkita sana); oraliqqa mos davr avtomatik
+- [x] 64.2 Grafik `revenue_by_period` bo'yicha (eskidan yangiga), bo'sh davrlar 0 bilan to'ldiriladi; yozuvlar davrga mos
+      (2026 · Okt · 7 okt · 19:00), soat — Toshkent vaqti; maslahatda to'liq sana; "Jadval" ko'rinishi ham davr bo'yicha
+- [x] 64.3 Qayta so'rovda eski ko'rinish xira holda qoladi (sakrash yo'q); bo'sh oraliq — tushunarli xabar
+- [x] 64.4 Mock + e2e `payments`; dev + prod
+
+## 65. Kitob darajasida himoya kodi (watermark) tanlovi (2026-10-07)
+
+Manba: `Articles365_Frontend_Kitob_Watermark_v1.0.md` — `POST /admin/books` / `PATCH /admin/books/{id}`: `watermark_enabled`
+(default true). Reader: `features.watermark = kitob AND maqola AND pullik` (backend hisoblaydi — reader o'zgarmaydi).
+
+- [x] 65.1 "Kitob qo'shish": "Himoya kodi (suv belgisi)" — default yoqiq; tekin tanlansa o'chiq va bloklangan
+- [x] 65.2 Kitobni tahrirlash: shu tanlov (`PATCH … {watermark_enabled}`)
+- [x] 65.3 Maqolalar jadvali: kitob bo'yicha o'chiq bo'lsa — maqola kalitlari o'chiq va bloklangan (izoh bilan)
+- [x] 65.4 Mock (kitob `watermark_enabled`, reader qoidasi) + e2e `watermark`; dev + prod
+
+## 66. Optimistik id almashuvi: ochiq menyu va eslatma tahriri yopilmasin (2026-10-07)
+
+Prod e2e topdi: yangi belgilash bosilib menyu ochilgan paytda server javob bersa, vaqtinchalik id server id bilan almashib
+menyu yopilardi ("O'chirish" yo'qolardi); eslatma tahririda eski id bilan saqlansa — server rad etardi.
+- [x] 66.1 Navbat: vaqtinchalik → server id xaritasi; keyingi tahrir/o'chirish o'zi to'g'ri id'ga ketadi
+- [x] 66.2 Ochiq belgilash menyusi va eslatma tahriri id almashganda saqlanadi; e2e (POST 1.5 s kechiktirilgan holda)
+
+## 67. Admin: reklama (broadcast) — rasm + matn botdagi barcha foydalanuvchilarga (2026-10-07)
+
+Manba: `Articles365_Frontend_Reklama_Broadcast_v1.0.md` — `POST /admin/broadcast` (multipart `text`, `file`),
+`GET /admin/broadcast/{id}` (status PENDING→SENDING→DONE|FAILED, total/sent/failed), `GET /admin/broadcast?limit=50`.
+
+- [ ] 67.1 "Reklama" sahifasi: rasm (ixtiyoriy; tanlash/sudrab tashlash, jpeg/png/webp ≤ 10 MB, oldindan ko'rish) + matn;
+      hisoblagich (rasm bilan ≤ 1024, faqat matn ≤ 4096); Telegram'dagi ko'rinish namunasi; matn yoki rasm majburiy
+- [ ] 67.2 Yuborishdan oldin tasdiq ("barcha foydalanuvchilarga — qaytarib bo'lmaydi"); yuborilgach jarayon: har 2.5 s
+      holat — "Yuborildi N/M · xato K", progress chizig'i; DONE/FAILED da to'xtaydi
+- [ ] 67.3 Tarix jadvali: sana, matn (qisqa), rasm bor-yo'q, yuborildi/jami, xato, holat; jarayondagilar yangilanib turadi
+- [ ] 67.4 Menyu "Reklama"; mock + e2e `broadcast`; dev + prod
+
 ## 31. Keyingi vazifalar
 
 - [ ] 31.1 Safari (WebKit): varaqlash rejimida oldingi sahifaga qaytilganda (3-sahifa) belgilash qatlami

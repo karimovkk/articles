@@ -1,5 +1,5 @@
 // Reader funksional tekshiruvi (Task 2): highlight, ranglar, nusxalash/chop etish cheklovi, varaqlash rejimi
-import { launch, BASE, reset, mockGet, ignorablePageError } from "../lib.mjs";
+import { launch, BASE, reset, mockGet, ignorablePageError, mockWait } from "../lib.mjs";
 
 const BOOK = "11111111-1111-4111-8111-111111111111";
 const ART = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
@@ -90,7 +90,7 @@ await page.waitForSelector('[data-page="1"] .highlightLayer > div', { timeout: 5
 const overlay1 = await page.$$eval('[data-page="1"] .highlightLayer > div', (ds) => ds.map((d) => ({ l: d.style.left, t: d.style.top, w: d.style.width, h: d.style.height, bg: d.style.background })));
 check("Highlight overlay chizildi", overlay1.length >= 1, JSON.stringify(overlay1));
 check("Overlay rangi yashil", overlay1[0]?.bg.includes("134, 239, 172") || overlay1[0]?.bg.includes("#86efac"), overlay1[0]?.bg);
-const srv = await mockGet("/__annotations");
+const srv = await mockWait("/__annotations", (l) => l.length > 0);
 check("Serverga location_data.rects yuborildi", Array.isArray(srv[0]?.location_data?.rects) && srv[0].location_data.rects.length >= 1, JSON.stringify(srv[0]?.location_data));
 check("Rects 0–1 ulushlarda", srv[0].location_data.rects.every((r) => r.every((v) => v >= 0 && v <= 1)));
 await page.screenshot({ path: OUT + "03-highlighted.png" });
@@ -120,7 +120,7 @@ await page.click("text=Belgilar");
 await page.locator('button[aria-label="Rangni o\'zgartirish"]').first().click();
 await page.locator('aside button[aria-label="Pushti"]').click();
 await page.waitForFunction(() => document.querySelector('[data-page="1"] .highlightLayer > div')?.style.background.includes("249, 168, 212"), null, { timeout: 5000 });
-const srv2 = await mockGet("/__annotations");
+const srv2 = await mockWait("/__annotations", (l) => l[0]?.color === "#f9a8d4");
 check("Sidebar'dan rang o'zgartirildi (PATCH color)", srv2[0]?.color === "#f9a8d4", srv2[0]?.color);
 await page.screenshot({ path: OUT + "04-sidebar-color.png" });
 await page.click('aside button[aria-label="Yopish"]').catch(() => {});

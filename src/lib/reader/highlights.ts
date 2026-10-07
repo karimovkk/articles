@@ -160,3 +160,56 @@ export function overlappingHighlight(list: Annotation[], page: number, rects: Hi
   }
   return null;
 }
+
+// ---- 61: belgilash ustiga belgilash qo'yilmaydi — kesishsa birlashtiriladi
+
+/** Ikki ramka bir satrda (vertikal kesishuvi kichikroq balandlikning yarmidan ko'p) */
+const sameLine = (a: HighlightRect, b: HighlightRect) => Math.min(a[1] + a[3], b[1] + b[3]) - Math.max(a[1], b[1]) > Math.min(a[3], b[3]) * 0.5;
+
+/** Ikki belgilash kesishadimi (bir satrda gorizontal ustma-ust qismi bor — shunchaki yonma-yon emas) */
+export function rectsOverlap(a: HighlightRect[], b: HighlightRect[], tol = 0.002): boolean {
+  return a.some((x) => b.some((y) => sameLine(x, y) && Math.min(x[0] + x[2], y[0] + y[2]) - Math.max(x[0], y[0]) > tol));
+}
+
+/** `outer` belgilash `inner` ni to'liq qoplaydimi (har bir ichki ramka biror tashqi ramka ichida) */
+export function coversRects(outer: HighlightRect[], inner: HighlightRect[], tol = 0.004): boolean {
+  return inner.every((i) => outer.some((o) => sameLine(o, i) && i[0] >= o[0] - tol && i[0] + i[2] <= o[0] + o[2] + tol));
+}
+
+/** Ramkalar birlashmasi: har satr — bitta ramka (chapdan eng chapi, o'ngdan eng o'ngi), satrlar ustma-ust emas */
+export function unionRects(rects: HighlightRect[]): HighlightRect[] {
+  const lines: Array<{ l: number; t: number; r: number; b: number }> = [];
+  for (const [x, y, w, h] of rects) {
+    const line = lines.find((m) => sameLine([m.l, m.t, m.r - m.l, m.b - m.t], [x, y, w, h]));
+    if (line) {
+      line.l = Math.min(line.l, x);
+      line.r = Math.max(line.r, x + w);
+      line.t = Math.min(line.t, y);
+      line.b = Math.max(line.b, y + h);
+    } else lines.push({ l: x, t: y, r: x + w, b: y + h });
+  }
+  lines.sort((a, b) => a.t - b.t);
+  return separateLines(lines.slice(0, MAX_RECTS).map((m) => [round4(m.l), round4(m.t), round4(m.r - m.l), round4(m.b - m.t)] as HighlightRect));
+}
+
+/**
+ * Kesishgan belgilashlar matni — o'qish tartibida (yuqoridan pastga, chapdan o'ngga), ustma-ust qism takrorlanmaydi:
+ * "Why" + "Why We" → "Why We"; "Why We" + "We are" → "Why We are".
+ */
+export function mergeTexts(pieces: Array<{ rects: HighlightRect[]; text: string }>): string {
+  const pos = (p: { rects: HighlightRect[] }) => {
+    const first = [...p.rects].sort((a, b) => a[1] - b[1] || a[0] - b[0])[0];
+    return first ? [first[1], first[0]] : [0, 0];
+  };
+  const sorted = pieces
+    .map((p) => ({ ...p, text: p.text.replace(/\s+/g, " ").trim(), at: pos(p) }))
+    .filter((p) => p.text)
+    .sort((a, b) => (Math.abs(a.at[0] - b.at[0]) > 0.005 ? a.at[0] - b.at[0] : a.at[1] - b.at[1]));
+  return sorted.reduce((acc, { text }) => {
+    if (!acc) return text;
+    if (acc.includes(text)) return acc;
+    if (text.includes(acc)) return text;
+    for (let k = Math.min(acc.length, text.length) - 1; k > 0; k--) if (acc.endsWith(text.slice(0, k))) return acc + text.slice(k);
+    return `${acc} ${text}`;
+  }, "");
+}

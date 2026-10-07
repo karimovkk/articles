@@ -59,6 +59,15 @@ export const ignorablePageError = (msg = "") => /due to access control checks|Lo
 
 export const reset = (query = "") => fetch(`${API_HOST}/__reset${query}`);
 export const mockGet = async (path) => (await fetch(`${API_HOST}${path}`)).json();
+/** 62: izohlar navbat orqali yoziladi (ekranda darhol, serverda bir lahzadan keyin) — mock holati shartga yetguncha */
+export async function mockWait(path, pred, ms = 8000) {
+  const t0 = Date.now();
+  for (;;) {
+    const v = await mockGet(path);
+    if (pred(v) || Date.now() - t0 > ms) return v;
+    await new Promise((r) => setTimeout(r, 150));
+  }
+}
 
 /* ---------- Qo'lbola boshqaruv elementlari (10.2) ---------- */
 

@@ -75,6 +75,18 @@ await admin.waitForSelector("text=Matnda it qanday deyilgan?", { timeout: 5000 }
 qs = await mockGet("/__questions");
 check("Tahrirlash: savol matni yangilandi, tartib saqlandi", qs.find((q) => q.order_index === 1)?.prompt === "Matnda it qanday deyilgan?");
 await admin.screenshot({ path: OUT + "83-admin-questions.png" });
+// 63: muharrir yopilgach — maqola qatorida savollar soni, tepada kitob bo'yicha jami
+await admin.keyboard.press("Escape");
+await admin.waitForSelector('[data-testid="questions-editor"]', { state: "detached", timeout: 5000 });
+await admin.waitForFunction(() => document.querySelector('[data-testid="article-qcount"]')?.dataset.count === "2", null, { timeout: 8000 });
+const rows = await admin.locator('[data-testid="article-qcount"]').count();
+check("Maqola qatorida '2 ta savol'; boshqalarida 'Qo'shish'", ((await admin.textContent('[data-testid="article-qcount"] >> nth=0')) ?? "").includes("2 ta savol") && (rows === 1 || ((await admin.textContent('[data-testid="article-qcount"] >> nth=1')) ?? "").includes("Qo'shish")), String(rows));
+check("Kitob bo'yicha jami: 'Testlar: 2 ta savol · 1/N maqolada'", ((await admin.textContent('[data-testid="questions-summary"]')) ?? "").includes(`Testlar: 2 ta savol · 1/${rows} maqolada`), (await admin.textContent('[data-testid="questions-summary"]')) ?? "");
+await admin.locator(".table-wrap").first().screenshot({ path: OUT + "83b-admin-question-counts.png" });
+// Son bosilsa — shu maqola savol muharriri ochiladi
+await admin.click('[data-testid="article-qcount"] >> nth=0');
+await admin.waitForSelector('[data-testid="questions-editor"] [data-testid="q-item"]', { timeout: 5000 });
+check("'2 ta savol' bosildi → savol muharriri (2 savol)", (await admin.locator('[data-testid="q-item"]').count()) === 2);
 
 // ---- O'quvchi
 const reader = await ctxPage();

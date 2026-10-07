@@ -103,6 +103,8 @@ function CreateBookModal({ open, onClose, categories, onCreated }: { open: boole
   const [price, setPrice] = useState("");
   // 37: tekin kitob — narx yozilmaydi (0), mehmonlar ham o'qiy oladi
   const [free, setFree] = useState(false);
+  // 65: himoya kodi (suv belgisi) — default yoqiq; tekin kitobda doim o'chiq
+  const [watermark, setWatermark] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -123,6 +125,7 @@ function CreateBookModal({ open, onClose, categories, onCreated }: { open: boole
         category_id: categoryId || null,
         price: free ? 0 : price.trim(),
         is_free: free,
+        watermark_enabled: free ? false : watermark,
       });
       onCreated(b);
     } catch (err) {
@@ -151,6 +154,14 @@ function CreateBookModal({ open, onClose, categories, onCreated }: { open: boole
             <Input type="number" min={1} step="any" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} required data-testid="book-price" />
           </Field>
         )}
+        <Switch
+          checked={!free && watermark}
+          disabled={free}
+          onChange={setWatermark}
+          label={t("admin.books.watermark")}
+          description={free ? t("admin.articles.watermarkFree") : t("admin.books.watermarkHint")}
+          data-testid="book-watermark"
+        />
         <Field label={t("admin.books.summary")}>
           <Textarea rows={3} value={description} onChange={(e) => setDescription(e.target.value)} />
         </Field>

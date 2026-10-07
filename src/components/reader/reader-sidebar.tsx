@@ -10,6 +10,7 @@ import { QuizPanel } from "./quiz-panel";
 import { canSpeak, speak } from "@/components/vocabulary/speak";
 import { HIGHLIGHT_COLORS, getHighlightRects, normalizeColor } from "@/lib/reader/highlights";
 import { useT, type DictKey } from "@/i18n";
+import { resolveId } from "@/lib/reader/annotation-sync";
 
 export type SidebarTab = "toc" | "search" | "bookmarks" | "notes" | "highlights" | "vocab" | "test";
 
@@ -330,7 +331,7 @@ function NotesPanel({ annotations, currentPage, goToPage, onAddNote, onUpdateNot
                 </button>
               </div>
             </div>
-            {editing?.id === a.id ? (
+            {editing && resolveId(editing.id) === a.id ? (
               <div className="mt-2 space-y-2">
                 <Textarea rows={3} value={editText} onChange={(e) => setEditText(e.target.value)} />
                 <div className="flex gap-2">

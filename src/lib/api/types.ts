@@ -371,6 +371,8 @@ export interface Book {
   price: string;
   /** 37: tekin kitob (backend qo'shsa). Frontend `narx = 0` ni ham tekin deb biladi — `isFreeBook()` */
   is_free?: boolean;
+  /** 65: himoya kodi (suv belgisi) kitob bo'yicha (yo'q bo'lsa — yoqiq) */
+  watermark_enabled?: boolean;
   status: BookStatus;
   category_id: UUID | null;
   category: Category | null;
@@ -385,6 +387,8 @@ export interface Article {
   book_id: UUID;
   title: string;
   order_index: number;
+  /** 63: test savollari soni (backend qo'shsa — so'rovsiz ishlatiladi; yo'q bo'lsa frontend o'zi sanaydi) */
+  questions_count?: number | null;
   mime_type: string | null;
   file_size: number | null;
   format: string | null;
@@ -448,8 +452,13 @@ export interface PaymentStats {
   approved_orders: number;
   average_order_value: number;
   orders_by_status: Partial<Record<OrderStatus, number>>;
-  /** Eskidan yangiga, 24 oygacha; `month` — "YYYY-MM" */
-  revenue_by_month: Array<{ month: string; revenue: number; orders: number }>;
+  /** Eski (orqaga moslik): faqat `group_by=month` da, aks holda `null` */
+  revenue_by_month?: Array<{ month: string; revenue: number; orders: number }> | null;
+  /** 64: tanlangan davr bo'yicha, eng yangisi birinchi; `period`: "2026" · "2026-10" · "2026-10-07" · "2026-10-07 14:00" (UTC) */
+  revenue_by_period?: Array<{ period: string; revenue: number; orders: number }>;
+  group_by?: "year" | "month" | "day" | "hour";
+  date_from?: string | null;
+  date_to?: string | null;
   /** Top 50 kitob */
   revenue_by_book: Array<{ book_id: string; title: string | null; revenue: number; sold: number }>;
 }

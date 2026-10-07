@@ -8,6 +8,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { useRouter } from "next/navigation";
 import { clearOpenOrders } from "@/lib/admin-open-orders";
 import { clearStreak } from "@/lib/streak-store";
+import { clearAnnotationCaches, setAnnotationUser } from "@/lib/reader/annotation-sync";
 import { AUTH_EVENT, authApi, clearVocabCache, tokenStore, type AuthChangeReason, type User } from "@/lib/api";
 import { clearOwnedBooks } from "@/lib/owned-books";
 import { cart } from "@/lib/cart";
@@ -110,6 +111,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (reason === "logout") cart.clear(); // 35: savatcha — shu qurilmadagi foydalanuvchiniki
       if (reason !== "login") clearOpenOrders(); // admin: ko'rib chiqilmagan buyurtmalar soni
       if (reason !== "login") clearStreak(); // 44.6: boshqa foydalanuvchi seriyasi ko'rinmasin
+      if (reason === "logout") clearAnnotationCaches(); // 62: eslatma matnlari qurilmada qolmasin (yuborilmagan navbat saqlanadi)
       if (reason === "logout" || reason === "expired") {
         setUser(null);
         setLoading(false);
@@ -119,6 +121,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     window.addEventListener(AUTH_EVENT, onChange);
     return () => window.removeEventListener(AUTH_EVENT, onChange);
   }, [refresh]);
+
+  // 62: izohlar navbati — shu foydalanuvchiniki; ilova ochilganda yuborilmaganlari yuboriladi
+  useEffect(() => setAnnotationUser(user?.id ?? null), [user?.id]);
 
   const logout = useCallback(async () => {
     await authApi.logout();

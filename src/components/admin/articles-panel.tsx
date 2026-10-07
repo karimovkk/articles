@@ -5,10 +5,10 @@
  * qo'lda mundarija (FE-6.10, `PUT .../toc`). PROCESSING holatida ro'yxat avtomatik yangilanadi.
  * Amallar — qatorda asosiy tugma (PDF) + qo'lbola menyu (mundarija, tahrirlash, o'chirish).
  */
-import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Alert, Badge, Button, Field, IconButton, Input, Menu, MenuItem, MenuSep, Modal, Select, Switch, statusTone, useConfirm } from "@/components/ui";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { Alert, Badge, Button, Field, IconButton, Input, Menu, MenuItem, MenuSep, Modal, Select, Switch, cn, statusTone, useConfirm } from "@/components/ui";
 import * as I from "@/components/ui/icons";
-import { adminApi, errorMessage, type Article } from "@/lib/api";
+import { adminApi, errorMessage, quizApi, type Article } from "@/lib/api";
 import { formatMb, validatePdf } from "@/lib/uploads";
 import { QuestionsEditor } from "./questions-editor";
 import { env } from "@/lib/env";
@@ -22,7 +22,21 @@ interface TocRow {
 
 const LEVELS = [1, 2, 3].map((l) => ({ value: String(l), label: `H${l}` }));
 
-export function ArticlesPanel({ bookId, articles, onChanged, bookFree }: { bookId: string; articles: Article[]; onChanged: () => void; bookFree?: boolean }) {
+export function ArticlesPanel({
+  bookId,
+  articles,
+  onChanged,
+  bookFree,
+  bookWatermark = true,
+}: {
+  bookId: string;
+  articles: Article[];
+  onChanged: () => void;
+  bookFree?: boolean;
+  /** 65: kitob bo'yicha himoya kodi — o'chiq bo'lsa maqola kalitlari ta'sir qilmaydi (qoida: kitob AND maqola AND pullik) */
+  bookWatermark?: boolean;
+}) {
+  const wmOff = bookFree || !bookWatermark;
   const { t } = useT();
   const confirm = useConfirm();
   const [error, setError] = useState<string | null>(null);
@@ -39,6 +53,25 @@ export function ArticlesPanel({ bookId, articles, onChanged, bookFree }: { bookI
   const uploadTarget = useRef<string | null>(null);
 
   const sorted = articles.slice().sort((a, b) => a.order_index - b.order_index);
+
+  // 63: har maqoladagi test savollari soni — backend bersa (`questions_count`) o'sha, aks holda sanaladi (4 tadan)
+  const [qCounts, setQCounts] = useState<Record<string, number>>({});
+  const countQuestions = useCallback(async (ids: string[]) => {
+    for (let i = 0; i < ids.length; i += 4) {
+      const part = await Promise.all(ids.slice(i, i + 4).map((id) => quizApi.adminList(id).then((q) => [id, q.length] as const, () => null)));
+      setQCounts((prev) => ({ ...prev, ...Object.fromEntries(part.filter((x): x is readonly [string, number] => !!x)) }));
+    }
+  }, []);
+  const idsKey = sorted.map((a) => a.id).join(",");
+  useEffect(() => {
+    const missing = sorted.filter((a) => typeof a.questions_count !== "number").map((a) => a.id);
+    if (missing.length) queueMicrotask(() => void countQuestions(missing));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- maqolalar ro'yxati (id'lar) o'zgarganda
+  }, [idsKey, countQuestions]);
+  const qCount = (a: Article): number | undefined => (typeof a.questions_count === "number" ? a.questions_count : qCounts[a.id]);
+  const qKnown = sorted.filter((a) => qCount(a) !== undefined);
+  const qTotal = qKnown.reduce((n, a) => n + (qCount(a) ?? 0), 0);
+  const qWith = qKnown.filter((a) => (qCount(a) ?? 0) > 0).length;
   const processing = sorted.some((a) => a.processing_status === "PROCESSING" || a.processing_status === "UPLOADING");
   useEffect(() => {
     if (!processing) return;
@@ -144,6 +177,12 @@ export function ArticlesPanel({ bookId, articles, onChanged, bookFree }: { bookI
       {sorted.length === 0 ? (
         <p className="text-sm text-muted">{t("admin.articles.empty")}</p>
       ) : (
+        <>
+        {qKnown.length === sorted.length && (
+          <p className="mb-2 text-xs text-muted" data-testid="questions-summary">
+            {t("admin.articles.questionsSummary", { total: qTotal, with: qWith, all: sorted.length })}
+          </p>
+        )}
         <div className="table-wrap">
           <div className="table-scroll">
             <table className="table" style={{ minWidth: 760 }}>
@@ -155,6 +194,7 @@ export function ArticlesPanel({ bookId, articles, onChanged, bookFree }: { bookI
                   <th className="text-right">{t("admin.books.pages")}</th>
                   <th>{t("admin.books.file")}</th>
                   <th title={t("admin.articles.watermarkHint")}>{t("admin.articles.watermark")}</th>
+                  <th>{t("admin.articles.questions")}</th>
                   <th />
                 </tr>
               </thead>
@@ -198,15 +238,32 @@ export function ArticlesPanel({ bookId, articles, onChanged, bookFree }: { bookI
                     </td>
                     <td>
                       {/* 44.3: suv belgisi tanlov bo'yicha; tekin kitobda doim o'chiq (backend qoidasi) */}
-                      <span title={bookFree ? t("admin.articles.watermarkFree") : t("admin.articles.watermarkHint")} className="inline-flex">
+                      <span title={bookFree ? t("admin.articles.watermarkFree") : !bookWatermark ? t("admin.articles.watermarkBookOff") : t("admin.articles.watermarkHint")} className="inline-flex">
                         <Switch
-                          checked={!bookFree && a.watermark_enabled !== false}
-                          disabled={bookFree || !!busyId}
+                          checked={!wmOff && a.watermark_enabled !== false}
+                          disabled={wmOff || !!busyId}
                           onChange={(v) => void run(a.id, () => adminApi.updateArticle(bookId, a.id, { watermark_enabled: v }))}
                           aria-label={t("admin.articles.watermark")}
                           data-testid="article-watermark"
                         />
                       </span>
+                    </td>
+                    <td>
+                      {/* 63: test savollari soni — bosilsa savol muharriri */}
+                      {qCount(a) === undefined ? (
+                        <span className="text-xs text-muted">…</span>
+                      ) : (
+                        <button
+                          type="button"
+                          className={cn("q-count", (qCount(a) ?? 0) > 0 && "has")}
+                          onClick={() => setQuizFor(a)}
+                          title={t("quiz.admin.menu")}
+                          data-testid="article-qcount"
+                          data-count={qCount(a)}
+                        >
+                          {(qCount(a) ?? 0) > 0 ? t("admin.articles.questionsN", { n: qCount(a) ?? 0 }) : t("admin.articles.addQuestions")}
+                        </button>
+                      )}
                     </td>
                     <td className="text-right">
                       <div className="flex justify-end gap-1">
@@ -259,6 +316,7 @@ export function ArticlesPanel({ bookId, articles, onChanged, bookFree }: { bookI
             </table>
           </div>
         </div>
+        </>
       )}
 
       <Modal open={!!renaming} onClose={() => setRenaming(null)} title={t("admin.articles.rename")} size="sm" icon={<I.Pencil size={18} />}>
@@ -287,7 +345,18 @@ export function ArticlesPanel({ bookId, articles, onChanged, bookFree }: { bookI
         </form>
       </Modal>
 
-      {quizFor && <QuestionsEditor articleId={quizFor.id} title={quizFor.title} open onClose={() => setQuizFor(null)} />}
+      {quizFor && (
+        <QuestionsEditor
+          articleId={quizFor.id}
+          title={quizFor.title}
+          open
+          onClose={() => {
+            // Muharrirda savol qo'shilgan/o'chirilgan bo'lishi mumkin — shu maqola soni yangilanadi
+            void countQuestions([quizFor.id]);
+            setQuizFor(null);
+          }}
+        />
+      )}
 
       <Modal open={!!tocFor} onClose={() => setTocFor(null)} title={`${t("admin.articles.toc")}: ${tocFor?.title ?? ""}`} size="lg" icon={<I.List size={18} />}>
         <form onSubmit={saveToc} className="space-y-4">

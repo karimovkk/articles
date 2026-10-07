@@ -1,5 +1,5 @@
 // Task 5/6 tekshiruvi: public katalog, batafsil, sotib olish, /admin/stats dashboard, location_data + eski location
-import { launch, BASE, reset, mockGet, ignorablePageError } from "../lib.mjs";
+import { launch, BASE, reset, mockGet, ignorablePageError, mockWait } from "../lib.mjs";
 import { mkdirSync } from "node:fs";
 
 const BOOK = "11111111-1111-4111-8111-111111111111";
@@ -152,7 +152,7 @@ await page.mouse.up();
 await page.waitForTimeout(150);
 await page.locator('button[aria-label="Yashil rang bilan belgilash"]').click();
 await page.waitForFunction(() => document.querySelectorAll('[data-page="1"] .highlightLayer > div').length >= 2, null, { timeout: 5000 });
-const anns = await mockGet("/__annotations");
+const anns = await mockWait("/__annotations", (l) => l.some((a) => a.id !== "legacy-1"));
 const fresh = anns.find((a) => a.id !== "legacy-1");
 check("Yangi highlight `location_data` + `selected_text` bilan yuborildi", !!fresh?.location_data?.rects && typeof fresh?.selected_text === "string", JSON.stringify(Object.keys(fresh ?? {})));
 check("`page` yuqori darajada", fresh?.page === 1);

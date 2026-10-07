@@ -77,11 +77,18 @@ const suites = readdirSync(resolve(root, "e2e/tests"))
   .filter((n) => !only.length || only.includes(n));
 
 let failed = 0;
+const failedNames = [];
 for (const name of suites) {
   console.log(`\n══════ ${name} ══════`);
   const r = spawnSync("node", [`e2e/tests/${name}.test.mjs`], { cwd: root, env, stdio: "inherit", timeout: 300000 });
-  if (r.status !== 0) failed++;
+  if (r.status !== 0) {
+    failed++;
+    // Qaysi to'plam va nega (vaqt chegarasi — ❌ qatorsiz to'xtaydi)
+    const why = r.error?.code === "ETIMEDOUT" || r.signal ? `vaqt tugadi (${r.signal ?? "timeout"})` : `kod ${r.status}`;
+    failedNames.push(`${name}: ${why}`);
+  }
 }
 console.log(`\n${suites.length - failed}/${suites.length} to'plam o'tdi${failed ? ` — ${failed} ta muvaffaqiyatsiz` : ""}`);
+if (failedNames.length) console.log(`❌ Muvaffaqiyatsiz to'plamlar: ${failedNames.join("; ")}`);
 stopAll();
 process.exit(failed ? 1 : 0);

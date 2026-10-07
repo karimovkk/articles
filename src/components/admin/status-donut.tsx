@@ -1,0 +1,93 @@
+"use client";
+
+/**
+ * 60: "Buyurtmalar holati" — donut (dataviz qoidalari): qism–butun bir qarashda (≤ 6 bo'lak), bo'laklar orasida 2 px fon
+ * bo'shlig'i. Rang — sayt belgilari bilan bir xil ma'no (holat ranglari; validator: yorug' — CVD PASS, qorong'i — 7.0,
+ * yozuvlar bilan); "bekor qilingan" — ataylab neytral kulrang. Tartib shunday tanlangan: yashil va qizil, sariq va qizil
+ * yonma-yon tushmaydi. Rang hech qachon yolg'iz emas — legend'da nom, son va foiz (jadval vazifasini ham bajaradi).
+ * Markazda jami; bo'lak yoki legend qatori ustida (hover / klaviatura fokusi) — shu holat soni va ulushi.
+ */
+import { useState } from "react";
+import { cn } from "@/components/ui";
+import { formatNumber, useT } from "@/i18n";
+import type { OrderStatus } from "@/lib/api";
+
+/** Aylana bo'ylab tartib (soat yo'nalishida, tepadan) — rang juftlari ajralib turishi uchun */
+const ORDER: OrderStatus[] = ["APPROVED", "AWAITING_REVIEW", "REJECTED", "CANCELLED", "PENDING"];
+const SIZE = 200;
+const C = SIZE / 2;
+const R = 92;
+const INNER = 62;
+
+const pt = (r: number, a: number) => `${(C + r * Math.cos(a)).toFixed(2)},${(C + r * Math.sin(a)).toFixed(2)}`;
+/** Halqa bo'lagi (a0 → a1, radian; tepadan soat yo'nalishida) */
+function arc(a0: number, a1: number, r1: number, r0: number): string {
+  const large = a1 - a0 > Math.PI ? 1 : 0;
+  return `M${pt(r1, a0)} A${r1},${r1} 0 ${large} 1 ${pt(r1, a1)} L${pt(r0, a1)} A${r0},${r0} 0 ${large} 0 ${pt(r0, a0)} Z`;
+}
+
+export function StatusDonut({ counts }: { counts: Partial<Record<OrderStatus, number>> }) {
+  const { t, locale } = useT();
+  const [active, setActive] = useState<OrderStatus | null>(null);
+  const items = ORDER.map((s) => ({ s, n: counts[s] ?? 0 })).filter((x) => x.n > 0);
+  const total = items.reduce((a, x) => a + x.n, 0);
+  if (!total) return null;
+  const pct = (n: number) => Math.round((n / total) * 100);
+
+  // Har bo'lak boshlanishi — oldingilar yig'indisi (tepadan, soat yo'nalishida)
+  const angle = (v: number) => -Math.PI / 2 + (v / total) * Math.PI * 2;
+  const slices = items.map((x, i) => {
+    const before = items.slice(0, i).reduce((a, y) => a + y.n, 0);
+    return { ...x, a0: angle(before), a1: angle(before + x.n) };
+  });
+  const cur = active ? items.find((x) => x.s === active) : null;
+  const on = (s: OrderStatus | null) => () => setActive(s);
+
+  return (
+    <div className="status-donut" data-testid="status-donut">
+      <div className="donut-figure" onPointerLeave={on(null)}>
+        <svg viewBox={`0 0 ${SIZE} ${SIZE}`} className="donut-svg" role="img" aria-label={t("admin.payments.byStatus")}>
+          {slices.length === 1 ? (
+            <circle cx={C} cy={C} r={(R + INNER) / 2} fill="none" strokeWidth={R - INNER} className={cn("donut-slice", `st-${slices[0].s}`, active === slices[0].s && "on")} data-testid="donut-slice" data-status={slices[0].s} onPointerEnter={on(slices[0].s)} />
+          ) : (
+            slices.map((x) => (
+              <path
+                key={x.s}
+                d={arc(x.a0, x.a1, active === x.s ? R + 5 : R, INNER)}
+                className={cn("donut-slice", `st-${x.s}`, active === x.s && "on", active && active !== x.s && "dim")}
+                onPointerEnter={on(x.s)}
+                data-testid="donut-slice"
+                data-status={x.s}
+              />
+            ))
+          )}
+        </svg>
+        <div className="donut-center" data-testid="donut-center" aria-live="polite">
+          <strong>{formatNumber(cur ? cur.n : total, locale)}</strong>
+          <span>{cur ? `${t(`orders.status.${cur.s}`)} · ${pct(cur.n)}%` : t("admin.payments.ordersTotal")}</span>
+        </div>
+      </div>
+      <ul className="donut-legend">
+        {items.map((x) => (
+          <li key={x.s}>
+            <button
+              type="button"
+              className={cn("donut-legend-row", active === x.s && "on")}
+              onPointerEnter={on(x.s)}
+              onPointerLeave={on(null)}
+              onFocus={on(x.s)}
+              onBlur={on(null)}
+              data-testid="donut-legend-row"
+              data-status={x.s}
+            >
+              <i className={cn("donut-swatch", `st-${x.s}`)} aria-hidden />
+              <span className="donut-legend-name">{t(`orders.status.${x.s}`)}</span>
+              <span className="donut-legend-n">{formatNumber(x.n, locale)}</span>
+              <span className="donut-legend-pct">{pct(x.n)}%</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}

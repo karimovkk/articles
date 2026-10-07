@@ -34,7 +34,8 @@ import {
   type SearchMatch,
   type TocEntry,
 } from "@/lib/api";
-import { HIGHLIGHT_COLORS, getHighlightRects, normalizeColor, overlappingHighlight, sameRects, type HighlightRect } from "@/lib/reader/highlights";
+import { HIGHLIGHT_COLORS, coversRects, getHighlightRects, mergeTexts, normalizeColor, overlappingHighlight, rectsOverlap, sameRects, unionRects, type HighlightRect } from "@/lib/reader/highlights";
+import { cacheAnnotations, cachedAnnotations, mergeWithPending, queueCreate, queueDelete, queueUpdate, subscribeSync, useAnnotationSync } from "@/lib/reader/annotation-sync";
 import { VocabDialog, type VocabFormValues } from "@/components/vocabulary/vocab-dialog";
 import { canSpeak, speak } from "@/components/vocabulary/speak";
 import { LocaleSwitcher } from "@/i18n/locale-switcher";
@@ -209,10 +210,14 @@ export function ReaderView({ articleId }: { articleId: string }) {
           });
       }
       if (!user) return; // mehmon: annotatsiya va progress yo'q
+      // 62: server ro'yxati + navbatdagi (internetsiz qilingan) o'zgarishlar; tarmoq bo'lmasa — oxirgi keshlangan ro'yxat
       readingApi
         .listAnnotations(articleId)
-        .then((a) => !cancelled && setAnnotations(a))
-        .catch(() => undefined);
+        .then((a) => {
+          cacheAnnotations(articleId, a);
+          if (!cancelled) setAnnotations(mergeWithPending(articleId, a));
+        })
+        .catch(() => !cancelled && setAnnotations(mergeWithPending(articleId, cachedAnnotations(articleId))));
       vocabularyApi
         .listForArticle(articleId)
         .then((v) => !cancelled && setVocab(v))
@@ -423,16 +428,33 @@ export function ReaderView({ articleId }: { articleId: string }) {
     setMode(nextModeOf(shownMode));
   };
 
-  // ---- Annotatsiyalar
+  // ---- Annotatsiyalar — 62: darhol ko'rinadi, navbat orqali (internetsiz ham) serverga ketadi
+  const sync = useAnnotationSync(articleId);
+  useEffect(
+    () =>
+      subscribeSync((e) => {
+        if (e.articleId !== articleId) return;
+        // Yaratildi — vaqtinchalik id server id bilan almashadi
+        if (e.type === "created") {
+          setAnnotations((prev) => prev.map((x) => (x.id === e.localId ? e.annotation : x)));
+          // Ochiq belgilash menyusi shu (vaqtinchalik) id'da bo'lsa — yopilib qolmasin, server id'ga o'tadi
+          setHlMenu((m) => (m && m.id === e.localId ? { ...m, id: e.annotation.id } : m));
+        }
+        else {
+          // Server rad etdi (4xx) — ro'yxat serverdan qayta olinadi, foydalanuvchiga xabar
+          showToast(t("reader.syncDropped"));
+          void readingApi
+            .listAnnotations(articleId)
+            .then((a) => setAnnotations(mergeWithPending(articleId, a)))
+            .catch(() => undefined);
+        }
+      }),
+    [articleId, showToast, t],
+  );
   const addAnnotation = async (input: Parameters<typeof readingApi.createAnnotation>[1]) => {
-    try {
-      const a = await readingApi.createAnnotation(articleId, input);
-      setAnnotations((prev) => [a, ...prev]);
-      return a;
-    } catch (e) {
-      showToast(errorMessage(e));
-      throw e;
-    }
+    const a = queueCreate(articleId, input);
+    setAnnotations((prev) => [a, ...prev]);
+    return a;
   };
   const onAddBookmark = () => {
     if (annotations.some((a) => a.type === "BOOKMARK" && a.page === page)) {
@@ -445,20 +467,12 @@ export function ReaderView({ articleId }: { articleId: string }) {
     await addAnnotation({ type: "NOTE", page: p, note_text: text, location_data: { page: p } });
   };
   const onUpdateNote = async (a: Annotation, text: string) => {
-    try {
-      const u = await readingApi.updateAnnotation(articleId, a.id, { note_text: text });
-      setAnnotations((prev) => prev.map((x) => (x.id === a.id ? { ...x, ...u } : x)));
-    } catch (e) {
-      showToast(errorMessage(e));
-    }
+    queueUpdate(articleId, a.id, { note_text: text });
+    setAnnotations((prev) => prev.map((x) => (x.id === a.id ? { ...x, note_text: text } : x)));
   };
   const onDelete = async (a: Annotation) => {
-    try {
-      await readingApi.deleteAnnotation(articleId, a.id);
-      setAnnotations((prev) => prev.filter((x) => x.id !== a.id));
-    } catch (e) {
-      showToast(errorMessage(e));
-    }
+    queueDelete(articleId, a.id);
+    setAnnotations((prev) => prev.filter((x) => x.id !== a.id));
   };
   const onHighlight = async (color: string) => {
     if (!selection) return;
@@ -476,24 +490,30 @@ export function ReaderView({ articleId }: { articleId: string }) {
       }
       return;
     }
-    // Optimistik: server javobida location_data bo'lmasa ham lokal nusxada rects saqlanadi
-    const location_data = { page: s.page, rects: s.rects };
-    try {
-      const a = await readingApi.createAnnotation(articleId, { type: "HIGHLIGHT", page: s.page, selected_text: s.text, color, location_data });
-      setAnnotations((prev) => [{ ...a, color: a.color ?? color, location_data: a.location_data ?? location_data }, ...prev]);
-      showToast(t("reader.highlighted"));
-    } catch (e) {
-      showToast(errorMessage(e));
+    // 61: mavjud belgilash bilan kesishsa — ustiga ikkinchi qatlam emas
+    const overlapping = annotations.filter((a) => a.type === "HIGHLIGHT" && a.page === s.page && rectsOverlap(getHighlightRects(a), s.rects));
+    // Tanlangan joy bitta belgilash ichida — faqat rangi yangilanadi
+    const container = overlapping.length === 1 && coversRects(getHighlightRects(overlapping[0]), s.rects) ? overlapping[0] : null;
+    if (container) {
+      if (normalizeColor(container.color) !== color) {
+        await onChangeColor(container, color);
+        showToast(t("reader.highlightUpdated"));
+      }
+      return;
     }
+    // Qisman kesishgan(lar) bilan bitta belgilashga birlashadi: ramkalar birlashmasi, matn takrorsiz, eslatmalar saqlanadi
+    const rects = overlapping.length ? unionRects([...overlapping.flatMap(getHighlightRects), ...s.rects]) : s.rects;
+    const text = overlapping.length ? mergeTexts([...overlapping.map((a) => ({ rects: getHighlightRects(a), text: a.selected_text ?? "" })), { rects: s.rects, text: s.text }]) : s.text;
+    const note = overlapping.map((a) => a.note_text?.trim()).filter(Boolean).join("\n") || null;
+    for (const o of overlapping) queueDelete(articleId, o.id);
+    const merged = queueCreate(articleId, { type: "HIGHLIGHT", page: s.page, selected_text: text.slice(0, 2000), color, note_text: note, location_data: { page: s.page, rects } });
+    setAnnotations((prev) => [merged, ...prev.filter((x) => !overlapping.some((o) => o.id === x.id))]);
+    showToast(t("reader.highlighted"));
   };
   const onChangeColor = async (a: Annotation, color: string) => {
     if (normalizeColor(a.color) === color) return;
-    try {
-      const u = await readingApi.updateAnnotation(articleId, a.id, { color });
-      setAnnotations((prev) => prev.map((x) => (x.id === a.id ? { ...x, ...u, color: u.color ?? color } : x)));
-    } catch (e) {
-      showToast(errorMessage(e));
-    }
+    queueUpdate(articleId, a.id, { color });
+    setAnnotations((prev) => prev.map((x) => (x.id === a.id ? { ...x, color } : x)));
   };
 
   // ---- 33: lug'at
@@ -707,6 +727,20 @@ export function ReaderView({ articleId }: { articleId: string }) {
               <I.ZoomIn size={16} />
             </button>
           </div>
+          {/* 62: internetsiz qilingan o'zgarishlar — qurilmada, internet qaytganda o'zi yuboriladi */}
+          {!guest && (sync.offline || sync.pending > 0) && (
+            <span
+              className={cn("sync-pill", sync.offline && "offline")}
+              title={sync.offline ? t("reader.sync.offlineHint", { n: sync.pending }) : t("reader.sync.sending", { n: sync.pending })}
+              role="status"
+              data-testid="sync-pill"
+              data-pending={sync.pending}
+            >
+              {sync.offline ? <I.AlertTriangle size={13} /> : <I.Refresh size={13} className="animate-spin [animation-duration:2s]" />}
+              <span className="max-sm:hidden">{sync.offline ? t("reader.sync.offline") : t("reader.sync.syncing")}</span>
+              {sync.pending > 0 && <span className="tabular-nums">{sync.pending}</span>}
+            </span>
+          )}
           <button
             type="button"
             onClick={() => void toggleRead(!isRead)}

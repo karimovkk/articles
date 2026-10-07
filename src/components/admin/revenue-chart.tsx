@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * 44.4 / 52: oylik tushum — chiziqli grafik (dataviz qoidalari): bitta seriya, bitta rang (yorug'da #8a6400, qorong'ida
+ * 44.4 / 52 / 64: tushum (yil / oy / kun / soat) — chiziqli grafik (dataviz qoidalari): bitta seriya, bitta rang (yorug'da #8a6400, qorong'ida
  * #b8890a — validatordan o'tgan), afsona yo'q (sarlavha aytadi). 2px silliq chiziq (monoton kubik — nuqtalar orasida
  * pastga/yuqoriga "sakramaydi", noldan tushmaydi), ostida ~10% yengil to'ldirish, ingichka to'r chiziqlari, toza Y
  * belgilari; faqat oxirgi nuqta va uning qiymati yoziladi (har nuqtaga raqam yozilmaydi).
@@ -13,8 +13,9 @@ import { useId, useLayoutEffect, useRef, useState, type KeyboardEvent } from "re
 import { formatNumber, useT, type Locale } from "@/i18n";
 import { cn } from "@/components/ui";
 
-export interface MonthRevenue {
-  month: string; // "YYYY-MM"
+/** 64: bitta davr nuqtasi (yil / oy / kun / soat) — `period` kaliti, yozuvini sahifa beradi */
+export interface PeriodRevenue {
+  period: string;
   revenue: number;
   orders: number;
 }
@@ -29,13 +30,6 @@ function niceScale(max: number, ticks = 4): { top: number; step: number } {
   return { top: Math.ceil(max / step) * step, step };
 }
 
-/** "YYYY-MM" → "Okt" / "Okt 2026". Oy nomlari lug'atda (brauzer `Intl` da o'zbekcha qisqa oylar yo'q — "M10" chiqardi) */
-export function monthLabel(month: string, t: ReturnType<typeof useT>["t"], withYear = false): string {
-  const [y, m] = month.split("-").map(Number);
-  const names = t("chart.months").split(",");
-  if (!y || !m || !names[m - 1]) return month;
-  return withYear ? `${names[m - 1]} ${y}` : names[m - 1];
-}
 
 /** O'q belgisi uchun ixcham: 640 000 → "640 ming", 1 200 000 → "1,2 mln" */
 function compact(n: number, locale: Locale, t: ReturnType<typeof useT>["t"]): string {
@@ -86,7 +80,18 @@ const TOP = 26; // oxirgi qiymat yozuvi uchun joy
 const BOTTOM = 30; // oy yozuvlari
 const EDGE = 18; // chekka nuqtalar karta chetiga yopishmasin
 
-export function RevenueChart({ data, money }: { data: MonthRevenue[]; money: (n: number) => string }) {
+export function RevenueChart({
+  data,
+  money,
+  label,
+  title,
+}: {
+  data: PeriodRevenue[];
+  money: (n: number) => string;
+  /** Davr yozuvi: `long` — maslahat va ekran o'quvchi uchun to'liq sana */
+  label: (period: string, long: boolean) => string;
+  title: string;
+}) {
   const { t, locale } = useT();
   const gid = useId().replace(/:/g, "");
   const boxRef = useRef<HTMLDivElement>(null);
@@ -171,19 +176,19 @@ export function RevenueChart({ data, money }: { data: MonthRevenue[]; money: (n:
             )}
             {data.map((d, i) =>
               showX(i) ? (
-                <text key={d.month} className={cn("rev-x", i === active && "on")} x={xAt(i)} y={HEIGHT - 8} textAnchor={i === 0 && n > 1 ? "start" : i === last && n > 1 ? "end" : "middle"} dx={i === 0 && n > 1 ? -EDGE + 4 : i === last && n > 1 ? EDGE - 4 : 0}>
-                  {monthLabel(d.month, t, d.month.endsWith("-01"))}
+                <text key={d.period} className={cn("rev-x", i === active && "on")} x={xAt(i)} y={HEIGHT - 8} textAnchor={i === 0 && n > 1 ? "start" : i === last && n > 1 ? "end" : "middle"} dx={i === 0 && n > 1 ? -EDGE + 4 : i === last && n > 1 ? EDGE - 4 : 0}>
+                  {label(d.period, false)}
                 </text>
               ) : null,
             )}
           </svg>
           {/* Hover/fokus nishonlari — nuqtadan katta (butun oy oralig'i), ekran o'quvchi uchun qiymat bilan */}
-          <div className="rev-hits" role="list" aria-label={t("admin.payments.byMonth")}>
+          <div className="rev-hits" role="list" aria-label={title}>
             {data.map((d, i) => {
-              const label = monthLabel(d.month, t, true);
+              const full = label(d.period, true);
               return (
                 <div
-                  key={d.month}
+                  key={d.period}
                   ref={(el) => {
                     hitRefs.current[i] = el;
                   }}
@@ -196,7 +201,7 @@ export function RevenueChart({ data, money }: { data: MonthRevenue[]; money: (n:
                   onFocus={() => setActive(i)}
                   onBlur={() => setActive((a) => (a === i ? null : a))}
                   onKeyDown={(e) => onKey(e, i)}
-                  aria-label={`${label}: ${money(d.revenue)}, ${t("admin.payments.ordersN", { n: d.orders })}`}
+                  aria-label={`${full}: ${money(d.revenue)}, ${t("admin.payments.ordersN", { n: d.orders })}`}
                   data-testid="revenue-point"
                 />
               );
@@ -206,7 +211,7 @@ export function RevenueChart({ data, money }: { data: MonthRevenue[]; money: (n:
             <div className={cn("rev-tip", tipAlign)} style={{ left: tipLeft, top: pts[active][1] - 14 }} role="tooltip" data-testid="revenue-tip">
               <strong>{money(tip.revenue)}</strong>
               <span>
-                {monthLabel(tip.month, t, true)} · {t("admin.payments.ordersN", { n: tip.orders })}
+                {label(tip.period, true)} · {t("admin.payments.ordersN", { n: tip.orders })}
               </span>
             </div>
           )}

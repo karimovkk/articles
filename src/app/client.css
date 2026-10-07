@@ -2808,3 +2808,27 @@
 .vocab-langs button.active:disabled {
   opacity: 0.75;
 }
+
+/* 62: reader — internetsiz qilingan o'zgarishlar holati (qurilmada / yuborilmoqda) */
+.sync-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-2);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.sync-pill.offline {
+  border-color: color-mix(in srgb, var(--warning) 40%, var(--border));
+  background: color-mix(in srgb, var(--warning) 10%, var(--surface));
+  color: var(--text);
+}
+.sync-pill.offline svg {
+  color: var(--warning);
+}

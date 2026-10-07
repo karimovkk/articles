@@ -51,16 +51,17 @@ export const readingApi = {
     return api<Annotation[]>(`/articles/${articleId}/annotations`, { query: { type } });
   },
 
-  createAnnotation(articleId: string, input: AnnotationInput): Promise<Annotation> {
-    return api<Annotation>(`/articles/${articleId}/annotations`, { method: "POST", body: input });
+  /** `signal` — 62: navbat so'rovni vaqt chegarasida bekor qiladi (osilgan so'rov navbatni to'xtatmasin) */
+  createAnnotation(articleId: string, input: AnnotationInput, signal?: AbortSignal): Promise<Annotation> {
+    return api<Annotation>(`/articles/${articleId}/annotations`, { method: "POST", body: input, signal });
   },
 
-  updateAnnotation(articleId: string, id: string, patch: Partial<Omit<AnnotationInput, "type">>): Promise<Annotation> {
-    return api<Annotation>(`/articles/${articleId}/annotations/${id}`, { method: "PATCH", body: patch });
+  updateAnnotation(articleId: string, id: string, patch: Partial<Omit<AnnotationInput, "type">>, signal?: AbortSignal): Promise<Annotation> {
+    return api<Annotation>(`/articles/${articleId}/annotations/${id}`, { method: "PATCH", body: patch, signal });
   },
 
-  deleteAnnotation(articleId: string, id: string): Promise<MessageResponse> {
-    return api<MessageResponse>(`/articles/${articleId}/annotations/${id}`, { method: "DELETE" });
+  deleteAnnotation(articleId: string, id: string, signal?: AbortSignal): Promise<MessageResponse> {
+    return api<MessageResponse>(`/articles/${articleId}/annotations/${id}`, { method: "DELETE", signal });
   },
 
   async search(articleId: string, q: string, limit = 50): Promise<{ textAvailable: boolean; total: number; hits: SearchMatch[] }> {

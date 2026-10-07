@@ -1,5 +1,5 @@
 // Task 7.3 — reader maqola bo'yicha: holatlar, heartbeat, mark-read, qo'shni maqolalar, features
-import { launch, BASE, reset, mockGet, ignorablePageError } from "../lib.mjs";
+import { launch, BASE, reset, mockGet, ignorablePageError, mockWait } from "../lib.mjs";
 import { mkdirSync } from "node:fs";
 const ART1 = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", ART2 = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", ART3 = "cccccccc-cccc-4ccc-8ccc-cccccccccccc", OTHER = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
 const OUT = new URL("../out/", import.meta.url).pathname;
@@ -114,12 +114,13 @@ await page.mouse.up();
 await page.waitForTimeout(150);
 await page.locator('button[aria-label="Yashil rang bilan belgilash"]').click();
 await page.waitForSelector('[data-page="1"] .highlightLayer > div', { timeout: 5000 });
-const anns = await mockGet("/__annotations");
+// 62: yozish navbat orqali (ekranda darhol, serverga bir lahzadan keyin) — server holati kutiladi
+const anns = await mockWait("/__annotations", (l) => l.length > 0);
 check("Highlight: selected_text + location_data.rects + article_id", anns[0]?.selected_text?.length > 0 && anns[0]?.location_data?.rects?.length >= 1 && anns[0]?.article_id === ART2);
 await page.click('button[title="Panel"]'); await page.click("text=Eslatmalar");
 await page.fill("aside textarea", "Sinov eslatma"); await page.click("text=Eslatma qo'shish");
 await page.waitForFunction(() => document.body.innerText.includes("Sinov eslatma") && document.querySelectorAll("aside textarea").length === 1, null, { timeout: 5000 });
-const anns2 = await mockGet("/__annotations");
+const anns2 = await mockWait("/__annotations", (l) => l.some((x) => x.type === "NOTE"));
 check("Eslatma: note_text maydoni", anns2.some((a) => a.type === "NOTE" && a.note_text === "Sinov eslatma"));
 await page.keyboard.press("Control+p");
 await page.waitForSelector("text=chop etib bo'lmaydi", { timeout: 3000 });

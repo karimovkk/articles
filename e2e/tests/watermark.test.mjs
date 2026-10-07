@@ -1,6 +1,6 @@
-// 44.3 — Suv belgisi tanlov bo'yicha: admin maqola ro'yxatida "Suv belgisi" kalitini o'chiradi → reader'da overlay ham,
+// 44.3 / 65 — Suv belgisi tanlov bo'yicha (maqola va kitob darajasida): admin maqola ro'yxatida "Suv belgisi" kalitini o'chiradi → reader'da overlay ham,
 // `/watermark` so'rovi ham yo'q; qayta yoqsa — ko'rinadi; tekin kitobda kalit o'chiq va bosilmaydi.
-import { launch, BASE, reset, mockGet, ignorablePageError } from "../lib.mjs";
+import { launch, BASE, reset, mockGet, mockWait, ignorablePageError } from "../lib.mjs";
 import { mkdirSync } from "node:fs";
 const OUT = new URL("../out/", import.meta.url).pathname;
 mkdirSync(OUT, { recursive: true });
@@ -57,6 +57,36 @@ await admin.locator('[data-testid="article-watermark"]').first().click();
 await admin.waitForFunction(() => document.querySelector('[data-testid="article-watermark"]')?.getAttribute("aria-checked") === "true", null, { timeout: 8000 });
 r = await openReader();
 check("Qayta yoqildi → suv belgisi yana ko'rinadi", r.overlay && r.fetched);
+
+// ---- 65: kitob darajasida himoya kodi — o'chirilsa butun kitobda yo'q, maqola kalitlari bloklanadi
+await admin.goto(`${BASE}/admin/books/${BOOK}`);
+await admin.waitForSelector('[data-testid="book-watermark"]', { timeout: 15000 });
+check("Kitob formasi: 'Himoya kodi' yoqiq (default)", (await admin.getAttribute('[data-testid="book-watermark"]', "aria-checked")) === "true");
+await admin.click('[data-testid="book-watermark"]');
+await admin.locator('form:has([data-testid="book-watermark"]) button[type="submit"]').click();
+const bookOff = await mockWait("/__books", (l) => l.find((b) => b.id === BOOK)?.watermark_enabled === false);
+check("PATCH /admin/books/{id} → watermark_enabled=false", bookOff.find((b) => b.id === BOOK)?.watermark_enabled === false);
+await admin.click('[data-testid="tab-articles"]');
+await admin.waitForSelector('[data-testid="article-watermark"]', { timeout: 10000 });
+const asw = admin.locator('[data-testid="article-watermark"]').first();
+check("Maqola kaliti: o'chiq va bloklangan (kitob bo'yicha o'chirilgan)", (await asw.getAttribute("aria-checked")) === "false" && (await asw.isDisabled()));
+await admin.screenshot({ path: OUT + "81b-admin-book-watermark-off.png" });
+r = await openReader();
+check("Reader: kitob bo'yicha o'chiq → overlay yo'q, /watermark so'ralmadi", !r.overlay && !r.fetched, JSON.stringify(r));
+await admin.click('[data-testid="tab-info"]');
+await admin.click('[data-testid="book-watermark"]');
+await admin.locator('form:has([data-testid="book-watermark"]) button[type="submit"]').click();
+await mockWait("/__books", (l) => l.find((b) => b.id === BOOK)?.watermark_enabled === true);
+r = await openReader();
+check("Kitob bo'yicha qayta yoqildi → suv belgisi yana ko'rinadi", r.overlay && r.fetched);
+// Yangi kitob formasi: default yoqiq; tekin tanlansa — o'chiq va bloklangan
+await admin.goto(`${BASE}/admin/books`);
+await admin.click('[data-testid="new-book"]');
+await admin.waitForSelector('[data-testid="book-watermark"]', { timeout: 10000 });
+check("Yangi kitob: 'Himoya kodi' default yoqiq", (await admin.getAttribute('[data-testid="book-watermark"]', "aria-checked")) === "true");
+await admin.click('[data-testid="book-free"]');
+check("Yangi kitob: tekin tanlansa — himoya kodi o'chiq va bloklangan", (await admin.getAttribute('[data-testid="book-watermark"]', "aria-checked")) === "false" && (await admin.locator('[data-testid="book-watermark"]').isDisabled()));
+await admin.keyboard.press("Escape");
 
 // Tekin kitob: kalit o'chiq va bosilmaydi
 await admin.goto(`${BASE}/admin/books/${FREE_BOOK}`);
