@@ -93,6 +93,9 @@ export default function AdminPaymentsPage() {
   const books = data.revenue_by_book ?? [];
   const count = (s: OrderStatus) => data.orders_by_status?.[s] ?? 0;
   const allOrders = STATUS_ORDER.reduce((sum, s) => sum + count(s), 0);
+  // 68: backend `orders_by_status` ni hali oraliqqa bo'ysundirmaydi — oraliq tanlanganda holatlardagi tasdiqlanganlar
+  // kartadagidan ko'p bo'lsa, ular butun davr bo'yicha (izoh ko'rsatiladi; backend tuzatsa o'z-o'zidan yo'qoladi)
+  const statusUnscoped = !!(range.from || range.to) && count("APPROVED") > data.approved_orders;
 
   return (
     <div className="space-y-5" data-testid="payments-page">
@@ -110,6 +113,12 @@ export default function AdminPaymentsPage() {
       {allOrders > 0 && (
         <Card title={t("admin.payments.byStatus")}>
           <StatusDonut counts={data.orders_by_status ?? {}} />
+          {statusUnscoped && (
+            <p className="flex items-start gap-1.5 px-6 pb-5 text-xs text-muted" data-testid="status-unscoped">
+              <I.Info size={13} className="mt-0.5 shrink-0" />
+              {t("admin.payments.statusUnscoped")}
+            </p>
+          )}
         </Card>
       )}
 

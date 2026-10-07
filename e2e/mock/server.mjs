@@ -93,6 +93,7 @@ const INTEG_SECRET = new Set(["telegram.bot_token", "telegram.webhook_secret"]);
 let integ = {}, integLog = [], webhookCalls = 0;
 // 67: reklama (broadcast) — har GET'da jarayon oldinga siljiydi (5 ta qabul qiluvchi, 1 tasi xato)
 let broadcasts = [];
+let paymentsUnscoped = false; // 68: /__payments-unscoped?on=1 — holatlar oraliqqa bo'ysunmaydi (jonli backend kabi)
 const integOut = () => ({ settings: Object.fromEntries(Object.keys(INTEG_ENV).map((k) => {
   const v = integ[k] ?? (INTEG_ENV[k] || null); const sec = INTEG_SECRET.has(k);
   return [k, { is_secret: sec, is_set: !!v, source: integ[k] != null ? "db" : INTEG_ENV[k] ? "env" : null, ...(sec ? { value: null, preview: v ? `••••${v.slice(-4)}` : null } : { value: v }) }];
@@ -137,6 +138,7 @@ function reset(opts = {}) {
   tgLinkOff = false;
   integ = {}; integLog = []; webhookCalls = 0;
   broadcasts = [];
+  paymentsUnscoped = false;
   translateLog.length = 0;
   books = withFree(freshBooks());
   articles = freshArticles();
@@ -260,6 +262,7 @@ createServer(async (req, res) => {
     }
     return json(res, 200, { orders: orders.length });
   }
+  if (path === "/__payments-unscoped") { paymentsUnscoped = q.get("on") === "1"; return json(res, 200, { paymentsUnscoped }); }
   if (path === "/__broadcasts") return json(res, 200, broadcasts);
   if (path === "/__integrations") return json(res, 200, { db: integ, log: integLog, webhookCalls });
   if (path === "/__tg-link") { tgLinkOff = q.get("off") === "1"; return json(res, 200, { tgLinkOff }); }
@@ -725,7 +728,7 @@ createServer(async (req, res) => {
         for (const id of ids) { const bk = books.find((x) => x.id === id); byBook[id] = byBook[id] ?? { book_id: id, title: bk?.title ?? null, revenue: 0, sold: 0 }; byBook[id].revenue += per; byBook[id].sold += 1; }
       }
       const total = approved.reduce((a, o) => a + Number(o.amount), 0);
-      const st = {}; for (const o of scoped) st[o.status] = (st[o.status] ?? 0) + 1;
+      const st = {}; for (const o of paymentsUnscoped ? orders : scoped) st[o.status] = (st[o.status] ?? 0) + 1;
       return json(res, 200, {
         currency: "UZS", group_by: g, date_from: from, date_to: to,
         total_revenue: total, approved_orders: approved.length, average_order_value: approved.length ? total / approved.length : 0, orders_by_status: st,

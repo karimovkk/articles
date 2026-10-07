@@ -1186,6 +1186,24 @@ Manba: `Articles365_Frontend_Reklama_Broadcast_v1.0.md` — `POST /admin/broadca
 - [x] 67.3 Tarix jadvali: sana, matn (qisqa), rasm bor-yo'q, yuborildi/jami, xato, holat; jarayondagilar yangilanib turadi
 - [x] 67.4 Menyu "Reklama"; mock + e2e `broadcast`; dev + prod
 
+## 68. To'lovlar: "Buyurtmalar holati" sana oralig'iga bo'ysunmaydi (backend) (2026-10-07)
+
+Jonli tekshiruv (`?date_from=2026-09-28&date_to=2026-10-28`): total_revenue 811 000 → 551 000, approved 19 → 13, kitoblar
+12 → 10 — ✅; `orders_by_status` o'zgarmadi (APPROVED 19, karta esa 13) — ❌ backend oraliqni qo'llamaydi.
+
+- [x] 68.1 Backend'ga MD: `orders_by_status` ham `date_from`/`date_to` ga bo'ysunsin
+- [x] 68.2 Saytda (vaqtincha, o'z-o'zidan yo'qoladi): oraliq tanlangan va holatlardagi APPROVED > tasdiqlangan buyurtmalar
+      bo'lsa — donut ostida "Holatlar — butun davr bo'yicha" izohi
+- [x] 68.3 Mock (`/__payments-unscoped`) + e2e `payments`
+
+## 69. To'lovlar sahifasi — yangi joylashuv (2026-10-07)
+
+- [ ] 69.1 Kompyuterda: filtrlar → 3 ta karta → [tushum grafigi ~2/3 | holatlar donut'i ~1/3] (bir xil balandlik) →
+      kitoblar jadvali; planshet/telefonda — bitta ustun
+- [ ] 69.2 Donut kartaning kengligiga moslashadi (container query): tor — donut tepada, legend ostida; keng — yonma-yon
+- [ ] 69.3 Kitoblar jadvalida ulush — ingichka chiziq + foiz (grafik rangida)
+- [ ] 69.4 e2e `payments` (joylashuv: grafik va donut yonma-yon, telefonda ustun), skrinshotlar; dev + prod
+
 ## 31. Keyingi vazifalar
 
 - [ ] 31.1 Safari (WebKit): varaqlash rejimida oldingi sahifaga qaytilganda (3-sahifa) belgilash qatlami

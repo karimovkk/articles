@@ -135,6 +135,13 @@ const exp7 = await (await fetch(`${API_HOST}/api/v1/admin/stats/payments?${q7}`,
 check("Oxirgi 7 kun: date_from/date_to yuborildi, davr avtomatik 'Kun'", !!q7.get("date_from") && !!q7.get("date_to") && q7.get("group_by") === "day" && (await page.getAttribute('[data-testid="pay-g-day"]', "aria-pressed")) === "true", req7);
 check("Kartalar oraliqqa bo'ysunadi (jami — serverdagidek)", (await text('[data-testid="pay-total"]')).startsWith(fmt(exp7.total_revenue)), `${await text('[data-testid="pay-total"]')} / ${exp7.total_revenue}`);
 await page.screenshot({ path: OUT + "96-payments-filters.png" });
+// 68: jonli backend holatlarni oraliqqa bo'ysundirmaydi — sayt buni sezib, donut ostida izoh beradi
+check("Mock holatlarni filtrlasa — izoh yo'q", (await page.locator('[data-testid="status-unscoped"]').count()) === 0);
+await fetch(`${API_HOST}/__payments-unscoped?on=1`);
+await selectPick(page, '[data-testid="pay-range"]', "30d");
+await page.waitForSelector('[data-testid="status-unscoped"]', { timeout: 8000 });
+check("Holatlar oraliqqa bo'ysunmasa (tasdiqlanganlar kartadagidan ko'p) — 'butun davr bo'yicha' izohi", (await text('[data-testid="status-unscoped"]')).includes("butun davr"));
+await fetch(`${API_HOST}/__payments-unscoped?on=0`);
 await selectPick(page, '[data-testid="pay-range"]', "all");
 await page.click('[data-testid="pay-g-month"]');
 await page.waitForFunction(() => document.querySelectorAll('[data-testid="revenue-point"]').length === 7, null, { timeout: 8000 });

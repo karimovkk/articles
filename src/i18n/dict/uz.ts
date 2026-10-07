@@ -544,6 +544,7 @@ export const uz = {
   "admin.payments.approved": "Tasdiqlangan buyurtmalar",
   "admin.payments.average": "O'rtacha chek",
   "admin.payments.byStatus": "Buyurtmalar holati",
+  "admin.payments.statusUnscoped": "Holatlar — butun davr bo'yicha: server buyurtma holatlarini hozircha sana oralig'iga qarab filtrlamaydi.",
   "admin.payments.groupBy": "Davr",
   "admin.payments.g.year": "Yil",
   "admin.payments.g.month": "Oy",
