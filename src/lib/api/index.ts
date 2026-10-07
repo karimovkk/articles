@@ -16,4 +16,4 @@ export { quizApi, QUIZ_MIN_OPTIONS, QUIZ_MAX_OPTIONS, type QuizQuestion, type Qu
 export { translateApi, TRANSLATE_TEXT_MAX, type TranslateLang, type AutoTranslation } from "./translate";
 export { ordersApi, pricingApi, orderBookIds } from "./orders";
 export { notificationsApi } from "./notifications";
-export { adminApi, type IntegrationSetting, type IntegrationSettings } from "./admin";
+export { adminApi, type Broadcast, type IntegrationSetting, type IntegrationSettings } from "./admin";

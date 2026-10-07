@@ -12,6 +12,17 @@ export interface IntegrationSetting {
   value?: string | null;
   preview?: string | null;
 }
+/** 67: reklama — status PENDING → SENDING → DONE (yoki FAILED); total/sent/failed yuborish davomida to'ladi */
+export interface Broadcast {
+  id: string;
+  caption: string | null;
+  status: "PENDING" | "SENDING" | "DONE" | "FAILED" | string;
+  total: number;
+  sent: number;
+  failed: number;
+  has_image: boolean;
+  created_at: string;
+}
 export interface IntegrationSettings {
   settings: Record<string, IntegrationSetting>;
 }
@@ -79,6 +90,21 @@ export const adminApi = {
   },
   deleteAppImage(name: string, theme: AppImageTheme) {
     return api<MessageResponse>(`/admin/app-settings/images/${encodeURIComponent(name)}`, { method: "DELETE", query: { theme } });
+  },
+
+  // ---- 67: reklama (broadcast) — botdagi barcha foydalanuvchilarga; yuborish serverda fonda
+  /** multipart: `text` (rasm bilan ≤ 1024, faqat matn ≤ 4096) va/yoki `file` (jpeg/png/webp ≤ 10 MB) */
+  sendBroadcast(text: string, file: Blob | null, filename?: string, opts?: UploadOptions) {
+    const fd = new FormData();
+    if (text.trim()) fd.append("text", text.trim());
+    if (file) fd.append("file", file, filename ?? "image.jpg");
+    return apiUpload<Broadcast>("/admin/broadcast", fd, opts);
+  },
+  broadcast(id: string) {
+    return api<Broadcast>(`/admin/broadcast/${id}`);
+  },
+  broadcasts(limit = 50) {
+    return api<Broadcast[]>("/admin/broadcast", { query: { limit } });
   },
 
   // ---- 57: integratsiya sozlamalari (Telegram bot, to'lov) — maxfiylari niqoblangan; o'zgarish darhol kuchga kiradi

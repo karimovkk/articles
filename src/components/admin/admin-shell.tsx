@@ -51,6 +51,7 @@ export const ADMIN_NAV: NavSection[] = [
       { href: "/admin/users", label: "nav.admin.users", icon: I.Users },
       { href: "/admin/access", label: "nav.admin.access", icon: I.Key },
       { href: "/admin/orders", label: "nav.admin.orders", icon: I.ShoppingBag },
+      { href: "/admin/broadcast", label: "nav.admin.broadcast", icon: I.Send },
     ],
   },
   {

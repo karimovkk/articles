@@ -1179,12 +1179,12 @@ menyu yopilardi ("O'chirish" yo'qolardi); eslatma tahririda eski id bilan saqlan
 Manba: `Articles365_Frontend_Reklama_Broadcast_v1.0.md` — `POST /admin/broadcast` (multipart `text`, `file`),
 `GET /admin/broadcast/{id}` (status PENDING→SENDING→DONE|FAILED, total/sent/failed), `GET /admin/broadcast?limit=50`.
 
-- [ ] 67.1 "Reklama" sahifasi: rasm (ixtiyoriy; tanlash/sudrab tashlash, jpeg/png/webp ≤ 10 MB, oldindan ko'rish) + matn;
+- [x] 67.1 "Reklama" sahifasi: rasm (ixtiyoriy; tanlash/sudrab tashlash, jpeg/png/webp ≤ 10 MB, oldindan ko'rish) + matn;
       hisoblagich (rasm bilan ≤ 1024, faqat matn ≤ 4096); Telegram'dagi ko'rinish namunasi; matn yoki rasm majburiy
-- [ ] 67.2 Yuborishdan oldin tasdiq ("barcha foydalanuvchilarga — qaytarib bo'lmaydi"); yuborilgach jarayon: har 2.5 s
+- [x] 67.2 Yuborishdan oldin tasdiq ("barcha foydalanuvchilarga — qaytarib bo'lmaydi"); yuborilgach jarayon: har 2.5 s
       holat — "Yuborildi N/M · xato K", progress chizig'i; DONE/FAILED da to'xtaydi
-- [ ] 67.3 Tarix jadvali: sana, matn (qisqa), rasm bor-yo'q, yuborildi/jami, xato, holat; jarayondagilar yangilanib turadi
-- [ ] 67.4 Menyu "Reklama"; mock + e2e `broadcast`; dev + prod
+- [x] 67.3 Tarix jadvali: sana, matn (qisqa), rasm bor-yo'q, yuborildi/jami, xato, holat; jarayondagilar yangilanib turadi
+- [x] 67.4 Menyu "Reklama"; mock + e2e `broadcast`; dev + prod
 
 ## 31. Keyingi vazifalar
 
