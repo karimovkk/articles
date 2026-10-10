@@ -164,6 +164,11 @@ export interface CatalogItem {
   price: string;
   /** 37: tekin kitob (backend qo'shsa). Frontend `narx = 0` ni ham tekin deb biladi — `isFreeBook()` */
   is_free?: boolean;
+  /** 81: asl narx (chegirmagacha; ixtiyoriy). `price` — sotuv (to'lanadigan) narx */
+  original_price?: string | null;
+  /** 81: backend hisoblaydi — `original_price > price` */
+  has_discount?: boolean;
+  discount_percent?: number | null;
   has_cover: boolean;
   article_count: number;
 }
@@ -371,6 +376,11 @@ export interface Book {
   price: string;
   /** 37: tekin kitob (backend qo'shsa). Frontend `narx = 0` ni ham tekin deb biladi — `isFreeBook()` */
   is_free?: boolean;
+  /** 81: asl narx (chegirmagacha; ixtiyoriy). `price` — sotuv (to'lanadigan) narx */
+  original_price?: string | null;
+  /** 81: backend hisoblaydi — `original_price > price` */
+  has_discount?: boolean;
+  discount_percent?: number | null;
   /** 65: himoya kodi (suv belgisi) kitob bo'yicha (yo'q bo'lsa — yoqiq) */
   watermark_enabled?: boolean;
   status: BookStatus;

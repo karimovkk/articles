@@ -7,7 +7,8 @@ import { DataTable, Toolbar, usePaged, type Column } from "@/components/admin/da
 import { Alert, Badge, Button, Field, Input, Modal, PageHeader, SearchInput, Select, Textarea, formatDate, statusTone, Switch } from "@/components/ui";
 import * as I from "@/components/ui/icons";
 import { adminApi, errorMessage, type Book, type BookStatus, type Category } from "@/lib/api";
-import { Price } from "@/components/catalog/price";
+import { PriceTag } from "@/components/catalog/price";
+import { PriceFields } from "@/components/admin/price-fields";
 import { isFreeBook } from "@/lib/free-books";
 import { useDebounced } from "@/lib/use-debounce";
 import { useT } from "@/i18n";
@@ -61,7 +62,7 @@ export default function AdminBooksPage() {
         </Badge>
       ),
     },
-    { key: "price", header: t("admin.books.price"), num: true, render: (b) => (isFreeBook(b) ? <Badge tone="success">{t("catalog.free")}</Badge> : <Price value={b.price} />) },
+    { key: "price", header: t("admin.books.price"), num: true, render: (b) => (isFreeBook(b) ? <Badge tone="success">{t("catalog.free")}</Badge> : <PriceTag item={b} size="sm" />) },
     { key: "cover", header: t("admin.books.cover"), render: (b) => (b.has_cover ? <Badge tone="success">✓</Badge> : <span className="muted">{t("common.none")}</span>) },
     { key: "created", header: t("common.created"), render: (b) => <span className="muted">{formatDate(b.created_at)}</span> },
   ];
@@ -101,6 +102,8 @@ function CreateBookModal({ open, onClose, categories, onCreated }: { open: boole
   const [description, setDescription] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [price, setPrice] = useState("");
+  // 81: asl narx (chegirmagacha) — ixtiyoriy, sotuv narxidan katta
+  const [original, setOriginal] = useState("");
   // 37: tekin kitob — narx yozilmaydi (0), mehmonlar ham o'qiy oladi
   const [free, setFree] = useState(false);
   // 65: himoya kodi (suv belgisi) — default yoqiq; tekin kitobda doim o'chiq
@@ -115,6 +118,10 @@ function CreateBookModal({ open, onClose, categories, onCreated }: { open: boole
       setError(t("admin.books.priceRequired"));
       return;
     }
+    if (!free && original.trim() && !(Number(original) > Number(price))) {
+      setError(t("admin.books.originalTooLow"));
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -124,6 +131,7 @@ function CreateBookModal({ open, onClose, categories, onCreated }: { open: boole
         description: description.trim() || null,
         category_id: categoryId || null,
         price: free ? 0 : price.trim(),
+        ...(!free && original.trim() ? { original_price: original.trim() } : {}),
         is_free: free,
         watermark_enabled: free ? false : watermark,
       });
@@ -150,9 +158,19 @@ function CreateBookModal({ open, onClose, categories, onCreated }: { open: boole
         </Field>
         <Switch checked={free} onChange={setFree} label={t("admin.books.free")} description={t("admin.books.freeHint")} data-testid="book-free" />
         {!free && (
-          <Field label={t("admin.books.price")}>
-            <Input type="number" min={1} step="any" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} required data-testid="book-price" />
-          </Field>
+          <PriceFields
+            price={price}
+            original={original}
+            onPrice={(v) => {
+              setPrice(v);
+              setError(null);
+            }}
+            onOriginal={(v) => {
+              setOriginal(v);
+              setError(null);
+            }}
+            required
+          />
         )}
         <Switch
           checked={!free && watermark}

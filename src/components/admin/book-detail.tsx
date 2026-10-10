@@ -10,7 +10,8 @@ import { useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { Alert, Badge, Button, Card, DatePicker, Field, Input, Select, Spinner, Switch, Textarea, buttonClass, cn, formatDate, statusTone, useConfirm } from "@/components/ui";
 import * as I from "@/components/ui/icons";
-import { Price } from "@/components/catalog/price";
+import { PriceTag } from "@/components/catalog/price";
+import { PriceFields } from "./price-fields";
 import { isFreeBook } from "@/lib/free-books";
 import { BookCover } from "@/components/book-cover";
 import { adminApi, errorMessage, type Article, type BookAccess, type BookStatus, type Category } from "@/lib/api";
@@ -64,7 +65,7 @@ export function AdminBookDetail({ bookId }: { bookId: string }) {
   const error = actionError ?? loadError;
 
   // Forma: foydalanuvchi tahrirlari serverdagi qiymatlar ustiga qo'yiladi
-  const [edits, setEdits] = useState<Partial<{ title: string; author: string; description: string; category_id: string; price: string; published_at: string; is_free: boolean; watermark_enabled: boolean }>>({});
+  const [edits, setEdits] = useState<Partial<{ title: string; author: string; description: string; category_id: string; price: string; original_price: string; published_at: string; is_free: boolean; watermark_enabled: boolean }>>({});
   const meta = (book?.book_metadata ?? {}) as Record<string, unknown>;
   const form = {
     title: edits.title ?? book?.title ?? "",
@@ -72,6 +73,8 @@ export function AdminBookDetail({ bookId }: { bookId: string }) {
     description: edits.description ?? book?.description ?? "",
     category_id: edits.category_id ?? book?.category_id ?? book?.category?.id ?? "",
     price: edits.price ?? (book?.price && Number(book.price) > 0 ? String(Number(book.price)) : ""),
+    // 81: asl narx (chegirmagacha) — bo'sh: chegirma yo'q
+    original_price: edits.original_price ?? (book?.original_price && Number(book.original_price) > 0 ? String(Number(book.original_price)) : ""),
     // 37: tekin kitob (is_free yoki narx 0)
     is_free: edits.is_free ?? isFreeBook(book),
     // 65: kitob bo'yicha himoya kodi (yo'q bo'lsa — yoqiq)
@@ -125,6 +128,13 @@ export function AdminBookDetail({ bookId }: { bookId: string }) {
       setActionError(t("admin.books.priceRequired"));
       return;
     }
+    if (!form.is_free && form.original_price.trim() && !(Number(form.original_price) > Number(form.price))) {
+      setActionError(t("admin.books.originalTooLow"));
+      return;
+    }
+    // 81: chegirmani olib tashlash — `0` (backend null qiladi); o'zgarmagan bo'lsa yuborilmaydi
+    const hadOriginal = Number(book?.original_price) > 0;
+    const originalOut = !form.is_free && form.original_price.trim() ? form.original_price.trim() : hadOriginal ? 0 : undefined;
     void run(t("admin.books.saved"), () =>
       adminApi.updateBook(bookId, {
         title: form.title.trim(),
@@ -132,6 +142,7 @@ export function AdminBookDetail({ bookId }: { bookId: string }) {
         description: form.description.trim() || null,
         category_id: form.category_id || null,
         price: form.is_free ? 0 : form.price.trim(),
+        ...(originalOut !== undefined ? { original_price: originalOut } : {}),
         is_free: form.is_free,
         watermark_enabled: form.is_free ? false : form.watermark_enabled,
         book_metadata: nextMeta,
@@ -210,7 +221,7 @@ export function AdminBookDetail({ bookId }: { bookId: string }) {
           <div className="mt-auto flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
             <span className="flex items-center gap-2 font-semibold">
               <I.Wallet size={16} className="text-muted" />
-              {isFreeBook(book) ? <Badge tone="success">{t("catalog.free")}</Badge> : <Price value={book.price} />}
+              {isFreeBook(book) ? <Badge tone="success">{t("catalog.free")}</Badge> : <PriceTag item={book} />}
             </span>
             <span className="flex items-center gap-2 font-semibold text-text-2">
               <I.Layers size={16} className="text-muted" />
@@ -278,9 +289,9 @@ export function AdminBookDetail({ bookId }: { bookId: string }) {
               <Switch checked={form.is_free} onChange={(v) => setForm({ ...form, is_free: v })} label={t("admin.books.free")} description={t("admin.books.freeHint")} data-testid="book-free" />
             </div>
             {!form.is_free && (
-              <Field label={t("admin.books.price")}>
-                <Input type="number" min={1} step="any" inputMode="decimal" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} data-testid="book-price" />
-              </Field>
+              <div className="md:col-span-2">
+                <PriceFields price={form.price} original={form.original_price} onPrice={(v) => setForm({ ...form, price: v })} onOriginal={(v) => setForm({ ...form, original_price: v })} />
+              </div>
             )}
             {/* 65: himoya kodi (suv belgisi) — kitob bo'yicha; tekin kitobda doim o'chiq */}
             <Switch

@@ -970,6 +970,14 @@ export const en: Dict = {
   /* 37: tekin kitoblar */
   "admin.books.free": "Free book",
   "admin.books.freeHint": "No price. Guests can read it without signing up.",
+  // 81: asl narx + chegirma
+  "catalog.oldPrice": "Original price",
+  "catalog.discountA11y": "{n}% off",
+  "admin.books.salePrice": "Sale price",
+  "admin.books.originalPrice": "Original price (optional)",
+  "admin.books.originalHint": "Price before the discount. If it is higher than the sale price, the site shows it struck through with −N%. Empty — no discount.",
+  "admin.books.originalTooLow": "The original price must be higher than the sale price",
+  "admin.books.discountPreview": "On the site: −{n}% off",
   "admin.books.priceRequired": "Enter a price or turn on “Free book”",
   // 76: ulashish
   "share.button": "Share",

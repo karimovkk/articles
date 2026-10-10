@@ -970,6 +970,14 @@ export const ru: Dict = {
   /* 37: tekin kitoblar */
   "admin.books.free": "Бесплатная книга",
   "admin.books.freeHint": "Без цены. Гости могут читать без регистрации.",
+  // 81: asl narx + chegirma
+  "catalog.oldPrice": "Старая цена",
+  "catalog.discountA11y": "Скидка {n}%",
+  "admin.books.salePrice": "Цена продажи",
+  "admin.books.originalPrice": "Исходная цена (необязательно)",
+  "admin.books.originalHint": "Цена до скидки. Если она больше цены продажи — на сайте старая цена зачёркнута и показан −N%. Пусто — без скидки.",
+  "admin.books.originalTooLow": "Исходная цена должна быть больше цены продажи",
+  "admin.books.discountPreview": "На сайте: скидка −{n}%",
   "admin.books.priceRequired": "Укажите цену или включите «Бесплатная книга»",
   // 76: ulashish
   "share.button": "Поделиться",

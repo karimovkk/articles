@@ -1288,6 +1288,17 @@ Jonli tekshiruv (`?date_from=2026-09-28&date_to=2026-10-28`): total_revenue 811 
 - [x] 80.4 Ro'yxat podiumdan keyin — 4-o'rindan; 3 tadan kam ishtirokchi — borlari podiumda
 - [x] 80.5 320 / 360 / 390 / 768 / 1280 / 1440, yorug' va qorong'i; e2e `streak`
 
+## 81. Kitob narxi — asl narx + chegirma narxi (backend v1.0, 2026-10-10)
+
+- [x] 81.1 Turlar: `original_price`, `has_discount`, `discount_percent` (katalog va admin kitobi); `BookInput.original_price`
+- [x] 81.2 Narx belgisi: chegirma bo'lsa — joriy narx (asosiy), asl narx ustidan chiziq bilan, `−N%` belgisi
+      (backend bergan foiz); katalog kartalari, kitob sahifasi, savatchadagi tavsiyalar, admin kitoblar ro'yxati va
+      kitob sahifasi; tekin — "Tekin"
+- [x] 81.3 Admin forma (yangi kitob va tahrir): "Sotuv narxi" + "Asl narx (ixtiyoriy)"; asl narx sotuv narxidan
+      katta bo'lishi kerak (forma tekshiradi, backend 422); oldindan ko'rish "−N%"; chegirmani olib tashlash —
+      maydonni bo'shatish (`original_price: 0`)
+- [x] 81.4 Mock: maydonlar, 422, olib tashlash; e2e (admin → katalog, telefon o'lchamlari)
+
 ## 31. Keyingi vazifalar
 
 - [ ] 31.1 Safari (WebKit): varaqlash rejimida oldingi sahifaga qaytilganda (3-sahifa) belgilash qatlami

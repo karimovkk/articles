@@ -12,7 +12,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { BookCardH } from "@/components/catalog/book-card";
 import { HeroBrand } from "@/components/layout/year-progress";
 import { AddToCartButton, PricingPromo } from "@/components/cart/cart-ui";
-import { Price } from "@/components/catalog/price";
+import { PriceTag } from "@/components/catalog/price";
 import { ShareMenu } from "@/components/share/share-menu";
 import { Alert, EmptyState, Menu, MenuItem, RoundPagination, Spinner, cn } from "@/components/ui";
 import * as I from "@/components/ui/icons";
@@ -242,7 +242,7 @@ function CatalogList({ kind }: { kind: CatalogKind }) {
                       {!!item.article_count && <span>{t("catalog.articles", { n: item.article_count })}</span>}
                     </>
                   }
-                  footer={free ? <span className="bcard-price free">{t("catalog.free")}</span> : <Price value={item.price} className="bcard-price" />}
+                  footer={free ? <span className="bcard-price free">{t("catalog.free")}</span> : <PriceTag item={item} className="bcard-price" />}
                   cta={
                     has
                       ? { href: `/books/${item.book_id}`, label: t("catalog.read"), icon: <I.BookOpen size={15} /> }

@@ -11,7 +11,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { BookCover } from "@/components/book-cover";
-import { Price } from "@/components/catalog/price";
+import { Price, PriceTag } from "@/components/catalog/price";
 import { AddToCartButton, TierLadder } from "@/components/cart/cart-ui";
 import { CheckoutOrder } from "@/components/cart/checkout-order";
 import { Alert, Button, EmptyState, IconButton, PageHeader, Spinner, buttonClass, cn, useConfirm } from "@/components/ui";
@@ -318,7 +318,7 @@ export default function CartPage() {
                         {b.title}
                       </Link>
                       <p className="cart-item-author">
-                        <Price value={b.price} />
+                        <PriceTag item={b} size="sm" />
                       </p>
                       <AddToCartButton compact book={{ book_id: b.book_id, title: b.title, author: b.author, price: b.price, has_cover: b.has_cover }} />
                     </div>

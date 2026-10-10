@@ -8,7 +8,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/providers/auth-provider";
 import { BookCover } from "@/components/book-cover";
-import { Price } from "@/components/catalog/price";
+import { PriceTag } from "@/components/catalog/price";
 import { Badge, Card, EmptyState, Spinner, buttonClass } from "@/components/ui";
 import * as I from "@/components/ui/icons";
 import { OrderPanel } from "@/components/orders/order-panel";
@@ -93,7 +93,7 @@ export function CatalogBookDetail({ bookId }: { bookId: string }) {
           <p className="max-w-2xl whitespace-pre-wrap text-sm leading-relaxed text-text-2">{item.description || t("catalog.noDescription")}</p>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-2xl font-bold tabular-nums tracking-tight text-text">
-              {isFreeBook(item) ? <span className="text-success" data-testid="book-free-price">{t("catalog.free")}</span> : <Price value={item.price} />}
+              {isFreeBook(item) ? <span className="text-success" data-testid="book-free-price">{t("catalog.free")}</span> : <PriceTag item={item} size="lg" />}
             </p>
             {/* 76: Daily Articles — ulashish */}
             {isFreeBook(item) && <ShareMenu url={`/catalog/${item.book_id}`} title={item.title} text={t("share.bookText", { title: item.title })} testid="book-share" />}

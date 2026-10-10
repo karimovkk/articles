@@ -989,6 +989,14 @@ export const uz = {
   /* 37: tekin kitoblar */
   "admin.books.free": "Tekin kitob",
   "admin.books.freeHint": "Narx yozilmaydi. Ro'yxatdan o'tmagan mehmonlar ham o'qiy oladi.",
+  // 81: asl narx + chegirma
+  "catalog.oldPrice": "Asl narx",
+  "catalog.discountA11y": "{n}% chegirma",
+  "admin.books.salePrice": "Sotuv narxi",
+  "admin.books.originalPrice": "Asl narx (ixtiyoriy)",
+  "admin.books.originalHint": "Chegirmagacha bo'lgan narx. Sotuv narxidan katta bo'lsa — saytda eski narx ustidan chiziq va −N% ko'rinadi. Bo'sh — chegirma yo'q.",
+  "admin.books.originalTooLow": "Asl narx sotuv narxidan katta bo'lishi kerak",
+  "admin.books.discountPreview": "Saytda: −{n}% chegirma",
   "admin.books.priceRequired": "Narxni kiriting yoki “Tekin kitob”ni yoqing",
   // 76: ulashish
   "share.button": "Ulashish",

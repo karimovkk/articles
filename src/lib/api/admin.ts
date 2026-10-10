@@ -55,8 +55,10 @@ export interface BookInput {
   author?: string | null;
   description?: string | null;
   category_id?: string | null;
-  /** decimal — string ("30000.00") yoki number */
+  /** decimal — string ("30000.00") yoki number. 81: sotuv (to'lanadigan) narx */
   price?: string | number | null;
+  /** 81: asl narx (chegirmagacha). `price` dan katta bo'lishi kerak (aks holda 422); `0` — chegirmani olib tashlash */
+  original_price?: string | number | null;
   /** 37: tekin kitob — narx 0 bilan yuboriladi (backend `is_free` ni qo'shguncha e'tiborsiz qoldirishi mumkin) */
   is_free?: boolean;
   /** 65: himoya kodi (suv belgisi) — kitob bo'yicha; default true. Reader: kitob AND maqola AND pullik */

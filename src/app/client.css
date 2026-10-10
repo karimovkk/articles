@@ -3403,3 +3403,19 @@ html:not(.dark) .hero-eyebrow {
     animation: none;
   }
 }
+
+/* 81: kartada chegirmali narx — 1-qator: joriy narx + −N%, 2-qator: asl narx (ustidan chiziq) */
+.bcard-price.price-tag {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 8px;
+}
+.bcard-price.price-tag .pt-badge {
+  order: 1;
+}
+.bcard-price.price-tag .pt-old {
+  order: 2;
+  flex-basis: 100%;
+  font-size: 13px;
+}
