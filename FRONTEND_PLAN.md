@@ -1410,3 +1410,4 @@ highlight formati mos, maydon nomi `location_data` (≤ 32 KB); `DEVICE_LIMIT_RE
    `GET /catalog/{book_id}/cover` bo'lsa yaxshi.
 4. `DEVICE_LIMIT_REACHED.details = { limit, active_devices[] }` — **ha, qo'shing**; FE ko'rsatishga tayyor.
 5. `price` valyutasi/birligi (so'm?) va `null` bo'lishi mumkinmi?
+ 
