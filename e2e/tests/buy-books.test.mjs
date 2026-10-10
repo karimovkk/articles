@@ -24,18 +24,17 @@ const attrs = await card.evaluate((a) => ({ href: a.getAttribute("href"), target
 check("Karta: 'Buy Real Books' + 'Uzum Market', standart havola — Uzum'da qidiruv", attrs.text.includes("Buy Real Books") && attrs.text.includes("Uzum Market") && attrs.href === DEFAULT, JSON.stringify(attrs));
 check("Yangi oynada (target=_blank, rel=noopener noreferrer)", attrs.target === "_blank" && /noopener/.test(attrs.rel) && /noreferrer/.test(attrs.rel));
 check("Eski 'O'qing / O'rganing / O'sing' kartasi yo'q", (await page.locator(".client-promo").count()) === 0 && !(await page.textContent("body")).includes("O'rganing"));
-await page.waitForFunction(() => document.querySelectorAll('[data-testid="buy-books-cover"] .book-cover').length >= 6, null, { timeout: 15000 });
+// 86: muqovalar — login sahifasidagi "365" jurnallari (tekis variant), hammasi yuklangan
+await page.waitForFunction(() => [...document.querySelectorAll('[data-testid="buy-books-cover"] img')].every((im) => im.complete && im.naturalWidth > 0), null, { timeout: 15000 });
 const ring = await page.evaluate(() => {
   const r = document.querySelector('[data-testid="buy-books-ring"]');
   const a = r.getAnimations().find((x) => x.animationName === "bb-spin");
-  return { covers: document.querySelectorAll('[data-testid="buy-books-cover"] .book-cover').length, running: a?.playState === "running", t0: getComputedStyle(r).transform };
+  const imgs = [...document.querySelectorAll('[data-testid="buy-books-cover"] img')];
+  return { covers: imgs.length, srcs: imgs.map((im) => im.getAttribute("src")), running: a?.playState === "running", t0: getComputedStyle(r).transform };
 });
 await page.waitForTimeout(700);
 const t1 = await page.evaluate(() => getComputedStyle(document.querySelector('[data-testid="buy-books-ring"]')).transform);
-check("Kitob muqovalari (katalogdan) halqada aylanmoqda", ring.covers === 8 && ring.running && ring.t0 !== t1, `${ring.covers} ta · ${ring.running}`);
-// Muqova so'rovlari katalogdan (public) — kitoblarimiz
-const log = await mockGet("/__log");
-check("Muqovalar — katalogimizdagi kitoblar (GET /catalog)", log.some((l) => l.startsWith("GET /catalog")));
+check("7 ta '365' jurnali (login'dagi bilan bir xil) halqada aylanmoqda", ring.covers === 7 && ring.srcs.every((x, i) => x === `/covers/mag-${i + 1}.webp`) && ring.running && ring.t0 !== t1, JSON.stringify(ring.srcs));
 await card.hover();
 await page.waitForTimeout(200);
 check("Ustiga kelinganda aylanish to'xtaydi (ko'rib olish uchun)", (await page.evaluate(() => document.querySelector('[data-testid="buy-books-ring"]').getAnimations().find((x) => x.animationName === "bb-spin")?.playState)) === "paused");

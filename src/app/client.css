@@ -3112,13 +3112,13 @@ html:not(.dark) .hero-eyebrow {
   filter: blur(2px);
 }
 .bb-ring {
-  --cw: 56px;
-  --r: 78px;
+  --cw: 58px;
+  --r: 74px;
   position: absolute;
   left: 50%;
   top: 22px;
   width: var(--cw);
-  height: calc(var(--cw) * 4 / 3);
+  height: calc(var(--cw) * 1.4);
   margin-left: calc(var(--cw) / -2);
   transform-style: preserve-3d;
   transform: rotateX(-8deg) rotateY(0deg);
@@ -3139,22 +3139,18 @@ html:not(.dark) .hero-eyebrow {
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
 }
-.bb-cover.book-cover,
-.bb-ph {
+/* 86: tekis "365" muqovalari — rasm o'zi; burchaklari biroz yumaloq, soya */
+.bb-cover {
   display: block;
   width: 100%;
   height: 100%;
-  border-radius: 6px;
+  object-fit: cover;
+  border-radius: 4px;
   box-shadow:
     0 10px 18px -8px rgba(0, 0, 0, 0.7),
     inset 0 0 0 1px rgba(255, 255, 255, 0.12);
-}
-.bb-cover.book-cover .ph {
-  padding: 6px;
-  font-size: 8px;
-}
-.bb-ph {
-  background: linear-gradient(160deg, #3b2d6b, #1c1530);
+  user-select: none;
+  -webkit-user-drag: none;
 }
 .bb-title {
   font-family: var(--font-serif);

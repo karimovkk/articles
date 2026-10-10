@@ -1334,6 +1334,12 @@ Jonli tekshiruv (`?date_from=2026-09-28&date_to=2026-10-28`): total_revenue 811 
 - [x] 85.4 Menyu (Umumiy → "Chegirmalar"), mock, e2e (saqlash → public `/pricing` va savatcha zinapoyasi), telefon
 - [x] 85.5 Mijoz zinapoyasi: 1 ta uchun pog'ona bo'lsa — "1 ta — o'z narxi" qatori ko'rsatilmaydi (ikki marta chiqmasin)
 
+## 86. "Buy Real Books" — login'dagi "365" jurnallari aylanadi (2026-10-10)
+
+- [x] 86.1 Halqadagi muqovalar — login sahifasidagi 7 ta "365" jurnali (o'sha fotolardan kesilgan tekis variant,
+      `public/covers/mag-1…7.webp`, 16–29 KB); katalogdan so'rov yo'q; `/books` — himoyalangan yo'l, shuning uchun `/covers`
+- [x] 86.2 e2e `buy-books`: 7 ta muqova yuklangan va aylanmoqda (mehmon ham ko'radi)
+
 ## 31. Keyingi vazifalar
 
 - [ ] 31.1 Safari (WebKit): varaqlash rejimida oldingi sahifaga qaytilganda (3-sahifa) belgilash qatlami
