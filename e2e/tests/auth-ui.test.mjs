@@ -15,8 +15,20 @@ process.on("unhandledRejection", async (e) => {
 // ---- Chap panel: yer shari + orbitadagi kitoblar
 await page.goto(`${BASE}/login`);
 await page.waitForSelector('[data-testid="login-form"]');
-await page.waitForFunction(() => { const b = [...document.querySelectorAll(".orbit-book")]; return b.length === 5 && b.every((x) => x.complete && x.naturalWidth > 0 && x.style.visibility === "visible"); }, null, { timeout: 15000 });
-check("Globus: 5 ta kitob rasmi yuklandi va joylashtirildi", true);
+await page.waitForFunction(() => { const b = [...document.querySelectorAll(".orbit-book")]; return b.length === 7 && b.every((x) => x.complete && x.naturalWidth > 0 && x.style.visibility === "visible"); }, null, { timeout: 15000 });
+// 83: "365" jurnallarimiz — 7 ta, shaffof fonli (burchak piksellari shaffof), bir xil o'lchamdagi WebP
+const mags = await page.evaluate(() =>
+  [...document.querySelectorAll(".orbit-book")].map((im) => {
+    const c = document.createElement("canvas");
+    c.width = im.naturalWidth;
+    c.height = im.naturalHeight;
+    const x = c.getContext("2d");
+    x.drawImage(im, 0, 0);
+    const a = (px, py) => x.getImageData(px, py, 1, 1).data[3];
+    return { src: im.getAttribute("src"), w: im.naturalWidth, corners: [a(1, 1), a(c.width - 2, 1), a(1, c.height - 2), a(c.width - 2, c.height - 2)], center: a(c.width >> 1, c.height >> 1) };
+  }),
+);
+check("Globus: 7 ta '365' jurnali — mag-1…7.webp, fonsiz (burchaklar shaffof), markaz to'liq", mags.length === 7 && mags.every((m, i) => m.src === `/auth/mag-${i + 1}.webp` && m.w === 520 && m.center === 255 && m.corners.filter((v) => v === 0).length >= 2), JSON.stringify(mags.map((m) => [m.src, m.corners, m.center])));
 // Canvas quruqlik maskasi yuklangach chiziladi — kutamiz (aks holda test beqaror)
 const globeDrawn = await page
   .waitForFunction(() => {

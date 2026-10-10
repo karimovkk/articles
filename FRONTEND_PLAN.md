@@ -1308,6 +1308,14 @@ Jonli tekshiruv (`?date_from=2026-09-28&date_to=2026-10-28`): total_revenue 811 
       (o'lchab); mushakbozlik yorug' fonda ham yorqin
 - [x] 82.3 e2e streak, catalog; 768 / 1024 / 1280 / 1440 / 1920, yorug' va qorong'i
 
+## 83. Login — yer shari atrofida "365" jurnallarimiz (2026-10-10)
+
+- [x] 83.1 7 ta fotosuratdan muqovalar kesib olindi: perspektiva to'g'rilandi (gomografiya), fon olib tashlandi,
+      yorug'lik tenglandi
+- [x] 83.2 Hammasi bir xil burchakdagi 3D jurnal (muqova, qirra, varaqlar), shaffof WebP 520 px — `public/auth/mag-1…7.webp`;
+      eski `book-1…5.webp` o'chirildi; orbitada 7 ta (biroz kichikroq)
+- [x] 83.3 e2e `auth-ui`: 7 ta jurnal, fonsiz (shaffof burchaklar), orbita yo'nalishi; manba fotolar gitignore'da
+
 ## 31. Keyingi vazifalar
 
 - [ ] 31.1 Safari (WebKit): varaqlash rejimida oldingi sahifaga qaytilganda (3-sahifa) belgilash qatlami

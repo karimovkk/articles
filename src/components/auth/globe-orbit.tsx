@@ -9,7 +9,11 @@
 import { useEffect, useRef } from "react";
 import { landPoints } from "@/lib/land-mask";
 
-const BOOKS = ["/auth/book-1.webp", "/auth/book-2.webp", "/auth/book-3.webp", "/auth/book-4.webp", "/auth/book-5.webp"];
+/**
+ * 83: "365" jurnallarimiz — fotosuratlardan kesib olingan (perspektiva to'g'rilangan, fon olib tashlangan) va bir xil
+ * burchakdagi 3D ko'rinishga keltirilgan muqovalar (shaffof WebP)
+ */
+const BOOKS = Array.from({ length: 7 }, (_, i) => `/auth/mag-${i + 1}.webp`);
 
 /** Globus aylanishi (rad/s) va orbita tezligi (rad/s) */
 const SPIN = 0.12;
@@ -115,7 +119,8 @@ export function GlobeOrbit({ className }: { className?: string }) {
     };
 
     const placeBooks = (base: number) => {
-      const a = R * 1.62, b = R * 0.42, w = R * 0.8;
+      // 7 ta jurnal — biroz kichikroq (orbitada bir-biriga minmasin)
+      const a = R * 1.62, b = R * 0.42, w = R * 0.7;
       bookRefs.current.forEach((el, i) => {
         if (!el) return;
         const th = base + (i * 2 * Math.PI) / BOOKS.length;
