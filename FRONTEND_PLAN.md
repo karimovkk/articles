@@ -1316,6 +1316,14 @@ Jonli tekshiruv (`?date_from=2026-09-28&date_to=2026-10-28`): total_revenue 811 
       eski `book-1…5.webp` o'chirildi; orbitada 7 ta (biroz kichikroq)
 - [x] 83.3 e2e `auth-ui`: 7 ta jurnal, fonsiz (shaffof burchaklar), orbita yo'nalishi; manba fotolar gitignore'da
 
+## 84. Mavzu almashganda siljish yo'q; logo hover — yangi effekt (2026-10-10)
+
+- [x] 84.1 Sabab: yorug' mavzuda `.page-head` (+24 px) va `.catalog-hero` (+17 px, telefonda chekka ham) — fon tasmasi
+      padding/manfiy margin bilan chizilardi. Endi geometriya ikkala mavzuda bir xil, tasma — `::before` qatlami
+- [x] 84.2 Logo hover: kattalashish/aylanish olib tashlandi — halqa nuri kuchayadi, oltin yoy bir marta aylanadi,
+      "365" bir marta yaltiraydi, nom ostidan oltin chiziq chiqadi; logo joyidan qimirlamaydi
+- [x] 84.3 e2e `theme-shift` (mijoz sahifalari 1440/390, mehmon/foydalanuvchi), `brand-header` (hover)
+
 ## 31. Keyingi vazifalar
 
 - [ ] 31.1 Safari (WebKit): varaqlash rejimida oldingi sahifaga qaytilganda (3-sahifa) belgilash qatlami

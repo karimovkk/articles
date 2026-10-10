@@ -47,6 +47,26 @@ for (const who of ["guest", "user"]) {
       check("Logo: 'Articles' — sarlavha shrifti (kursiv), '365' — oltin gradient + yaltirash animatsiyasi", /playfair/i.test(st.font) && st.italic === "italic" && st.text === "Articles365" && st.clip === "text" && st.shine, JSON.stringify(st));
       check("Kun nishoni: tirik nuqta va yil progressi (chiziq = kun / jami)", st.dot && Math.abs(st.bar - st.year) < 0.03, `${st.bar.toFixed(3)} ~ ${st.year}`);
       await page.screenshot({ path: OUT + "99-brand-1440.png", clip: { x: 0, y: 0, width: 1440, height: 80 } });
+      // 84: hover — logo kattalashmaydi/aylanmaydi (joyida), halqa nuri kuchayadi, yoy bir marta aylanadi, ostida chiziq
+      const before = await page.evaluate(() => { const r = document.querySelector('[data-testid="header-brand"] .year-ring').getBoundingClientRect(); return [Math.round(r.left), Math.round(r.top), Math.round(r.width)]; });
+      await page.hover('[data-testid="header-brand"]');
+      await page.waitForTimeout(450);
+      const hv = await page.evaluate(() => {
+        const ring = document.querySelector('[data-testid="header-brand"] .year-ring');
+        const r = ring.getBoundingClientRect();
+        const line = getComputedStyle(document.querySelector(".brand-word"), "::after").transform;
+        return {
+          box: [Math.round(r.left), Math.round(r.top), Math.round(r.width)],
+          transform: getComputedStyle(ring).transform,
+          glow: getComputedStyle(ring).boxShadow,
+          sweep: document.querySelector(".ring-bulge").getAnimations().some((x) => x.animationName === "ring-bulge-hover"),
+          line,
+        };
+      });
+      check("Logo hover: kattalashish/aylanish yo'q, logo joyida", hv.transform === "none" && hv.box.join() === before.join(), JSON.stringify({ before, ...hv }));
+      check("Logo hover: halqa nuri kuchaydi, oltin yoy aylanadi, nom ostida chiziq chiqdi", /rgb/.test(hv.glow) && hv.sweep && (hv.line === "none" || /matrix\(1, 0, 0, 1/.test(hv.line)), JSON.stringify(hv));
+      await page.screenshot({ path: OUT + "99-brand-hover-1440.png", clip: { x: 520, y: 0, width: 420, height: 80 } });
+      await page.mouse.move(5, 500);
     }
     if (w === 390) await page.screenshot({ path: OUT + `99-brand-390-${who}.png`, clip: { x: 0, y: 0, width: 390, height: 70 } });
   }

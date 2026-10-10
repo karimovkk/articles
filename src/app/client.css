@@ -437,9 +437,14 @@
 
 /* ---------- Sahifa sarlavhasi (mijoz) — shaffof, serif ---------- */
 
-:root:not(.dark) .client .page-head {
-  padding: 16px var(--client-pad) 14px;
-  margin-inline: calc(var(--client-pad) * -1);
+/* 84: yorug' mavzudagi yengil oq tasma — joylashuvga ta'sir qilmaydigan qatlam (`::before`); sarlavhaning o'lchami va
+   joyi ikkala mavzuda bir xil (avval padding/margin bilan chizilardi — mavzu almashganda kontent 24 px siljirdi) */
+:root:not(.dark) .client .page-head::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: -16px calc(var(--client-pad) * -1) -8px;
+  pointer-events: none;
   background: linear-gradient(
     100deg,
     rgba(252, 251, 247, 0.38) 0%,
@@ -455,6 +460,8 @@
     0 2px 14px rgba(255, 255, 255, 0.7);
 }
 .client .page-head {
+  position: relative;
+  z-index: 0;
   background: transparent;
   border: 0;
   border-radius: 0;
@@ -507,6 +514,7 @@
   --hero-pill-ph: rgba(246, 242, 232, 0.5);
 
   position: relative;
+  isolation: isolate;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
@@ -527,11 +535,17 @@
   --hero-pill-fg: var(--text);
   --hero-pill-ph: var(--muted);
 
-  padding: 26px var(--client-pad) 34px;
-  /* Kontent chekkasidan tashqariga chiqadi (fon rasmi bilan bir tekis) — otstup bilan bir xil */
-  margin-inline: calc(var(--client-pad) * -1);
-  border-bottom: 0;
-  /* 20.1: oq panel yo'q — rasm ko'rinib turadi, faqat juda yengil parda */
+  /* 84: o'lcham va joy — qorong'idagi bilan bir xil (mavzu almashganda kontent siljimasin); chiziq — shaffof */
+  border-bottom-color: transparent;
+}
+/* 20.1: oq panel yo'q — rasm ko'rinib turadi, faqat juda yengil parda; kontent chekkasidan tashqariga chiqadi
+   (fon rasmi bilan bir tekis). 84: joylashuvga ta'sir qilmaydigan qatlam */
+:root:not(.dark) .catalog-hero::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: -20px calc(var(--client-pad) * -1) 0;
+  pointer-events: none;
   background: linear-gradient(
     100deg,
     rgba(252, 251, 247, 0.34) 0%,
@@ -1082,9 +1096,7 @@
   .client-main {
     padding: 20px var(--client-pad) 64px;
   }
-  :root:not(.dark) .catalog-hero {
-    padding: 28px 20px 26px;
-  }
+  /* 84: telefonda ham geometriya ikkala mavzuda bir xil (alohida padding yo'q) */
   .hero-eyebrow {
     font-size: 12px;
     letter-spacing: 0.08em;
@@ -2893,19 +2905,70 @@ html:not(.dark) .hero-eyebrow {
     background-position: -60% 0;
   }
 }
+/* 84: hover — kattalashish/aylanish yo'q (xunuk edi). O'rniga: halqa nuri kuchayadi, halqa atrofida oltin yoy bir marta
+   aylanib o'tadi, "365" bir marta yaltiraydi, nom ostidan ingichka oltin chiziq chiqadi. Logo joyidan qimirlamaydi */
 .client-brand:hover .bw-num,
 .client-brand:focus-visible .bw-num {
-  animation-duration: 1.6s;
-  animation-delay: 0s;
+  animation: brand-shine-once 1.1s ease-out both;
+}
+@keyframes brand-shine-once {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -60% 0;
+  }
 }
 .client-brand .year-ring {
-  transition:
-    transform 220ms var(--ease),
-    box-shadow 220ms var(--ease);
+  transition: box-shadow 280ms var(--ease);
 }
-.client-brand:hover .year-ring {
-  transform: rotate(-8deg) scale(1.04);
-  box-shadow: 0 0 24px -2px color-mix(in srgb, var(--accent) 60%, transparent);
+.client-brand:hover .year-ring,
+.client-brand:focus-visible .year-ring {
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent),
+    0 0 26px -2px color-mix(in srgb, var(--accent) 70%, transparent);
+}
+.client-brand:hover .ring-bulge,
+.client-brand:focus-visible .ring-bulge {
+  animation: ring-bulge-hover 1.15s cubic-bezier(0.45, 0.05, 0.4, 1) both;
+}
+@keyframes ring-bulge-hover {
+  0% {
+    transform: rotate(0deg);
+    opacity: 0;
+  }
+  12%,
+  82% {
+    opacity: 1;
+  }
+  100% {
+    transform: rotate(360deg);
+    opacity: 0;
+  }
+}
+.brand-word {
+  position: relative;
+}
+/* nom ostidagi chiziq kesilmasin (`.client-brand-name` — overflow: hidden) */
+.client-brand-name.brand-word {
+  overflow: visible;
+}
+.brand-word::after {
+  content: "";
+  position: absolute;
+  left: 2px;
+  right: 0;
+  bottom: -6px;
+  height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent) 30%, var(--accent) 70%, transparent);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 360ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.client-brand:hover .brand-word::after,
+.client-brand:focus-visible .brand-word::after {
+  transform: scaleX(1);
 }
 /* Kun nishoni: tirik nuqta + pastki ingichka yil progressi */
 .year-chip {
@@ -2948,11 +3011,13 @@ html:not(.dark) .hero-eyebrow {
 }
 @media (prefers-reduced-motion: reduce) {
   .brand-word .bw-num,
-  .year-chip .yc-dot {
+  .year-chip .yc-dot,
+  .client-brand:hover .bw-num,
+  .client-brand:hover .ring-bulge {
     animation: none;
   }
-  .client-brand:hover .year-ring {
-    transform: none;
+  .brand-word::after {
+    transition: none;
   }
 }
 @media (min-width: 1800px) {
