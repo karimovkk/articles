@@ -101,6 +101,9 @@ let integ = {}, integLog = [], webhookCalls = 0;
 // 67: reklama (broadcast) — har GET'da jarayon oldinga siljiydi (5 ta qabul qiluvchi, 1 tasi xato)
 let broadcasts = [];
 let paymentsUnscoped = false;
+let __lastQuizBody = null; // 87: oxirgi test yuborish (o'quvchi) — testlar javob shaklini tekshiradi
+let __lastQuestionBody = null; // 87: oxirgi admin savol so'rovi
+let questionsDropChoose = false; // 87: /__questions-strict?on=1 — server data.choose ni saqlamaydi (backend kabi bo'lishi mumkin)
 let __lastBookBody = null; // 81: oxirgi admin kitob so'rovi (testlar — original_price yuborilganini tekshirish) // 68: /__payments-unscoped?on=1 — holatlar oraliqqa bo'ysunmaydi (jonli backend kabi)
 const integOut = () => ({ settings: Object.fromEntries(Object.keys(INTEG_ENV).map((k) => {
   const v = integ[k] ?? (INTEG_ENV[k] || null); const sec = INTEG_SECRET.has(k);
@@ -126,6 +129,40 @@ function quoteFor(bookIds) {
   return { items, quantity: q, subtotal: money(subtotal), discount: money(subtotal - total), total: money(total), currency: pricing.currency, next_tier: next ? { min_quantity: next.min_quantity, unit_price: next.unit_price, add_count: next.min_quantity - q } : null };
 }
 const orderBookIds = (o) => (o.items?.length ? o.items.map((i) => i.book_id) : [o.book_id]);
+// ---- 87: IELTS savollari (13 tur, 4 mexanika) — backend kontrakti kabi
+const Q_TYPES = ["MULTIPLE_CHOICE", "TRUE_FALSE_NOT_GIVEN", "YES_NO_NOT_GIVEN", "MATCHING_INFORMATION", "MATCHING_HEADINGS", "MATCHING_FEATURES", "MATCHING_SENTENCE_ENDINGS", "SENTENCE_COMPLETION", "SUMMARY_COMPLETION", "NOTE_COMPLETION", "TABLE_COMPLETION", "FLOW_CHART_COMPLETION", "DIAGRAM_LABEL_COMPLETION"];
+const qMech = (t) => (t === "MULTIPLE_CHOICE" ? "choice" : t === "TRUE_FALSE_NOT_GIVEN" || t === "YES_NO_NOT_GIVEN" ? "enum" : t.startsWith("MATCHING_") ? "matching" : "text");
+const qPoints = (q) => { const m = qMech(q.type); return m === "matching" ? q.data.items.length : m === "text" ? q.data.blanks : 1; };
+const qNorm = (s) => String(s ?? "").toLowerCase().normalize("NFKC").replace(/[\s\p{P}\p{S}]+/gu, "");
+const isStrList = (a, min = 1) => Array.isArray(a) && a.length >= min && a.every((x) => typeof x === "string" && x.trim());
+function qValid(q) {
+  if (!Q_TYPES.includes(q.type) || typeof q.prompt !== "string" || !q.prompt.trim() || !q.data || typeof q.data !== "object" || !q.answer || typeof q.answer !== "object") return false;
+  const { data: d, answer: a } = q;
+  switch (qMech(q.type)) {
+    case "choice": return isStrList(d.options, 2) && Array.isArray(a.correct) && a.correct.length > 0 && new Set(a.correct).size === a.correct.length && a.correct.every((i) => Number.isInteger(i) && i >= 0 && i < d.options.length);
+    case "enum": return (q.type === "YES_NO_NOT_GIVEN" ? ["YES", "NO", "NOT_GIVEN"] : ["TRUE", "FALSE", "NOT_GIVEN"]).includes(String(a.value ?? "").toUpperCase());
+    case "matching": {
+      if (!isStrList(d.items) || !Array.isArray(d.options) || !d.options.length || !d.options.every((o) => o && typeof o.key === "string" && o.key && typeof o.text === "string" && o.text.trim())) return false;
+      const keys = new Set(d.options.map((o) => o.key)); if (keys.size !== d.options.length) return false;
+      return !!a.map && d.items.every((_, i) => keys.has(a.map[String(i)]));
+    }
+    case "text": return Number.isInteger(d.blanks) && d.blanks >= 1 && Array.isArray(a.blanks) && a.blanks.length === d.blanks && a.blanks.every((v) => isStrList(v));
+  }
+  return false;
+}
+function qGrade(q, r) {
+  const { data: d, answer: a } = q; r = r ?? {};
+  switch (qMech(q.type)) {
+    case "choice": { const sel = [...new Set(r.selected ?? [])].sort(); const ok = JSON.stringify(sel) === JSON.stringify([...a.correct].sort()); return ok ? 1 : 0; }
+    case "enum": return String(r.value ?? "").toUpperCase() === String(a.value).toUpperCase() ? 1 : 0;
+    case "matching": return d.items.filter((_, i) => (r.map ?? {})[String(i)] === a.map[String(i)]).length;
+    case "text": return a.blanks.filter((vs, i) => { const v = qNorm((r.blanks ?? [])[i]); return !!v && vs.some((x) => qNorm(x) === v); }).length;
+  }
+  return 0;
+}
+const qReader = ({ id, type, prompt, data, order_index, ...q }) => ({ id, type, prompt, data, points: qPoints({ type, data, ...q }), order_index });
+const qAdmin = (q) => ({ ...q, points: qPoints(q) });
+
 
 function reset(opts = {}) {
   pricing = freshPricing();
@@ -135,6 +172,7 @@ function reset(opts = {}) {
   vocab = [];
   passwords.clear();
   questions = [];
+  questionsDropChoose = false;
   streaks = {};
   appSettings = {};
   appImages = {};
@@ -242,6 +280,24 @@ createServer(async (req, res) => {
   if (path === "/__devices") return json(res, 200, devices);
   if (path === "/__users") return json(res, 200, users);
   if (path === "/__questions") return json(res, 200, questions);
+  if (path === "/__last-quiz-body") return json(res, 200, __lastQuizBody ?? {});
+  if (path === "/__last-question-body") return json(res, 200, __lastQuestionBody ?? {});
+  if (path === "/__questions-strict") { questionsDropChoose = q.get("on") === "1"; return json(res, 200, { questionsDropChoose }); }
+  // 87: o'quvchi testi uchun — har mexanikadan namuna savollar (tartib bilan)
+  if (path === "/__seed-ielts") {
+    const aid = q.get("article"); questions = questions.filter((x) => x.article_id !== aid);
+    const mk = (o, i) => questions.push({ id: randomUUID(), article_id: aid, explanation: null, order_index: i, ...o });
+    [
+      { type: "TRUE_FALSE_NOT_GIVEN", prompt: "Kichik odatlar natijani tez o'zgartiradi.", data: {}, answer: { value: "FALSE" }, explanation: "2-paragraf: natija sekin, lekin barqaror. [p. 3]" },
+      { type: "TRUE_FALSE_NOT_GIVEN", prompt: "Muallif 21 kunlik qoida haqida yozadi.", data: {}, answer: { value: "NOT_GIVEN" } },
+      { type: "MULTIPLE_CHOICE", prompt: "Odatni nima mustahkamlaydi?", data: { options: ["Iroda", "Takrorlash", "Omad", "Pul"] }, answer: { correct: [1] } },
+      { type: "MULTIPLE_CHOICE", prompt: "Qaysi IKKITASI muallif tavsiyasi?", data: { options: ["Kichik boshlash", "Hammasini birdan", "Muhitni o'zgartirish", "Kutish"], choose: 2 }, answer: { correct: [0, 2] } },
+      { type: "MATCHING_HEADINGS", prompt: "A–C paragraflar uchun sarlavha tanlang.", data: { items: ["Paragraf A", "Paragraf B", "Paragraf C"], options: [{ key: "i", text: "Kichik qadamlar" }, { key: "ii", text: "Muhitning roli" }, { key: "iii", text: "Natijani o'lchash" }, { key: "iv", text: "Motivatsiya afsonasi" }] }, answer: { map: { 0: "i", 1: "ii", 2: "iii" } }, explanation: "[p. 2]" },
+      { type: "SENTENCE_COMPLETION", prompt: "Matndan BIR so'z bilan to'ldiring.", data: { blanks: 2, text: "Odat ___ kun ichida shakllanadi va ___ talab qiladi.", word_limit: 1 }, answer: { blanks: [["66", "oltmish olti"], ["sabr", "sabr-toqat"]] }, explanation: "3-paragraf." },
+      { type: "TABLE_COMPLETION", prompt: "Jadvalni to'ldiring.", data: { blanks: 2, text: "Bosqich | Tavsif\nBoshlash | ___\nTakrorlash | ___", word_limit: 2 }, answer: { blanks: [["kichik qadam"], ["har kuni"]] } },
+    ].forEach(mk);
+    return json(res, 200, { count: questions.filter((x) => x.article_id === aid).length });
+  }
   // 49: test uchun — sozlamani to'g'ridan-to'g'ri yozish (masalan, eski xavfli fon rangi)
   if (path === "/__app-settings" && q.get("set")) { appSettings = { ...appSettings, ...JSON.parse(q.get("set")) }; return json(res, 200, appSettings); }
   if (path === "/__app-settings") return json(res, 200, appSettings);
@@ -449,13 +505,14 @@ createServer(async (req, res) => {
     if (!a) return err(res, 404, "ARTICLE_NOT_FOUND", "Article not found");
     if (!canRead(me.id, a.book_id)) return err(res, 403, "BOOK_ACCESS_DENIED", "Access to this book has not been granted");
     const qs = questions.filter((q) => q.article_id === a.id).sort((x, y) => x.order_index - y.order_index);
-    if (rq[2] === "questions" && m === "GET") return json(res, 200, qs.map(({ id, prompt, options, order_index }) => ({ id, prompt, options, order_index })));
+    // 87: o'quvchiga — answer'siz; baholash: matching/completion'da har element/bo'sh joy 1 ball
+    if (rq[2] === "questions" && m === "GET") return json(res, 200, qs.map(qReader));
     if (rq[2] === "quiz" && m === "POST") {
       if (me === GUEST) return err(res, 401, "AUTHENTICATION_REQUIRED", "Authentication required");
-      const b = await readBody(req); const ans = new Map((b.answers ?? []).map((x) => [x.question_id, x.selected_index]));
-      const results = qs.map((q) => { const sel = ans.has(q.id) ? ans.get(q.id) : null; return { question_id: q.id, selected_index: sel, correct_index: q.correct_index, is_correct: sel === q.correct_index, explanation: q.explanation ?? null }; });
-      const score = results.filter((r) => r.is_correct).length;
-      return json(res, 200, { score, total: qs.length, percentage: qs.length ? (score / qs.length) * 100 : 0, results });
+      const b = await readBody(req); __lastQuizBody = b; const ans = new Map((b.answers ?? []).map((x) => [x.question_id, x.response]));
+      const results = qs.map((q) => { const max = qPoints(q); const sc = qGrade(q, ans.get(q.id)); return { question_id: q.id, type: q.type, is_correct: sc === max, score: sc, max_score: max, correct_answer: q.answer, explanation: q.explanation ?? null }; });
+      const score = results.reduce((s2, r) => s2 + r.score, 0), total = results.reduce((s2, r) => s2 + r.max_score, 0);
+      return json(res, 200, { score, total, percentage: total ? Math.round((score / total) * 10000) / 100 : 0, results });
     }
   }
   const ra = /^\/reader\/articles\/([^/]+)(\/content|\/watermark)?$/.exec(path);
@@ -711,12 +768,12 @@ createServer(async (req, res) => {
     if (aq) {
       const [, aid, qid] = aq;
       if (!articles.some((x) => x.id === aid)) return err(res, 404, "ARTICLE_NOT_FOUND", "Article not found");
-      const valid = (b) => typeof b.prompt === "string" && b.prompt.trim() && Array.isArray(b.options) && b.options.length >= 2 && b.options.length <= 6 && Number.isInteger(b.correct_index) && b.correct_index >= 0 && b.correct_index < b.options.length;
-      if (!qid && m === "GET") return json(res, 200, questions.filter((q) => q.article_id === aid).sort((x, y) => x.order_index - y.order_index));
-      if (!qid && m === "POST") { const b = await readBody(req); if (!valid(b)) return err(res, 422, "VALIDATION_ERROR", "Validation failed", [{ loc: ["body"], msg: "Invalid question" }]); const q = { id: randomUUID(), article_id: aid, prompt: b.prompt, options: b.options, correct_index: b.correct_index, explanation: b.explanation ?? null, order_index: b.order_index ?? 0 }; questions.push(q); return json(res, 201, q); }
+      const bad = () => err(res, 422, "VALIDATION_ERROR", "Validation failed", [{ loc: ["body", "data"], msg: "data/answer shape does not match type" }]);
+      if (!qid && m === "GET") return json(res, 200, questions.filter((q) => q.article_id === aid).sort((x, y) => x.order_index - y.order_index).map(qAdmin));
+      if (!qid && m === "POST") { const b = await readBody(req); __lastQuestionBody = b; if (b.prompt === "__422__") return bad(); const q = { id: randomUUID(), article_id: aid, type: b.type, prompt: b.prompt, data: b.data, answer: b.answer, explanation: b.explanation ?? null, order_index: b.order_index ?? 0 }; if (!qValid(q)) return bad(); if (q.type === "MULTIPLE_CHOICE" && questionsDropChoose) delete q.data.choose; questions.push(q); return json(res, 201, qAdmin(q)); }
       const q = questions.find((x) => x.id === qid && x.article_id === aid);
       if (!q) return err(res, 404, "QUESTION_NOT_FOUND", "Question not found");
-      if (m === "PATCH") { const b = await readBody(req); const next = { ...q, ...Object.fromEntries(Object.entries(b).filter(([, v]) => v !== undefined)) }; if (!valid(next)) return err(res, 422, "VALIDATION_ERROR", "Validation failed", [{ loc: ["body"], msg: "Invalid question" }]); Object.assign(q, next); return json(res, 200, q); }
+      if (m === "PATCH") { const b = await readBody(req); __lastQuestionBody = b; const next = { ...q, ...Object.fromEntries(Object.entries(b).filter(([, v]) => v !== undefined)) }; if (!qValid(next)) return bad(); if (next.type === "MULTIPLE_CHOICE" && questionsDropChoose) delete next.data.choose; Object.assign(q, next); return json(res, 200, qAdmin(q)); }
       if (m === "DELETE") { questions = questions.filter((x) => x.id !== q.id); return json(res, 200, { message: "Question deleted" }); }
     }
     // 44.4: to'lovlar statistikasi — tushum = APPROVED buyurtmalar

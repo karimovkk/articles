@@ -12,7 +12,23 @@ export { vocabularyApi, isVocab, normalizeWord, clearVocabCache, VOCAB_EVENT, VO
 export { sessionsApi } from "./sessions";
 export { appApi, type AppSettings, type AppImage, type AppImageTheme } from "./app";
 export { streakApi, type Streak, type Leaderboard, type LeaderboardEntry } from "./streak";
-export { quizApi, QUIZ_MIN_OPTIONS, QUIZ_MAX_OPTIONS, type QuizQuestion, type QuizResult, type QuizAnswerResult, type AdminQuestion, type QuestionInput } from "./quiz";
+export {
+  quizApi,
+  QUESTION_TYPES,
+  mechanicOf,
+  pointsOf,
+  type QuestionType,
+  type Mechanic,
+  type MatchingOption,
+  type QuestionData,
+  type QuestionAnswer,
+  type QuestionResponse,
+  type QuizQuestion,
+  type QuizResult,
+  type QuizAnswerResult,
+  type AdminQuestion,
+  type QuestionInput,
+} from "./quiz";
 export { translateApi, TRANSLATE_TEXT_MAX, type TranslateLang, type AutoTranslation } from "./translate";
 export { ordersApi, pricingApi, orderBookIds } from "./orders";
 export { notificationsApi } from "./notifications";

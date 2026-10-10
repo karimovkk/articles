@@ -3549,3 +3549,250 @@ circle.donut-slice {
     grid-row: 2;
   }
 }
+
+/* ---------- 87: admin — IELTS savollari sahifasi va formasi ---------- */
+.qa-list {
+  display: grid;
+  gap: 10px;
+}
+.qa-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+.qa-item.editing {
+  border-color: var(--accent);
+}
+.qa-num {
+  flex-shrink: 0;
+  min-width: 34px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  text-align: center;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+.qa-prompt {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+.qa-answer {
+  display: flex;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--text-2);
+}
+.qa-answer svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--success);
+}
+.qa-answer .user-text {
+  overflow-wrap: anywhere;
+}
+.qa-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.qf {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 20px;
+}
+@media (min-width: 1180px) {
+  .qf {
+    grid-template-columns: minmax(0, 1.25fr) minmax(320px, 1fr);
+  }
+  .qf-preview {
+    position: sticky;
+    top: 16px;
+    align-self: start;
+  }
+}
+.qf-main {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+.qf-label {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-2);
+}
+.qf-types {
+  display: grid;
+  gap: 10px;
+}
+.qf-type-group-title {
+  margin-bottom: 4px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.qf-type-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.qf-type {
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-2);
+}
+.qf-type:hover {
+  border-color: var(--accent);
+}
+.qf-type.on {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-contrast);
+}
+.qf-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.qf-row > .input {
+  flex: 1;
+  min-width: 0;
+}
+.qf-correct {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  height: 36px;
+  padding: 0 8px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  font-weight: 800;
+  cursor: pointer;
+}
+.qf-correct input {
+  accent-color: var(--success);
+}
+.qf-correct.on {
+  border-color: var(--success);
+  background: color-mix(in srgb, var(--success) 12%, var(--surface));
+  color: var(--success);
+}
+.qf-match {
+  display: grid;
+  gap: 16px;
+}
+@media (min-width: 900px) {
+  .qf-match {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.qf-key {
+  flex: 0 0 64px !important;
+  text-align: center;
+  font-weight: 800;
+}
+.qf-key-select {
+  width: 130px;
+  flex-shrink: 0;
+}
+.qf-table-wrap {
+  overflow-x: auto;
+}
+.qf-table {
+  border-collapse: separate;
+  border-spacing: 4px;
+}
+.qf-table td .input {
+  min-width: 110px;
+}
+.qf-blank-answers {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.qf-blank-answers > .qv-num {
+  margin-top: 6px;
+}
+.qf-variant {
+  position: relative;
+  display: inline-flex;
+}
+.qf-variant .input {
+  width: 150px;
+  padding-right: 24px;
+}
+.qf-variant-x {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted);
+}
+.qf-variant-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px dashed var(--border-strong, var(--border));
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-2);
+}
+.qf-preview {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+.qf-preview-box {
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+}
+@media (max-width: 640px) {
+  .qa-item {
+    flex-wrap: wrap;
+  }
+  .qa-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  .qf-key-select {
+    width: 96px;
+  }
+}
+
+/* 88: admin savollar ro'yxati — javob sahifasi belgisi */
+.qa-page {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--accent-ink);
+}

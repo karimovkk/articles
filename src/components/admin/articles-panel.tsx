@@ -10,7 +10,7 @@ import { Alert, Badge, Button, Field, IconButton, Input, Menu, MenuItem, MenuSep
 import * as I from "@/components/ui/icons";
 import { adminApi, errorMessage, quizApi, type Article } from "@/lib/api";
 import { formatMb, validatePdf } from "@/lib/uploads";
-import { QuestionsEditor } from "./questions-editor";
+import Link from "next/link";
 import { env } from "@/lib/env";
 import { useT } from "@/i18n";
 
@@ -46,7 +46,8 @@ export function ArticlesPanel({
   const [renameTitle, setRenameTitle] = useState("");
   const [tocFor, setTocFor] = useState<Article | null>(null);
   // 44.5: maqola testi savollari
-  const [quizFor, setQuizFor] = useState<Article | null>(null);
+  // 87: savollar — alohida sahifa (avvalgi modal o'rniga)
+  const questionsHref = (a: Article) => `/admin/books/${bookId}/articles/${a.id}/questions`;
   const [tocRows, setTocRows] = useState<TocRow[]>([]);
   const [upload, setUpload] = useState<{ id: string; loaded: number; total: number } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -253,16 +254,9 @@ export function ArticlesPanel({
                       {qCount(a) === undefined ? (
                         <span className="text-xs text-muted">…</span>
                       ) : (
-                        <button
-                          type="button"
-                          className={cn("q-count", (qCount(a) ?? 0) > 0 && "has")}
-                          onClick={() => setQuizFor(a)}
-                          title={t("quiz.admin.menu")}
-                          data-testid="article-qcount"
-                          data-count={qCount(a)}
-                        >
+                        <Link href={questionsHref(a)} className={cn("q-count", (qCount(a) ?? 0) > 0 && "has")} title={t("quiz.admin.menu")} data-testid="article-qcount" data-count={qCount(a)}>
                           {(qCount(a) ?? 0) > 0 ? t("admin.articles.questionsN", { n: qCount(a) ?? 0 }) : t("admin.articles.addQuestions")}
-                        </button>
+                        </Link>
                       )}
                     </td>
                     <td className="text-right">
@@ -291,7 +285,7 @@ export function ArticlesPanel({
                           <MenuItem icon={<I.List size={15} />} onSelect={() => openToc(a)}>
                             {t("admin.articles.toc")}
                           </MenuItem>
-                          <MenuItem icon={<I.CheckCircle size={15} />} onSelect={() => setQuizFor(a)} data-testid="article-questions">
+                          <MenuItem icon={<I.CheckCircle size={15} />} href={questionsHref(a)} data-testid="article-questions">
                             {t("quiz.admin.menu")}
                           </MenuItem>
                           <MenuItem
@@ -345,18 +339,7 @@ export function ArticlesPanel({
         </form>
       </Modal>
 
-      {quizFor && (
-        <QuestionsEditor
-          articleId={quizFor.id}
-          title={quizFor.title}
-          open
-          onClose={() => {
-            // Muharrirda savol qo'shilgan/o'chirilgan bo'lishi mumkin — shu maqola soni yangilanadi
-            void countQuestions([quizFor.id]);
-            setQuizFor(null);
-          }}
-        />
-      )}
+
 
       <Modal open={!!tocFor} onClose={() => setTocFor(null)} title={`${t("admin.articles.toc")}: ${tocFor?.title ?? ""}`} size="lg" icon={<I.List size={18} />}>
         <form onSubmit={saveToc} className="space-y-4">

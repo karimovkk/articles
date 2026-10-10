@@ -8,6 +8,7 @@
  */
 import { useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Alert, Badge, Button, Card, DatePicker, Field, Input, Select, Spinner, Switch, Textarea, buttonClass, cn, formatDate, statusTone, useConfirm } from "@/components/ui";
 import * as I from "@/components/ui/icons";
 import { PriceTag } from "@/components/catalog/price";
@@ -55,7 +56,9 @@ export function AdminBookDetail({ bookId }: { bookId: string }) {
   const names = useEntityNames(access.filter((a) => !a.user_full_name && !a.user_email).map((a) => a.user_id));
   useAdminCrumb(book?.title);
 
-  const [tab, setTab] = useState<Tab>("info");
+  // 87: savollar sahifasidan qaytilganda — "Maqolalar" tabi (`?tab=articles`; client navigatsiyada ham)
+  const search = useSearchParams();
+  const [tab, setTab] = useState<Tab>(search.get("tab") === "articles" ? "articles" : "info");
   const [actionError, setActionError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);

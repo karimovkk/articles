@@ -810,7 +810,8 @@ export function ReaderView({ articleId }: { articleId: string }) {
 
         <div className="relative flex min-h-0 flex-1">
           {sidebarOpen && (
-            <div className="absolute inset-0 z-30 md:static md:z-auto md:w-80 md:shrink-0">
+            // 87: test tabida panel kengroq (matching ro'yxati, jadval, bo'sh joylar sig'sin)
+            <div className={cn("absolute inset-0 z-30 md:static md:z-auto md:w-80 md:shrink-0", tab === "test" && "md:w-[420px] xl:w-[460px]")}>
               <ReaderSidebar
                 tab={tab}
                 onTab={setTab}

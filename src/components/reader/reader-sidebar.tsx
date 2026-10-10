@@ -63,7 +63,8 @@ const TABS: Array<{ id: SidebarTab; label: DictKey }> = [
 export function ReaderSidebar(p: Props) {
   const { t } = useT();
   return (
-    <aside className="flex h-full w-full flex-col border-r border-border bg-surface md:w-80">
+    // 87: kenglik — ota konteynerda (test tabida kengroq)
+    <aside className="flex h-full w-full flex-col border-r border-border bg-surface">
       <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
         <div className="tabs wrap" role="tablist">
           {TABS.filter((tab) => (tab.id !== "test" || p.quiz.length > 0) && (!p.guest || tab.id === "toc" || tab.id === "search" || tab.id === "test")).map((tab) => (
@@ -79,7 +80,7 @@ export function ReaderSidebar(p: Props) {
       <div className="min-h-0 flex-1 overflow-auto p-3 text-sm">
         {p.tab === "toc" && <TocPanel toc={p.toc} available={p.tocAvailable} goToPage={p.goToPage} />}
         {p.tab === "search" && <SearchPanel {...p} />}
-        {p.tab === "test" && p.quiz.length > 0 && <QuizPanel articleId={p.articleId} questions={p.quiz} />}
+        {p.tab === "test" && p.quiz.length > 0 && <QuizPanel articleId={p.articleId} questions={p.quiz} onShowPage={p.goToPage} />}
         {p.tab === "bookmarks" && (
           <AnnotationList
             items={p.annotations.filter((a) => a.type === "BOOKMARK")}

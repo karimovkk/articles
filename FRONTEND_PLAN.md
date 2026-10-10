@@ -1340,6 +1340,42 @@ Jonli tekshiruv (`?date_from=2026-09-28&date_to=2026-10-28`): total_revenue 811 
       `public/covers/mag-1…7.webp`, 16–29 KB); katalogdan so'rov yo'q; `/books` — himoyalangan yo'l, shuning uchun `/covers`
 - [x] 86.2 e2e `buy-books`: 7 ta muqova yuklangan va aylanmoqda (mehmon ham ko'radi)
 
+## 87. Maqola testi → IELTS Reading 13 savol turi (backend v1.0, 2026-10-11)
+
+Kontrakt: savol = `type` + `prompt` + `data` (o'quvchi ko'radi) + `answer` (yashirin); 4 mexanika — choice, enum,
+matching, text; matching/completion'da har element/bo'sh joy = 1 ball (`points`).
+
+- [x] 87.1 Turlar va API: 13 tur, mexanika, `data`/`answer`/`response` shakllari; `submit` — `{answers:[{question_id,
+      response}]}`; natija `score/max_score/correct_answer`; eski formatdagi savollar (options/correct_index) ham o'qiladi
+- [x] 87.2 Umumiy savol ko'rinishi (reader + admin oldindan ko'rish): MULTIPLE_CHOICE (bitta — radio, ko'p — checkbox),
+      TFNG/YNNG (3 tugma), matching (har element — tanlov), completion (matn ichida bo'sh joylar; jadval — `|` ustunlar,
+      oqim sxemasi — qadamlar va strelkalar, eslatma — satrlar); "N so'zdan oshmasin" va so'z sanagich; IELTS kabi
+      ketma-ket bir turdagi savollar — bitta ko'rsatma bilan guruh, raqamlash ballar bo'yicha (Savollar 3–5)
+- [x] 87.3 Reader: javoblar turga mos yig'iladi; bo'sh javob bilan ham tekshirish (tasdiq bilan); natija — to'g'ri /
+      qisman / xato, har element/bo'sh joy uchun to'g'ri javob, izoh; qayta yechish; test tabida panel kengroq
+- [x] 87.4 Admin: modal o'rniga sahifa `/admin/books/{book}/articles/{article}/questions` — ro'yxat (tur, savol, javob,
+      ball), tartib (yuqoriga/pastga), tahrir, nusxa, o'chirish; tur tanlash (mexanika bo'yicha guruhlar, tavsif);
+      har tur uchun forma (variantlar, kalitlar i/ii/iii yoki A/B/C, bo'sh joy qo'shish, qabul variantlari, so'z
+      chegarasi, jadval/oqim quruvchi), tekshiruv, o'quvchi ko'rinishi (jonli)
+- [x] 87.5 Mock: 13 tur tekshiruvi (422), baholash (normalizatsiya, qisman ball), o'quvchiga javobsiz
+- [x] 87.6 e2e: admin har mexanikani qo'shadi/tahrirlaydi, tekshiruvlar; o'quvchi yechadi (qisman ball), natija;
+      telefon; dev + prod
+- [x] 87.7 Hisobot: mantiqiy kamchiliklar va backend takliflari — `~/Desktop/Articles365_BACKEND_IELTS_Takliflar_v1.0.md`
+- [x] 87.8 IELTS qoidasi: sarlavha va gap tugatmasi bir marta — admin tekshiruvi, o'quvchida tanlangani o'chiq
+
+## 88. IELTS test — frontend orqali qilsa bo'ladigan yaxshilanishlar (2026-10-11)
+
+- [x] 88.1 Ko'p javobli tanlov: `data.choose` bo'lmasa — savol matnidan (TWO/THREE, ikkita/uchta, два/три, "2 ta")
+- [x] 88.2 Diagramma/rasm: matnda `![izoh](https://…)` satri — o'quvchiga rasm; adminda "Rasm havolasi" maydoni
+- [x] 88.3 Natija: avval faqat to'g'ri/xato belgilari; to'g'ri javoblar va izohlar — "To'g'ri javoblarni ko'rsatish"
+      bosilganda (avval qayta urinib ko'rish mumkin); urinishlar tarixi (shu qurilmada): urinish №, eng yaxshi natija
+- [x] 88.4 "Matnda ko'rsatish": admin javob sahifasini kiritadi (izohda `[p. N]`), o'quvchi xato/qisman savolda
+      tugmani bosib PDF'ning shu betiga o'tadi (telefonda panel yopiladi)
+- [x] 88.5 Vaqt bilan yechish (ixtiyoriy): ball × 1,5 daqiqa (IELTS: 60 daqiqa / 40 savol); qolgan vaqt ko'rinadi,
+      tab almashsa ham davom etadi; tugasa — avtomatik tekshiriladi
+- [x] 88.6 e2e (quiz, questions-admin), dev + prod; backend kerak bo'lgan ishlar ro'yxati
+      → `~/Desktop/Articles365_BACKEND_IELTS_Takliflar_v1.1.md`
+
 ## 31. Keyingi vazifalar
 
 - [ ] 31.1 Safari (WebKit): varaqlash rejimida oldingi sahifaga qaytilganda (3-sahifa) belgilash qatlami
