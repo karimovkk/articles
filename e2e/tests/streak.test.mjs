@@ -67,6 +67,11 @@ const pod = await page.evaluate(() => {
 check("Podium: tartib 2 · 1 · 3, 1-o'rinda toj, poydevorlar 1 > 2 > 3", pod.order === "213" && pod.crown && pod.tall, JSON.stringify(pod));
 check("Podium: 1-o'rin — eng uzun joriy seriya (40) olov bilan", pod.first.includes("40"), pod.first);
 check("O'rinlar ketma-ket chiqadi: 3 → 2 → 1", pod.seq);
+// 82: "Sizning o'rningiz" — 26-o'rin, top-20 ga kirish uchun yana N kun (20-o'rin seriyasi − 5 + 1); "Rekordlar"
+const hint = (await page.textContent('[data-testid="lb-my-place-hint"]')) ?? "";
+const recTxt = ((await page.textContent('[data-testid="lb-records"]')) ?? "").replace(/\s+/g, " ");
+check("Sizning o'rningiz: #26, 'Top-20 ga kirish uchun yana 17 kun o'qing'", ((await page.textContent('[data-testid="lb-my-place"]')) ?? "").includes("26") && hint.includes("Top-20 ga kirish uchun yana 17 kun"), hint);
+check("Rekordlar: eng uzun seriya 45 kun (O'quvchi 1), top o'rtacha, 7+ kunlik soni", recTxt.includes("45 kun") && recTxt.includes("O'quvchi 1") && recTxt.includes("o'rtacha") && /7\+/.test(recTxt), recTxt);
 // Mushakbozlik — 1-o'rin chiqqach canvas'da uchqunlar paydo bo'ladi
 await page.waitForTimeout(3200);
 const lit = await page.evaluate(() => {
@@ -95,6 +100,21 @@ for (const theme of ["light", "dark"]) {
       return { inside: places.every((r) => r.left >= pod.left - 0.5 && r.right <= pod.right + 0.5), names, overlap, sw: document.documentElement.scrollWidth - innerWidth };
     });
     check(`${theme} ${w}px: podium sig'adi, o'rinlar ustma-ust emas, toshish yo'q`, g.inside && g.names && !g.overlap && g.sw <= 1, JSON.stringify(g));
+    // 82: yon panellar — keng: podium chap/o'ng yonida bir qatorda; o'rta: podium ostida 2 ustun; telefon: yashirin
+    const side = await page.evaluate(() => {
+      const vis = (el) => !!el && getComputedStyle(el).display !== "none";
+      const me = document.querySelector('[data-testid="lb-my-place"]');
+      const rec = document.querySelector('[data-testid="lb-records"]');
+      const pod = document.querySelector('[data-testid="podium"]').getBoundingClientRect();
+      if (!vis(me) || !vis(rec)) return { mode: "hidden" };
+      const a = me.getBoundingClientRect();
+      const b = rec.getBoundingClientRect();
+      if (a.right <= pod.left + 40 && b.left >= pod.right - 40 && a.bottom > pod.top && b.bottom > pod.top) return { mode: "sides" };
+      if (a.top >= pod.bottom - 1 && Math.abs(a.top - b.top) < 2) return { mode: "below" };
+      return { mode: "?", a: [a.left, a.top, a.right], b: [b.left, b.top, b.right], pod: [pod.left, pod.top, pod.right, pod.bottom] };
+    });
+    const want = w >= 1280 ? "sides" : w >= 768 ? "below" : "hidden";
+    check(`${theme} ${w}px: yon panellar — ${want}`, side.mode === want, JSON.stringify(side));
     if ([360, 1440].includes(w)) await page.screenshot({ path: OUT + `86-leaderboard-${theme}-${w}.png`, fullPage: w === 360 });
   }
 }

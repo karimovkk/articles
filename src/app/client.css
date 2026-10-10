@@ -2779,19 +2779,20 @@ html:not(.dark) .client {
   --text-2: #333a36;
   --muted: #4a504c;
   --success: #0a5c34;
-  --surface: rgba(255, 255, 255, 0.68);
-  --surface-2: rgba(255, 255, 255, 0.5);
-  --surface-3: rgba(255, 255, 255, 0.78);
+  --surface: rgba(255, 255, 255, 0.62);
+  --surface-2: rgba(255, 255, 255, 0.46);
+  --surface-3: rgba(255, 255, 255, 0.74);
   --border: rgba(70, 58, 24, 0.13);
 }
+/* 82: blur yengil — fon (qorong'idagi kabi) ko'rinib turadi, faqat mayda detallar yumshaydi */
 html:not(.dark) .client :is(.bcard, .card, .cat-chip, .pricing-promo, .cart-card, .cart-item, .cart-suggest-card, .vocab-card, .streak-card, .tier-step) {
-  -webkit-backdrop-filter: blur(14px) saturate(1.25);
-  backdrop-filter: blur(14px) saturate(1.25);
+  -webkit-backdrop-filter: blur(6px) saturate(1.25);
+  backdrop-filter: blur(6px) saturate(1.25);
 }
 html:not(.dark) .client-sidebar {
-  background: rgba(255, 255, 255, 0.56);
-  -webkit-backdrop-filter: blur(18px) saturate(1.3);
-  backdrop-filter: blur(18px) saturate(1.3);
+  background: rgba(255, 255, 255, 0.5);
+  -webkit-backdrop-filter: blur(10px) saturate(1.3);
+  backdrop-filter: blur(10px) saturate(1.3);
 }
 html:not(.dark) .client-header {
   background: rgba(255, 255, 255, 0.6);
@@ -2808,8 +2809,8 @@ html:not(.dark) .client-header {
     background: rgba(255, 255, 255, 0.9);
   }
   html:not(.dark) .client :is(.bcard, .card, .cat-chip, .pricing-promo, .cart-card, .cart-item, .cart-suggest-card, .vocab-card, .streak-card, .tier-step) {
-    -webkit-backdrop-filter: blur(10px) saturate(1.2);
-    backdrop-filter: blur(10px) saturate(1.2);
+    -webkit-backdrop-filter: blur(5px) saturate(1.2);
+    backdrop-filter: blur(5px) saturate(1.2);
   }
 }
 /* 75: qisqa shior ("Muntazamlik — muvaffaqiyat kaliti") — yorug' osmon ustida ham o'qiladi */
@@ -3418,4 +3419,174 @@ html:not(.dark) .hero-eyebrow {
   order: 2;
   flex-basis: 100%;
   font-size: 13px;
+}
+
+/* ---------- 82: reyting — podium yonidagi panellar (kompyuterda bo'sh joy o'rniga) ----------
+   Karta kengligi bo'yicha (container query): keng — [o'rnim | podium | rekordlar]; o'rta — podium, ostida 2 ustun;
+   tor (telefon) — panellar yashirin (sahifa tepasida o'z kartalari bor). */
+/* Container query o'zi konteynerga ta'sir qilmaydi — o'ram konteyner, ichki `.lb-stage` — grid */
+.lb-stage-wrap {
+  container-type: inline-size;
+}
+.lb-stage {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "podium";
+}
+.lb-stage .podium {
+  grid-area: podium;
+  width: 100%;
+}
+.lb-side {
+  display: none;
+}
+.lb-side-me {
+  grid-area: me;
+}
+.lb-side-records {
+  grid-area: rec;
+}
+@container (min-width: 560px) {
+  .lb-stage {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-areas:
+      "podium podium"
+      "me rec";
+    gap: 14px 16px;
+    padding-bottom: 16px;
+  }
+  .lb-side {
+    display: flex;
+  }
+  .lb-stage > .lb-side:first-of-type {
+    margin-left: 16px;
+  }
+  .lb-stage > .lb-side:last-of-type {
+    margin-right: 16px;
+  }
+}
+@container (min-width: 900px) {
+  .lb-stage {
+    grid-template-columns: minmax(190px, 1fr) minmax(0, 620px) minmax(190px, 1fr);
+    grid-template-areas: "me podium rec";
+    align-items: end;
+    gap: 0 8px;
+    padding: 0 20px 18px;
+  }
+  .lb-stage > .lb-side:first-of-type,
+  .lb-stage > .lb-side:last-of-type {
+    margin: 0;
+  }
+  .lb-side {
+    width: 100%;
+    max-width: 330px;
+    animation: pd-drop 700ms cubic-bezier(0.34, 1.56, 0.64, 1) 1.9s both;
+  }
+  /* juda keng ekranda — podiumga yaqin */
+  .lb-side-me {
+    justify-self: end;
+  }
+  .lb-side-records {
+    justify-self: start;
+  }
+}
+.lb-side {
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 16px 18px;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  background:
+    radial-gradient(120% 80% at 0% 0%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 60%),
+    var(--surface-2);
+}
+.lb-side-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+.lb-side-title svg {
+  color: var(--accent-ink);
+}
+.dark .lb-side-title svg {
+  color: var(--accent);
+}
+.lb-side-rank {
+  font-family: var(--font-serif);
+  font-size: 44px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--text);
+}
+.lb-side-hash {
+  margin-right: 2px;
+  font-size: 0.55em;
+  color: var(--muted);
+}
+.lb-side-line {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+}
+.lb-side-progress {
+  height: 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text) 10%, transparent);
+  overflow: hidden;
+}
+.lb-side-progress i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #f59f00, #e8590c);
+}
+.lb-side-hint {
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--text-2);
+}
+.lb-side-stats {
+  display: grid;
+  gap: 12px;
+}
+.lb-side-stats dt {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.lb-side-stats dd {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 6px;
+  min-width: 0;
+}
+.lb-side-stats dd b {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--text);
+}
+.lb-side-stats dd span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+@media (prefers-reduced-motion: reduce) {
+  .lb-side {
+    animation: none !important;
+  }
 }

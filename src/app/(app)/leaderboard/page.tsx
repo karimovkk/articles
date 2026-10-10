@@ -11,6 +11,7 @@ import { streakApi, type LeaderboardEntry } from "@/lib/api";
 import { useAsync } from "@/lib/use-async";
 import { useStreak } from "@/lib/streak-store";
 import { Podium } from "@/components/streak/podium";
+import { MyPlacePanel, RecordsPanel } from "@/components/streak/leaderboard-side";
 import { formatNumber, useT } from "@/i18n";
 
 export default function LeaderboardPage() {
@@ -73,7 +74,14 @@ export default function LeaderboardPage() {
           <p className="p-5 text-sm text-muted">{t("streak.empty")}</p>
         ) : (
           <>
-            <Podium entries={data.entries} />
+            {/* 82: kompyuterda podium yonlarida — o'rnim va rekordlar (o'rta kenglikda — ostida) */}
+            <div className="lb-stage-wrap">
+              <div className="lb-stage">
+                <Podium entries={data.entries} />
+                <MyPlacePanel data={data} />
+                <RecordsPanel data={data} />
+              </div>
+            </div>
             {(rest.length > 0 || (!meInTop && data.me)) && (
               <>
                 <div className="lb-head" aria-hidden>

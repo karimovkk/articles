@@ -1299,6 +1299,15 @@ Jonli tekshiruv (`?date_from=2026-09-28&date_to=2026-10-28`): total_revenue 811 
       maydonni bo'shatish (`original_price: 0`)
 - [x] 81.4 Mock: maydonlar, 422, olib tashlash; e2e (admin → katalog, telefon o'lchamlari)
 
+## 82. Reyting — yon panellar; yorug' mavzu shaffofroq (2026-10-10)
+
+- [x] 82.1 Kompyuterda podium yonlari bo'sh — chapda "Sizning o'rningiz" (o'rin, joriy seriya, keyingi o'ringa / top-20 ga
+      necha kun qolgani, progress), o'ngda "Rekordlar" (eng uzun seriya va egasi, top o'rtacha seriyasi, 7+ kunlik
+      seriyalilar soni); o'rta kenglikda — podium ostida 2 ustun; telefonda — yashirin (tepada o'z kartalari bor)
+- [x] 82.2 Yorug' mavzu: shisha panellar shaffofroq (qorong'idagi kabi fon ko'rinadi) — kamroq blur; kontrast ≥ 4.5:1
+      (o'lchab); mushakbozlik yorug' fonda ham yorqin
+- [x] 82.3 e2e streak, catalog; 768 / 1024 / 1280 / 1440 / 1920, yorug' va qorong'i
+
 ## 31. Keyingi vazifalar
 
 - [ ] 31.1 Safari (WebKit): varaqlash rejimida oldingi sahifaga qaytilganda (3-sahifa) belgilash qatlami

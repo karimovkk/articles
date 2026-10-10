@@ -87,7 +87,8 @@ export function Fireworks({ active, className }: { active: boolean; className?: 
       ctx.globalCompositeOperation = "destination-out";
       ctx.fillStyle = "rgba(0,0,0,0.22)";
       ctx.fillRect(0, 0, w, h);
-      ctx.globalCompositeOperation = "lighter";
+      // Qorong'i fonda uchqunlar bir-birini yoritadi ("lighter"); yorug' fonda — oddiy (aks holda oqarib yo'qoladi)
+      ctx.globalCompositeOperation = document.documentElement.classList.contains("dark") ? "lighter" : "source-over";
       for (let i = rockets.length - 1; i >= 0; i--) {
         const r = rockets[i];
         r.y += r.vy;
