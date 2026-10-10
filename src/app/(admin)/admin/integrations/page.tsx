@@ -12,6 +12,8 @@ import { Alert, Badge, Button, Card, Input, PageHeader, Spinner, Textarea, cn } 
 import * as I from "@/components/ui/icons";
 import { adminApi, errorMessage, type IntegrationSetting } from "@/lib/api";
 import { useAsync } from "@/lib/use-async";
+import { DEFAULT_SHOP_URL, SHOP_SETTING_KEY, isShopUrl } from "@/lib/shop";
+import { useShopUrl } from "@/providers/appearance-provider";
 import { useT, type DictKey } from "@/i18n";
 
 interface FieldDef {
@@ -163,6 +165,7 @@ export default function AdminIntegrationsPage() {
           </div>
         </Card>
       ))}
+      <ShopCard />
       {/* Saqlanmagan o'zgarish bo'lsa — panel ekran pastida yopishib turadi */}
       <div className={cn("integrations-bar", count > 0 && "dirty")}>
         <Button onClick={() => void save()} loading={busy} disabled={!count} icon={<I.Check size={16} />} data-testid="integrations-save">
@@ -183,6 +186,73 @@ export default function AdminIntegrationsPage() {
         <span className="text-xs text-muted">{t("integrations.instant")}</span>
       </div>
     </div>
+  );
+}
+
+/** 78: "Buy Real Books" kartasi havolasi — Uzum Market'dagi do'kon (app-settings `shop.uzum_url`, hamma ko'radi) */
+function ShopCard() {
+  const { t } = useT();
+  const { custom, reload } = useShopUrl();
+  const [value, setValue] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ tone: "success" | "danger"; text: string } | null>(null);
+  const shown = value ?? custom ?? "";
+  const dirty = value !== null && value.trim() !== (custom ?? "");
+  const invalid = !!shown.trim() && !isShopUrl(shown.trim());
+
+  async function run(fn: () => Promise<unknown>, ok: DictKey) {
+    setBusy(true);
+    setMsg(null);
+    try {
+      await fn();
+      await reload();
+      setValue(null);
+      setMsg({ tone: "success", text: t(ok) });
+    } catch (e) {
+      setMsg({ tone: "danger", text: errorMessage(e) });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Card
+      title={
+        <span className="inline-flex items-center gap-2">
+          <I.ShoppingBag size={16} />
+          {t("integrations.shop.title")}
+        </span>
+      }
+    >
+      <div className="card-body space-y-3" data-testid="shop-card">
+        {msg && <Alert tone={msg.tone}>{msg.text}</Alert>}
+        <p className="text-sm text-text-2">{t("integrations.shop.hint")}</p>
+        <Input value={shown} onChange={(e) => setValue(e.target.value)} placeholder={DEFAULT_SHOP_URL} inputMode="url" aria-label={t("integrations.shop.title")} aria-invalid={invalid || undefined} data-testid="shop-url" />
+        {invalid && <p className="text-xs font-semibold text-danger" data-testid="shop-url-invalid">{t("integrations.shop.invalid")}</p>}
+        <p className="text-xs text-muted">{custom ? t("integrations.shop.current") : t("integrations.shop.default", { url: DEFAULT_SHOP_URL })}</p>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            size="sm"
+            loading={busy}
+            disabled={!dirty || invalid || !shown.trim()}
+            icon={<I.Check size={14} />}
+            onClick={() => void run(() => adminApi.saveAppSettings({ [SHOP_SETTING_KEY]: { uzum_url: shown.trim() } }), "integrations.shop.saved")}
+            data-testid="shop-save"
+          >
+            {t("integrations.save")}
+          </Button>
+          {custom && (
+            <Button size="sm" variant="ghost" disabled={busy} onClick={() => void run(() => adminApi.deleteAppSetting(SHOP_SETTING_KEY), "integrations.shop.resetDone")} data-testid="shop-reset">
+              {t("integrations.shop.reset")}
+            </Button>
+          )}
+          <a href={custom ?? DEFAULT_SHOP_URL} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs font-semibold text-accent-ink underline">
+            {t("integrations.shop.open")}
+            <I.ArrowUpRight size={12} />
+          </a>
+        </div>
+      </div>
+    </Card>
   );
 }
 

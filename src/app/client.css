@@ -431,70 +431,6 @@
 }
 
 /* Promo karta */
-.client-promo {
-  position: relative;
-  margin-top: auto;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-  gap: 8px;
-  min-height: 176px;
-  padding: 18px;
-  border-radius: 16px;
-  overflow: hidden;
-  color: #fff;
-  text-decoration: none;
-  border: 1px solid var(--gold-line);
-  background:
-    linear-gradient(90deg, rgba(0, 0, 0, 0.88) 0%, rgba(0, 0, 0, 0.5) 55%, rgba(0, 0, 0, 0.15) 100%),
-    url("/bg/promo-480.webp") 70% center / cover no-repeat,
-    #0b0a08;
-  box-shadow: 0 18px 36px -24px rgba(0, 0, 0, 0.8);
-  flex-shrink: 0;
-}
-/* Yorug' mavzu: promo kartada ham kunduzgi rasm */
-:root:not(.dark) .client-promo {
-  border-color: rgba(30, 58, 92, 0.18);
-  background:
-    linear-gradient(90deg, rgba(8, 20, 34, 0.9) 0%, rgba(8, 20, 34, 0.5) 58%, rgba(8, 20, 34, 0.14) 100%),
-    url("/bg/promo-light-480.webp") 70% center / cover no-repeat,
-    #0b1018;
-}
-
-.client-promo-title {
-  font-family: var(--font-serif);
-  font-size: 28px;
-  font-weight: 700;
-  line-height: 1.02;
-  white-space: pre-line;
-}
-.client-promo-text {
-  max-width: 150px;
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 1.35;
-  color: var(--accent);
-}
-.client-promo-go {
-  position: absolute;
-  right: 14px;
-  bottom: 14px;
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  background: var(--accent);
-  color: var(--accent-contrast);
-  transition: transform 160ms var(--ease);
-}
-.client-promo:hover .client-promo-go {
-  transform: translateX(3px);
-}
-.client-promo:focus-visible {
-  outline: none;
-  box-shadow: var(--ring);
-}
 .client-backdrop {
   display: none;
 }
@@ -1185,7 +1121,8 @@
 @media (prefers-reduced-motion: reduce) {
   .client-sidebar,
   .bcard,
-  .client-promo-go {
+  .buy-books,
+  .bb-uzum {
     transition: none;
   }
   .ring-bulge {
@@ -1274,8 +1211,8 @@
     height: 54px;
     font-size: 16px;
   }
-  .client-promo-title {
-    font-size: 32px;
+  .bb-title {
+    font-size: 30px;
   }
   .pager-round button {
     min-width: 48px;
@@ -2831,4 +2768,375 @@
 }
 .sync-pill.offline svg {
   color: var(--warning);
+}
+
+/* ---------- 74: yorug' mavzu — shisha panellar ----------
+   Qorong'i mavzudagi kabi: oq joylar (header, sidebar, kartalar) yarim shaffof + blur — orqa fon sal ko'rinib turadi.
+   Matn to'q — yarim shaffof oq (+ blur, yorqin parda) ustida kontrast ≥ 4.5:1 saqlanadi. Menyular/dialoglar
+   (`.client` dan tashqarida, portal) — avvalgidek to'liq oq. */
+html:not(.dark) .client {
+  /* shaffof fon ustida ikkinchi darajali matn biroz to'qroq — kontrast zaxirasi */
+  --text-2: #333a36;
+  --muted: #4a504c;
+  --success: #0a5c34;
+  --surface: rgba(255, 255, 255, 0.68);
+  --surface-2: rgba(255, 255, 255, 0.5);
+  --surface-3: rgba(255, 255, 255, 0.78);
+  --border: rgba(70, 58, 24, 0.13);
+}
+html:not(.dark) .client :is(.bcard, .card, .cat-chip, .pricing-promo, .cart-card, .cart-item, .cart-suggest-card, .vocab-card, .streak-card, .tier-step) {
+  -webkit-backdrop-filter: blur(14px) saturate(1.25);
+  backdrop-filter: blur(14px) saturate(1.25);
+}
+html:not(.dark) .client-sidebar {
+  background: rgba(255, 255, 255, 0.56);
+  -webkit-backdrop-filter: blur(18px) saturate(1.3);
+  backdrop-filter: blur(18px) saturate(1.3);
+}
+html:not(.dark) .client-header {
+  background: rgba(255, 255, 255, 0.6);
+}
+@media (max-width: 1100px) {
+  /* Telefon/planshet menyusi (drawer) — kontent ustida: qalinroq shisha */
+  html:not(.dark) .client-sidebar {
+    background: rgba(255, 255, 255, 0.88);
+  }
+}
+@media (max-width: 640px) {
+  /* Telefonda sarlavhada blur yo'q (26.3: ravon aylantirish) — o'qilishi uchun qalinroq */
+  html:not(.dark) .client-header {
+    background: rgba(255, 255, 255, 0.9);
+  }
+  html:not(.dark) .client :is(.bcard, .card, .cat-chip, .pricing-promo, .cart-card, .cart-item, .cart-suggest-card, .vocab-card, .streak-card, .tier-step) {
+    -webkit-backdrop-filter: blur(10px) saturate(1.2);
+    backdrop-filter: blur(10px) saturate(1.2);
+  }
+}
+/* 75: qisqa shior ("Muntazamlik — muvaffaqiyat kaliti") — yorug' osmon ustida ham o'qiladi */
+html:not(.dark) .hero-sub {
+  color: #2b2618;
+  font-weight: 600;
+  text-shadow:
+    0 0 14px rgba(255, 255, 255, 0.9),
+    0 0 2px rgba(255, 255, 255, 0.8);
+}
+html:not(.dark) .hero-eyebrow {
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.85);
+}
+
+/* 76: ulashish — kartada "O'qish" yonida kichik belgi */
+.bcard-cta:has(.share-btn) {
+  display: flex;
+  gap: 8px;
+}
+.bcard-cta:has(.share-btn) > .btn {
+  flex: 1;
+  width: auto;
+}
+.bcard-cta .share-btn {
+  width: 36px;
+  height: 32px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+.share-btn.is-copied {
+  color: var(--success);
+  border-color: color-mix(in srgb, var(--success) 40%, transparent);
+}
+
+/* ---------- 77: navbar logotipi — so'z-belgi va kun ko'rsatkichi ----------
+   "Articles" — sarlavha shrifti (Playfair, kursiv), "365" — oltin gradient, har ~8 s da yaltiraydi; kun nishoni — tirik
+   nuqta va yil progressi. Harakat faqat transform/background-position (yengil); reduced-motion — harakatsiz. */
+.brand-word {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 1px;
+  font-family: var(--font-serif);
+  font-size: 23px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  text-transform: none;
+}
+.brand-word .bw-main {
+  font-style: italic;
+  color: #17120a;
+}
+.dark .brand-word .bw-main {
+  color: #f7f0de;
+}
+.brand-word .bw-num {
+  padding-left: 2px;
+  font-variant-numeric: lining-nums;
+  background: linear-gradient(100deg, #8a5d00 0%, #c98d00 28%, #f6c94a 44%, #fff3c4 50%, #f2b705 56%, #b07a00 72%, #8a5d00 100%);
+  background-size: 260% 100%;
+  background-position: 100% 0;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: brand-shine 8s ease-in-out 1.5s infinite;
+}
+.dark .brand-word .bw-num {
+  background-image: linear-gradient(100deg, #c98d00 0%, #f2b705 28%, #ffd866 44%, #fff6d6 50%, #ffd23f 56%, #e0a400 72%, #c98d00 100%);
+  text-shadow: none;
+  filter: drop-shadow(0 0 10px rgba(242, 183, 5, 0.28));
+}
+@keyframes brand-shine {
+  0%,
+  70% {
+    background-position: 100% 0;
+  }
+  88%,
+  100% {
+    background-position: -60% 0;
+  }
+}
+.client-brand:hover .bw-num,
+.client-brand:focus-visible .bw-num {
+  animation-duration: 1.6s;
+  animation-delay: 0s;
+}
+.client-brand .year-ring {
+  transition:
+    transform 220ms var(--ease),
+    box-shadow 220ms var(--ease);
+}
+.client-brand:hover .year-ring {
+  transform: rotate(-8deg) scale(1.04);
+  box-shadow: 0 0 24px -2px color-mix(in srgb, var(--accent) 60%, transparent);
+}
+/* Kun nishoni: tirik nuqta + pastki ingichka yil progressi */
+.year-chip {
+  position: relative;
+  overflow: hidden;
+  gap: 4px;
+  padding: 0 11px 0 9px;
+  height: 28px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+.dark .year-chip {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+.year-chip .yc-dot {
+  width: 7px;
+  height: 7px;
+  margin-right: 2px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 60%, transparent);
+  animation: yc-pulse 2.4s ease-out infinite;
+}
+@keyframes yc-pulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 55%, transparent);
+  }
+  70%,
+  100% {
+    box-shadow: 0 0 0 7px color-mix(in srgb, var(--accent) 0%, transparent);
+  }
+}
+.year-chip .yc-bar {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 2px;
+  width: calc(var(--year, 0) * 100%);
+  border-radius: 0 2px 2px 0;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 40%, transparent), var(--accent));
+}
+@media (prefers-reduced-motion: reduce) {
+  .brand-word .bw-num,
+  .year-chip .yc-dot {
+    animation: none;
+  }
+  .client-brand:hover .year-ring {
+    transform: none;
+  }
+}
+@media (min-width: 1800px) {
+  .brand-word {
+    font-size: 27px;
+  }
+}
+/* 77: joy yetmasa — o'ng tugmalar ustuni o'z kengligidan torayib, logoga minib ketmaydi (brend biroz chapga
+   suriladi); telefonda faqat emblema (avvalgidek), kun nishoni faqat keng ekranda */
+@media (min-width: 641px) {
+  .client-header {
+    grid-template-columns: minmax(0, 1fr) auto minmax(max-content, 1fr);
+  }
+}
+@media (max-width: 767px) {
+  .client-brand-name.brand-word {
+    display: none;
+  }
+}
+@media (max-width: 900px) {
+  .brand-word {
+    font-size: 20px;
+  }
+}
+.header-day {
+  display: none;
+}
+/* Kun nishoni: keng ekranda (≥ 1280 px) hammaga; telefonda (440–600 px) faqat mehmonga — kirgan foydalanuvchida
+   o'rniga olovcha (seriya) bor va tugmalar ko'p. Qolgan kengliklarda — tugmalarga joy (o'lchab tekshirilgan) */
+@media (min-width: 1280px) {
+  .header-day {
+    display: inline-flex;
+  }
+}
+@media (min-width: 440px) and (max-width: 600px) {
+  .client-header[data-guest] .header-day {
+    display: inline-flex;
+  }
+}
+
+/* ---------- 78: "Buy Real Books" — Uzum Market'dagi do'kon (chap pastki karta) ----------
+   Rasm o'rniga kitoblarimiz muqovalari 3D halqada aylanadi (faqat transform — yengil); orqa tomondagilari
+   ko'rinmaydi (backface), shuning uchun oldingi yarim halqa aylanib o'tadi. Reduced-motion — harakatsiz. */
+.buy-books {
+  position: relative;
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0 16px 16px;
+  border-radius: 18px;
+  overflow: hidden;
+  color: #fff;
+  text-decoration: none;
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 214, 120, 0.22);
+  background:
+    radial-gradient(120% 70% at 50% 0%, rgba(124, 58, 237, 0.42), transparent 62%),
+    radial-gradient(90% 60% at 100% 100%, rgba(242, 183, 5, 0.22), transparent 60%),
+    linear-gradient(180deg, #17112b 0%, #0b0911 100%);
+  box-shadow: 0 18px 36px -24px rgba(20, 8, 48, 0.9);
+  transition:
+    transform 200ms var(--ease),
+    box-shadow 200ms var(--ease);
+}
+.buy-books:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 24px 40px -22px rgba(76, 29, 149, 0.9);
+}
+.buy-books:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+.bb-stage {
+  position: relative;
+  height: 128px;
+  margin: 0 -16px 6px;
+  perspective: 620px;
+  perspective-origin: 50% 30%;
+  overflow: hidden;
+}
+/* Polda yorug'lik — kitoblar "turgan" joy */
+.bb-stage::after {
+  content: "";
+  position: absolute;
+  left: 18%;
+  right: 18%;
+  bottom: 6px;
+  height: 18px;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(242, 183, 5, 0.32), transparent);
+  filter: blur(2px);
+}
+.bb-ring {
+  --cw: 56px;
+  --r: 78px;
+  position: absolute;
+  left: 50%;
+  top: 22px;
+  width: var(--cw);
+  height: calc(var(--cw) * 4 / 3);
+  margin-left: calc(var(--cw) / -2);
+  transform-style: preserve-3d;
+  transform: rotateX(-8deg) rotateY(0deg);
+  animation: bb-spin 22s linear infinite;
+}
+.buy-books:hover .bb-ring {
+  animation-play-state: paused;
+}
+@keyframes bb-spin {
+  to {
+    transform: rotateX(-8deg) rotateY(-360deg);
+  }
+}
+.bb-item {
+  position: absolute;
+  inset: 0;
+  transform: rotateY(calc(var(--i) * 360deg / var(--n))) translateZ(var(--r));
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.bb-cover.book-cover,
+.bb-ph {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 6px;
+  box-shadow:
+    0 10px 18px -8px rgba(0, 0, 0, 0.7),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+}
+.bb-cover.book-cover .ph {
+  padding: 6px;
+  font-size: 8px;
+}
+.bb-ph {
+  background: linear-gradient(160deg, #3b2d6b, #1c1530);
+}
+.bb-title {
+  font-family: var(--font-serif);
+  font-size: 25px;
+  font-weight: 700;
+  font-style: italic;
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+  background: linear-gradient(100deg, #fff 0%, #ffe9a8 55%, #f2b705 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.bb-sub {
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: rgba(255, 255, 255, 0.78);
+}
+.bb-uzum {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: #7000ff;
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 700;
+  box-shadow: 0 6px 16px -6px rgba(112, 0, 255, 0.8);
+  transition: transform 160ms var(--ease);
+}
+.buy-books:hover .bb-uzum {
+  transform: translateX(3px);
+}
+.bb-uzum-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.25);
+}
+@media (prefers-reduced-motion: reduce) {
+  .bb-ring {
+    animation: none;
+    transform: rotateX(-8deg) rotateY(-22deg);
+  }
 }

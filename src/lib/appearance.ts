@@ -18,10 +18,32 @@ export interface Appearance {
   font?: "manrope" | "system" | null;
   /** 46: serverdagi yuklangan fon rasmlari URL'lari (sozlamaga yozilmaydi — `GET /app-settings` `images` dan) */
   images?: { light?: string | null; dark?: string | null };
+  /** 72: sekin internet uchun yengil nusxalar (asl rasm o'zgarmaydi): md ≤ 1920 px, sm ≤ 960 px */
+  variants?: Partial<Record<AppearanceTheme, { md?: string | null; sm?: string | null }>>;
 }
 
-/** 46: fon rasmi nomi (`/admin/app-settings/images/{name}`) */
+/** 46: fon rasmi nomi (`/admin/app-settings/images/{name}`) — 72: asl holida (siqilmaydi) */
 export const BACKGROUND_IMAGE = "background";
+/** 72: fon rasmining yengil nusxalari (yuklashda brauzerda tayyorlanadi) */
+export const BACKGROUND_VARIANTS = { md: "background_md", sm: "background_sm" } as const;
+export const BACKGROUND_VARIANT_SIZES = { md: { maxWidth: 1920, maxHeight: 1920, quality: 0.86 }, sm: { maxWidth: 960, maxHeight: 960, quality: 0.78 } } as const;
+
+/**
+ * 72: foydalanuvchi interneti bo'yicha fon sifati — `sm` (tejash / 2G), `md` (3G, aniqlab bo'lmasa — masalan iPhone),
+ * `full` (tez: 4G va ≥ 5 Mbit/s) — asl rasm. `<html data-net>` ga yoziladi, CSS shu bo'yicha rasmni tanlaydi.
+ */
+export type NetTier = "sm" | "md" | "full";
+type Conn = { saveData?: boolean; effectiveType?: string; downlink?: number };
+export function netTier(): NetTier {
+  const c = (typeof navigator !== "undefined" ? (navigator as Navigator & { connection?: Conn }).connection : undefined) ?? null;
+  if (!c) return "md";
+  if (c.saveData || c.effectiveType === "slow-2g" || c.effectiveType === "2g") return "sm";
+  if (c.effectiveType === "3g") return "md";
+  if (typeof c.downlink === "number" && c.downlink < 5) return "md";
+  return "full";
+}
+/** Asl rasm shu qurilmada bir marta yuklangan (keshda) — keyingi ochilishda tez internetda darhol asl rasm */
+export const BG_FULL_CACHED_KEY = "a365.bg.full";
 
 export type AppearanceTheme = "light" | "dark";
 export interface ColorPreset {
@@ -139,14 +161,22 @@ export function deriveColors(primary: string): DerivedColors {
   return { accent, contrastText, ink, darkAccent, darkContrastText };
 }
 
-function bgCss(value: string | null | undefined, uploaded: string | null | undefined, theme: AppearanceTheme): string {
-  const base = theme === "dark" ? "html.dark .client-bg" : "html:not(.dark) .client-bg";
+function bgCss(value: string | null | undefined, uploaded: string | null | undefined, theme: AppearanceTheme, variants?: { md?: string | null; sm?: string | null }): string {
+  const html = theme === "dark" ? "html.dark" : "html:not(.dark)";
+  const base = `${html} .client-bg`;
   // 49: rang — faqat shu mavzu to'plamidan; rasm uchun mo'ljallangan parda o'chadi, fon butun ekranni qoplaydi
   const preset = findPreset(BG_PRESETS[theme], value);
   if (preset) return `${base}::before{background:${preset.hex} !important;height:100% !important;}${base}::after{background:none !important;}`;
   const url = value === "upload" ? uploaded : value;
-  if (isSafeAssetUrl(url)) return `${base}::before{background:url("${url}") center top / cover no-repeat !important;}`;
-  return "";
+  if (!isSafeAssetUrl(url)) return "";
+  // 72: yuklangan rasm — internetga qarab: o'rtacha nusxa (standart), sekin — kichik, tez — asl rasm. Faqat mos
+  // kelgan qoidadagi rasm yuklab olinadi (CSS: bitta element — bitta `background-image`)
+  const md = value === "upload" && isSafeAssetUrl(variants?.md) ? variants.md : null;
+  const sm = value === "upload" && isSafeAssetUrl(variants?.sm) ? variants.sm : null;
+  const out = [`${base}::before{background:url("${md ?? url}") center top / cover no-repeat !important;}`];
+  if (sm) out.push(`${html}[data-net="sm"] .client-bg::before{background-image:url("${sm}") !important;}`);
+  if (md) out.push(`${html}[data-net="full"] .client-bg::before{background-image:url("${url}") !important;}`);
+  return out.join("");
 }
 
 /** Sozlamalardan CSS (bo'sh satr — hammasi standart) */
@@ -159,8 +189,8 @@ export function appearanceCss(a: Appearance | null | undefined): string {
     out.push(`:root.dark,.dark{--accent:${c.darkAccent};--accent-contrast:${c.darkContrastText};--accent-ink:${c.darkAccent};}`);
   }
   if (a.font === "system") out.push(`:root{--font-sans:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;}`);
-  out.push(bgCss(a.background_light, a.images?.light, "light"));
-  out.push(bgCss(a.background_dark, a.images?.dark, "dark"));
+  out.push(bgCss(a.background_light, a.images?.light, "light", a.variants?.light));
+  out.push(bgCss(a.background_dark, a.images?.dark, "dark", a.variants?.dark));
   return out.filter(Boolean).join("\n");
 }
 
@@ -169,7 +199,12 @@ export function parseAppearance(settings: unknown, images?: Record<string, Parti
   const raw = (settings as { appearance?: unknown } | null)?.appearance;
   const bgImg = images?.[BACKGROUND_IMAGE];
   const imgs = { light: isSafeAssetUrl(bgImg?.light) ? bgImg.light : null, dark: isSafeAssetUrl(bgImg?.dark) ? bgImg.dark : null };
-  if (!raw || typeof raw !== "object") return imgs.light || imgs.dark ? { images: imgs } : null;
+  // 72: yengil nusxalar (bo'lmasa — hammaga asl rasm)
+  const safe = (v: unknown) => (isSafeAssetUrl(v) ? v : null);
+  const md = images?.[BACKGROUND_VARIANTS.md];
+  const sm = images?.[BACKGROUND_VARIANTS.sm];
+  const variants = { light: { md: safe(md?.light), sm: safe(sm?.light) }, dark: { md: safe(md?.dark), sm: safe(sm?.dark) } };
+  if (!raw || typeof raw !== "object") return imgs.light || imgs.dark ? { images: imgs, variants } : null;
   const r = raw as Record<string, unknown>;
   // 49: rang — faqat shu mavzu to'plamidan (eski ixtiyoriy/xavfli qiymat → standart)
   const bg = (v: unknown, theme: AppearanceTheme) =>
@@ -180,6 +215,7 @@ export function parseAppearance(settings: unknown, images?: Record<string, Parti
     background_dark: bg(r.background_dark, "dark"),
     font: r.font === "system" ? "system" : r.font === "manrope" ? "manrope" : null,
     images: imgs,
+    variants,
   };
 }
 
@@ -198,6 +234,8 @@ export function applyAppearanceCss(css: string) {
     if (el.textContent !== css) el.textContent = css;
   }
   try {
+    // 72: rasm(lar) o'zgardi — "asl rasm keshda" belgisi endi eskirgan
+    if (localStorage.getItem(APPEARANCE_CACHE_KEY) !== css) localStorage.removeItem(BG_FULL_CACHED_KEY);
     if (css) localStorage.setItem(APPEARANCE_CACHE_KEY, css);
     else localStorage.removeItem(APPEARANCE_CACHE_KEY);
   } catch {
@@ -205,5 +243,9 @@ export function applyAppearanceCss(css: string) {
   }
 }
 
-/** Birinchi chizishdan oldin (layout `<head>` dagi inline skript) — keshlangan CSS */
-export const APPEARANCE_SCRIPT = `(function(){try{var c=localStorage.getItem('${APPEARANCE_CACHE_KEY}');if(c){var s=document.createElement('style');s.id='${APPEARANCE_STYLE_ID}';s.textContent=c;document.head.appendChild(s)}}catch(e){}})()`;
+/**
+ * Birinchi chizishdan oldin (layout `<head>` dagi inline skript) — keshlangan CSS va 72: internet darajasi
+ * (`data-net`; `netTier` bilan bir xil qoida): sekin — kichik nusxa, aks holda o'rtacha; asl rasm faqat tez internetda
+ * va u shu qurilmada avval yuklangan bo'lsa darhol (bo'lmasa provayder uni fonda yuklab, keyin almashtiradi).
+ */
+export const APPEARANCE_SCRIPT = `(function(){try{var n=navigator.connection,t='md';if(n){if(n.saveData||n.effectiveType==='slow-2g'||n.effectiveType==='2g')t='sm';else if(n.effectiveType!=='3g'&&!(typeof n.downlink==='number'&&n.downlink<5)&&localStorage.getItem('${BG_FULL_CACHED_KEY}')==='1')t='full'}document.documentElement.setAttribute('data-net',t);var c=localStorage.getItem('${APPEARANCE_CACHE_KEY}');if(c){var s=document.createElement('style');s.id='${APPEARANCE_STYLE_ID}';s.textContent=c;document.head.appendChild(s)}}catch(e){}})()`;

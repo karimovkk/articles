@@ -2,7 +2,7 @@
 // tugma matni va kontrast ogohlantirishi, yorug' fon rangi, tizim shrifti, xavfsiz bo'lmagan rasm havolasi rad
 // etiladi; boshqa foydalanuvchi (login sahifasi ham) yangi ko'rinishni oladi, qayta ochilganda keshdan birinchi
 // chizishdanoq; "Standartga qaytarish" — DELETE va eski ko'rinish.
-import { launch, BASE, reset, mockGet, ignorablePageError } from "../lib.mjs";
+import { launch, BASE, reset, mockGet, mockWait, ignorablePageError } from "../lib.mjs";
 import { mkdirSync, readFileSync } from "node:fs";
 const OUT = new URL("../out/", import.meta.url).pathname;
 mkdirSync(OUT, { recursive: true });
@@ -12,9 +12,14 @@ await reset("");
 
 const browser = await launch();
 const pageErrors = [];
-const newPage = async (theme = "light") => {
+// 72: `net` — foydalanuvchi interneti (navigator.connection taqlidi): null — aniqlab bo'lmaydi (iPhone kabi)
+const newPage = async (theme = "light", net) => {
   const ctx = await browser.newContext({ viewport: { width: 1366, height: 860 } });
   await ctx.addInitScript((t) => localStorage.setItem("a365.theme", t), theme);
+  if (net !== undefined)
+    await ctx.addInitScript((n) => {
+      Object.defineProperty(Navigator.prototype, "connection", { configurable: true, get: () => (n ? { ...n, addEventListener() {}, removeEventListener() {} } : undefined) });
+    }, net);
   const p = await ctx.newPage();
   p.on("pageerror", (e) => !ignorablePageError(e.message) && pageErrors.push(e.message));
   return p;
@@ -72,8 +77,36 @@ const dropFile = async (sel, name) => {
 };
 await dropFile('[data-testid="bg-dark-drop"]', "night.webp");
 await admin.waitForSelector('[data-testid="bg-dark-thumb"]', { timeout: 15000 });
+await admin.waitForFunction(() => !document.querySelector('[data-testid="bg-dark"]')?.textContent?.includes("Yuklanmoqda"), null, { timeout: 20000 });
 let imgs = await mockGet("/__app-images");
-check("Drag & drop: rasm siqilib yuklandi (WebP, ≤ asl hajm), kichik ko'rinish chiqdi", imgs.background?.dark?.type === "image/webp" && imgs.background.dark.size > 0 && imgs.background.dark.size <= Buffer.from(imgB64, "base64").length * 1.2, JSON.stringify(imgs));
+check("Drag & drop: asl rasm o'zgarmay yuklandi (siqilmadi — hajmi bir xil), kichik ko'rinish chiqdi", imgs.background?.dark?.type === "image/webp" && imgs.background.dark.size === Buffer.from(imgB64, "base64").length, JSON.stringify(imgs.background));
+check("Kichik (allaqachon yengil) rasm — nusxa kerak emas, hammaga asl rasm", !imgs.background_md && !imgs.background_sm, JSON.stringify(Object.keys(imgs)));
+// 72: katta rasm (3000×2000, ~MB) — asl holida + sekin internet uchun yengil nusxalar
+const big = await admin.evaluateHandle(async () => {
+  const c = document.createElement("canvas");
+  c.width = 3000;
+  c.height = 2000;
+  const x = c.getContext("2d");
+  const g = x.createLinearGradient(0, 0, 3000, 2000);
+  g.addColorStop(0, "#203a43");
+  g.addColorStop(1, "#c79a2c");
+  x.fillStyle = g;
+  x.fillRect(0, 0, 3000, 2000);
+  for (let i = 0; i < 9000; i++) {
+    x.fillStyle = `hsl(${(i * 37) % 360} 60% ${30 + (i % 50)}%)`;
+    x.fillRect((i * 7919) % 3000, (i * 104729) % 2000, 3 + (i % 9), 3 + (i % 7));
+  }
+  const blob = await new Promise((r) => c.toBlob(r, "image/jpeg", 0.95));
+  const d = new DataTransfer();
+  d.items.add(new File([blob], "big.jpg", { type: "image/jpeg" }));
+  return d;
+});
+const bigSize = await big.evaluate((d) => d.files[0].size);
+await admin.dispatchEvent('[data-testid="bg-dark-drop"]', "dragover", { dataTransfer: big });
+await admin.dispatchEvent('[data-testid="bg-dark-drop"]', "drop", { dataTransfer: big });
+imgs = await mockWait("/__app-images", (x) => x.background?.dark?.type === "image/jpeg" && !!x.background_md?.dark && !!x.background_sm?.dark, 30000);
+check("Katta rasm: asl holida (JPEG, hajmi bir xil)", imgs.background?.dark?.type === "image/jpeg" && imgs.background.dark.size === bigSize, `${imgs.background?.dark?.size} / ${bigSize}`);
+check("Katta rasm: yengil nusxalar — md < asl, sm < md", imgs.background_md?.dark?.size > 0 && imgs.background_md.dark.size < bigSize && imgs.background_sm?.dark?.size < imgs.background_md.dark.size, JSON.stringify({ asl: bigSize, md: imgs.background_md?.dark?.size, sm: imgs.background_sm?.dark?.size }));
 const v1 = imgs.background.dark.v;
 await admin.click('[data-testid="bg-light-color"]');
 const lightSw = await admin.locator('[data-testid="bg-light-swatch"]').count();
@@ -98,22 +131,45 @@ await guest.waitForTimeout(500);
 const bg = await guest.evaluate(() => getComputedStyle(document.querySelector(".client-bg"), "::before").backgroundColor);
 check("Katalog: yorug' fon rangi ('Osmon')", bg === "rgb(233, 240, 248)", bg);
 // Qorong'i mavzu — rang qorong'i fonga moslashtirilgan
-const dark = await newPage("dark");
+const dark = await newPage("dark", { effectiveType: "4g", downlink: 10 });
 await dark.goto(`${BASE}/catalog`);
 await dark.waitForFunction(() => getComputedStyle(document.documentElement).getPropertyValue("--accent").trim().toLowerCase() !== "#f2b705", null, { timeout: 10000 });
 const da = await accent(dark);
 check("Qorong'i mavzu: aksent ochroq varianti (qorong'i fonda o'qiladi)", da !== "#2563eb" && da.startsWith("#"), da);
 await dark.waitForSelector('[data-testid="book-card"]', { timeout: 20000 });
+// Tez internet (4G, 10 Mbit/s) — avval o'rtacha nusxa, so'ng asl rasm fonda yuklanib almashadi
+await dark.waitForFunction(() => document.documentElement.dataset.net === "full", null, { timeout: 10000 }).catch(() => {});
 const darkBg = await dark.evaluate(() => getComputedStyle(document.querySelector(".client-bg"), "::before").backgroundImage);
-check("Qorong'i fon: yuklangan rasm (versiyali URL)", darkBg.includes("/api/v1/app-settings/images/background?theme=dark&v="), darkBg);
+check("Qorong'i fon: tez internetda — asl rasm (versiyali URL)", darkBg.includes("/api/v1/app-settings/images/background?theme=dark&v="), darkBg);
+// 72: internet turlari — har biriga mos nusxa; boshqalari umuman yuklanmaydi
+for (const [label, net, want] of [
+  ["Tejash rejimi", { saveData: true, effectiveType: "4g", downlink: 10 }, "background_sm"],
+  ["2G", { effectiveType: "2g", downlink: 0.2 }, "background_sm"],
+  ["3G", { effectiveType: "3g", downlink: 1.2 }, "background_md"],
+  ["Sekin 4G (2 Mbit/s)", { effectiveType: "4g", downlink: 2 }, "background_md"],
+  ["Aniqlab bo'lmaydi (iPhone)", null, "background_md"],
+]) {
+  const p = await newPage("dark", net);
+  const reqs = [];
+  p.on("request", (r) => r.url().includes("/app-settings/images/") && reqs.push(new URL(r.url()).pathname.split("/").pop()));
+  await p.goto(`${BASE}/catalog`);
+  await p.waitForSelector('[data-testid="book-card"]', { timeout: 20000 });
+  await p.waitForTimeout(1200);
+  const bgi = await p.evaluate(() => getComputedStyle(document.querySelector(".client-bg"), "::before").backgroundImage);
+  const got = bgi.match(/images\/([a-z_]+)\?/)?.[1];
+  check(`${label}: fon — ${want}, boshqa nusxalar yuklanmadi`, got === want && reqs.every((n) => n === want), `${got} · so'rovlar: ${[...new Set(reqs)].join(",")}`);
+  await p.context().close();
+}
 const served = await dark.evaluate(async (u) => { const r = await fetch(u); return { ok: r.ok, type: r.headers.get("content-type") }; }, darkBg.match(/url\("(.+?)"\)/)[1]);
-check("Rasm public serve qilinadi (image/webp)", served.ok && served.type === "image/webp", JSON.stringify(served));
+check("Rasm public serve qilinadi (asl format — image/jpeg)", served.ok && served.type === "image/jpeg", JSON.stringify(served));
 
 // Almashtirish — versiya (URL) yangilanadi, fon darhol yangi rasm
 await dropFile('[data-testid="bg-dark-drop"]', "night2.webp");
 await admin.waitForTimeout(1500);
 imgs = await mockGet("/__app-images");
 check("Almashtirildi: yangi versiya (?v= o'zgardi)", imgs.background?.dark?.v > v1, `${v1} → ${imgs.background?.dark?.v}`);
+imgs = await mockWait("/__app-images", (x) => !x.background_md && !x.background_sm, 15000);
+check("Kichik rasmga almashtirildi — eski (katta rasm) nusxalari o'chdi: sekin internetda ham yangi rasm", !imgs.background_md && !imgs.background_sm, JSON.stringify(Object.keys(imgs)));
 await admin.click('[data-testid="appearance-save"]');
 await admin.waitForSelector("text=Saqlandi", { timeout: 5000 });
 await dark.reload();
@@ -126,7 +182,8 @@ check("Foydalanuvchida yangi versiya URL'i", darkBg2.includes(`v=${imgs.backgrou
 await admin.click('[data-testid="bg-dark-default"]');
 await admin.click('[data-testid="appearance-save"]');
 await admin.waitForTimeout(1200);
-check("Standart fonga o'tdi → yuklangan rasm o'chirildi (yetim fayl yo'q)", !(await mockGet("/__app-images")).background && (await mockGet("/__app-settings")).appearance?.background_dark === "default");
+const left = await mockGet("/__app-images");
+check("Standart fonga o'tdi → yuklangan rasm va nusxalari o'chirildi (yetim fayl yo'q)", !left.background && !left.background_md && !left.background_sm && (await mockGet("/__app-settings")).appearance?.background_dark === "default", JSON.stringify(Object.keys(left)));
 
 // 49: qorong'i fon — "Rang" tanlanganda to'q rang (avval och krem tanlanib, matn ko'rinmay qolardi)
 await admin.click('[data-testid="bg-dark-color"]');
@@ -183,7 +240,7 @@ await admin.waitForSelector("text=Saqlandi", { timeout: 5000 });
 await admin.locator('[data-testid="bg-dark"]').screenshot({ path: OUT + "88-admin-bg-drop.png" });
 await admin.click('[data-testid="appearance-reset"]');
 await admin.waitForSelector("text=Standart ko'rinish tiklandi", { timeout: 5000 });
-check("Qaytarish: server kaliti va yuklangan rasm o'chdi, --accent #f2b705", !("appearance" in (await mockGet("/__app-settings"))) && !(await mockGet("/__app-images")).background && (await accent(admin)) === "#f2b705");
+check("Qaytarish: server kaliti, yuklangan rasm va nusxalari o'chdi, --accent #f2b705", !("appearance" in (await mockGet("/__app-settings"))) && Object.keys(await mockGet("/__app-images")).length === 0 && (await accent(admin)) === "#f2b705");
 
 check("Sahifa xatolari yo'q", pageErrors.length === 0, pageErrors.join(" | ").slice(0, 300));
 await browser.close();

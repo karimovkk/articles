@@ -29,10 +29,13 @@ export function YearDayChip({ className }: { className?: string }) {
   const day = useYearDay();
   if (!day) return null;
   return (
-    <span className={cn("year-chip", className)} title={t("client.dayOfYear", { n: day.n, total: day.total })} data-testid="year-day">
+    // 77: tirik nuqta + kun / jami + ingichka yil progressi (pastki chiziq)
+    <span className={cn("year-chip", className)} title={t("client.dayOfYear", { n: day.n, total: day.total })} data-testid="year-day" style={yearStyle(day)}>
+      <i className="yc-dot" aria-hidden />
       <b>{day.n}</b>
       <span className="sep">/</span>
       {day.total}
+      <i className="yc-bar" aria-hidden />
     </span>
   );
 }

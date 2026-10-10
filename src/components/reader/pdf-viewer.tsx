@@ -75,6 +75,10 @@ export interface PdfViewerProps {
   onProgress?: (loaded: number, total: number) => void;
   /** Kitob rejimi (ikki sahifa) shu o'lchamda sig'adimi — rejim almashtirgich uchun (32B) */
   onSpreadAvailable?: (ok: boolean) => void;
+  /** 71: telefonda ikki barmoq bilan zoom / ikki marta tegish — yangi masshtab (`minZoom`…`maxZoom`) */
+  onZoomChange?: (zoom: number) => void;
+  minZoom?: number;
+  maxZoom?: number;
 }
 
 const RENDER_MARGIN = "150% 0px";
@@ -84,6 +88,16 @@ const MAX_PAGE_WIDTH = 1100;
 const SEARCH_HIT_MS = 6000;
 /** Kitob rejimi: konteyner shu kenglikdan tor yoki portret bo'lsa — bitta varaqqa tushadi */
 const SPREAD_MIN_W = 860;
+/** Scroll rejimida sahifalar ustidagi bo'shliq (`py-4`) */
+const SCROLL_PAD = 16;
+/** 71: bitta canvas piksellari chegarasi (iOS ~16.7M) — katta zoom'da aniqlik shu chegaragacha */
+const MAX_CANVAS_PX = 12_000_000;
+const canvasRatio = (w: number, h: number) => Math.min(window.devicePixelRatio || 1, 2, Math.sqrt(MAX_CANVAS_PX / Math.max(1, w * h)));
+/** 71: sensorli tanlov — shuncha ushlab turilsa va barmoq qimirlamasa boshlanadi */
+const LONG_PRESS_MS = 500;
+const LONG_PRESS_TOLERANCE = 8;
+/** So'z chegarasi (lotin/kirill harflari, raqamlar, apostrof, defis) */
+const WORD_CHAR = /[\p{L}\p{N}'’ʻʼ-]/u;
 
 interface PageHighlight {
   id: string;
@@ -92,7 +106,7 @@ interface PageHighlight {
 }
 
 export const PdfViewer = forwardRef<PdfViewerHandle, PdfViewerProps>(function PdfViewer(
-  { articleId, initialPage = 1, zoom, night, mode: requestedMode, highlights, searchHit, watermarkText, onReady, onPageChange, onReachEnd, onError, onTextSelected, onProgress, onHighlightPick, onSpreadAvailable, vocabMarks, onVocabPick },
+  { articleId, initialPage = 1, zoom, night, mode: requestedMode, highlights, searchHit, watermarkText, onReady, onPageChange, onReachEnd, onError, onTextSelected, onProgress, onHighlightPick, onSpreadAvailable, vocabMarks, onVocabPick, onZoomChange, minZoom = 0.6, maxZoom = 3 },
   ref,
 ) {
   const { t } = useT();
@@ -285,6 +299,10 @@ export const PdfViewer = forwardRef<PdfViewerHandle, PdfViewerProps>(function Pd
 
   // O'z tanlov mexanizmi (22.1) holati
   const [pick, setPick] = useState<{ page: number; rects: HighlightRect[] } | null>(null);
+  const pickRef = useRef(pick);
+  useLayoutEffect(() => {
+    pickRef.current = pick;
+  });
   const clearSelection = useCallback(() => {
     setPick(null);
     onTextSelected?.(null);
@@ -327,13 +345,157 @@ export const PdfViewer = forwardRef<PdfViewerHandle, PdfViewerProps>(function Pd
     };
   }, [goToPage]);
 
-  // Joriy sahifani joyida ushlab turish: dastlabki ochilish (progress'dan davom etish),
-  // rejim almashishi va zoom/o'lcham o'zgarishi (stride) — scroll rejimida sahifa boshiga suriladi
+  // Joriy sahifani joyida ushlab turish: dastlabki ochilish (progress'dan davom etish), rejim almashishi va
+  // o'lcham va zoom o'zgarishi (stride; tugmalar, klaviatura) — scroll rejimida joriy sahifa boshiga suriladi.
+  // 71: pinch / ikki marta tegish — barmoq ostidagi nuqta joyida qoladi (`anchorRef`)
+  const geomRef = useRef({ zoom, mode, pageWidth, pageHeight, stride });
+  const anchorRef = useRef<{ x: number; y: number; cx: number; cy: number } | null>(null);
   useLayoutEffect(() => {
     const el = containerRef.current;
+    const prev = geomRef.current;
+    geomRef.current = { zoom, mode, pageWidth, pageHeight, stride };
     if (!el || !pageCount) return;
+    const a = anchorRef.current;
+    anchorRef.current = null;
+    if (a && prev.zoom !== zoom && prev.mode === mode && prev.pageWidth > 0 && prev.pageHeight > 0) {
+      const W = el.clientWidth;
+      if (mode === "scroll") {
+        const off0 = Math.max(0, (W - prev.pageWidth) / 2);
+        const off1 = Math.max(0, (W - pageWidth) / 2);
+        const ux = (a.x - off0) / prev.pageWidth;
+        const py = a.y - SCROLL_PAD;
+        const idx = Math.min(pageCount - 1, Math.max(0, Math.floor(py / prev.stride)));
+        const within = (py - idx * prev.stride) / prev.pageHeight;
+        el.scrollTo({ left: ux * pageWidth + off1 - a.cx, top: SCROLL_PAD + idx * stride + within * pageHeight - a.cy, behavior: "auto" });
+      } else {
+        const r = zoom / prev.zoom;
+        el.scrollTo({ left: a.x * r - a.cx, top: a.y * r - a.cy, behavior: "auto" });
+      }
+      return;
+    }
     el.scrollTo({ top: mode === "scroll" ? (currentPageRef.current - 1) * stride : 0, behavior: "auto" });
-  }, [mode, stride, pageCount]);
+  }, [mode, stride, pageCount, zoom, pageWidth, pageHeight]);
+
+  // 71: telefonda ikki barmoq bilan zoom — brauzer butun sahifani (panel, tugmalar) emas, faqat kitobni kattalashtiradi.
+  // Harakat paytida konteyner CSS transform bilan silliq kattalashadi/suriladi; barmoqlar ko'tarilgach yangi
+  // masshtabda aniq chiziladi (`anchorRef` — nuqta joyida). Ikki marta tegish — 100% ↔ 175%.
+  const zoomCbRef = useRef(onZoomChange);
+  const zoomNowRef = useRef(zoom);
+  useLayoutEffect(() => {
+    zoomCbRef.current = onZoomChange;
+    zoomNowRef.current = zoom;
+  });
+  const pillRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    let g: { d0: number; mx: number; my: number; ox: number; oy: number; z0: number; s: number; tx: number; ty: number } | null = null;
+    let tap: { t: number; x: number; y: number; moved: boolean } | null = null;
+    let lastTap: { t: number; x: number; y: number } | null = null;
+    let hideTimer = 0;
+    const dist = (t: TouchList) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+    const mid = (t: TouchList) => ({ x: (t[0].clientX + t[1].clientX) / 2, y: (t[0].clientY + t[1].clientY) / 2 });
+    const clampZ = (z: number) => Math.min(maxZoom, Math.max(minZoom, z));
+    const pill = (z: number | null) => {
+      const p = pillRef.current;
+      if (!p) return;
+      window.clearTimeout(hideTimer);
+      if (z !== null) {
+        p.textContent = `${Math.round(z * 100)}%`;
+        p.classList.add("on");
+      } else hideTimer = window.setTimeout(() => p.classList.remove("on"), 700);
+    };
+
+    const onStart = (e: TouchEvent) => {
+      if (!zoomCbRef.current) return;
+      if (e.touches.length === 2) {
+        e.preventDefault();
+        tap = null;
+        lastTap = null;
+        const r = el.getBoundingClientRect();
+        const m = mid(e.touches);
+        g = { d0: Math.max(10, dist(e.touches)), mx: m.x, my: m.y, ox: m.x - r.left, oy: m.y - r.top, z0: zoomNowRef.current, s: 1, tx: 0, ty: 0 };
+        el.style.transformOrigin = `${g.ox}px ${g.oy}px`;
+        el.style.willChange = "transform";
+        el.dataset.pinching = "1";
+        pill(g.z0);
+      } else if (e.touches.length === 1 && !g) {
+        tap = { t: e.timeStamp, x: e.touches[0].clientX, y: e.touches[0].clientY, moved: false };
+      } else tap = null;
+    };
+    const onMove = (e: TouchEvent) => {
+      // Uzoq bosib tanlash paytida — sahifa siljimaydi (touch-action o'rtada o'zgarmaydi, shuning uchun shu yerda)
+      if (el.dataset.selecting && e.cancelable) e.preventDefault();
+      if (tap && e.touches.length === 1 && Math.hypot(e.touches[0].clientX - tap.x, e.touches[0].clientY - tap.y) > 10) tap.moved = true;
+      if (!g || e.touches.length !== 2) return;
+      e.preventDefault();
+      const m = mid(e.touches);
+      g.s = clampZ(g.z0 * (dist(e.touches) / g.d0)) / g.z0;
+      g.tx = m.x - g.mx;
+      g.ty = m.y - g.my;
+      el.style.transform = `translate(${g.tx}px, ${g.ty}px) scale(${g.s})`;
+      pill(g.z0 * g.s);
+    };
+    const finish = () => {
+      if (!g) return;
+      const { z0, s, ox, oy, tx, ty } = g;
+      g = null;
+      el.style.transform = "";
+      el.style.transformOrigin = "";
+      el.style.willChange = "";
+      delete el.dataset.pinching;
+      pill(null);
+      const z1 = Math.round(clampZ(z0 * s) * 100) / 100;
+      if (Math.abs(z1 - z0) < 0.01) {
+        // Faqat surildi (masshtab o'zgarmadi) — kontent barmoqlar qoldirgan joyda qoladi
+        el.scrollBy({ left: -tx, top: -ty, behavior: "auto" });
+        return;
+      }
+      // Boshlanishdagi o'rta nuqta ostidagi joy — oxirgi o'rta nuqta ostiga
+      anchorRef.current = { x: el.scrollLeft + ox, y: el.scrollTop + oy, cx: ox + tx, cy: oy + ty };
+      zoomCbRef.current?.(z1);
+    };
+    const onEnd = (e: TouchEvent) => {
+      if (g && e.touches.length < 2) {
+        finish();
+        tap = null;
+        return;
+      }
+      if (tap && e.touches.length === 0 && !tap.moved && e.timeStamp - tap.t < 300 && zoomCbRef.current) {
+        const now = { t: e.timeStamp, x: tap.x, y: tap.y };
+        if (lastTap && now.t - lastTap.t < 330 && Math.hypot(now.x - lastTap.x, now.y - lastTap.y) < 32) {
+          lastTap = null;
+          e.preventDefault();
+          const r = el.getBoundingClientRect();
+          const cx = now.x - r.left;
+          const cy = now.y - r.top;
+          const z1 = clampZ(zoomNowRef.current < 1.4 ? 1.75 : 1);
+          anchorRef.current = { x: el.scrollLeft + cx, y: el.scrollTop + cy, cx, cy };
+          pill(z1);
+          pill(null);
+          zoomCbRef.current(z1);
+        } else lastTap = now;
+      }
+      tap = null;
+    };
+    // iOS Safari: sahifa zoom'i (gesture*) ham to'xtatiladi — zoom faqat kitobda
+    const noGesture = (e: Event) => e.preventDefault();
+    el.addEventListener("touchstart", onStart, { passive: false });
+    el.addEventListener("touchmove", onMove, { passive: false });
+    el.addEventListener("touchend", onEnd, { passive: false });
+    el.addEventListener("touchcancel", onEnd, { passive: false });
+    el.addEventListener("gesturestart", noGesture, { passive: false });
+    el.addEventListener("gesturechange", noGesture, { passive: false });
+    return () => {
+      el.removeEventListener("touchstart", onStart);
+      el.removeEventListener("touchmove", onMove);
+      el.removeEventListener("touchend", onEnd);
+      el.removeEventListener("touchcancel", onEnd);
+      el.removeEventListener("gesturestart", noGesture);
+      el.removeEventListener("gesturechange", noGesture);
+      window.clearTimeout(hideTimer);
+    };
+  }, [minZoom, maxZoom]);
 
   // ---- Matn tanlash (22.1): brauzer tanlovi ISHLATILMAYDI — o'z mexanizmimiz.
   // Sabab: bufer (Ctrl/Cmd+C), Linux "primary selection", macOS "Look Up"/Services, sudrab tashlash va ekran
@@ -396,61 +558,111 @@ export const PdfViewer = forwardRef<PdfViewerHandle, PdfViewerProps>(function Pd
       return out.collapsed ? null : out;
     };
 
-    let startPt: { x: number; y: number; id: number; page: HTMLElement } | null = null;
+    // 71: bosilgan so'z (uzoq bosishda darhol tanlanadi — telefondagi odatiy xatti-harakat)
+    const wordAt = (c: Caret): { start: Caret; end: Caret } | null => {
+      const str = c.node.textContent ?? "";
+      let a = Math.min(c.offset, str.length);
+      let b = a;
+      while (a > 0 && WORD_CHAR.test(str[a - 1])) a--;
+      while (b < str.length && WORD_CHAR.test(str[b])) b++;
+      return b > a ? { start: { node: c.node, offset: a }, end: { node: c.node, offset: b } } : null;
+    };
+    const before = (x: Caret, y: Caret) => {
+      const rx = document.createRange();
+      rx.setStart(x.node, x.offset);
+      const ry = document.createRange();
+      ry.setStart(y.node, y.offset);
+      return rx.compareBoundaryPoints(Range.START_TO_START, ry) < 0;
+    };
+
+    let startPt: { x: number; y: number; id: number; page: HTMLElement; touch: boolean } | null = null;
     let active = false;
+    let word: { start: Caret; end: Caret } | null = null;
     let timer = 0;
+    const pointers = new Set<number>();
 
     const stop = () => {
       window.clearTimeout(timer);
       startPt = null;
       active = false;
+      word = null;
       delete el.dataset.selecting;
+    };
+    // Tanlov: sichqoncha — boshlang'ich nuqtadan; sensor — bosilgan so'zdan (so'z doim ichida qoladi)
+    const selectionRange = (layer: Element, x: number, y: number): Range | null => {
+      if (!startPt) return null;
+      const b = caretAt(x, y, layer);
+      if (!b) return null;
+      if (word && layer.contains(word.start.node)) {
+        if (before(b, word.start)) return rangeBetween(layer, b, word.end);
+        if (before(word.end, b)) return rangeBetween(layer, word.start, b);
+        return rangeBetween(layer, word.start, word.end);
+      }
+      const a = caretAt(startPt.x, startPt.y, layer);
+      return a ? rangeBetween(layer, a, b) : null;
     };
 
     const onDown = (e: PointerEvent) => {
+      if (e.pointerType !== "mouse") pointers.add(e.pointerId);
+      // Ikkinchi barmoq — zoom: boshlanayotgan tanlov bekor
+      if (pointers.size > 1) {
+        stop();
+        return;
+      }
       if (e.button !== 0) return;
       const pageEl = (e.target as HTMLElement)?.closest<HTMLElement>("[data-page]");
       if (!pageEl) return;
-      startPt = { x: e.clientX, y: e.clientY, id: e.pointerId, page: pageEl };
+      startPt = { x: e.clientX, y: e.clientY, id: e.pointerId, page: pageEl, touch: e.pointerType !== "mouse" };
       if (e.pointerType === "mouse") active = true;
       else {
-        // Sensor: uzoq bosishdan keyin tanlov rejimi (aks holda varaqlash/scroll ishlaydi)
+        // Sensor: faqat uzoq (500 ms) va qimirlamay bosilganda — aks holda oddiy scroll/varaqlash
         timer = window.setTimeout(() => {
+          if (!startPt || pointers.size > 1) return;
+          const layer = startPt.page.querySelector(".textLayer");
+          const c = layer ? caretAt(startPt.x, startPt.y, layer) : null;
+          word = c ? wordAt(c) : null;
+          if (!layer || !word) return; // so'z ustida emas (bo'sh joy, rasm) — tanlov boshlanmaydi
           active = true;
           el.dataset.selecting = "1";
-        }, 350);
+          navigator.vibrate?.(12);
+          const r = rangeBetween(layer, word.start, word.end);
+          if (r) setPick({ page: Number(startPt.page.dataset.page), rects: rectsFromClientRects(Array.from(r.getClientRects()), startPt.page) });
+        }, LONG_PRESS_MS);
       }
     };
     const onMove = (e: PointerEvent) => {
       if (!startPt || e.pointerId !== startPt.id) return;
       if (!active) {
-        if (Math.abs(e.clientX - startPt.x) > 8 || Math.abs(e.clientY - startPt.y) > 8) stop();
+        if (Math.abs(e.clientX - startPt.x) > LONG_PRESS_TOLERANCE || Math.abs(e.clientY - startPt.y) > LONG_PRESS_TOLERANCE) stop();
         return;
       }
       const layer = startPt.page.querySelector(".textLayer");
       if (!layer) return;
-      const a = caretAt(startPt.x, startPt.y, layer);
-      const b = caretAt(e.clientX, e.clientY, layer);
-      if (!a || !b) return;
-      const range = rangeBetween(layer, a, b);
+      const range = selectionRange(layer, e.clientX, e.clientY);
       if (!range) return;
       if (e.pointerType !== "mouse") e.preventDefault();
       setPick({ page: Number(startPt.page.dataset.page), rects: rectsFromClientRects(Array.from(range.getClientRects()), startPt.page) });
     };
     const onUp = (e: PointerEvent) => {
+      pointers.delete(e.pointerId);
       if (!startPt || e.pointerId !== startPt.id) {
         stop();
         return;
       }
       const page = startPt.page;
-      const from = { x: startPt.x, y: startPt.y };
       const wasActive = active;
-      stop();
-      if (!wasActive) return;
+      const tapped = startPt.touch && Math.abs(e.clientX - startPt.x) <= LONG_PRESS_TOLERANCE && Math.abs(e.clientY - startPt.y) <= LONG_PRESS_TOLERANCE;
       const layer = page.querySelector(".textLayer");
-      const a = layer ? caretAt(from.x, from.y, layer) : null;
-      const b = layer ? caretAt(e.clientX, e.clientY, layer) : null;
-      const range = layer && a && b ? rangeBetween(layer, a, b) : null;
+      const range = wasActive && layer ? selectionRange(layer, e.clientX, e.clientY) : null;
+      stop();
+      if (!wasActive) {
+        // 71: oddiy tegish — ochiq tanlov yopiladi (hech narsa belgilanmaydi)
+        if (tapped && pickRef.current) {
+          setPick(null);
+          onTextSelected(null);
+        }
+        return;
+      }
       const text = range ? rangeText(range).trim() : "";
       if (!range || !text) {
         setPick(null);
@@ -466,12 +678,16 @@ export const PdfViewer = forwardRef<PdfViewerHandle, PdfViewerProps>(function Pd
     el.addEventListener("pointerdown", onDown);
     el.addEventListener("pointermove", onMove, { passive: false });
     el.addEventListener("pointerup", onUp);
-    el.addEventListener("pointercancel", stop);
+    const onCancel = (e: PointerEvent) => {
+      pointers.delete(e.pointerId);
+      stop();
+    };
+    el.addEventListener("pointercancel", onCancel);
     return () => {
       el.removeEventListener("pointerdown", onDown);
       el.removeEventListener("pointermove", onMove);
       el.removeEventListener("pointerup", onUp);
-      el.removeEventListener("pointercancel", stop);
+      el.removeEventListener("pointercancel", onCancel);
       window.clearTimeout(timer);
     };
   }, [onTextSelected]);
@@ -482,13 +698,13 @@ export const PdfViewer = forwardRef<PdfViewerHandle, PdfViewerProps>(function Pd
 
   return (
     <div
-      className={`relative h-full w-full ${night ? "reader-night bg-[#0b0d12]" : "bg-[#e9ebef]"}`}
+      className={`relative h-full w-full overflow-hidden ${night ? "reader-night bg-[#0b0d12]" : "bg-[#e9ebef]"}`}
       onContextMenu={block}
       onCopy={block}
       onCut={block}
       onDragStart={block}
     >
-      <div ref={containerRef} className="h-full w-full overflow-auto">
+      <div ref={containerRef} className="reader-scroller h-full w-full overflow-auto" data-testid="reader-scroller">
         {pageCount === 0 && (
           <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 text-muted">
             <Spinner />
@@ -500,7 +716,7 @@ export const PdfViewer = forwardRef<PdfViewerHandle, PdfViewerProps>(function Pd
         )}
 
         {pageCount > 0 && mode === "scroll" && (
-          <div className="mx-auto flex flex-col items-center py-4" style={{ width: pageWidth, gap: PAGE_GAP }}>
+          <div className="mx-auto flex flex-col items-center" style={{ width: pageWidth, gap: PAGE_GAP, paddingBlock: SCROLL_PAD }}>
             {Array.from({ length: pageCount }, (_, i) => (
               <PdfPage
                 key={i + 1}
@@ -585,6 +801,8 @@ export const PdfViewer = forwardRef<PdfViewerHandle, PdfViewerProps>(function Pd
         )}
       </div>
 
+      {/* 71: zoom foizi — pinch / ikki marta tegish paytida */}
+      <div ref={pillRef} className="zoom-pill" aria-hidden data-testid="zoom-pill" />
       {pageCount > 0 && mode === "page" && (
         <>
           <PageNavButton side="left" disabled={shownPage <= 1} onClick={() => goToPage(shownPage - 1)} label={t("reader.prevPage")} />
@@ -670,7 +888,7 @@ function FlipStage({
     if (!cv) return;
     const ctx = cv.getContext("2d");
     if (!ctx) return;
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const dpr = canvasRatio(width, height);
     const pxW = Math.round(width * dpr);
     const pxH = Math.round(height * dpr);
     if (cv.width !== pxW || cv.height !== pxH) {
@@ -993,7 +1211,7 @@ function PdfPage({
       page = await doc.getPage(pageNumber);
       if (cancelled) return;
       const viewport = page.getViewport({ scale });
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const dpr = canvasRatio(viewport.width, viewport.height);
       canvas.width = Math.floor(viewport.width * dpr);
       canvas.height = Math.floor(viewport.height * dpr);
       canvas.style.width = `${Math.floor(viewport.width)}px`;

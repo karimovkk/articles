@@ -4,7 +4,7 @@
  * Mijoz qobig'i (16.2) — katalog, kutubxona, kitob, bildirishnoma, profil sahifalari uchun:
  *  - fon: `public/bg/article-*.webp` (`.client-bg`, position: fixed + qoraytiruvchi gradient);
  *  - header: 365 emblema, markazda nav, qidiruv, til, mavzu, qo'ng'iroq, profil menyusi (mehmon — Kirish/Ro'yxat);
- *  - sidebar: nav (+ o'qilmagan soni), kategoriyalar (kitoblar soni bilan), promo karta; <1024px — drawer.
+ *  - sidebar: nav (+ o'qilmagan soni), kategoriyalar (kitoblar soni bilan), "Buy Real Books" (78); <1100px — drawer.
  * Reader va auth sahifalari bu qobiqdan foydalanmaydi.
  */
 import { Suspense, useEffect, useState, type ReactNode } from "react";
@@ -22,6 +22,7 @@ import { useCatalogCategories } from "@/lib/catalog-categories";
 import { env } from "@/lib/env";
 import { useOpenOrders } from "@/lib/admin-open-orders";
 import { StreakChip } from "@/components/streak/streak-chip";
+import { BuyRealBooks } from "./buy-real-books";
 import { useT, type DictKey } from "@/i18n";
 import { LocaleSwitcher } from "@/i18n/locale-switcher";
 
@@ -65,7 +66,7 @@ function ClientHeader({ menuOpen, onMenu }: { menuOpen: boolean; onMenu: () => v
   const pathname = usePathname();
   const displayName = user ? user.full_name || user.email || user.phone || t("common.user") : "";
   return (
-    <header className="client-header">
+    <header className="client-header" data-guest={!user && !loading ? "" : undefined}>
       <button type="button" className="icon-btn plain client-burger" onClick={onMenu} aria-expanded={menuOpen} aria-label={t(menuOpen ? "ui.nav.closeMenu" : "ui.nav.openMenu")} data-testid="client-menu">
         {menuOpen ? <I.X size={20} /> : <I.Menu size={20} />}
       </button>
@@ -73,9 +74,9 @@ function ClientHeader({ menuOpen, onMenu }: { menuOpen: boolean; onMenu: () => v
       <div className="client-brand-wrap">
         <Link href={user ? "/library" : "/daily"} className="client-brand" aria-label={env.appName} data-testid="header-brand">
           <YearEmblem />
-          <span className="client-brand-name">{env.appName}</span>
+          <BrandWord name={env.appName} />
         </Link>
-        <YearDayChip className="max-[420px]:hidden min-[641px]:max-[1180px]:hidden" />
+        <YearDayChip className="header-day" />
       </div>
 
       <div className="client-actions">
@@ -150,6 +151,20 @@ function ClientHeader({ menuOpen, onMenu }: { menuOpen: boolean; onMenu: () => v
   );
 }
 
+/**
+ * 77: so'z-belgi — "Articles" (sarlavha shrifti, kursiv) + oltin "365" (vaqti-vaqti bilan yaltiraydi). Nom oxiridagi
+ * raqam alohida ajratiladi (`NEXT_PUBLIC_APP_NAME` boshqacha bo'lsa — butun nom bir xil uslubda).
+ */
+function BrandWord({ name }: { name: string }) {
+  const m = /^(.*?)(\d+)$/.exec(name);
+  return (
+    <span className="client-brand-name brand-word" aria-hidden>
+      <span className="bw-main">{m ? m[1] : name}</span>
+      {m && <span className="bw-num">{m[2]}</span>}
+    </span>
+  );
+}
+
 function ClientSidebar({ open, onNavigate }: { open: boolean; onNavigate: () => void }) {
   const { user, loading, isAdmin } = useAuth();
   const openOrders = useOpenOrders(isAdmin);
@@ -211,13 +226,8 @@ function ClientSidebar({ open, onNavigate }: { open: boolean; onNavigate: () => 
         <SidebarCategories onNavigate={onNavigate} />
       </Suspense>
 
-      <Link href={user ? "/library" : "/catalog"} prefetch={false} onClick={onNavigate} className="client-promo" aria-label={t("client.promoText")}>
-        <span className="client-promo-title">{t("client.promoTitle")}</span>
-        <span className="client-promo-text">{t("client.promoText")}</span>
-        <span className="client-promo-go" aria-hidden>
-          <I.ArrowRight size={16} />
-        </span>
-      </Link>
+      {/* 78: "Buy Real Books" — Uzum Market'dagi do'konimiz, muqovalar aylanib turadi */}
+      <BuyRealBooks onNavigate={onNavigate} />
     </aside>
   );
 }

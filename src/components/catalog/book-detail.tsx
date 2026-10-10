@@ -16,6 +16,7 @@ import { AddToCartButton, TierLadder } from "@/components/cart/cart-ui";
 import { usePricing } from "@/lib/use-pricing";
 import { isFreeBook } from "@/lib/free-books";
 import { FreeReadPanel } from "./free-read-panel";
+import { ShareMenu } from "@/components/share/share-menu";
 import { catalogApi, readerApi, type CatalogItem } from "@/lib/api";
 import { useT } from "@/i18n";
 
@@ -90,9 +91,13 @@ export function CatalogBookDetail({ bookId }: { bookId: string }) {
             {item.author && <p className="mt-1 text-[15px] font-semibold text-muted">{item.author}</p>}
           </div>
           <p className="max-w-2xl whitespace-pre-wrap text-sm leading-relaxed text-text-2">{item.description || t("catalog.noDescription")}</p>
-          <p className="text-2xl font-bold tabular-nums tracking-tight text-text">
-            {isFreeBook(item) ? <span className="text-success" data-testid="book-free-price">{t("catalog.free")}</span> : <Price value={item.price} />}
-          </p>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-2xl font-bold tabular-nums tracking-tight text-text">
+              {isFreeBook(item) ? <span className="text-success" data-testid="book-free-price">{t("catalog.free")}</span> : <Price value={item.price} />}
+            </p>
+            {/* 76: Daily Articles — ulashish */}
+            {isFreeBook(item) && <ShareMenu url={`/catalog/${item.book_id}`} title={item.title} text={t("share.bookText", { title: item.title })} testid="book-share" />}
+          </div>
 
           <Card className="mt-auto" padded>
             {isFreeBook(item) ? (

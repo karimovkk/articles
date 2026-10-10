@@ -30,16 +30,65 @@ const bodyHas = async (text) => page.evaluate((t) => document.body.innerText.rep
 await page.goto(`${BASE}/`);
 await page.waitForURL(`${BASE}/daily`);
 await page.waitForSelector('[data-testid="book-card"]');
-check("Mehmon: / → /daily (Kunlik kitoblar, auth'siz)", (await page.getAttribute('[data-testid="catalog-hero"]', "data-kind")) === "free" && (await has("Kunlik")));
+check("Mehmon: / → /daily (Daily Articles, auth'siz)", (await page.getAttribute('[data-testid="catalog-hero"]', "data-kind")) === "free" && (await has("Daily")));
+// 73/75: nomlar va shiorlar
+const heroTxt = await page.textContent('[data-testid="catalog-hero"]');
+check("Daily: sarlavha 'Daily Articles', ustida 'Har kuni o'qing', shior 'Muntazamlik — muvaffaqiyat kaliti'", /Daily\s*Articles/.test(heroTxt) && heroTxt.includes("Har kuni o'qing") && heroTxt.includes("Muntazamlik — muvaffaqiyat kaliti") && !heroTxt.includes("ro'yxatdan o'tmasdan"), heroTxt.replace(/\s+/g, " ").slice(0, 160));
+check("Chap menyu: 'Daily Articles' va '365 Magazine'", (await page.textContent('.client-sidebar .side-link[href="/daily"]'))?.includes("Daily Articles") && (await page.textContent('.client-sidebar .side-link[href="/catalog"]'))?.includes("365 Magazine"));
 const dailyCards = await page.locator('[data-testid="book-card"]').count();
 check("Kunlik: faqat tekin kitoblar (har kartada 'Tekin'), savatcha aksiyasi yo'q", dailyCards > 0 && (await page.locator('[data-testid="book-card"] [data-testid="free-tag"]').count()) === dailyCards && (await page.locator('[data-testid="pricing-promo"]').count()) === 0);
 check("Kunlik: so'rov ?is_free=true", (await mockGet("/__log")).some((l) => l === "GET /catalog"));
+// 74: yorug' mavzu — shisha panellar (yarim shaffof + blur); matn kontrasti — ekrandagi haqiqiy fon bo'yicha
+const glass = await page.evaluate(() => {
+  const rgba = (c) => (c.match(/[\d.]+/g) ?? []).map(Number);
+  const card = document.querySelector('[data-testid="book-card"]');
+  const cs = getComputedStyle(card);
+  const side = rgba(getComputedStyle(document.querySelector(".client-sidebar")).backgroundColor)[3] ?? 1;
+  return { alpha: rgba(cs.backgroundColor)[3] ?? 1, blur: cs.backdropFilter, side };
+});
+check("Yorug' mavzu: kartalar yarim shaffof + blur, sidebar shisha", glass.alpha > 0.5 && glass.alpha < 0.85 && /blur/.test(glass.blur) && glass.side < 0.8, JSON.stringify(glass));
+// Kartaning skrinshotidan — matn/muqova/tugmadan tashqari piksellar (fon + shisha) ning eng to'q 5% i
+const cardEl = page.locator('[data-testid="book-card"]').first();
+const info = await cardEl.evaluate((card) => {
+  const box = card.getBoundingClientRect();
+  const skip = [...card.querySelectorAll("*")].filter((e) => e.matches("button, a, img, .bcard-cover, [class*=cover], [class*=badge], [class*=tag]") || [...e.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim())).map((e) => { const r = e.getBoundingClientRect(); return [r.left - box.left - 6, r.top - box.top - 6, r.right - box.left + 6, r.bottom - box.top + 6]; });
+  const muted = [...card.querySelectorAll("*")].filter((e) => [...e.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim()) && !e.closest("button, a, [class*=badge], [class*=tag], [class*=cover]")).map((e) => getComputedStyle(e).color);
+  return { w: box.width, skip, colors: [...new Set(muted)] };
+});
+const png = (await cardEl.screenshot()).toString("base64");
+const contrast = await page.evaluate(async ({ png, info }) => {
+  const img = new Image();
+  img.src = `data:image/png;base64,${png}`;
+  await img.decode();
+  const c = document.createElement("canvas");
+  c.width = img.width;
+  c.height = img.height;
+  const x = c.getContext("2d");
+  x.drawImage(img, 0, 0);
+  const k = img.width / info.w;
+  const d = x.getImageData(0, 0, c.width, c.height).data;
+  const lin = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; };
+  const L = (r, g, b) => 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+  const lums = [];
+  for (let py = 8; py < c.height - 8; py += 3)
+    for (let px = 8; px < c.width - 8; px += 3) {
+      const cx = px / k, cy = py / k;
+      if (info.skip.some(([a, b, r, t]) => cx >= a && cx <= r && cy >= b && cy <= t)) continue;
+      const i = (py * c.width + px) * 4;
+      lums.push(L(d[i], d[i + 1], d[i + 2]));
+    }
+  lums.sort((a, b) => a - b);
+  const bgL = lums[Math.floor(lums.length * 0.05)];
+  const per = info.colors.map((col) => { const [r, g, b] = col.match(/[\d.]+/g).map(Number); const t = L(r, g, b); return [col, Math.round(((Math.max(t, bgL) + 0.05) / (Math.min(t, bgL) + 0.05)) * 10) / 10]; });
+  return { bgL: Math.round(bgL * 100) / 100, worst: Math.min(...per.map((p) => p[1])), per, n: lums.length };
+}, { png, info });
+check("Yorug' mavzu: karta matni kontrasti ≥ 4.5:1 (ekrandagi haqiqiy shisha fon bo'yicha)", contrast.worst >= 4.5, JSON.stringify(contrast));
 await page.click('[data-testid="catalog-switch"] a[href="/catalog"]');
 await page.waitForURL(`${BASE}/catalog`);
 await page.waitForSelector("text=Test kitob");
-check("Almashtirgich → /catalog (Pullik kitoblar), faol bo'lim belgilangan", (await page.getAttribute('[data-testid="catalog-hero"]', "data-kind")) === "paid" && (await page.getAttribute('[data-testid="catalog-switch"] a[href="/catalog"]', "aria-current")) === "page");
+check("Almashtirgich → /catalog (365 Magazine), faol bo'lim belgilangan", (await page.getAttribute('[data-testid="catalog-hero"]', "data-kind")) === "paid" && (await page.getAttribute('[data-testid="catalog-switch"] a[href="/catalog"]', "aria-current")) === "page");
 check("Pullik: tekin kitob yo'q", (await page.locator('[data-testid="free-tag"]').count()) === 0);
-check("Chap menyu: 'Kunlik kitoblar' va 'Pullik kitoblar' (eski 'Katalog' yo'q)", (await page.locator('.client-sidebar .side-link[href="/daily"]').count()) === 1 && (await page.locator('.client-sidebar .side-link[href="/catalog"]').count()) === 1 && (await page.locator(".client-sidebar .side-link", { hasText: /^Katalog$/ }).count()) === 0);
+check("Chap menyu: 'Daily Articles' va '365 Magazine' (eski 'Katalog' yo'q)", (await page.locator('.client-sidebar .side-link[href="/daily"]').count()) === 1 && (await page.locator('.client-sidebar .side-link[href="/catalog"]').count()) === 1 && (await page.locator(".client-sidebar .side-link", { hasText: /^Katalog$/ }).count()) === 0);
 check("Katalog: narx (bo'linmas bo'sh joy bilan), kategoriya, maqola soni", (await bodyHas("45 000 so'm")) && (await has("Fan")) && (await has("3 ta maqola")));
 check("Mehmon qobig'i: Kirish/Ro'yxatdan o'tish", await has("Kirish"));
 // 25: brend "365" — yilning nechanchi kuni header'da ko'rinadi
@@ -71,7 +120,7 @@ check("Halqa animatsiyasi (header + hero): bo'rtiq vaqti-vaqti bilan tepadan soa
 const hdrs0 = await mockGet("/__headers");
 check("Katalog so'rovi Authorization'siz ketdi (public)", hdrs0.some((h) => h.path === "/catalog"));
 check("Dumaloq pagination (31 ta kitob / 24): joriy 1, keyingi 2", (await page.textContent('[data-testid="pager"] button[aria-current="page"]'))?.trim() === "1" && (await page.locator('[data-testid="pager"] button:text-is("2")').count()) === 1);
-check("Hero: serif sarlavha ('Pullik kitoblar') + jonli qidiruv pill", (await bodyHas("Pullik kitoblar")) && (await page.locator('.hero-search [data-testid="catalog-search"]').count()) === 1);
+check("Hero: serif sarlavha ('365 Magazine') + jonli qidiruv pill", (await bodyHas("365 Magazine")) && (await page.locator('.hero-search [data-testid="catalog-search"]').count()) === 1);
 const CAT = "c1c1c1c1-c1c1-4c1c-8c1c-c1c1c1c1c1c1";
 await page.waitForSelector('[data-testid="catalog-categories"] .cat-chip', { timeout: 8000 });
 check("Kategoriya chip'lari (GET /categories): 'Barcha' + 'Fan', 'Barcha' faol", (await page.locator('[data-testid="catalog-categories"] .cat-chip').count()) === 2 && (await page.getAttribute('[data-testid="catalog-categories"] [data-value=""]', "aria-pressed")) === "true");
@@ -79,7 +128,7 @@ await page.waitForSelector('[data-testid="side-category"]', { timeout: 8000 });
 check("Sidebar: kategoriya + kitoblar soni (12)", (await page.locator('[data-testid="side-category"]').count()) === 1 && (await page.textContent('[data-testid="side-category"] .count'))?.trim() === "12");
 await page.click(`[data-testid="catalog-categories"] [data-value="${CAT}"]`);
 await page.waitForURL((u) => u.searchParams.get("category") === CAT);
-await page.waitForFunction(() => document.body.innerText.includes("Test kitob") && !document.body.innerText.includes("Kitob 2\n"), null, { timeout: 8000 });
+await page.waitForFunction(() => document.querySelector(".client-main").innerText.includes("Test kitob") && !document.querySelector(".client-main").innerText.includes("Kitob 2\n"), null, { timeout: 8000 });
 check("Kategoriya chip'i: URL ?category=, ro'yxat filtrlandi, chip faol", (await page.getAttribute(`[data-testid="catalog-categories"] [data-value="${CAT}"]`, "aria-pressed")) === "true");
 check("Sidebar: faol kategoriya belgilandi", (await page.getAttribute('[data-testid="side-category"]', "aria-current")) === "page");
 await page.click('[data-testid="catalog-categories"] [data-value=""]');
@@ -90,7 +139,7 @@ await page.screenshot({ path: OUT + "30-catalog.png" });
 await page.fill('input[placeholder^="Nomi, muallif"]', "Kitob 1");
 await page.press('input[placeholder^="Nomi, muallif"]', "Enter");
 await page.waitForURL((u) => u.searchParams.get("q") === "Kitob 1");
-await page.waitForFunction(() => document.body.innerText.includes("Kitob 10") && !document.body.innerText.includes("Test kitob"));
+await page.waitForFunction(() => document.querySelector(".client-main").innerText.includes("Kitob 10") && !document.querySelector(".client-main").innerText.includes("Test kitob"));
 check("Qidiruv: URL ?q= va natijalar filtrlandi", true);
 
 // ---- Batafsil (kesh orqali)
@@ -125,7 +174,7 @@ await page.fill('input[type="password"]', "User12345!");
 await page.click('button[type="submit"]');
 await page.waitForURL(`${BASE}/library`);
 await page.waitForSelector("header", { timeout: 8000 });
-check("AppShell nav'da Pullik kitoblar havolasi", (await page.locator('.client-sidebar a[href="/catalog"]').count()) > 0);
+check("AppShell nav'da 365 Magazine havolasi", (await page.locator('.client-sidebar a[href="/catalog"]').count()) > 0);
 await page.goto(`${BASE}/catalog/${BOOK}`);
 await page.waitForSelector("text=Bu kitob kutubxonangizda bor", { timeout: 8000 });
 const readHref = await page.getAttribute('a:has-text("O\'qish")', "href");

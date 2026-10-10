@@ -139,6 +139,35 @@ html {
   touch-action: none;
 }
 
+/* 71: o'quvchida brauzer zoom'i (pinch, ikki marta tegish) yo'q — zoom faqat kitobda (o'z mexanizmimiz) */
+.reader-scroller {
+  touch-action: pan-x pan-y;
+  overscroll-behavior: contain;
+}
+.zoom-pill {
+  position: absolute;
+  left: 50%;
+  top: 14px;
+  z-index: 30;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: rgba(17, 17, 17, 0.78);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, -4px);
+  transition:
+    opacity 160ms ease,
+    transform 160ms ease;
+}
+.zoom-pill.on {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
 /* ---- Qidiruv natijasi (17.5): moslik vaqtincha sariq fon bilan yonadi va sekin so'nadi ---- */
 .searchLayer > div {
   position: absolute;

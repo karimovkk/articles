@@ -1217,6 +1217,66 @@ Jonli tekshiruv (`?date_from=2026-09-28&date_to=2026-10-28`): total_revenue 811 
 - [x] 70.4 Grafik: oxirgi nuqta chiziq yetib kelganda "paydo bo'ladi", qiymat yozuvi keyin chiqadi (hover'da faqat
       yashiriladi — animatsiya qayta o'ynamaydi)
 
+## 71. Telefonda o'qish — qulay zoom va tasodifiy belgilashsiz (2026-10-10)
+
+- [x] 71.1 Ikki barmoq bilan zoom (pinch) — o'quvchining o'zida: butun sahifa (panel, tugmalar) kattalashmaydi, faqat
+      kitob; barmoqlar orasidagi nuqta joyida qoladi; 60–300%; harakat paytida silliq (CSS transform), tugagach aniq
+      chiziladi; ikki marta tegish — 100% ↔ 175%
+- [x] 71.2 Kattalashtirilganda yon tomonga ham surish mumkin (sahifa ekrandan keng bo'lsa)
+- [x] 71.3 Tasodifiy belgilash yo'q: uzoq bosish 500 ms va barmoq qimirlamasa; boshlanganda tebranish + bosilgan so'z
+      tanlanadi; ikki barmoq tegsa — tanlov bekor; oddiy tegish/surish hech narsa belgilamaydi
+- [x] 71.4 e2e (sensorli telefon emulyatsiyasi): pinch → zoom o'zgaradi, sahifa (viewport) kattalashmaydi; qisqa
+      tegish/surish → tanlov yo'q; uzoq bosish → tanlov paneli; 320/390/768 skrinshotlar
+
+## 72. Fon rasmi — siqilmaydi, foydalanuvchiga internetiga qarab (2026-10-10)
+
+- [x] 72.1 Admin yuklagan rasm asl holida saqlanadi (siqilmaydi; backend chegarasi — 10 MB)
+- [x] 72.2 Sekin internet uchun yengil nusxalar avtomatik: `background_md` (≤ 1920 px) va `background_sm` (≤ 960 px) —
+      asl rasm o'zgarmaydi; nusxa yuklanmasa — hammaga asl rasm
+- [x] 72.3 Ko'rsatish: birinchi chizishdan oldin tarmoq aniqlanadi (`navigator.connection`): tejash / 2G → sm, 3G → md,
+      tez 4G (≥ 5 Mbit/s) → md darhol, so'ng asl rasm fonda yuklanib almashadi; aniqlab bo'lmasa (iPhone) → md
+- [x] 72.4 e2e: yuklashda asl fayl o'zgarmay ketadi (hajmi teng), nusxalar yuklanadi; tarmoq turlariga qarab to'g'ri
+      nusxa so'raladi
+
+## 73. Nomlar: "Daily Articles" va "365 Magazine" (2026-10-10)
+
+- [x] 73.1 "Kunlik kitoblar / Daily books" → "Daily Articles"; "Pullik kitoblar / Paid books" → "365 Magazine"
+      (menyu, sarlavha, almashtirgich, breadcrumb; uz/ru/en)
+
+## 74. Yorug' mavzu — shisha panellar (2026-10-10)
+
+- [x] 74.1 Yorug' mavzuda ham oq panellar (header, sidebar, kartalar) yarim shaffof + blur — orqa fon sal ko'rinadi
+      (qorong'idagi kabi); matn kontrasti ≥ 4.5:1 saqlanadi
+- [x] 74.2 Skrinshotlar: 390 / 768 / 1280 / 1440, yorug' va qorong'i
+
+## 75. Matnlar: "Consistency is the key" va "Read every day" (2026-10-10)
+
+- [x] 75.1 "Free books to read every day — no sign-up needed" → "Consistency is the key"; "Free · Every day" →
+      "Read every day" (uz/ru/en)
+
+## 76. Daily Articles — ulashish (2026-10-10)
+
+- [x] 76.1 "Ulashish" tugmasi: Daily Articles kartalarida, tekin kitob sahifasida va tekin maqola o'quvchisida
+- [x] 76.2 Menyu: havolani nusxalash (✓ "Nusxalandi"), Telegram, WhatsApp, Facebook, X; telefonda — tizimning
+      "Ulashish" oynasi ham
+- [x] 76.3 e2e: nusxalangan havola to'g'ri, ijtimoiy havolalar to'g'ri kodlangan; telefonda menyu ekranga sig'adi
+
+## 77. Navbar logotipi (2026-10-10)
+
+- [x] 77.1 "ARTICLES365 {n}/365" — yangi shrift (sarlavhalar shrifti), oltin "365", kun ko'rsatkichi ixcham progress
+      bilan; e'tiborni tortadigan, lekin bezovta qilmaydigan animatsiya; barcha o'lchamlarda sig'adi
+
+## 78. Chap pastki karta — "Buy Real Books" (Uzum Market) (2026-10-10)
+
+- [x] 78.1 Karta Uzum Market'dagi do'konga olib boradi (yangi oynada); "Buy Real Books" yozuvi
+- [x] 78.2 Rasm o'rniga — kitoblarimiz muqovalari aylanib turadi (katalogdan; reduced-motion — harakatsiz)
+- [x] 78.3 Havola admin panelda o'zgartiriladi (Ko'rinish → Do'kon havolasi); berilmagan bo'lsa — Uzum'da qidiruv
+- [x] 78.4 e2e: havola, yangi oyna, muqovalar aylanadi; telefon menyusida ham
+
+## 79. Yakuniy tekshiruv (2026-10-10)
+
+- [x] 79.1 tsc, eslint, to'liq e2e dev + prod; barcha qurilma o'lchamlarida skrinshotlar
+
 ## 31. Keyingi vazifalar
 
 - [ ] 31.1 Safari (WebKit): varaqlash rejimida oldingi sahifaga qaytilganda (3-sahifa) belgilash qatlami

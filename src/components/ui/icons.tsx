@@ -103,6 +103,7 @@ export const Wallet = make("Wallet", <><path d="M20 7H4a2 2 0 0 0-2 2v10a2 2 0 0
 export const Inbox = make("Inbox", <><path d="M22 12h-6l-2 3h-4l-2-3H2" /><path d="M5.5 5.1 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.5-6.9A2 2 0 0 0 16.8 4H7.2a2 2 0 0 0-1.7 1.1z" /></>);
 export const Hash = make("Hash", <><path d="M4 9h16" /><path d="M4 15h16" /><path d="M10 3 8 21" /><path d="m16 3-2 18" /></>);
 export const Percent = make("Percent", <><path d="m19 5-14 14" /><circle cx="6.5" cy="6.5" r="2.5" /><circle cx="17.5" cy="17.5" r="2.5" /></>);
+export const Share = make("Share", <><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><path d="m8.6 13.5 6.8 4" /><path d="m15.4 6.5-6.8 4" /></>);
 export const Copy = make("Copy", <><rect x="9" y="9" width="12" height="12" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></>);
 export const Columns = make("Columns", <><rect x="3" y="4" width="18" height="16" rx="3" /><path d="M12 4v16" /></>);
 export const Rows = make("Rows", <><rect x="3" y="4" width="18" height="16" rx="3" /><path d="M3 12h18" /></>);

@@ -22,6 +22,7 @@ import {
   isNetworkError,
   isVocab,
   normalizeWord,
+  catalogApi,
   readerApi,
   readingApi,
   vocabularyApi,
@@ -46,8 +47,14 @@ import { PdfViewer, type PdfViewerHandle, type TextSelection, type ViewMode } fr
 import { loadPdfJs } from "@/lib/reader/range-transport";
 import { ReaderSidebar, type SidebarTab } from "./reader-sidebar";
 import { WatermarkOverlay, type WatermarkLike } from "./watermark-overlay";
+import { ShareMenu } from "@/components/share/share-menu";
+import { isFreeBook } from "@/lib/free-books";
 
-const ZOOMS = [0.6, 0.75, 0.9, 1, 1.15, 1.3, 1.5, 1.75, 2];
+const ZOOMS = [0.6, 0.75, 0.9, 1, 1.15, 1.3, 1.5, 1.75, 2, 2.5, 3];
+const ZOOM_MIN = ZOOMS[0];
+const ZOOM_MAX = ZOOMS[ZOOMS.length - 1];
+/** 71: zoom uzluksiz (pinch) — tugmalar keyingi/oldingi standart qiymatga o'tadi */
+const zoomStep = (z: number, dir: 1 | -1) => (dir > 0 ? (ZOOMS.find((x) => x > z + 0.001) ?? ZOOM_MAX) : ([...ZOOMS].reverse().find((x) => x < z - 0.001) ?? ZOOM_MIN));
 const EMPTY_VOCAB: VocabFormValues = { word: "", translation: "", context: "" };
 const NIGHT_KEY = "a365.reader.night";
 // 53: o'qish rejimi saqlanmaydi — kitob har doim scroll'da ochiladi (o'qish davomida almashtirish mumkin)
@@ -93,6 +100,20 @@ export function ReaderView({ articleId }: { articleId: string }) {
   const viewerRef = useRef<PdfViewerHandle>(null);
 
   const [meta, setMeta] = useState<ReaderMeta | null>(null);
+  // 76: tekin kitob (Daily Articles) maqolasi — ulashish tugmasi (mehmonlar ham ochib o'qiy oladi)
+  const [freeBook, setFreeBook] = useState<string | null>(null);
+  const metaBookId = meta?.book_id;
+  useEffect(() => {
+    if (!metaBookId) return;
+    let off = false;
+    catalogApi
+      .find(metaBookId)
+      .then((b) => !off && setFreeBook(isFreeBook(b) ? metaBookId : null))
+      .catch(() => undefined);
+    return () => {
+      off = true;
+    };
+  }, [metaBookId]);
   const [fatal, setFatal] = useState<{ code: string; message: string } | null>(null);
   const [watermark, setWatermark] = useState<WatermarkLike | null>(null);
   const [siblings, setSiblings] = useState<ArticleListItem[]>([]);
@@ -101,7 +122,7 @@ export function ReaderView({ articleId }: { articleId: string }) {
   const [page, setPage] = useState(1);
   const [pageInput, setPageInput] = useState("1");
   const [pageCount, setPageCount] = useState(0);
-  const [zoomIdx, setZoomIdx] = useState(3);
+  const [zoom, setZoom] = useState(1);
   const [night, setNight] = useState(() => readPref(NIGHT_KEY) === "1");
   const [mode, setMode] = useState<ViewMode>("scroll");
   // 32B: kitob rejimi (ikki sahifa) joriy o'lchamda sig'adimi — viewer aytadi; sig'masa bitta varaq ko'rsatiladi
@@ -405,8 +426,8 @@ export function ReaderView({ articleId }: { articleId: string }) {
       // 32B: rejimga mos qadam (kitob rejimida — bir juft)
       if (e.key === "ArrowRight" || e.key === "PageDown") viewerRef.current?.step(1);
       if (e.key === "ArrowLeft" || e.key === "PageUp") viewerRef.current?.step(-1);
-      if (e.key === "+" || e.key === "=") setZoomIdx((z) => Math.min(ZOOMS.length - 1, z + 1));
-      if (e.key === "-") setZoomIdx((z) => Math.max(0, z - 1));
+      if (e.key === "+" || e.key === "=") setZoom((z) => zoomStep(z, 1));
+      if (e.key === "-") setZoom((z) => zoomStep(z, -1));
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -687,7 +708,10 @@ export function ReaderView({ articleId }: { articleId: string }) {
             <I.PanelLeft size={18} />
           </button>
           <div className="min-w-0 flex-1 pl-1 max-[420px]:order-last max-[420px]:w-full max-[420px]:basis-full max-[420px]:pb-0.5">
-            <p className="truncate text-sm font-bold">{meta.title}</p>
+            <div className="flex min-w-0 items-center gap-1">
+              <p className="truncate text-sm font-bold">{meta.title}</p>
+              {freeBook === meta.book_id && <ShareMenu compact url={`/reader/${articleId}`} title={meta.title} text={t("share.articleText", { title: meta.title })} testid="reader-share" className="shrink-0" />}
+            </div>
             {(prev || next) && (
               <p className="flex gap-2 text-xs font-semibold text-muted max-[420px]:hidden">
                 {prev && (
@@ -719,11 +743,11 @@ export function ReaderView({ articleId }: { articleId: string }) {
           </form>
 
           <div className="hidden items-center sm:flex">
-            <button type="button" onClick={() => setZoomIdx((z) => Math.max(0, z - 1))} className="icon-btn plain sm" title={t("reader.zoomOut")} aria-label={t("reader.zoomOut")}>
+            <button type="button" onClick={() => setZoom((z) => zoomStep(z, -1))} className="icon-btn plain sm" title={t("reader.zoomOut")} aria-label={t("reader.zoomOut")}>
               <I.ZoomOut size={16} />
             </button>
-            <span className="w-11 text-center text-xs font-bold tabular-nums text-muted">{Math.round(ZOOMS[zoomIdx] * 100)}%</span>
-            <button type="button" onClick={() => setZoomIdx((z) => Math.min(ZOOMS.length - 1, z + 1))} className="icon-btn plain sm" title={t("reader.zoomIn")} aria-label={t("reader.zoomIn")}>
+            <span className="w-11 text-center text-xs font-bold tabular-nums text-muted">{Math.round(zoom * 100)}%</span>
+            <button type="button" onClick={() => setZoom((z) => zoomStep(z, 1))} className="icon-btn plain sm" title={t("reader.zoomIn")} aria-label={t("reader.zoomIn")}>
               <I.ZoomIn size={16} />
             </button>
           </div>
@@ -825,7 +849,10 @@ export function ReaderView({ articleId }: { articleId: string }) {
               ref={viewerRef}
               articleId={articleId}
               initialPage={initialPage}
-              zoom={ZOOMS[zoomIdx]}
+              zoom={zoom}
+              onZoomChange={setZoom}
+              minZoom={ZOOM_MIN}
+              maxZoom={ZOOM_MAX}
               night={night}
               mode={mode}
               onSpreadAvailable={setSpreadOk}

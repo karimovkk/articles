@@ -13,6 +13,7 @@ import { BookCardH } from "@/components/catalog/book-card";
 import { HeroBrand } from "@/components/layout/year-progress";
 import { AddToCartButton, PricingPromo } from "@/components/cart/cart-ui";
 import { Price } from "@/components/catalog/price";
+import { ShareMenu } from "@/components/share/share-menu";
 import { Alert, EmptyState, Menu, MenuItem, RoundPagination, Spinner, cn } from "@/components/ui";
 import * as I from "@/components/ui/icons";
 import { catalogApi } from "@/lib/api";
@@ -249,7 +250,14 @@ function CatalogList({ kind }: { kind: CatalogKind }) {
                         ? { href: `/catalog/${item.book_id}`, label: t("catalog.read"), icon: <I.BookOpen size={15} /> }
                         : { href: `/catalog/${item.book_id}`, label: t("catalog.buy"), icon: <I.ShoppingBag size={15} /> }
                   }
-                  ctaExtra={<AddToCartButton compact owned={has} book={{ book_id: item.book_id, title: item.title, author: item.author, price: item.price, has_cover: item.has_cover }} />}
+                  ctaExtra={
+                    free ? (
+                      // 76: Daily Articles — ulashish (havola, Telegram, WhatsApp, …)
+                      <ShareMenu compact url={`/catalog/${item.book_id}`} title={item.title} text={t("share.bookText", { title: item.title })} testid="card-share" />
+                    ) : (
+                      <AddToCartButton compact owned={has} book={{ book_id: item.book_id, title: item.title, author: item.author, price: item.price, has_cover: item.has_cover }} />
+                    )
+                  }
                 />
               );
             })}

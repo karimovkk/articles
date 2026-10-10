@@ -14,6 +14,8 @@ import * as I from "@/components/ui/icons";
 import { adminApi, errorMessage, type AppImageTheme } from "@/lib/api";
 import {
   BACKGROUND_IMAGE,
+  BACKGROUND_VARIANTS,
+  BACKGROUND_VARIANT_SIZES,
   BG_PRESETS,
   DEFAULT_PRIMARY,
   PRIMARY_PRESETS,
@@ -66,9 +68,35 @@ function Swatches({ presets, value, onPick, label, testid }: { presets: readonly
   );
 }
 const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
-const IMAGE_MAX_MB = 25;
+/** 72: backend chegarasi — asl rasm siqilmasdan yuklanadi */
+const IMAGE_MAX_MB = 10;
+const extOf = (type: string) => (type === "image/png" ? "png" : type === "image/webp" ? "webp" : "jpg");
 
-/** Yorug'/qorong'i fon: standart · rang · rasm (sudrab tashlash yoki tanlash → siqiladi → yuklanadi) */
+/**
+ * 72: sekin internet uchun yengil nusxalar (asl rasm o'zgarmaydi). Xato bo'lsa — eski nusxalar o'chiriladi
+ * (foydalanuvchiga oldingi rasm ko'rinib qolmasin), hammaga asl rasm ko'rsatiladi.
+ */
+async function uploadVariants(file: File, theme: AppImageTheme) {
+  let prev = file.size;
+  for (const k of ["md", "sm"] as const) {
+    const name = BACKGROUND_VARIANTS[k];
+    try {
+      const { blob, ext } = await compressImage(file, BACKGROUND_VARIANT_SIZES[k]);
+      // Asl rasm allaqachon kichik — nusxa yengilroq bo'lmasa kerak emas (hammaga asl rasm)
+      if (blob.size >= prev * 0.85) throw new Error("not-smaller");
+      await adminApi.uploadAppImage(name, theme, blob, `${name}-${theme}.${ext}`, { timeoutMs: 120_000 });
+      prev = blob.size;
+    } catch {
+      await adminApi.deleteAppImage(name, theme).catch(() => undefined);
+    }
+  }
+}
+/** Fon rasmi o'chirilganda — nusxalari ham */
+async function deleteBackground(theme: AppImageTheme) {
+  for (const name of [BACKGROUND_IMAGE, BACKGROUND_VARIANTS.md, BACKGROUND_VARIANTS.sm]) await adminApi.deleteAppImage(name, theme).catch(() => undefined);
+}
+
+/** Yorug'/qorong'i fon: standart · rang · rasm (sudrab tashlash yoki tanlash → asl holida yuklanadi + yengil nusxalar) */
 function BgField({
   label,
   theme,
@@ -111,12 +139,14 @@ function BgField({
     if (file.size > IMAGE_MAX_MB * 1024 * 1024) return setError(t("appearance.bg.tooBig", { n: IMAGE_MAX_MB }));
     setProgress(0);
     try {
-      const { blob, ext } = await compressImage(file, { maxWidth: 1920 });
-      const img = await adminApi.uploadAppImage(BACKGROUND_IMAGE, theme, blob, `${BACKGROUND_IMAGE}-${theme}.${ext}`, {
+      // 72: asl rasm — siqilmasdan (sifat to'liq saqlanadi)
+      const img = await adminApi.uploadAppImage(BACKGROUND_IMAGE, theme, file, `${BACKGROUND_IMAGE}-${theme}.${extOf(file.type)}`, {
         onProgress: (l, tot) => setProgress(tot ? Math.round((l / tot) * 100) : 0),
-        timeoutMs: 120_000,
+        timeoutMs: 300_000,
       });
       onChange("upload", img.url);
+      setProgress(100);
+      await uploadVariants(file, theme);
     } catch (e) {
       setError(errorMessage(e));
     } finally {
@@ -252,7 +282,7 @@ export default function AdminAppearancePage() {
       await adminApi.saveAppSettings({ appearance: { ...appearance, primary_color: primary } });
       // Fon rasmdan boshqa turga o'tdi — storage'dagi rasm o'chiriladi (yetim fayl qolmasin)
       for (const th of themes) {
-        if (appearance[`background_${th}`] !== "upload" && saved.images?.[th]) await adminApi.deleteAppImage(BACKGROUND_IMAGE, th).catch(() => undefined);
+        if (appearance[`background_${th}`] !== "upload" && saved.images?.[th]) await deleteBackground(th);
       }
       await reload();
       // Fon maydonlari serverdagi YANGI qiymatdan qayta boshlanadi (reload'dan keyin — eski holat olib qolinmasin)
@@ -272,7 +302,7 @@ export default function AdminAppearancePage() {
       await adminApi.deleteAppSetting("appearance");
       // Yuklangan fon rasmlari ham o'chiriladi (storage'da yetim qolmasin)
       for (const th of ["light", "dark"] as const) {
-        if (saved.images?.[th]) await adminApi.deleteAppImage(BACKGROUND_IMAGE, th).catch(() => undefined);
+        if (saved.images?.[th]) await deleteBackground(th);
       }
       await reload();
       // Fon maydonlari serverdagi YANGI qiymatdan qayta boshlanadi (reload'dan keyin — eski holat olib qolinmasin)

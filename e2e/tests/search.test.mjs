@@ -26,7 +26,7 @@ const before = await countCalls("GET /catalog");
 await input.click();
 await input.pressSequentially("Kitob 1", { delay: 40 }); // ~280 ms — debounce ichida bitta so'rov
 await page.waitForURL((u) => u.searchParams.get("q") === "Kitob 1", { timeout: 5000 });
-await page.waitForFunction(() => !document.body.innerText.includes("Kitob 2\n") && document.body.innerText.includes("Kitob 1"), null, { timeout: 8000 });
+await page.waitForFunction(() => !document.querySelector(".client-main").innerText.includes("Kitob 2\n") && document.querySelector(".client-main").innerText.includes("Kitob 1"), null, { timeout: 8000 });
 check("Katalog: yozilgach URL ?q= (replace) va natijalar filtrlandi", true);
 check("Katalog: fokus input'da qoldi", await page.evaluate(() => document.activeElement?.getAttribute("data-testid") === "catalog-search"));
 const calls1 = (await countCalls("GET /catalog")) - before;
@@ -45,7 +45,7 @@ await input.pressSequentially("Kitob 1", { delay: 20 });
 await page.waitForTimeout(400); // debounce → "Kitob 1" so'rovi ketdi (kechikadi)
 await input.pressSequentially("2", { delay: 20 });
 await page.waitForURL((u) => u.searchParams.get("q") === "Kitob 12", { timeout: 5000 });
-await page.waitForFunction(() => document.body.innerText.includes("Kitob 12") && !document.body.innerText.includes("Kitob 11"), null, { timeout: 8000 });
+await page.waitForFunction(() => document.querySelector(".client-main").innerText.includes("Kitob 12") && !document.querySelector(".client-main").innerText.includes("Kitob 11"), null, { timeout: 8000 });
 await page.waitForTimeout(1800); // kechikkan javob keldi
 check("Poyga: eskirgan ('Kitob 1') javob yangi ('Kitob 12') natijani bosmadi", (await bodyHas("Kitob 12")) && !(await bodyHas("Kitob 11")) && !(await bodyHas("Kitob 10")));
 check("Poyga: input qiymati saqlandi", (await input.inputValue()) === "Kitob 12");
