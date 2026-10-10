@@ -1277,6 +1277,17 @@ Jonli tekshiruv (`?date_from=2026-09-28&date_to=2026-10-28`): total_revenue 811 
 
 - [x] 79.1 tsc, eslint, to'liq e2e dev + prod; barcha qurilma o'lchamlarida skrinshotlar
 
+## 80. Reyting — top 3 podium, ketma-ket chiqish, 1-o'rin ustida mushakbozlik (2026-10-10)
+
+- [x] 80.1 Podium: 2-o'rin chapda, 1-o'rin markazda (eng baland), 3-o'rin o'ngda; avatar (bosh harflar) oltin /
+      kumush / bronza halqa bilan, 1-o'rinda toj; ism, joriy seriya 🔥, eng uzun seriya; poydevorda katta o'rin raqami;
+      o'zim bo'lsam — "Siz" belgisi
+- [x] 80.2 Animatsiya: o'rinlar ketma-ket chiqadi — 3 → 2 → 1 (poydevor o'sadi, avatar sakrab tushadi)
+- [x] 80.3 1-o'rin ustida mushakbozlik (canvas): avval tez-tez, keyin vaqti-vaqti bilan; ekranda ko'rinmasa yoki
+      tab yashirin bo'lsa — to'xtaydi; reduced-motion — harakatsiz (mushakbozliksiz)
+- [x] 80.4 Ro'yxat podiumdan keyin — 4-o'rindan; 3 tadan kam ishtirokchi — borlari podiumda
+- [x] 80.5 320 / 360 / 390 / 768 / 1280 / 1440, yorug' va qorong'i; e2e `streak`
+
 ## 31. Keyingi vazifalar
 
 - [ ] 31.1 Safari (WebKit): varaqlash rejimida oldingi sahifaga qaytilganda (3-sahifa) belgilash qatlami

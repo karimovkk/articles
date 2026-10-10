@@ -798,6 +798,8 @@ export const ru: Dict = {
   "streak.todayTodo": "Сегодня вы ещё не читали — прочитайте страницу, чтобы сохранить серию",
   "streak.top": "Самые активные читатели",
   "streak.reader": "Читатель",
+  "streak.bestShort": "рекорд: {n} дн.",
+  "streak.placeA11y": "{rank}-е место: {name}, текущая серия {n} дн.",
   "streak.you": "вы",
   "streak.empty": "Пока никто не начал серию — будьте первым!",
   "streak.chipActive": "Серия {n} дн. — включая сегодня",

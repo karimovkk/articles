@@ -798,6 +798,8 @@ export const en: Dict = {
   "streak.todayTodo": "You haven't read today — read a page to keep your streak",
   "streak.top": "Most active readers",
   "streak.reader": "Reader",
+  "streak.bestShort": "best: {n} d",
+  "streak.placeA11y": "Place {rank}: {name}, current streak {n} days",
   "streak.you": "you",
   "streak.empty": "No one has started a streak yet — be the first!",
   "streak.chipActive": "{n}-day streak — including today",

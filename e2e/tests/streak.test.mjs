@@ -49,15 +49,74 @@ await page.waitForURL(`${BASE}/leaderboard`);
 await page.waitForSelector('[data-testid="leaderboard"]', { timeout: 10000 });
 const my = ((await page.textContent('[data-testid="my-streak"]')) ?? "").replace(/\s+/g, " ");
 check("O'z ko'rsatkichlarim: 5 kun, eng uzun 9, jami 21, 'Bugun o'qidingiz'", my.includes("5 kun") && my.includes("9 kun") && my.includes("21 kun") && my.includes("Bugun o'qidingiz"), my);
-check("Top-20 + o'zim alohida qatorda (26-o'rin)", (await page.locator('[data-testid="lb-row"]').count()) === 20 && ((await page.textContent('[data-testid="lb-me"]')) ?? "").includes("26"));
-check("1-o'rin ajratilgan, olov bilan joriy seriya", (await page.locator(".lb-rank.top1").count()) === 1 && ((await page.textContent('[data-testid="lb-row"] >> nth=0')) ?? "").includes("40"));
+check("Top-20: 3 tasi podiumda + 17 tasi ro'yxatda (4-o'rindan), o'zim alohida qatorda (26-o'rin)", (await page.locator('[data-testid="podium-place"]').count()) === 3 && (await page.locator('[data-testid="lb-row"]').count()) === 17 && ((await page.textContent('[data-testid="lb-row"] .lb-rank >> nth=0')) ?? "").trim() === "4" && ((await page.textContent('[data-testid="lb-me"]')) ?? "").includes("26"));
+// 80: podium — 2 · 1 · 3, 1-o'rinda toj va eng baland poydevor; ketma-ket chiqish 3 → 2 → 1; mushakbozlik
+const pod = await page.evaluate(() => {
+  const places = [...document.querySelectorAll('[data-testid="podium-place"]')];
+  const delay = (el) => parseFloat(getComputedStyle(el.querySelector(".podium-block")).animationDelay);
+  const h = (el) => el.querySelector(".podium-block").offsetHeight; // animatsiya (scale) ta'sir qilmaydi
+  const by = (r) => places.find((p) => p.dataset.rank === String(r));
+  return {
+    order: places.map((p) => p.dataset.rank).join(""),
+    first: by(1).innerText.replace(/\s+/g, " "),
+    crown: !!by(1).querySelector(".podium-crown"),
+    tall: h(by(1)) > h(by(2)) && h(by(2)) > h(by(3)),
+    seq: delay(by(3)) < delay(by(2)) && delay(by(2)) < delay(by(1)),
+  };
+});
+check("Podium: tartib 2 · 1 · 3, 1-o'rinda toj, poydevorlar 1 > 2 > 3", pod.order === "213" && pod.crown && pod.tall, JSON.stringify(pod));
+check("Podium: 1-o'rin — eng uzun joriy seriya (40) olov bilan", pod.first.includes("40"), pod.first);
+check("O'rinlar ketma-ket chiqadi: 3 → 2 → 1", pod.seq);
+// Mushakbozlik — 1-o'rin chiqqach canvas'da uchqunlar paydo bo'ladi
+await page.waitForTimeout(3200);
+const lit = await page.evaluate(() => {
+  const c = document.querySelector('[data-testid="fireworks"]');
+  const d = c.getContext("2d").getImageData(0, 0, c.width, c.height).data;
+  let n = 0;
+  for (let i = 3; i < d.length; i += 4) if (d[i] > 40) n++;
+  return n;
+});
+check("1-o'rin ustida mushakbozlik (canvas'da uchqunlar)", lit > 30, `${lit} px`);
 await page.screenshot({ path: OUT + "85-leaderboard.png", fullPage: true });
 
+// Barcha o'lchamlar (yorug' va qorong'i): podium sig'adi, ismlar qisqartiriladi, toshish yo'q
+for (const theme of ["light", "dark"]) {
+  await page.evaluate((t) => localStorage.setItem("a365.theme", t), theme);
+  for (const [w, h] of [[320, 700], [360, 760], [390, 844], [768, 1024], [1280, 800], [1440, 900]]) {
+    await page.setViewportSize({ width: w, height: h });
+    await page.reload();
+    await page.waitForSelector('[data-testid="podium"]', { timeout: 10000 });
+    await page.waitForTimeout(2400);
+    const g = await page.evaluate(() => {
+      const pod = document.querySelector('[data-testid="podium"]').getBoundingClientRect();
+      const places = [...document.querySelectorAll('[data-testid="podium-place"]')].map((p) => p.getBoundingClientRect());
+      const names = [...document.querySelectorAll(".podium-name")].every((n) => n.scrollWidth <= n.parentElement.getBoundingClientRect().width + 1);
+      const overlap = places.some((a, i) => places.some((b, j) => i < j && a.right > b.left + 1 && b.right > a.left + 1));
+      return { inside: places.every((r) => r.left >= pod.left - 0.5 && r.right <= pod.right + 0.5), names, overlap, sw: document.documentElement.scrollWidth - innerWidth };
+    });
+    check(`${theme} ${w}px: podium sig'adi, o'rinlar ustma-ust emas, toshish yo'q`, g.inside && g.names && !g.overlap && g.sw <= 1, JSON.stringify(g));
+    if ([360, 1440].includes(w)) await page.screenshot({ path: OUT + `86-leaderboard-${theme}-${w}.png`, fullPage: w === 360 });
+  }
+}
+await page.evaluate(() => localStorage.setItem("a365.theme", "light"));
+// Harakatni kamaytirish — darhol va harakatsiz, mushakbozliksiz
+{
+  const rm = await browser.newContext({ viewport: { width: 1280, height: 800 }, reducedMotion: "reduce", storageState: await page.context().storageState() });
+  const p2 = await rm.newPage();
+  await p2.goto(`${BASE}/leaderboard`);
+  await p2.waitForSelector('[data-testid="podium"]', { timeout: 10000 });
+  await p2.waitForTimeout(2500);
+  const r = await p2.evaluate(() => {
+    const c = document.querySelector('[data-testid="fireworks"]');
+    const d = c.getContext("2d").getImageData(0, 0, Math.max(1, c.width), Math.max(1, c.height)).data;
+    let n = 0;
+    for (let i = 3; i < d.length; i += 4) if (d[i] > 0) n++;
+    return { anims: document.querySelector('[data-testid="podium"]').getAnimations({ subtree: true }).length, lit: n };
+  });
+  check("prefers-reduced-motion: podium darhol, harakatsiz, mushakbozliksiz", r.anims === 0 && r.lit === 0, JSON.stringify(r));
+  await rm.close();
+}
 await page.setViewportSize({ width: 360, height: 760 });
-await page.waitForTimeout(300);
-const sw = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
-check("360px: reyting sig'adi", sw <= 1, `+${sw}`);
-await page.screenshot({ path: OUT + "86-leaderboard-360.png", fullPage: true });
 
 // 59: telefonda olovcha header'da ko'rinadi (avval ≤ 700 px da yashirilgan edi); eng og'ir holat — 3 xonali seriya
 await fetch(`${API_HOST}/__seed-streak?user=${USER_ID}&current=123&longest=123&total=130`);

@@ -817,6 +817,8 @@ export const uz = {
   "streak.todayTodo": "Bugun hali o'qimadingiz — seriyani saqlash uchun bir sahifa o'qing",
   "streak.top": "Eng faol o'quvchilar",
   "streak.reader": "O'quvchi",
+  "streak.bestShort": "eng uzun: {n} kun",
+  "streak.placeA11y": "{rank}-o'rin: {name}, joriy seriya {n} kun",
   "streak.you": "siz",
   "streak.empty": "Hali hech kim seriya boshlamagan — birinchi bo'ling!",
   "streak.chipActive": "Ketma-ket {n} kun o'qidingiz — bugun ham",

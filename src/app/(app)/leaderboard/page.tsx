@@ -3,12 +3,14 @@
 /**
  * 44.6: "Reyting" — kunlik o'qish seriyasi (Duolingo kabi). Yuqorida o'z ko'rsatkichlarim (joriy seriya, eng uzun,
  * jami kunlar, bugun o'qidimmi), pastda top ro'yxat; o'zim topda bo'lmasam — alohida qatorda o'rnim.
+ * 80: top 3 — podiumda (ketma-ket chiqadi, 1-o'rin ustida mushakbozlik), ro'yxat 4-o'rindan.
  */
 import { Alert, Card, PageHeader, Spinner, cn } from "@/components/ui";
 import * as I from "@/components/ui/icons";
 import { streakApi, type LeaderboardEntry } from "@/lib/api";
 import { useAsync } from "@/lib/use-async";
 import { useStreak } from "@/lib/streak-store";
+import { Podium } from "@/components/streak/podium";
 import { formatNumber, useT } from "@/i18n";
 
 export default function LeaderboardPage() {
@@ -16,6 +18,8 @@ export default function LeaderboardPage() {
   const streak = useStreak();
   const { data, error } = useAsync(() => streakApi.leaderboard(20), []);
   const meInTop = data?.entries.some((e) => e.is_me);
+  // 80: top 3 — podiumda; ro'yxat 4-o'rindan
+  const rest = data?.entries.filter((e) => e.rank > 3) ?? [];
 
   const row = (e: LeaderboardEntry, extra = false) => (
     <li key={`${e.rank}-${e.display_name}`} className={cn("lb-row", e.is_me && "me", extra && "extra")} data-testid={e.is_me ? "lb-me" : "lb-row"}>
@@ -69,16 +73,21 @@ export default function LeaderboardPage() {
           <p className="p-5 text-sm text-muted">{t("streak.empty")}</p>
         ) : (
           <>
-            <div className="lb-head" aria-hidden>
-              <span>#</span>
-              <span>{t("streak.reader")}</span>
-              <span>{t("streak.longest")}</span>
-              <span>{t("streak.current")}</span>
-            </div>
-            <ol className="lb-list" data-testid="leaderboard">
-              {data.entries.map((e) => row(e))}
-              {!meInTop && data.me && row(data.me, true)}
-            </ol>
+            <Podium entries={data.entries} />
+            {(rest.length > 0 || (!meInTop && data.me)) && (
+              <>
+                <div className="lb-head" aria-hidden>
+                  <span>#</span>
+                  <span>{t("streak.reader")}</span>
+                  <span>{t("streak.longest")}</span>
+                  <span>{t("streak.current")}</span>
+                </div>
+                <ol className="lb-list" start={4} data-testid="leaderboard">
+                  {rest.map((e) => row(e))}
+                  {!meInTop && data.me && row(data.me, true)}
+                </ol>
+              </>
+            )}
           </>
         )}
       </Card>
