@@ -36,6 +36,8 @@ export const ADMIN_NAV: NavSection[] = [
     items: [
       { href: "/admin", label: "nav.admin.dashboard", icon: I.Home },
       { href: "/admin/payments", label: "nav.admin.payments", icon: I.Wallet },
+      // 85: ko'p kitob chegirma pog'onalari
+      { href: "/admin/pricing", label: "nav.admin.pricing", icon: I.Percent },
     ],
   },
   {

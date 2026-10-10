@@ -86,10 +86,13 @@ export function TierLadder({ cfg, current, className }: { cfg: PricingConfig; cu
   const active = current === undefined ? -1 : ladder.reduce((acc, s, i) => (s.min <= current ? i : acc), -1);
   return (
     <ol className={cn("tier-ladder", className)} data-testid="tier-ladder">
-      <li className={cn("tier-step", current !== undefined && active === -1 && current > 0 && "active")}>
-        <span className="tier-qty">{t("cart.ladder.one")}</span>
-        <span className="tier-price">{t("cart.ladder.own")}</span>
-      </li>
+      {/* 85: admin 1 ta uchun ham pog'ona qo'ysa — "o'z narxi" qatori kerak emas (ikki marta "1 ta" chiqmasin) */}
+      {!ladder.some((s) => s.min <= 1) && (
+        <li className={cn("tier-step", current !== undefined && active === -1 && current > 0 && "active")}>
+          <span className="tier-qty">{t("cart.ladder.one")}</span>
+          <span className="tier-price">{t("cart.ladder.own")}</span>
+        </li>
+      )}
       {ladder.map((s, i) => (
         <li key={s.min} className={cn("tier-step", i === active && "active", s.plus && "best")}>
           <span className="tier-qty">{s.plus ? t("cart.ladder.nPlus", { n: s.min }) : t("cart.ladder.n", { n: s.min })}</span>

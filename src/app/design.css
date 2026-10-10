@@ -3444,3 +3444,108 @@ circle.donut-slice {
 .price-tag .pt-old {
   white-space: nowrap;
 }
+
+/* 85: admin — chegirma pog'onalari */
+.pricing-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+@media (min-width: 1100px) {
+  .pricing-grid {
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  }
+}
+.tier-head,
+.tier-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) 56px 36px;
+  align-items: center;
+  gap: 10px;
+}
+.tier-head {
+  padding: 0 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.tier-row {
+  padding: 8px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+}
+.tier-row.off {
+  opacity: 0.6;
+}
+.tier-row.invalid {
+  border-color: color-mix(in srgb, var(--danger) 55%, transparent);
+}
+.tier-field {
+  position: relative;
+  display: block;
+  min-width: 0;
+}
+.tier-field .input {
+  padding-right: 74px;
+  font-variant-numeric: tabular-nums;
+}
+.tier-suffix {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  pointer-events: none;
+  white-space: nowrap;
+}
+.tier-error {
+  grid-column: 1 / -1;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--danger);
+}
+.tier-ladder {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.tier-step-chip {
+  display: grid;
+  gap: 2px;
+  min-width: 120px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+}
+.tier-step-chip b {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-2);
+}
+.tier-step-chip span {
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.tier-step-chip.best {
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+}
+@media (max-width: 520px) {
+  .tier-head {
+    display: none;
+  }
+  .tier-row {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+  }
+  .tier-row .tier-field:nth-child(2) {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}

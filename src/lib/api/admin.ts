@@ -28,6 +28,7 @@ export interface IntegrationSettings {
 }
 import type {
   AdminDevice,
+  AdminPricingTier,
   AdminStats,
   PaymentStats,
   Article,
@@ -75,6 +76,14 @@ export const adminApi = {
   /** 64: davr (`group_by`) va sana oralig'i — kartalar, holatlar, kitoblar ham oraliqqa bo'ysunadi */
   paymentStats(params: { group_by?: "year" | "month" | "day" | "hour"; date_from?: string; date_to?: string; limit?: number } = {}) {
     return api<PaymentStats>("/admin/stats/payments", { query: params });
+  },
+  /** 85: ko'p kitob chegirma pog'onalari (faol + nofaol, min_quantity bo'yicha) */
+  pricingTiers() {
+    return api<AdminPricingTier[]>("/admin/pricing-tiers");
+  },
+  /** 85: butun jadvalni bir urinishda almashtirish; takroriy `min_quantity` — 422 */
+  savePricingTiers(tiers: Array<{ min_quantity: number; unit_price: number; is_active: boolean }>) {
+    return api<AdminPricingTier[]>("/admin/pricing-tiers", { method: "PUT", body: { tiers } });
   },
   /** 44.8: global ko'rinish sozlamalari — merge/upsert (boshqa kalitlar saqlanadi) */
   saveAppSettings(settings: Record<string, unknown>) {

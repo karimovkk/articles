@@ -340,6 +340,14 @@ export interface PricingConfig {
   currency: string;
   tiers: PricingTier[];
 }
+/** 85: admin — pog'ona (nofaollari ham) */
+export interface AdminPricingTier {
+  id: UUID;
+  min_quantity: number;
+  /** decimal ("50000.00") */
+  unit_price: string;
+  is_active: boolean;
+}
 
 /** 35: POST /orders/quote — savatcha narxi (server hisobi) */
 export interface OrderQuote {

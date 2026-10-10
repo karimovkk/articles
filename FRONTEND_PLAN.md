@@ -1324,6 +1324,16 @@ Jonli tekshiruv (`?date_from=2026-09-28&date_to=2026-10-28`): total_revenue 811 
       "365" bir marta yaltiraydi, nom ostidan oltin chiziq chiqadi; logo joyidan qimirlamaydi
 - [x] 84.3 e2e `theme-shift` (mijoz sahifalari 1440/390, mehmon/foydalanuvchi), `brand-header` (hover)
 
+## 85. Admin — ko'p kitob chegirma pog'onalari (backend v1.0, 2026-10-10)
+
+- [x] 85.1 API: `GET/PUT /admin/pricing-tiers` (butun jadval bir urinishda), tur `AdminPricingTier`
+- [x] 85.2 Admin "Chegirma pog'onalari" sahifasi: qatorlar (nechta kitobdan — har biri narxi — faol), qo'shish, o'chirish,
+      saqlash (PUT), bekor qilish; tekshiruv: son ≥ 1 va takrorlanmaydi, narx > 0 (backend 422 — xabar)
+- [x] 85.3 "Mijozga ko'rinishi": 1 ta / 2 ta / 3+ ta zinapoyasi (faqat faollar) va misol hisob (narx — kitob narxidan
+      oshmaydi, eng katta mos pog'ona)
+- [x] 85.4 Menyu (Umumiy → "Chegirmalar"), mock, e2e (saqlash → public `/pricing` va savatcha zinapoyasi), telefon
+- [x] 85.5 Mijoz zinapoyasi: 1 ta uchun pog'ona bo'lsa — "1 ta — o'z narxi" qatori ko'rsatilmaydi (ikki marta chiqmasin)
+
 ## 31. Keyingi vazifalar
 
 - [ ] 31.1 Safari (WebKit): varaqlash rejimida oldingi sahifaga qaytilganda (3-sahifa) belgilash qatlami

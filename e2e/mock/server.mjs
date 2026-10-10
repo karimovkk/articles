@@ -59,8 +59,12 @@ let noContentRange = false;
 let delayRule = null; // /__delay?search=Kitob&ms=1500
 let failRule = null; // /__fail?path=/catalog&status=429&code=RATE_LIMIT_EXCEEDED — mos yo'llar shu xato bilan javob beradi // B1 workaround'ni sinash uchun toggle (prod'da Content-Range BOR)
 // 35: ko'p kitobga chegirma (BACKEND_TASKS.md §2) — `/__pricing?off=1` bilan o'chiriladi (backend qo'llamagan holat)
-const DEFAULT_PRICING = { currency: "UZS", tiers: [{ min_quantity: 2, unit_price: "39000.00" }, { min_quantity: 3, unit_price: "30000.00" }] };
-let pricing = DEFAULT_PRICING;
+// 85: admin pog'onalari (id, is_active); public `/pricing` va hisob — faqat faollari
+const DEFAULT_PRICING = { currency: "UZS", tiers: [{ id: "tier-2", min_quantity: 2, unit_price: "39000.00", is_active: true }, { id: "tier-3", min_quantity: 3, unit_price: "30000.00", is_active: true }] };
+const freshPricing = () => JSON.parse(JSON.stringify(DEFAULT_PRICING));
+let pricing = freshPricing();
+const activeTiers = () => (pricing?.tiers ?? []).filter((t) => t.is_active !== false);
+let __lastTiersBody = null;
 // 38: qurilma bog'lash (BACKEND_TASKS.md 3-qism). Testlar har kontekstda yangi X-Device-Id bilan kiradi — limit
 // faqat `/__devicelimit?on=1` bilan qo'llanadi; `device_secret` esa har doim birinchi bog'lashda beriladi.
 let devices = []; // { id, user, key, secret, name, user_agent, bound_at, last_seen_at, removed_at, removed_by_admin_id, remove_reason }
@@ -113,18 +117,18 @@ const money = (n) => n.toFixed(2);
 function quoteFor(bookIds) {
   const list = bookIds.map((id) => books.find((b) => b.id === id)).filter(Boolean).filter((b) => Number(b.price) > 0);
   const q = list.length;
-  const tier = pricing.tiers.filter((t) => t.min_quantity <= q).sort((a, b) => b.min_quantity - a.min_quantity)[0];
+  const tier = activeTiers().filter((t) => t.min_quantity <= q).sort((a, b) => b.min_quantity - a.min_quantity)[0];
   const cap = tier ? Number(tier.unit_price) : null;
   const items = list.map((b) => ({ book_id: b.id, book_title: b.title, list_price: money(Number(b.price)), unit_price: money(cap == null ? Number(b.price) : Math.min(Number(b.price), cap)) }));
   const subtotal = items.reduce((s, i) => s + Number(i.list_price), 0);
   const total = items.reduce((s, i) => s + Number(i.unit_price), 0);
-  const next = pricing.tiers.filter((t) => t.min_quantity > q).sort((a, b) => a.min_quantity - b.min_quantity)[0];
+  const next = activeTiers().filter((t) => t.min_quantity > q).sort((a, b) => a.min_quantity - b.min_quantity)[0];
   return { items, quantity: q, subtotal: money(subtotal), discount: money(subtotal - total), total: money(total), currency: pricing.currency, next_tier: next ? { min_quantity: next.min_quantity, unit_price: next.unit_price, add_count: next.min_quantity - q } : null };
 }
 const orderBookIds = (o) => (o.items?.length ? o.items.map((i) => i.book_id) : [o.book_id]);
 
 function reset(opts = {}) {
-  pricing = DEFAULT_PRICING;
+  pricing = freshPricing();
   devices = [];
   deviceLimitOn = false;
   deviceRemovedOnRefresh = false;
@@ -308,10 +312,11 @@ createServer(async (req, res) => {
   if (path === "/__delay") { delayRule = q.get("off") ? null : { search: q.get("search") ?? "", ms: Number(q.get("ms") ?? 1000) }; return json(res, 200, { delayRule }); }
   if (delayRule && q.get("search") === delayRule.search) await new Promise((r) => setTimeout(r, delayRule.ms));
 
-  if (path === "/__pricing") { pricing = q.get("off") === "1" ? null : DEFAULT_PRICING; return json(res, 200, { pricing }); }
+  if (path === "/__pricing") { pricing = q.get("off") === "1" ? null : freshPricing(); return json(res, 200, { pricing }); }
+  if (path === "/__last-tiers-body") return json(res, 200, __lastTiersBody ?? {});
 
   // ---- public
-  if (path === "/pricing" && m === "GET") return pricing ? json(res, 200, pricing) : err(res, 404, "NOT_FOUND", "Not Found");
+  if (path === "/pricing" && m === "GET") return pricing ? json(res, 200, { currency: pricing.currency, tiers: activeTiers().sort((a, b) => a.min_quantity - b.min_quantity).map(({ min_quantity, unit_price }) => ({ min_quantity, unit_price })) }) : err(res, 404, "NOT_FOUND", "Not Found");
   if (path === "/catalog") {
     const s = (q.get("search") ?? "").toLowerCase();
     const fq = q.get("is_free"); // 45: true — kunlik (tekin), false — pullik
@@ -777,6 +782,21 @@ createServer(async (req, res) => {
       if (sub === "reset-password") { const b = await readBody(req); if ((b.new_password ?? "").length < 8) return err(res, 422, "VALIDATION_ERROR", "Validation failed", [{ loc: ["body", "new_password"], msg: "too short" }]); return json(res, 200, { message: "Password reset" }); }
     }
     if (path.startsWith("/admin/sessions/") && m === "DELETE") return json(res, 200, { message: "Session revoked" });
+    // 85: chegirma pog'onalari (admin)
+    if (path === "/admin/pricing-tiers") {
+      if (!pricing) pricing = { currency: "UZS", tiers: [] };
+      const sorted = () => pricing.tiers.slice().sort((a, b) => a.min_quantity - b.min_quantity);
+      if (m === "GET") return json(res, 200, sorted());
+      if (m === "PUT") {
+        const b = await readBody(req); __lastTiersBody = b;
+        const list = Array.isArray(b.tiers) ? b.tiers : [];
+        const mins = list.map((t) => Number(t.min_quantity));
+        if (mins.some((x) => !Number.isInteger(x) || x < 1) || list.some((t) => !(Number(t.unit_price) > 0))) return err(res, 422, "VALIDATION_ERROR", "Invalid tier");
+        if (new Set(mins).size !== mins.length) return err(res, 422, "DUPLICATE_TIER", "Duplicate min_quantity");
+        pricing.tiers = list.map((t, i) => ({ id: `tier-${Date.now()}-${i}`, min_quantity: Number(t.min_quantity), unit_price: Number(t.unit_price).toFixed(2), is_active: t.is_active !== false }));
+        return json(res, 200, sorted());
+      }
+    }
     if (path === "/admin/books" && m === "GET") { const s = (q.get("search") ?? "").toLowerCase(); return json(res, 200, paged(books.filter((b) => !s || b.title.toLowerCase().includes(s)).filter((b) => !q.get("status") || b.status === q.get("status")), Number(q.get("page") ?? 1), Number(q.get("page_size") ?? 20))); }
     if (path === "/admin/books" && m === "POST") { const b = await readBody(req); const cat = categories.find((c) => c.id === b.category_id) ?? null; const orig = Number(b.original_price ?? 0) > 0 ? Number(b.original_price).toFixed(2) : null; if (orig && !b.is_free && Number(orig) < Number(b.price ?? 0)) return err(res, 422, "VALIDATION_ERROR", "original_price must be greater than price"); const bk = { id: randomUUID(), title: b.title, author: b.author ?? null, description: b.description ?? null, price: b.is_free ? "0.00" : Number(b.price ?? 0).toFixed(2), original_price: orig, is_free: !!b.is_free || Number(b.price ?? 0) === 0, watermark_enabled: b.watermark_enabled !== false, status: "INACTIVE", category_id: cat?.id ?? null, category: cat, book_metadata: b.book_metadata ?? {}, created_at: now(), updated_at: now(), has_cover: false }; withDiscount(bk); books.unshift(bk); __lastBookBody = b; return json(res, 201, bk); }
     const bm = /^\/admin\/books\/([^/]+)(?:\/(cover|articles))?(?:\/([^/]+))?(?:\/(file|toc))?$/.exec(path);
