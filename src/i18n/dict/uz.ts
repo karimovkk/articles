@@ -1035,7 +1035,7 @@ export const uz = {
   "ielts.admin.answerPh": "To'g'ri javob",
   "ielts.admin.variantPh": "Boshqa yozilishi",
   "ielts.admin.addVariant": "Variant",
-  "ielts.admin.normHint": "Katta-kichik harf, bo'shliq va tinish belgilari hisobga olinmaydi; boshqa yozilishlarni (masalan, 4 / four) variant sifatida qo'shing.",
+  "ielts.admin.normHint": "Katta-kichik harf, ortiqcha bo'shliq va chetdagi tinish belgilari (. , ! ? qavslar) hisobga olinmaydi. Chiziqcha va apostrof muhim: “sabr-toqat” ≠ “sabr toqat” — boshqa yozilishlarni (4 / four, sabr toqat) variant sifatida qo'shing. Apostrof shakllari (oʻ, o‘, o') bir xil hisoblanadi.",
   "ielts.admin.wordLimit": "So'z chegarasi",
   "ielts.admin.wordLimitHint": "O'quvchiga \"N so'zdan oshmasin\" ko'rsatiladi; to'g'ri javob ham shu chegarada bo'lishi kerak.",
   "ielts.admin.wordsN": "{n} so'z",

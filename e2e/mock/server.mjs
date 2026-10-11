@@ -133,7 +133,10 @@ const orderBookIds = (o) => (o.items?.length ? o.items.map((i) => i.book_id) : [
 const Q_TYPES = ["MULTIPLE_CHOICE", "TRUE_FALSE_NOT_GIVEN", "YES_NO_NOT_GIVEN", "MATCHING_INFORMATION", "MATCHING_HEADINGS", "MATCHING_FEATURES", "MATCHING_SENTENCE_ENDINGS", "SENTENCE_COMPLETION", "SUMMARY_COMPLETION", "NOTE_COMPLETION", "TABLE_COMPLETION", "FLOW_CHART_COMPLETION", "DIAGRAM_LABEL_COMPLETION"];
 const qMech = (t) => (t === "MULTIPLE_CHOICE" ? "choice" : t === "TRUE_FALSE_NOT_GIVEN" || t === "YES_NO_NOT_GIVEN" ? "enum" : t.startsWith("MATCHING_") ? "matching" : "text");
 const qPoints = (q) => { const m = qMech(q.type); return m === "matching" ? q.data.items.length : m === "text" ? q.data.blanks : 1; };
-const qNorm = (s) => String(s ?? "").toLowerCase().normalize("NFKC").replace(/[\s\p{P}\p{S}]+/gu, "");
+// Real backend qoidasi (2026-10-11, API'da tekshirilgan): kichik harf, bo'shliqlar bittaga, faqat chetdagi .,;:!?()[]"' olib tashlanadi
+// Real backend natijadagi `correct_answer` shakli (2026-10-11): choice [0,2], enum "FALSE", matching {"0":"ii"}, text — har bo'sh joyga 1-variant
+const qCorrectOut = (q) => { const a = q.answer ?? {}; if (Array.isArray(a.correct)) return a.correct; if (typeof a.value === "string") return a.value; if (a.map) return a.map; if (Array.isArray(a.blanks)) return a.blanks.map((v) => (Array.isArray(v) ? v[0] : v) ?? ""); return a; };
+const qNorm = (s) => String(s ?? "").toLowerCase().split(/\s+/).filter(Boolean).join(" ").replace(/^[\s.,;:!?()[\]"']+|[\s.,;:!?()[\]"']+$/g, "");
 const isStrList = (a, min = 1) => Array.isArray(a) && a.length >= min && a.every((x) => typeof x === "string" && x.trim());
 function qValid(q) {
   if (!Q_TYPES.includes(q.type) || typeof q.prompt !== "string" || !q.prompt.trim() || !q.data || typeof q.data !== "object" || !q.answer || typeof q.answer !== "object") return false;
@@ -510,7 +513,7 @@ createServer(async (req, res) => {
     if (rq[2] === "quiz" && m === "POST") {
       if (me === GUEST) return err(res, 401, "AUTHENTICATION_REQUIRED", "Authentication required");
       const b = await readBody(req); __lastQuizBody = b; const ans = new Map((b.answers ?? []).map((x) => [x.question_id, x.response]));
-      const results = qs.map((q) => { const max = qPoints(q); const sc = qGrade(q, ans.get(q.id)); return { question_id: q.id, type: q.type, is_correct: sc === max, score: sc, max_score: max, correct_answer: q.answer, explanation: q.explanation ?? null }; });
+      const results = qs.map((q) => { const max = qPoints(q); const sc = qGrade(q, ans.get(q.id)); return { question_id: q.id, type: q.type, is_correct: sc === max, score: sc, max_score: max, correct_answer: qCorrectOut(q), explanation: q.explanation ?? null }; });
       const score = results.reduce((s2, r) => s2 + r.score, 0), total = results.reduce((s2, r) => s2 + r.max_score, 0);
       return json(res, 200, { score, total, percentage: total ? Math.round((score / total) * 10000) / 100 : 0, results });
     }

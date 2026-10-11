@@ -79,6 +79,21 @@ export function splitBlanks(text: string): Array<string | null> {
 }
 export const wordCount = (s: string) => s.trim().split(/\s+/).filter(Boolean).length;
 
+/**
+ * Bo'sh joy javobini taqqoslash — backend bilan AYNAN bir xil (real API'da tekshirilgan): kichik harf, bo'shliqlar
+ * bittaga, faqat chetdagi `. , ; : ! ? ( ) [ ] " '` olib tashlanadi; ichki chiziqcha / apostrof / % muhim
+ * ("sabr-toqat" ≠ "sabr toqat", "o'qish" ≠ "oqish").
+ */
+export const normAnswer = (s: string) =>
+  s
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(Boolean)
+    .join(" ")
+    .replace(/^[\s.,;:!?()[\]"']+|[\s.,;:!?()[\]"']+$/g, "");
+/** Apostrof shakllari (oʻ, o‘, o’, o`) → `'` — backend ularni farqli belgi deb biladi; o'quvchi javobi va admin variantlari bir xil bo'lsin */
+export const unifyApostrophes = (s: string) => s.replace(/[ʻʼ‘’`´′]/g, "'");
+
 /** Matching kalitlari: sarlavhalar — i, ii, iii…; qolganlari — A, B, C… */
 const ROMAN = ["i", "ii", "iii", "iv", "v", "vi", "vii", "viii", "ix", "x", "xi", "xii", "xiii", "xiv", "xv", "xvi", "xvii", "xviii", "xix", "xx"];
 export function optionKey(type: QuestionType, i: number): string {
@@ -135,7 +150,7 @@ export function responseFor(q: QuizQuestion, r: QuestionResponse | undefined): Q
   if (m === "enum") return { value: r?.value ?? "" };
   if (m === "matching") return { map: r?.map ?? {} };
   const n = Number(q.data.blanks) || 0;
-  return { blanks: Array.from({ length: n }, (_, i) => (r?.blanks?.[i] ?? "").trim()) };
+  return { blanks: Array.from({ length: n }, (_, i) => unifyApostrophes((r?.blanks?.[i] ?? "").trim())) };
 }
 
 export const enumValues = (type: QuestionType) => (type === "YES_NO_NOT_GIVEN" ? ["YES", "NO", "NOT_GIVEN"] : ["TRUE", "FALSE", "NOT_GIVEN"]);
@@ -187,7 +202,7 @@ export function validateDraft(type: QuestionType, prompt: string, data: Question
       if (img.raw !== null && !img.image) return { error: "ielts.err.image", input: { ...base, data, answer } };
       const n = text.trim() ? countBlanks(text) : Number(data.blanks) || 0;
       if (n < 1) return { error: "ielts.err.blanks", input: { ...base, data, answer } };
-      const blanks = Array.from({ length: n }, (_, i) => (answer.blanks?.[i] ?? []).map((v) => v.trim()).filter(Boolean));
+      const blanks = Array.from({ length: n }, (_, i) => (answer.blanks?.[i] ?? []).map((v) => unifyApostrophes(v.trim())).filter(Boolean));
       if (blanks.some((v) => !v.length)) return { error: "ielts.err.accepted", input: { ...base, data, answer } };
       const wl = Number(data.word_limit);
       if (data.word_limit != null && String(data.word_limit) !== "" && wl > 0) {

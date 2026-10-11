@@ -233,14 +233,14 @@ check("Rasm havolasi http:// — xato", ((await page.textContent('[data-testid="
 await page.fill('[data-testid="qf-image-url"]', "https://img.test/plant.png");
 await page.fill('[data-testid="qf-text"]', "Ildiz: ___\nBarg: ___");
 await page.locator('[data-testid="qf-accepted"]').nth(0).fill("suv");
-await page.locator('[data-testid="qf-accepted"]').nth(1).fill("quyosh");
+await page.locator('[data-testid="qf-accepted"]').nth(1).fill("o‘simlik"); // apostrof shakli — saqlashda `'`
 await page.waitForFunction(() => document.querySelector('[data-testid="qf-preview"] .qv-figure img')?.naturalWidth > 0, null, { timeout: 8000 });
 check("Oldindan ko'rish: rasm va 2 ta bo'sh joy; matn maydonida havola yo'q", (await page.locator('[data-testid="qf-preview"] [data-testid="qv-blank"]').count()) === 2 && !(await page.inputValue('[data-testid="qf-text"]')).includes("!["));
 await page.locator('[data-testid="qa-editor"]').screenshot({ path: OUT + "99-admin-q-diagram.png" });
 await page.click('[data-testid="qf-save"]');
 await page.waitForFunction(() => document.querySelectorAll('[data-testid="q-item"]').length === 8, null, { timeout: 8000 });
 b = await last();
-check("Diagramma saqlandi: text 1-satri — rasm, blanks 2", b.data.text.startsWith("![diagram](https://img.test/plant.png)\n") && b.data.blanks === 2, JSON.stringify(b.data));
+check("Diagramma saqlandi: text 1-satri — rasm, blanks 2; variant apostrofi `'` ga keltirildi", b.data.text.startsWith("![diagram](https://img.test/plant.png)\n") && b.data.blanks === 2 && b.answer.blanks[1][0] === "o'simlik", JSON.stringify(b));
 
 // ---- Kitob sahifasiga qaytish — Maqolalar tabi, savollar soni
 await page.click(`[data-testid="questions-page"] nav.crumbs a[href^="/admin/books/${BOOK}"]`);
@@ -271,16 +271,19 @@ await student.waitForSelector('[data-testid="qv-figure-zoom"]');
 await student.keyboard.press("Escape");
 check("O'quvchi: diagramma rasmi; bosilsa kattalashadi, Esc — yopiladi", (await student.locator('[data-testid="qv-figure-zoom"]').count()) === 0);
 await sq("TRUE_FALSE_NOT_GIVEN").locator('[data-testid="qv-enum"]', { hasText: "FALSE" }).click();
-await sq("SENTENCE_COMPLETION").locator('[data-testid="qv-blank"]').nth(0).fill("Oltmish-olti"); // variant + normalizatsiya
+await sq("SENTENCE_COMPLETION").locator('[data-testid="qv-blank"]').nth(0).fill("OLTMISH  olti."); // variant + normalizatsiya (katta harf, bo'shliq, chetdagi nuqta)
 await sq("SENTENCE_COMPLETION").locator('[data-testid="qv-blank"]').nth(1).fill("SABR");
+await sq("DIAGRAM_LABEL_COMPLETION").locator('[data-testid="qv-blank"]').nth(0).fill("(Suv)");
+await sq("DIAGRAM_LABEL_COMPLETION").locator('[data-testid="qv-blank"]').nth(1).fill("oʻsimlik"); // boshqa apostrof shakli
 await sq("MATCHING_HEADINGS").locator('[data-testid="qv-match-select"]').nth(0).selectOption("i");
 await sq("MATCHING_HEADINGS").locator('[data-testid="qv-match-select"]').nth(1).selectOption("ii");
 await student.click('[data-testid="quiz-submit"]');
 await confirmDialog(student);
 await student.waitForSelector('[data-testid="quiz-score"]', { timeout: 8000 });
 const st = await student.evaluate(() => Object.fromEntries([...document.querySelectorAll('[data-testid="quiz-question"]')].map((el) => [el.dataset.type, el.dataset.result])));
-check("O'quvchi natijasi: TFNG, matching (2/2), completion (variant 'Oltmish-olti', 'SABR') — to'g'ri", st.TRUE_FALSE_NOT_GIVEN === "correct" && st.MATCHING_HEADINGS === "correct" && st.SENTENCE_COMPLETION === "correct" && st.TABLE_COMPLETION === "wrong", JSON.stringify(st));
-check("Ball: 5 / 15 (TFNG 1 + matching 2 + completion 2; jami: 1+1+2+2+3+3+1+2)", ((await student.textContent('[data-testid="quiz-score"]')) ?? "").includes("5 / 15"), (await student.textContent('[data-testid="quiz-score"]')) ?? "");
+check("O'quvchi natijasi: TFNG, matching (2/2), completion ('OLTMISH  olti.', 'SABR'), diagramma ('(Suv)', 'oʻsimlik') — to'g'ri", st.TRUE_FALSE_NOT_GIVEN === "correct" && st.MATCHING_HEADINGS === "correct" && st.SENTENCE_COMPLETION === "correct" && st.DIAGRAM_LABEL_COMPLETION === "correct" && st.TABLE_COMPLETION === "wrong", JSON.stringify(st));
+check("Yuborilgan javobda apostrof `'` ga keltirildi", JSON.stringify(await mockGet("/__last-quiz-body")).includes("o'simlik"));
+check("Ball: 7 / 15 (TFNG 1 + matching 2 + completion 2 + diagramma 2; jami: 1+1+2+2+3+3+1+2)", ((await student.textContent('[data-testid="quiz-score"]')) ?? "").includes("7 / 15"), (await student.textContent('[data-testid="quiz-score"]')) ?? "");
 await student.context().close();
 
 // ---- Telefon

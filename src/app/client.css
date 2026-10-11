@@ -4024,6 +4024,11 @@ html:not(.dark) .hero-eyebrow {
   background: color-mix(in srgb, var(--danger) 10%, var(--surface));
   text-decoration: line-through;
 }
+/* 88: backend faqat 1-variantni qaytaradi — qaysi bo'sh joy to'g'riligi aniq bo'lmasa (qisman ball) */
+.qv-blank.unknown .qv-blank-input {
+  border-bottom-color: var(--warning);
+  border-bottom-style: dashed;
+}
 .qv-blank.correct svg {
   color: var(--success);
 }

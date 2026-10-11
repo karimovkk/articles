@@ -1003,7 +1003,7 @@ export const en: Dict = {
   "ielts.admin.answerPh": "Correct answer",
   "ielts.admin.variantPh": "Other spelling",
   "ielts.admin.addVariant": "Variant",
-  "ielts.admin.normHint": "Case, spaces and punctuation are ignored; add other spellings (e.g. 4 / four) as variants.",
+  "ielts.admin.normHint": "Case, extra spaces and punctuation at the edges (. , ! ? brackets) are ignored. Hyphens and apostrophes matter: “well-known” ≠ “well known” — add other spellings (4 / four) as variants. Apostrophe forms (oʻ, o‘, o') are treated the same.",
   "ielts.admin.wordLimit": "Word limit",
   "ielts.admin.wordLimitHint": "Readers see “no more than N words”; correct answers must fit the limit too.",
   "ielts.admin.wordsN": "{n} words",

@@ -5,7 +5,7 @@
  *  - `onChange` bo'lmasa yoki `result` bo'lsa — faqat o'qish (natija rejimi);
  *  - raqamlash ballar bo'yicha: savol `start` dan boshlab `points` ta raqam egallaydi (matching elementi / bo'sh joy);
  *  - natijada har element/bo'sh joy alohida belgilanadi (server — umumiy ball; element bo'yicha — `correct_answer` va
- *    javobdan; matnda normalizatsiya backend bilan bir xil: kichik harf, bo'shliq va tinish belgilarisiz).
+ *    javobdan; matnda normalizatsiya backend bilan bir xil — `normAnswer`).
  *  - 88: `reveal={false}` — natijada faqat o'quvchi javobining to'g'ri/xatoligi; to'g'ri javoblar va izoh yashirin
  *    ("Matnda ko'rsatish" tugmasi qoladi — javobni o'zi topsin); rasm (diagramma) — matnning 1-satri.
  */
@@ -14,10 +14,10 @@ import { createPortal } from "react-dom";
 import { cn } from "@/components/ui";
 import * as I from "@/components/ui/icons";
 import { mechanicOf, type QuestionResponse, type QuizAnswerResult, type QuizQuestion } from "@/lib/api";
-import { chooseCount, choiceOptions, enumValues, matchingOptions, splitBlanks, splitImage, splitPage, uniqueOptions, wordCount } from "@/lib/quiz/ielts";
+import { chooseCount, choiceOptions, enumValues, matchingOptions, normAnswer, splitBlanks, splitImage, splitPage, uniqueOptions, unifyApostrophes, wordCount } from "@/lib/quiz/ielts";
 import { useT } from "@/i18n";
 
-const norm = (s: string) => s.toLowerCase().normalize("NFKC").replace(/[\s\p{P}\p{S}]+/gu, "");
+const norm = (s: string) => normAnswer(unifyApostrophes(s));
 const ENUM_LABEL: Record<string, string> = { TRUE: "TRUE", FALSE: "FALSE", NOT_GIVEN: "NOT GIVEN", YES: "YES", NO: "NO" };
 
 export function QuestionView({
@@ -164,10 +164,19 @@ export function QuestionView({
     const n = Number(q.data.blanks) || 0;
     const vals = Array.from({ length: n }, (_, i) => response?.blanks?.[i] ?? "");
     const limit = Number(q.data.word_limit) || 0;
-    const blankOk = (i: number) => {
-      const acc = ca?.blanks?.[i] ?? [];
-      return acc.some((a) => norm(a) === norm(vals[i] ?? "")) && !!norm(vals[i] ?? "");
+    // Bo'sh joy holati. Real backend natijada har bo'sh joyga faqat 1-variantni qaytaradi — boshqa variant bilan yozilgan
+    // to'g'ri javobni ajratish uchun server balli hisobga olinadi: mos kelmagan to'ldirilgan joylar soni = qolgan ball →
+    // hammasi to'g'ri; qolgan ball 0 → xato; aks holda aniq emas (neytral belgi).
+    const matchesAcc = (i: number) => !!norm(vals[i] ?? "") && (ca?.blanks?.[i] ?? []).some((a) => norm(a) === norm(vals[i] ?? ""));
+    const matched = vals.filter((_, i) => matchesAcc(i)).length;
+    const unmatchedFilled = vals.filter((v, i) => !matchesAcc(i) && !!norm(v)).length;
+    const extra = result ? Math.max(0, result.score - matched) : 0;
+    const blankVerdict = (i: number): "correct" | "wrong" | "unknown" => {
+      if (matchesAcc(i) || (result?.is_correct && !!norm(vals[i] ?? ""))) return "correct";
+      if (!norm(vals[i] ?? "") || extra === 0) return "wrong";
+      return extra >= unmatchedFilled ? "correct" : "unknown";
     };
+    const blankOk = (i: number) => blankVerdict(i) === "correct";
     // Oddiy funksiya (komponent emas): render ichida e'lon qilingan komponent har bosishda qayta yaratilib, fokus yo'qolardi
     let bi = 0;
     const blank = (key: number | string) => {
@@ -180,7 +189,7 @@ export function QuestionView({
         );
       const v = vals[i];
       const over = limit > 0 && wordCount(v) > limit;
-      const state = result ? (blankOk(i) ? "correct" : "wrong") : over ? "over" : undefined;
+      const state = result ? blankVerdict(i) : over ? "over" : undefined;
       return (
         <span key={key} className={cn("qv-blank", state)} data-state={state}>
           <input
@@ -193,7 +202,7 @@ export function QuestionView({
             onChange={(e) => onChange?.({ blanks: vals.map((x, k) => (k === i ? e.target.value : x)) })}
             data-testid="qv-blank"
           />
-          {result && (blankOk(i) ? <I.Check size={12} /> : <I.X size={12} />)}
+          {result && (state === "correct" ? <I.Check size={12} /> : state === "wrong" ? <I.X size={12} /> : null)}
         </span>
       );
     };

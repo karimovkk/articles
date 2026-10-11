@@ -26,6 +26,10 @@ A365_EMAIL=... A365_PASS=... E2E_BASE=http://localhost:3200 node e2e/prod/smoke-
                                                                                                    # chek yubormaydi (Telegram'ga
                                                                                                    # xabar ketmaydi); qurilma limitida
                                                                                                    # 1 ta bo'sh joy kerak
+A365_EMAIL=... A365_PASS=... E2E_BASE=http://localhost:3200 node e2e/prod/smoke-ielts.test.mjs      # "Test" kitobi maqolasida 14 ta
+                                                                                                   # savol yaratadi (maqolada savol
+                                                                                                   # bo'lsa — to'xtaydi), yechadi,
+                                                                                                   # oxirida hammasini o'chiradi
 ```
 
 Parolni env orqali bering — faylga yozmang.

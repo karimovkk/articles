@@ -131,12 +131,29 @@ function normalizeQuestion<T extends QuizQuestion>(raw: Raw): T {
   return { ...raw, type, data, points: typeof raw.points === "number" && raw.points > 0 ? raw.points : pointsOf(type, data) } as unknown as T;
 }
 
+/**
+ * Natijadagi `correct_answer` → ichki `QuestionAnswer` shakli. Real backend (2026-10-11, API'da tekshirilgan) qisqa shakl
+ * qaytaradi: choice — `[0, 2]`, enum — `"FALSE"`, matching — `{"0": "ii"}`, text — `["oltmish olti", "sabr"]` (har bo'sh
+ * joyga faqat 1-variant). Hujjatdagi to'liq shakl (`{correct}`, `{value}`, `{map}`, `{blanks: [[…]]}`) ham qabul qilinadi.
+ */
+function toAnswer(type: QuestionType, ca: unknown): QuestionAnswer | null {
+  if (ca === null || ca === undefined) return null;
+  const m = mechanicOf(type);
+  const obj = typeof ca === "object" && !Array.isArray(ca) ? (ca as Record<string, unknown>) : null;
+  if (m === "choice") return obj && Array.isArray(obj.correct) ? (obj as QuestionAnswer) : Array.isArray(ca) ? { correct: ca.map(Number) } : typeof ca === "number" ? { correct: [ca] } : null;
+  if (m === "enum") return obj && typeof obj.value === "string" ? (obj as QuestionAnswer) : typeof ca === "string" ? { value: ca } : null;
+  if (m === "matching") return obj && obj.map && typeof obj.map === "object" ? (obj as QuestionAnswer) : obj ? { map: Object.fromEntries(Object.entries(obj).map(([k, v]) => [k, String(v)])) } : null;
+  const list = obj && Array.isArray(obj.blanks) ? obj.blanks : Array.isArray(ca) ? ca : null;
+  return list ? { blanks: list.map((x) => (Array.isArray(x) ? x.map(String) : [String(x ?? "")])) } : null;
+}
+
 function normalizeResult(raw: Raw): QuizResult {
   const results = (Array.isArray(raw.results) ? raw.results : []).map((r: Raw) => {
     if (r.correct_answer === undefined && typeof r.correct_index === "number") {
       return { ...r, type: "MULTIPLE_CHOICE", score: r.is_correct ? 1 : 0, max_score: 1, correct_answer: { correct: [r.correct_index] } } as unknown as QuizAnswerResult;
     }
-    return { ...r, score: Number(r.score ?? (r.is_correct ? 1 : 0)), max_score: Number(r.max_score ?? 1) } as unknown as QuizAnswerResult;
+    const type = isType(r.type) ? r.type : "MULTIPLE_CHOICE";
+    return { ...r, type, correct_answer: toAnswer(type, r.correct_answer), score: Number(r.score ?? (r.is_correct ? 1 : 0)), max_score: Number(r.max_score ?? 1) } as unknown as QuizAnswerResult;
   });
   return { score: Number(raw.score ?? 0), total: Number(raw.total ?? 0), percentage: Number(raw.percentage ?? 0), results };
 }

@@ -1376,6 +1376,16 @@ matching, text; matching/completion'da har element/bo'sh joy = 1 ball (`points`)
 - [x] 88.6 e2e (quiz, questions-admin), dev + prod; backend kerak bo'lgan ishlar ro'yxati
       → `~/Desktop/Articles365_BACKEND_IELTS_Takliflar_v1.1.md`
 
+## 89. IELTS test — real backend bilan to'liq tekshiruv (2026-10-11)
+
+- [x] 89.1 API: 13 tur frontend shakllari bilan saqlanadi (`data.choose`, rasm satri, `[p. N]` — saqlanadi), javob
+      o'quvchiga ketmaydi; backend unikal/bo'sh joy soni/so'z chegarasini tekshirmaydi (frontend tekshiradi)
+- [x] 89.2 Normalizatsiya backend bilan bir xil (`normAnswer`): kichik harf, bo'shliqlar, faqat chetdagi `.,;:!?()[]"'`;
+      apostrof shakllari (ʻ ’ ‘) ikkala tomonda `'` ga keltiriladi; admin izohi yangilandi
+- [x] 89.3 `correct_answer` real shakli (choice `[0,2]`, enum `"FALSE"`, matching `{"0":"ii"}`, text — 1-variant) →
+      ichki shaklga; bo'sh joy belgisi server balli bilan (aniq bo'lmasa — neytral); mock ham real shaklda
+- [x] 89.4 `e2e/prod/smoke-ielts.test.mjs` — admin UI 13 tur → o'quvchi → UI ball/belgilar server natijasiga mos → tozalash
+
 ## 31. Keyingi vazifalar
 
 - [ ] 31.1 Safari (WebKit): varaqlash rejimida oldingi sahifaga qaytilganda (3-sahifa) belgilash qatlami
