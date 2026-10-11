@@ -104,6 +104,7 @@ let paymentsUnscoped = false;
 let __lastQuizBody = null; // 87: oxirgi test yuborish (o'quvchi) — testlar javob shaklini tekshiradi
 let __lastQuestionBody = null; // 87: oxirgi admin savol so'rovi
 const diagramFiles = new Map(); // 90: savol id → { data, type } (diagramma rasmi)
+let diagramDelay = 0; // 91: /__diagram-delay?ms= — rasm yuklash javobini kechiktirish (progress ko'rinsin)
 let __lastBookBody = null; // 81: oxirgi admin kitob so'rovi (testlar — original_price yuborilganini tekshirish) // 68: /__payments-unscoped?on=1 — holatlar oraliqqa bo'ysunmaydi (jonli backend kabi)
 const integOut = () => ({ settings: Object.fromEntries(Object.keys(INTEG_ENV).map((k) => {
   const v = integ[k] ?? (INTEG_ENV[k] || null); const sec = INTEG_SECRET.has(k);
@@ -179,6 +180,7 @@ function reset(opts = {}) {
   passwords.clear();
   questions = [];
   diagramFiles.clear();
+  diagramDelay = 0;
   streaks = {};
   appSettings = {};
   appImages = {};
@@ -289,6 +291,7 @@ createServer(async (req, res) => {
   if (path === "/__last-quiz-body") return json(res, 200, __lastQuizBody ?? {});
   if (path === "/__last-question-body") return json(res, 200, __lastQuestionBody ?? {});
   // 87: o'quvchi testi uchun — har mexanikadan namuna savollar (tartib bilan)
+  if (path === "/__diagram-delay") { diagramDelay = Number(q.get("ms") ?? 0); return json(res, 200, { diagramDelay }); }
   if (path === "/__seed-ielts") {
     const aid = q.get("article"); questions = questions.filter((x) => x.article_id !== aid);
     const mk = (o, i) => questions.push({ id: randomUUID(), article_id: aid, explanation: null, order_index: i, ...o });
@@ -787,6 +790,7 @@ createServer(async (req, res) => {
       if (!f) return err(res, 422, "VALIDATION_ERROR", "file is required");
       if (f.data.length > 10 * 1024 * 1024) return err(res, 413, "PAYLOAD_TOO_LARGE", "Image exceeds 10 MB");
       if (!isImageBytes(f.data)) return err(res, 422, "INVALID_FILE", "Unsupported or unrecognized file type (allowed: image/jpeg, image/png, image/webp)");
+      if (diagramDelay) await new Promise((r) => setTimeout(r, diagramDelay));
       diagramFiles.set(q.id, { data: f.data, type: f.type || "image/png" });
       q.data = { ...q.data, image_url: `/api/v1/reader/questions/${q.id}/diagram` };
       return json(res, 200, qAdmin(q));

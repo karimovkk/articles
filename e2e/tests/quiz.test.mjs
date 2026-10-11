@@ -24,6 +24,8 @@ const ctxPage = async (viewport = { width: 1440, height: 900 }) => {
 };
 const login = async (p, email, pass) => {
   await p.goto(`${BASE}/login`);
+  // Kirish maydonlari hydration'gacha readOnly — dev'da birinchi kompilyatsiya sekin bo'lishi mumkin
+  await p.waitForSelector('input[autocomplete="username"]:not([readonly])', { timeout: 60000 });
   await p.fill('input[autocomplete="username"]', email);
   await p.fill('input[type="password"]', pass);
   await p.click('button[type="submit"]');
@@ -166,7 +168,7 @@ check("Qayta yechish: javoblar tozalandi; 'Oldingi urinishlar: 2 · eng yaxshi: 
 // ---- Vaqt bilan yechish: 11 ball × 1,5 = 17 daqiqa; tab almashsa davom etadi; tugasa — avtomatik
 check("Vaqt tugmasi: '17 daqiqa'", ((await reader.textContent('[data-testid="quiz-timer-start"]')) ?? "").includes("17 daqiqa"));
 await reader.click('[data-testid="quiz-timer-start"]');
-await reader.waitForTimeout(1200);
+await reader.waitForFunction(() => /^16:5\d$/.test(document.querySelector('[data-testid="quiz-timer-left"]')?.textContent ?? ""), null, { timeout: 5000 }).catch(() => {});
 check("Taymer: 16:5x", /^16:5\d$/.test((await reader.textContent('[data-testid="quiz-timer-left"]')) ?? ""), (await reader.textContent('[data-testid="quiz-timer-left"]')) ?? "");
 await q(0).locator('[data-testid="qv-enum"]', { hasText: "FALSE" }).click();
 await reader.screenshot({ path: OUT + "84e-reader-ielts-timer.png" });
@@ -179,6 +181,7 @@ await reader.evaluate((id) => {
 await reader.click('[role="tab"]:has-text("Mundarija")').catch(async () => reader.locator('[role="tab"]').first().click());
 await reader.click('[role="tab"]:has-text("Test")');
 await reader.waitForSelector('[data-testid="quiz-timer"]');
+await reader.waitForFunction(() => /^0:0\d$/.test(document.querySelector('[data-testid="quiz-timer-left"]')?.textContent ?? ""), null, { timeout: 3000 }).catch(() => {});
 check("Tab almashgach taymer davom etadi (0:0x)", /^0:0\d$/.test((await reader.textContent('[data-testid="quiz-timer-left"]')) ?? ""));
 await reader.waitForSelector('[data-testid="quiz-score"]', { timeout: 8000 });
 const score3 = ((await reader.textContent('[data-testid="quiz-score"]')) ?? "").replace(/\s+/g, " ");

@@ -1404,6 +1404,14 @@ token bilan, tokensiz 401); `data.labels` saqlanadi; PATCH `data` ni to'liq alma
       nusxa olishda rasm ham ko'chiriladi
 - [x] 90.6 Mock (choose default/422, rasm PUT/GET), e2e dev + prod, real backend smoke
 
+## 91. IELTS admin/o'quvchi — qolgan frontend kamchiliklari (2026-10-11)
+
+- [x] 91.1 Saqlanmagan o'zgarishlar: savol formasi o'zgargan bo'lsa — tabni yopish/yangilash (beforeunload), sahifadagi
+      istalgan havola (breadcrumbs, oldingi/keyingi maqola, menyu) va "Bekor" — tasdiq so'raladi
+- [x] 91.2 Diagramma rasmi yuklanishi: foiz va chiziq ("Rasm yuklanmoqda… 42%"), tugmalar o'chiq
+- [x] 91.3 Telefon (390 px): admin — diagramma formasi sig'adi, rasmni bosib nuqta qo'yish ishlaydi; o'quvchi — rasm
+      panelga sig'adi, nuqtalar rasm ustida, kattalashtirish; e2e dev + prod
+
 ## 31. Keyingi vazifalar
 
 - [ ] 31.1 Safari (WebKit): varaqlash rejimida oldingi sahifaga qaytilganda (3-sahifa) belgilash qatlami

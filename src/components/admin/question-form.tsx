@@ -24,6 +24,7 @@ import {
 import * as I from "@/components/ui/icons";
 import { QuestionView } from "@/components/quiz/question-view";
 import { DiagramImageField } from "./diagram-image-field";
+import { useUnsavedGuard } from "@/lib/use-unsaved-guard";
 import {
   errorMessage,
   mechanicOf,
@@ -170,10 +171,27 @@ export function QuestionForm({
   const textRef = useRef<HTMLTextAreaElement>(null);
   const mech = mechanicOf(type);
   const touched = useRef(false);
+  // 91: saqlanmagan o'zgarishlar — foydalanuvchi biror narsani o'zgartirgan va holat boshlang'ichdan farq qiladi
+  const [edited, setEdited] = useState(false);
   const touch = () => {
     touched.current = true;
+    setEdited(true);
     setError(null);
   };
+  const [uploadPct, setUploadPct] = useState<number | null>(null);
+  const snapshotOf = () =>
+    JSON.stringify({ type, prompt, data, answer, explanation, answerPage });
+  const [initialSnapshot] = useState(snapshotOf);
+  const dirty =
+    !busy && ((edited && snapshotOf() !== initialSnapshot) || !!pendingFile);
+  const askLeave = () =>
+    confirm({
+      title: t("ielts.admin.unsavedTitle"),
+      message: t("ielts.admin.unsavedBody"),
+      confirmLabel: t("ielts.admin.unsavedLeave"),
+      tone: "danger",
+    });
+  useUnsavedGuard(dirty, askLeave);
 
   async function pickType(next: QuestionType) {
     if (next === type) return;
@@ -302,11 +320,16 @@ export function QuestionForm({
       let warning: string | null = null;
       if (pendingFile && mech === "text") {
         try {
+          setUploadPct(0);
           saved = await quizApi.adminUploadImage(
             articleId,
             saved.id,
             pendingFile,
             pendingFile.name,
+            {
+              onProgress: (loaded, total) =>
+                setUploadPct(total ? Math.round((loaded / total) * 100) : 0),
+            },
           );
         } catch (e) {
           warning = t("ielts.admin.imageUploadFailed", {
@@ -319,6 +342,7 @@ export function QuestionForm({
       setError(errorMessage(e));
     } finally {
       setBusy(false);
+      setUploadPct(null);
     }
   }
 
@@ -1009,7 +1033,10 @@ export function QuestionForm({
             rows={2}
             value={explanation}
             maxLength={2000}
-            onChange={(e) => setExplanation(e.target.value)}
+            onChange={(e) => {
+              touch();
+              setExplanation(e.target.value);
+            }}
             data-testid="qf-explanation"
           />
         </Field>
@@ -1028,6 +1055,7 @@ export function QuestionForm({
             max={pageCount || 9999}
             value={answerPage}
             onChange={(e) => {
+              touch();
               setAnswerPage(e.target.value);
               setError(null);
             }}
@@ -1042,11 +1070,40 @@ export function QuestionForm({
         </Field>
 
         {error && <Alert>{error}</Alert>}
+        {uploadPct !== null && (
+          <div
+            className="qf-upload"
+            role="status"
+            data-testid="qf-upload-progress"
+          >
+            <span>{t("ielts.admin.uploading", { n: uploadPct })}</span>
+            <span className="qf-upload-bar">
+              <i style={{ width: `${uploadPct}%` }} />
+            </span>
+          </div>
+        )}
         <div className="flex flex-wrap items-center justify-end gap-2">
           <span className="mr-auto text-xs text-muted" data-testid="qf-points">
             {t("ielts.admin.pointsN", { n: previewQ.points })}
           </span>
-          <Button variant="ghost" onClick={onCancel}>
+          <Button
+            variant="ghost"
+            disabled={busy}
+            onClick={async () => {
+              if (
+                dirty &&
+                !(await confirm({
+                  title: t("ielts.admin.unsavedTitle"),
+                  message: t("ielts.admin.unsavedBody"),
+                  confirmLabel: t("ielts.admin.discard"),
+                  tone: "danger",
+                }))
+              )
+                return;
+              onCancel();
+            }}
+            data-testid="qf-cancel"
+          >
             {t("common.cancel")}
           </Button>
           <Button

@@ -3833,3 +3833,26 @@ circle.donut-slice {
 .qf-label-chip.clear {
   border-style: dashed;
 }
+
+/* 91: diagramma rasmi yuklanishi */
+.qf-upload {
+  display: grid;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-2);
+}
+.qf-upload-bar {
+  display: block;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.qf-upload-bar i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width 0.2s ease;
+}
