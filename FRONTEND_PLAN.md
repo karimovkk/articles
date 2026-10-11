@@ -1412,6 +1412,17 @@ token bilan, tokensiz 401); `data.labels` saqlanadi; PATCH `data` ni to'liq alma
 - [x] 91.3 Telefon (390 px): admin — diagramma formasi sig'adi, rasmni bosib nuqta qo'yish ishlaydi; o'quvchi — rasm
       panelga sig'adi, nuqtalar rasm ustida, kattalashtirish; e2e dev + prod
 
+## 92. IELTS v1.2 (backend): to'liq variantlar natijada; diagramma rasmini o'chirish (2026-10-11)
+
+Real API'da tekshirildi: matnli savollarda `correct_answer` = `[["oltmish olti","66"],["sabr"]]`; `DELETE
+…/questions/{id}/image` faylni o'chiradi, `labels` qoladi, rasmsiz ham 200; PATCH bilan `image_url` olib tashlansa
+fayl storage'da qoladi va hali ham beriladi — shuning uchun DELETE shart.
+
+- [x] 92.1 "Olib tashlash" (yoki yuklangan rasm o'rniga tashqi havola) — saqlashda `DELETE …/image` (PATCH'dan oldin,
+      aks holda DELETE yangi havolani ham tozalaydi); yorliqlar saqlanadi
+- [x] 92.2 To'liq variantlar: bo'sh joy belgilari aniq (neytral holat faqat eski javob shakli uchun qoladi); mock real
+      shaklda; e2e + real backend smoke
+
 ## 31. Keyingi vazifalar
 
 - [ ] 31.1 Safari (WebKit): varaqlash rejimida oldingi sahifaga qaytilganda (3-sahifa) belgilash qatlami

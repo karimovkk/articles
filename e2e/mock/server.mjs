@@ -104,7 +104,8 @@ let paymentsUnscoped = false;
 let __lastQuizBody = null; // 87: oxirgi test yuborish (o'quvchi) — testlar javob shaklini tekshiradi
 let __lastQuestionBody = null; // 87: oxirgi admin savol so'rovi
 const diagramFiles = new Map(); // 90: savol id → { data, type } (diagramma rasmi)
-let diagramDelay = 0; // 91: /__diagram-delay?ms= — rasm yuklash javobini kechiktirish (progress ko'rinsin)
+let diagramDelay = 0;
+let __diagramDeletes = []; // 92: DELETE …/image chaqirilgan savollar (testlar uchun) // 91: /__diagram-delay?ms= — rasm yuklash javobini kechiktirish (progress ko'rinsin)
 let __lastBookBody = null; // 81: oxirgi admin kitob so'rovi (testlar — original_price yuborilganini tekshirish) // 68: /__payments-unscoped?on=1 — holatlar oraliqqa bo'ysunmaydi (jonli backend kabi)
 const integOut = () => ({ settings: Object.fromEntries(Object.keys(INTEG_ENV).map((k) => {
   const v = integ[k] ?? (INTEG_ENV[k] || null); const sec = INTEG_SECRET.has(k);
@@ -135,8 +136,8 @@ const Q_TYPES = ["MULTIPLE_CHOICE", "TRUE_FALSE_NOT_GIVEN", "YES_NO_NOT_GIVEN", 
 const qMech = (t) => (t === "MULTIPLE_CHOICE" ? "choice" : t === "TRUE_FALSE_NOT_GIVEN" || t === "YES_NO_NOT_GIVEN" ? "enum" : t.startsWith("MATCHING_") ? "matching" : "text");
 const qPoints = (q) => { const m = qMech(q.type); return m === "matching" ? q.data.items.length : m === "text" ? q.data.blanks : 1; };
 // Real backend qoidasi (2026-10-11, API'da tekshirilgan): kichik harf, bo'shliqlar bittaga, faqat chetdagi .,;:!?()[]"' olib tashlanadi
-// Real backend natijadagi `correct_answer` shakli (2026-10-11): choice [0,2], enum "FALSE", matching {"0":"ii"}, text — har bo'sh joyga 1-variant
-const qCorrectOut = (q) => { const a = q.answer ?? {}; if (Array.isArray(a.correct)) return a.correct; if (typeof a.value === "string") return a.value; if (a.map) return a.map; if (Array.isArray(a.blanks)) return a.blanks.map((v) => (Array.isArray(v) ? v[0] : v) ?? ""); return a; };
+// Real backend natijadagi `correct_answer` shakli: choice [0,2], enum "FALSE", matching {"0":"ii"}, text — v1.2: har bo'sh joyga barcha variantlar
+const qCorrectOut = (q) => { const a = q.answer ?? {}; if (Array.isArray(a.correct)) return a.correct; if (typeof a.value === "string") return a.value; if (a.map) return a.map; if (Array.isArray(a.blanks)) return a.blanks; return a; };
 const qNorm = (s) => String(s ?? "").toLowerCase().split(/\s+/).filter(Boolean).join(" ").replace(/^[\s.,;:!?()[\]"']+|[\s.,;:!?()[\]"']+$/g, "");
 const isStrList = (a, min = 1) => Array.isArray(a) && a.length >= min && a.every((x) => typeof x === "string" && x.trim());
 // 90: real backend v1.1 — MULTIPLE_CHOICE: choose yuborilmasa = to'g'ri javoblar soni; mos kelmasa 422
@@ -181,6 +182,7 @@ function reset(opts = {}) {
   questions = [];
   diagramFiles.clear();
   diagramDelay = 0;
+  __diagramDeletes = [];
   streaks = {};
   appSettings = {};
   appImages = {};
@@ -291,6 +293,7 @@ createServer(async (req, res) => {
   if (path === "/__last-quiz-body") return json(res, 200, __lastQuizBody ?? {});
   if (path === "/__last-question-body") return json(res, 200, __lastQuestionBody ?? {});
   // 87: o'quvchi testi uchun — har mexanikadan namuna savollar (tartib bilan)
+  if (path === "/__diagram-deletes") return json(res, 200, __diagramDeletes);
   if (path === "/__diagram-delay") { diagramDelay = Number(q.get("ms") ?? 0); return json(res, 200, { diagramDelay }); }
   if (path === "/__seed-ielts") {
     const aid = q.get("article"); questions = questions.filter((x) => x.article_id !== aid);
@@ -782,6 +785,14 @@ createServer(async (req, res) => {
     // 44.5: admin — maqola savollari
     // 90: diagramma rasmi — multipart `file` (JPEG/PNG/WebP ≤ 10 MB) → data.image_url
     const aqi = /^\/admin\/articles\/([^/]+)\/questions\/([^/]+)\/image$/.exec(path);
+    // 92: rasmni olib tashlash — fayl o'chadi, image_url tozalanadi, labels qoladi; rasmsiz ham 200
+    if (aqi && m === "DELETE") {
+      const q = questions.find((x) => x.id === aqi[2] && x.article_id === aqi[1]);
+      if (!q) return err(res, 404, "QUESTION_NOT_FOUND", "Question not found");
+      diagramFiles.delete(q.id); __diagramDeletes.push(q.id);
+      const { image_url: _drop, ...rest } = q.data ?? {}; q.data = rest;
+      return json(res, 200, qAdmin(q));
+    }
     if (aqi && m === "PUT") {
       const q = questions.find((x) => x.id === aqi[2] && x.article_id === aqi[1]);
       if (!q) return err(res, 404, "QUESTION_NOT_FOUND", "Question not found");

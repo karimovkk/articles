@@ -214,7 +214,7 @@ try {
   }
   check("Har savol: UI hukmi va ✓ belgilar server natijasiga mos (14/14)", mism.length === 0, mism.join("; "));
   const note = ui.find((x) => x.id === server.results.find((r) => r.type === "NOTE_COMPLETION").question_id);
-  check("NOTE: 'Soat' (2-variant) + xato, ball 1 — qaysi to'g'riligi aniq emas → 2 ta neytral belgi", note.ok === 0 && note.unk === 2, JSON.stringify(note));
+  check("NOTE: 'Soat' (2-variant) ✓, 'quvonch-shodlik' ✗ — backend barcha variantlarni qaytaradi (v1.2), neytral belgi yo'q", note.ok === 1 && note.unk === 0, JSON.stringify(note));
   check("Yashirin rejim: to'g'ri javoblar ko'rinmaydi, eslatma bor", (await page.locator('[data-testid="qv-fix"]').count()) === 0 && (await page.locator('[data-testid="quiz-hidden-note"]').count()) === 1);
   check("TFNG xato → 'Matnda ko'rsatish · 2-bet'", ((await q("TRUE_FALSE_NOT_GIVEN").locator('[data-testid="qv-show-page"]').textContent()) ?? "").includes("2-bet"));
   await q("TRUE_FALSE_NOT_GIVEN").locator('[data-testid="qv-show-page"]').click();
@@ -240,6 +240,17 @@ try {
   await page.waitForSelector('[data-testid="quiz-score"]', { timeout: 30000 });
   const s2 = ((await page.textContent('[data-testid="quiz-score"]')) ?? "").replace(/\s+/g, " ");
   check("Qayta: 22 / 23 ('66' variant emas), 2-urinish, eng yaxshi — birinchi (ko'rsatilgandan keyingi hisobga olinmaydi)", s2.includes("22 / 23") && s2.includes("2-urinish") && s2.includes(`eng yaxshi: ${expected} / 23`), s2);
+  // ---- 92: admin rasmni olib tashlaydi → DELETE …/image (fayl o'chadi), yorliqlar qoladi
+  await page.goto(`${BASE}/admin/books/${BOOK}/articles/${ART}/questions`);
+  await page.waitForSelector('[data-testid="q-item"]', { timeout: 30000 });
+  await page.locator('[data-testid="q-edit"]').last().click();
+  await page.waitForFunction(() => document.querySelector('[data-testid="qf-labels-img"]')?.naturalWidth > 0, null, { timeout: 15000 });
+  await page.click('[data-testid="qf-image-remove"]');
+  await page.click('[data-testid="qf-save"]');
+  await page.waitForFunction(() => !document.querySelector('[data-testid="qa-image"]'), null, { timeout: 30000 });
+  const dg3 = (await adminQs()).find((x) => x.type === "DIAGRAM_LABEL_COMPLETION");
+  const fileGone = (await fetch(`${API}/reader/questions/${dg3.id}/diagram`, { headers: { Authorization: H.Authorization } })).status;
+  check("Rasm olib tashlandi: image_url yo'q, yorliqlar qoldi, fayl 404", !dg3.data.image_url && dg3.data.labels?.length === 2 && fileGone === 404, `${fileGone} ${JSON.stringify(dg3.data)}`);
   check("Sahifa xatolari yo'q", pageErrors.length === 0, pageErrors.join(" | ").slice(0, 300));
 } finally {
   await cleanup();

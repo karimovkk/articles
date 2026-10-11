@@ -27,6 +27,7 @@ import { DiagramImageField } from "./diagram-image-field";
 import { useUnsavedGuard } from "@/lib/use-unsaved-guard";
 import {
   errorMessage,
+  isApiPath,
   mechanicOf,
   pointsOf,
   QUESTION_TYPES,
@@ -310,6 +311,18 @@ export function QuestionForm({
     setError(null);
     try {
       const body = { ...v.input, explanation: fullExplanation };
+      // 92: yuklangan rasm olib tashlangan yoki tashqi havolaga almashtirilgan — storage faylini o'chirish (PATCH
+      // `image_url` ni olib tashlasa ham fayl qoladi). PATCH'dan oldin: DELETE `image_url` ni tozalaydi, keyingi PATCH
+      // yangi havolani yozadi. Yangi fayl yuklansa — PUT eskisini o'zi almashtiradi.
+      const oldUrl = initial?.data.image_url;
+      if (
+        initial &&
+        oldUrl &&
+        isApiPath(oldUrl) &&
+        !pendingFile &&
+        (v.input.data as QuestionData).image_url !== oldUrl
+      )
+        await quizApi.adminDeleteImage(articleId, initial.id);
       let saved = initial
         ? await quizApi.adminUpdate(articleId, initial.id, body)
         : await quizApi.adminCreate(articleId, {
@@ -819,7 +832,8 @@ export function QuestionForm({
             onRemove={() => {
               touch();
               setPendingFile(null);
-              setData({ ...data, image_url: null, labels: [] });
+              // yorliqlar qoladi (backend ham saqlaydi) — yangi rasm yuklansa qayta ishlatiladi
+              setData({ ...data, image_url: null });
             }}
             onUrl={(url) => {
               touch();

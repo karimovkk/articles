@@ -197,6 +197,10 @@ export const quizApi = {
     fd.append("file", file, filename);
     return normalizeQuestion<AdminQuestion>(await apiUpload<Raw>(`/admin/articles/${articleId}/questions/${questionId}/image`, fd, { ...opts, method: "PUT" }));
   },
+  /** 92: diagramma rasmini olib tashlash — storage fayli o'chadi, `data.image_url` tozalanadi (`labels` qoladi) */
+  async adminDeleteImage(articleId: string, questionId: string): Promise<AdminQuestion> {
+    return normalizeQuestion<AdminQuestion>(await api<Raw>(`/admin/articles/${articleId}/questions/${questionId}/image`, { method: "DELETE" }));
+  },
   /**
    * 90: diagramma rasmi. Backend yo'li (`/api/v1/reader/questions/{id}/diagram`) token talab qiladi — blob sifatida
    * olinadi; tashqi https havola — o'zi. `null` — yuklanmadi.

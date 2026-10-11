@@ -384,5 +384,16 @@ await page.click('[data-testid="qf-cancel"]');
 await confirmDialog(page);
 check("Bekor — o'zgarish tashlandi (saqlanmadi)", (await qs()).at(-1).data.labels[1].x > 60);
 
+// ---- 92: rasmni olib tashlash — DELETE …/image (storage fayli o'chadi), yorliqlar qoladi
+await page.locator('[data-testid="q-edit"]').last().click();
+await page.waitForFunction(() => document.querySelector('[data-testid="qf-labels-img"]')?.naturalWidth > 0, null, { timeout: 8000 });
+await page.click('[data-testid="qf-image-remove"]');
+check("Olib tashlash: yorliq muharriri yashirindi", (await page.locator('[data-testid="qf-labels"]').count()) === 0);
+await page.click('[data-testid="qf-save"]');
+await page.waitForFunction(() => !document.querySelector('[data-testid="qa-image"]'), null, { timeout: 8000 });
+const rm = (await qs()).at(-1);
+const diagGet = await fetch(`${API_HOST}/api/v1/reader/questions/${rm.id}/diagram`, { headers: { Authorization: "Bearer access-token-admin" } });
+check("Saqlandi: DELETE …/image chaqirildi, image_url yo'q, yorliqlar qoldi, fayl 404", (await mockGet("/__diagram-deletes")).includes(rm.id) && !rm.data.image_url && rm.data.labels?.length === 2 && diagGet.status === 404, JSON.stringify(rm.data));
+
 check("Sahifa xatolari yo'q", errors.length === 0, errors.join(" | ").slice(0, 300));
 await done(browser);
