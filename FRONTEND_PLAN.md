@@ -1386,6 +1386,24 @@ matching, text; matching/completion'da har element/bo'sh joy = 1 ball (`points`)
       ichki shaklga; bo'sh joy belgisi server balli bilan (aniq bo'lmasa — neytral); mock ham real shaklda
 - [x] 89.4 `e2e/prod/smoke-ielts.test.mjs` — admin UI 13 tur → o'quvchi → UI ball/belgilar server natijasiga mos → tozalash
 
+## 90. IELTS v1.1 (backend): `data.choose` doim saqlanadi; diagramma rasmi yuklash + yorliq joylari (2026-10-11)
+
+Manba: `Articles365_Frontend_IELTS_Savollar_v1.1.md`. Real API'da tekshirildi: `choose` yuborilmasa = to'g'ri javoblar
+soni (1 ham), mos kelmasa 422; `PUT …/questions/{id}/image` → `data.image_url` (`/api/v1/reader/questions/{id}/diagram`,
+token bilan, tokensiz 401); `data.labels` saqlanadi; PATCH `data` ni to'liq almashtiradi (image_url yuborilmasa — o'chadi).
+
+- [x] 90.1 `choose` har doim yuboriladi (= to'g'ri javoblar soni); "server saqlamadi" ogohlantirishi, matnga son yozish
+      maslahati va mock "strict" rejimi olib tashlanadi (backend kafolatlaydi); savol matnidagi son tekshiruvi qoladi
+- [x] 90.2 API: `adminUploadImage` (PUT multipart), diagramma rasmini token bilan yuklash (blob URL); tashqi https ham
+- [x] 90.3 Admin forma (Diagram labelling): rasm yuklash (JPEG/PNG/WebP ≤ 10 MB, oldindan ko'rish), almashtirish,
+      olib tashlash, yoki https havola; saqlash: savol → rasm; tahrirda `image_url`/`labels` saqlanadi; eski
+      `![…](…)` satri `data.image_url` ga ko'chiriladi
+- [x] 90.4 Yorliq joylari: rasmni bosib 1, 2, 3… bo'sh joylarni joylash (raqamni tanlab qayta joylash, tozalash);
+      `data.labels` = [{x, y}] (foizda)
+- [x] 90.5 O'quvchi: rasm ustida raqamli nuqtalar (savol raqamlari bilan, natijada yashil/qizil), kattalashtirishda ham;
+      nusxa olishda rasm ham ko'chiriladi
+- [x] 90.6 Mock (choose default/422, rasm PUT/GET), e2e dev + prod, real backend smoke
+
 ## 31. Keyingi vazifalar
 
 - [ ] 31.1 Safari (WebKit): varaqlash rejimida oldingi sahifaga qaytilganda (3-sahifa) belgilash qatlami

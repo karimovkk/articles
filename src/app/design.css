@@ -3796,3 +3796,40 @@ circle.donut-slice {
   font-weight: 700;
   color: var(--accent-ink);
 }
+
+/* 90: admin — diagramma bo'sh joylarini rasmda joylash */
+.qf-labels {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 12px;
+  border: 1px dashed var(--border);
+}
+.qf-labels-stage {
+  text-align: center;
+  background: #fff;
+  border-radius: 10px;
+  padding: 6px;
+}
+.qf-label-chip {
+  min-width: 26px;
+  height: 26px;
+  padding: 0 7px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-2);
+}
+.qf-label-chip.placed {
+  border-color: var(--accent-border);
+  color: var(--text);
+}
+.qf-label-chip.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #1a1a1a;
+}
+.qf-label-chip.clear {
+  border-style: dashed;
+}

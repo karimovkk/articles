@@ -103,7 +103,7 @@ let broadcasts = [];
 let paymentsUnscoped = false;
 let __lastQuizBody = null; // 87: oxirgi test yuborish (o'quvchi) — testlar javob shaklini tekshiradi
 let __lastQuestionBody = null; // 87: oxirgi admin savol so'rovi
-let questionsDropChoose = false; // 87: /__questions-strict?on=1 — server data.choose ni saqlamaydi (backend kabi bo'lishi mumkin)
+const diagramFiles = new Map(); // 90: savol id → { data, type } (diagramma rasmi)
 let __lastBookBody = null; // 81: oxirgi admin kitob so'rovi (testlar — original_price yuborilganini tekshirish) // 68: /__payments-unscoped?on=1 — holatlar oraliqqa bo'ysunmaydi (jonli backend kabi)
 const integOut = () => ({ settings: Object.fromEntries(Object.keys(INTEG_ENV).map((k) => {
   const v = integ[k] ?? (INTEG_ENV[k] || null); const sec = INTEG_SECRET.has(k);
@@ -138,6 +138,9 @@ const qPoints = (q) => { const m = qMech(q.type); return m === "matching" ? q.da
 const qCorrectOut = (q) => { const a = q.answer ?? {}; if (Array.isArray(a.correct)) return a.correct; if (typeof a.value === "string") return a.value; if (a.map) return a.map; if (Array.isArray(a.blanks)) return a.blanks.map((v) => (Array.isArray(v) ? v[0] : v) ?? ""); return a; };
 const qNorm = (s) => String(s ?? "").toLowerCase().split(/\s+/).filter(Boolean).join(" ").replace(/^[\s.,;:!?()[\]"']+|[\s.,;:!?()[\]"']+$/g, "");
 const isStrList = (a, min = 1) => Array.isArray(a) && a.length >= min && a.every((x) => typeof x === "string" && x.trim());
+// 90: real backend v1.1 — MULTIPLE_CHOICE: choose yuborilmasa = to'g'ri javoblar soni; mos kelmasa 422
+const qChoose = (q) => { if (q.type !== "MULTIPLE_CHOICE" || !q.data || !Array.isArray(q.answer?.correct)) return true; if (q.data.choose == null) { q.data = { ...q.data, choose: q.answer.correct.length }; return true; } return q.data.choose === q.answer.correct.length; };
+const chooseBad = (res, q) => err(res, 422, "VALIDATION_ERROR", "MULTIPLE_CHOICE: data.choose to'g'ri javoblar soniga teng bo'lishi kerak", { choose: q.data.choose, correct_count: q.answer.correct.length });
 function qValid(q) {
   if (!Q_TYPES.includes(q.type) || typeof q.prompt !== "string" || !q.prompt.trim() || !q.data || typeof q.data !== "object" || !q.answer || typeof q.answer !== "object") return false;
   const { data: d, answer: a } = q;
@@ -175,7 +178,7 @@ function reset(opts = {}) {
   vocab = [];
   passwords.clear();
   questions = [];
-  questionsDropChoose = false;
+  diagramFiles.clear();
   streaks = {};
   appSettings = {};
   appImages = {};
@@ -285,7 +288,6 @@ createServer(async (req, res) => {
   if (path === "/__questions") return json(res, 200, questions);
   if (path === "/__last-quiz-body") return json(res, 200, __lastQuizBody ?? {});
   if (path === "/__last-question-body") return json(res, 200, __lastQuestionBody ?? {});
-  if (path === "/__questions-strict") { questionsDropChoose = q.get("on") === "1"; return json(res, 200, { questionsDropChoose }); }
   // 87: o'quvchi testi uchun — har mexanikadan namuna savollar (tartib bilan)
   if (path === "/__seed-ielts") {
     const aid = q.get("article"); questions = questions.filter((x) => x.article_id !== aid);
@@ -500,6 +502,14 @@ createServer(async (req, res) => {
     if (what === "cover") return err(res, 404, "COVER_NOT_FOUND", "No cover");
     if (q.get("size") && !/^(original|thumb|medium)$/.test(q.get("size"))) return err(res, 422, "VALIDATION_ERROR", "Validation failed", [{ loc: ["query", "size"], msg: "String should match pattern '^(original|thumb|medium)$'" }]);
     return json(res, 200, articles.filter((a) => a.book_id === bid).sort((a, b) => a.order_index - b.order_index).map((a) => { const p = getProg(me.id, a.id); return { article_id: a.id, title: a.title, order_index: a.order_index, page_count: a.page_count, processing_status: a.processing_status, reading_percentage: p.percentage, current_page: p.current_page, is_read: p.is_read }; }));
+  }
+  // ---- 90: diagramma rasmi (ruxsat — maqola kabi; tokensiz 401, tekin kitobda mehmon ham)
+  const rdg = /^\/reader\/questions\/([^/]+)\/diagram$/.exec(path);
+  if (rdg && m === "GET") {
+    const qq = questions.find((x) => x.id === rdg[1]); const a = qq && articles.find((x) => x.id === qq.article_id); const f = qq && diagramFiles.get(qq.id);
+    if (!qq || !a || !f) return err(res, 404, "DIAGRAM_NOT_FOUND", "No diagram");
+    if (me.role !== "ADMIN" && !canRead(me.id, a.book_id)) return err(res, me === GUEST ? 401 : 403, "BOOK_ACCESS_DENIED", "Access denied"); // admin — real API kabi (forma rasmni ko'radi)
+    res.writeHead(200, { "Content-Type": f.type, "Cache-Control": "private, max-age=300", "Access-Control-Allow-Origin": "*" }); return res.end(f.data);
   }
   // ---- 44.5: maqola testi
   const rq = /^\/reader\/articles\/([^/]+)\/(questions|quiz)$/.exec(path);
@@ -767,17 +777,31 @@ createServer(async (req, res) => {
     const asm = /^\/admin\/app-settings\/([^/]+)$/.exec(path);
     if (asm && m === "DELETE") { if (!(asm[1] in appSettings)) return err(res, 404, "NOT_FOUND", "Setting not found"); delete appSettings[asm[1]]; return json(res, 200, { message: "Deleted" }); }
     // 44.5: admin — maqola savollari
+    // 90: diagramma rasmi — multipart `file` (JPEG/PNG/WebP ≤ 10 MB) → data.image_url
+    const aqi = /^\/admin\/articles\/([^/]+)\/questions\/([^/]+)\/image$/.exec(path);
+    if (aqi && m === "PUT") {
+      const q = questions.find((x) => x.id === aqi[2] && x.article_id === aqi[1]);
+      if (!q) return err(res, 404, "QUESTION_NOT_FOUND", "Question not found");
+      const ct = req.headers["content-type"] ?? "";
+      const f = ct.startsWith("multipart/form-data") ? parseMultipart(await readRaw(req), ct)?.files.file : null;
+      if (!f) return err(res, 422, "VALIDATION_ERROR", "file is required");
+      if (f.data.length > 10 * 1024 * 1024) return err(res, 413, "PAYLOAD_TOO_LARGE", "Image exceeds 10 MB");
+      if (!isImageBytes(f.data)) return err(res, 422, "INVALID_FILE", "Unsupported or unrecognized file type (allowed: image/jpeg, image/png, image/webp)");
+      diagramFiles.set(q.id, { data: f.data, type: f.type || "image/png" });
+      q.data = { ...q.data, image_url: `/api/v1/reader/questions/${q.id}/diagram` };
+      return json(res, 200, qAdmin(q));
+    }
     const aq = /^\/admin\/articles\/([^/]+)\/questions(?:\/([^/]+))?$/.exec(path);
     if (aq) {
       const [, aid, qid] = aq;
       if (!articles.some((x) => x.id === aid)) return err(res, 404, "ARTICLE_NOT_FOUND", "Article not found");
       const bad = () => err(res, 422, "VALIDATION_ERROR", "Validation failed", [{ loc: ["body", "data"], msg: "data/answer shape does not match type" }]);
       if (!qid && m === "GET") return json(res, 200, questions.filter((q) => q.article_id === aid).sort((x, y) => x.order_index - y.order_index).map(qAdmin));
-      if (!qid && m === "POST") { const b = await readBody(req); __lastQuestionBody = b; if (b.prompt === "__422__") return bad(); const q = { id: randomUUID(), article_id: aid, type: b.type, prompt: b.prompt, data: b.data, answer: b.answer, explanation: b.explanation ?? null, order_index: b.order_index ?? 0 }; if (!qValid(q)) return bad(); if (q.type === "MULTIPLE_CHOICE" && questionsDropChoose) delete q.data.choose; questions.push(q); return json(res, 201, qAdmin(q)); }
+      if (!qid && m === "POST") { const b = await readBody(req); __lastQuestionBody = b; if (b.prompt === "__422__") return bad(); const q = { id: randomUUID(), article_id: aid, type: b.type, prompt: b.prompt, data: b.data, answer: b.answer, explanation: b.explanation ?? null, order_index: b.order_index ?? 0 }; if (!qValid(q)) return bad(); if (!qChoose(q)) return chooseBad(res, q); questions.push(q); return json(res, 201, qAdmin(q)); }
       const q = questions.find((x) => x.id === qid && x.article_id === aid);
       if (!q) return err(res, 404, "QUESTION_NOT_FOUND", "Question not found");
-      if (m === "PATCH") { const b = await readBody(req); __lastQuestionBody = b; const next = { ...q, ...Object.fromEntries(Object.entries(b).filter(([, v]) => v !== undefined)) }; if (!qValid(next)) return bad(); if (next.type === "MULTIPLE_CHOICE" && questionsDropChoose) delete next.data.choose; Object.assign(q, next); return json(res, 200, qAdmin(q)); }
-      if (m === "DELETE") { questions = questions.filter((x) => x.id !== q.id); return json(res, 200, { message: "Question deleted" }); }
+      if (m === "PATCH") { const b = await readBody(req); __lastQuestionBody = b; const next = { ...q, ...Object.fromEntries(Object.entries(b).filter(([, v]) => v !== undefined)) }; if (!qValid(next)) return bad(); if (!qChoose(next)) return chooseBad(res, next); Object.assign(q, next); return json(res, 200, qAdmin(q)); }
+      if (m === "DELETE") { questions = questions.filter((x) => x.id !== q.id); diagramFiles.delete(q.id); return json(res, 200, { message: "Question deleted" }); }
     }
     // 44.4: to'lovlar statistikasi — tushum = APPROVED buyurtmalar
     if (path === "/admin/stats/payments" && m === "GET") {

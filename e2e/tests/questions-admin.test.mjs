@@ -2,9 +2,11 @@
 // (mexanika guruhlari), har mexanika formasi va tekshiruvi (serverga so'rovsiz), o'quvchi ko'rinishi (jonli, to'g'ri
 // javob bilan), saqlangan shakllar (data/answer), ro'yxat (ballar bo'yicha raqamlar, xulosa), tartib, nusxa, tahrir,
 // o'chirish, server 422 xabari, data.choose saqlanmasa ogohlantirish, kitob sahifasiga qaytish; telefon.
-// 88: savol matnidagi son ("Choose TWO") — server choose ni saqlamasa ham ishlaydi, nomuvofiqlik — xato; javob sahifasi
-// (izohda `[p. N]`, ro'yxatda belgi); diagramma rasmi (https havola, oldindan ko'rish, o'quvchida kattalashtirish).
-import { launch, BASE, API_HOST, reset, mockGet, mockWait, ignorablePageError, confirmDialog, makeCheck } from "../lib.mjs";
+// 88: savol matnidagi son ("Choose THREE") to'g'ri javoblar soniga mos bo'lmasa — xato; javob sahifasi (izohda `[p. N]`).
+// 90: `choose` doim yuboriladi; diagramma — rasm yuklash (fayl turi tekshiruvi), bo'sh joylarni rasmda joylash
+// (`data.labels`), saqlangach yuklash (`data.image_url`), tahrirda rasm/yorliqlar yo'qolmaydi; o'quvchida — token bilan
+// yuklangan rasm, savol raqamli nuqtalar (natijada yashil), kattalashtirish.
+import { launch, BASE, reset, mockGet, mockWait, ignorablePageError, confirmDialog, makeCheck } from "../lib.mjs";
 const OUT = new URL("../out/", import.meta.url).pathname;
 const BOOK = "11111111-1111-4111-8111-111111111111";
 const ART = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
@@ -20,10 +22,7 @@ await page.fill('input[type="password"]', "Admin12345!");
 await page.click('button[type="submit"]');
 await page.waitForURL((u) => !u.pathname.startsWith("/login"), { timeout: 30000 });
 
-// Diagramma rasmi uchun soxta https manzil (1×1 PNG)
-const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64");
-const fakeImg = (p) => p.route("https://img.test/**", (route) => route.fulfill({ body: PNG, contentType: "image/png" }));
-await fakeImg(page);
+const WEBP = new URL("../../public/auth/mag-1.webp", import.meta.url).pathname; // diagramma rasmi
 const qs = async () => (await mockGet("/__questions")).filter((q) => q.article_id === ART).sort((a, b) => a.order_index - b.order_index);
 const last = () => mockGet("/__last-question-body");
 
@@ -205,42 +204,60 @@ await page.click('[data-testid="qf-save"]');
 await page.waitForSelector('[data-testid="question-form"] .alert', { timeout: 5000 });
 check("Server 422 — xabar formada, forma ochiq qoladi", (await page.locator('[data-testid="question-form"]').count()) === 1 && ((await page.textContent('[data-testid="question-form"] .alert')) ?? "").length > 3);
 await page.locator('[data-testid="question-form"] button', { hasText: "Bekor" }).click();
-await fetch(`${API_HOST}/__questions-strict?on=1`);
 await page.click('[data-testid="q-new"]');
-await page.fill('[data-testid="qf-prompt"]', "Ikkita to'g'ri javob?");
+await page.fill('[data-testid="qf-prompt"]', "Choose TWO letters.");
 for (let i = 0; i < 4; i++) await page.locator('[data-testid="qf-option"]').nth(i).fill(`V${i + 1}`);
 await page.locator('[data-testid="qf-correct"]').nth(1).check();
 await page.locator('[data-testid="qf-correct"]').nth(3).check();
-check("Matnda son yo'q — maslahat: \"Choose TWO letters\" yozing", ((await page.textContent('[data-testid="qf-choose-tip"]')) ?? "").includes("Choose TWO letters"));
 await page.click('[data-testid="qf-save"]');
-await page.waitForSelector('.alert:has-text("saqlamadi")', { timeout: 8000 });
-await page.waitForSelector('[data-testid="qa-choose-lost"]', { timeout: 8000 }).catch(() => {});
-check("Server data.choose ni saqlamasa — ogohlantirish va ro'yxatda belgi", (await page.locator('[data-testid="qa-choose-lost"]').count()) === 1);
-await page.locator('[data-testid="q-edit"]').last().click();
-await page.fill('[data-testid="qf-prompt"]', "Choose TWO letters.");
-await page.click('[data-testid="qf-save"]');
-await page.waitForSelector('.alert:has-text("Savol saqlandi")', { timeout: 8000 });
-await page.waitForFunction(() => !document.querySelector('[data-testid="qa-choose-lost"]'), null, { timeout: 8000 }).catch(() => {});
-check("Matnga 'Choose TWO' yozildi — server choose ni saqlamasa ham ogohlantirish va belgi yo'q", (await page.locator('[data-testid="qa-choose-lost"]').count()) === 0 && !(await qs()).at(-1).data.choose, JSON.stringify({ lost: await page.locator('[data-testid="qa-choose-lost"]').count(), last: (await qs()).at(-1) }));
-await fetch(`${API_HOST}/__questions-strict?on=0`);
+await page.waitForFunction(() => document.querySelectorAll('[data-testid="q-item"]').length === 7, null, { timeout: 8000 });
+check("Ko'p javobli: data.choose = 2 yuborildi va saqlandi", (await last()).data.choose === 2 && (await qs()).at(-1).data.choose === 2);
 
-// ---- Diagramma: rasm havolasi (faqat https), oldindan ko'rish
+// ---- Diagramma: rasm yuklash, bo'sh joylarni rasmda joylash
 await page.click('[data-testid="q-new"]');
 await page.click('[data-testid="qf-type"][data-type="DIAGRAM_LABEL_COMPLETION"]');
 await page.fill('[data-testid="qf-prompt"]', "Diagrammani belgilang.");
-await page.fill('[data-testid="qf-image-url"]', "http://img.test/plant.png");
-check("Rasm havolasi http:// — xato", ((await page.textContent('[data-testid="qf-text-type"]')) ?? "").includes("https:// bilan boshlanishi"));
-await page.fill('[data-testid="qf-image-url"]', "https://img.test/plant.png");
 await page.fill('[data-testid="qf-text"]', "Ildiz: ___\nBarg: ___");
 await page.locator('[data-testid="qf-accepted"]').nth(0).fill("suv");
 await page.locator('[data-testid="qf-accepted"]').nth(1).fill("o‘simlik"); // apostrof shakli — saqlashda `'`
-await page.waitForFunction(() => document.querySelector('[data-testid="qf-preview"] .qv-figure img')?.naturalWidth > 0, null, { timeout: 8000 });
-check("Oldindan ko'rish: rasm va 2 ta bo'sh joy; matn maydonida havola yo'q", (await page.locator('[data-testid="qf-preview"] [data-testid="qv-blank"]').count()) === 2 && !(await page.inputValue('[data-testid="qf-text"]')).includes("!["));
+await page.setInputFiles('[data-testid="qf-image-file"]', { name: "a.txt", mimeType: "text/plain", buffer: Buffer.from("hello") });
+check("Matn fayli — 'Faqat JPEG, PNG yoki WebP'", ((await page.textContent('[data-testid="question-form"] .alert')) ?? "").includes("Faqat JPEG"));
+await page.click('[data-testid="qf-image-url-toggle"]');
+await page.fill('[data-testid="qf-image-url"]', "http://img.test/plant.png");
+check("Tashqi havola http:// — xato", ((await page.textContent('[data-testid="qf-diagram"]')) ?? "").includes("https:// bilan boshlanishi"));
+await page.fill('[data-testid="qf-image-url"]', "");
+await page.setInputFiles('[data-testid="qf-image-file"]', WEBP);
+await page.waitForFunction(() => document.querySelector('[data-testid="qf-labels-img"]')?.naturalWidth > 0, null, { timeout: 8000 });
+const labelsImg = page.locator('[data-testid="qf-labels-img"]');
+const clickImg = async (fx, fy) => {
+  await labelsImg.scrollIntoViewIfNeeded();
+  const box = await labelsImg.boundingBox();
+  await labelsImg.click({ position: { x: box.width * fx, y: box.height * fy } });
+};
+const imgOffset = () => labelsImg.evaluate((img) => img.getBoundingClientRect().top - img.closest('[data-testid="qf-labels"]').getBoundingClientRect().top);
+const off0 = await imgOffset();
+await clickImg(0.25, 0.3);
+check("Birinchi nuqtadan keyin rasm siljimaydi", Math.abs((await imgOffset()) - off0) < 1);
+await clickImg(0.75, 0.8);
+const pv = await page.$$eval('[data-testid="qf-preview"] [data-testid="qv-pin"]', (els) => els.map((e) => e.textContent).join(","));
+check("Yorliqlar: '2 / 2 joylashtirildi', o'quvchi ko'rinishida 2 nuqta (1, 2)", ((await page.textContent('[data-testid="qf-labels-count"]')) ?? "").includes("2 / 2") && pv === "1,2", pv);
+await page.locator('[data-testid="qf-label-chip"]').nth(0).click(); // 1-ni qayta joylash
+await clickImg(0.5, 0.5);
 await page.locator('[data-testid="qa-editor"]').screenshot({ path: OUT + "99-admin-q-diagram.png" });
 await page.click('[data-testid="qf-save"]');
 await page.waitForFunction(() => document.querySelectorAll('[data-testid="q-item"]').length === 8, null, { timeout: 8000 });
-b = await last();
-check("Diagramma saqlandi: text 1-satri — rasm, blanks 2; variant apostrofi `'` ga keltirildi", b.data.text.startsWith("![diagram](https://img.test/plant.png)\n") && b.data.blanks === 2 && b.answer.blanks[1][0] === "o'simlik", JSON.stringify(b));
+await page.waitForSelector('[data-testid="qa-image"]', { timeout: 8000 });
+const dg = (await qs()).at(-1);
+const near = (a, b) => Math.abs(a - b) < 1.5;
+check("Saqlandi: labels [(50,50), (75,80)], so'ng rasm yuklandi → data.image_url (backend yo'li), apostrof `'`", near(dg.data.labels[0].x, 50) && near(dg.data.labels[0].y, 50) && near(dg.data.labels[1].x, 75) && near(dg.data.labels[1].y, 80) && dg.data.image_url === `/api/v1/reader/questions/${dg.id}/diagram` && dg.answer.blanks[1][0] === "o'simlik", JSON.stringify(dg.data));
+// Tahrir: PATCH `data` ni to'liq almashtiradi — rasm va yorliqlar yo'qolmasin
+await page.locator('[data-testid="q-edit"]').last().click();
+await page.waitForFunction(() => document.querySelector('[data-testid="qf-labels-img"]')?.naturalWidth > 0, null, { timeout: 8000 });
+await page.fill('[data-testid="qf-prompt"]', "Diagrammani belgilang (rasmga qarang).");
+await page.click('[data-testid="qf-save"]');
+await page.waitForSelector("text=Diagrammani belgilang (rasmga qarang).", { timeout: 8000 });
+const dg2 = (await qs()).at(-1);
+check("Tahrirdan keyin: rasm (token bilan yuklandi) va yorliqlar joyida", dg2.data.image_url === dg.data.image_url && dg2.data.labels?.length === 2 && (await last()).data.image_url === dg.data.image_url, JSON.stringify(dg2.data));
 
 // ---- Kitob sahifasiga qaytish — Maqolalar tabi, savollar soni
 await page.click(`[data-testid="questions-page"] nav.crumbs a[href^="/admin/books/${BOOK}"]`);
@@ -250,7 +267,6 @@ check("Breadcrumb → kitob sahifasi 'Maqolalar' tabida, '8 ta savol'", ((await 
 
 // ---- O'quvchi — admin UI'da yaratilgan savollarni yechadi (to'liq zanjir)
 const student = await (await browser.newContext({ viewport: { width: 1440, height: 900 } })).newPage();
-await fakeImg(student);
 student.on("pageerror", (e) => !ignorablePageError(e.message) && errors.push(e.message));
 await student.goto(`${BASE}/login`);
 await student.fill('input[autocomplete="username"]', "user@articles365.local");
@@ -264,10 +280,12 @@ await student.click('[role="tab"]:has-text("Test")');
 await student.waitForSelector('[data-testid="quiz-panel"]');
 const sq = (type) => student.locator(`[data-testid="quiz-question"][data-type="${type}"]`).first();
 check("O'quvchi: admin yaratgan 8 savol, turlari bo'yicha ko'rinish", (await student.locator('[data-testid="quiz-question"]').count()) === 8 && (await sq("FLOW_CHART_COMPLETION").locator(".qv-flow-box").count()) === 3 && (await sq("TABLE_COMPLETION").locator(".qv-table").count()) === 1);
-check("O'quvchi: 'Choose TWO letters' (server choose saqlamagan) — 2 ta javob, belgilash kataklari", ((await student.locator('[data-testid="quiz-question"]', { hasText: "Choose TWO letters" }).textContent()) ?? "").includes("2 ta javobni tanlang") && (await student.locator('[data-testid="quiz-question"]', { hasText: "Choose TWO letters" }).locator('input[type="checkbox"]').count()) === 4);
+check("O'quvchi: 'Choose TWO letters' — 2 ta javob, belgilash kataklari", ((await student.locator('[data-testid="quiz-question"]', { hasText: "Choose TWO letters" }).textContent()) ?? "").includes("2 ta javobni tanlang") && (await student.locator('[data-testid="quiz-question"]', { hasText: "Choose TWO letters" }).locator('input[type="checkbox"]').count()) === 4);
 await student.waitForFunction(() => document.querySelector('[data-type="DIAGRAM_LABEL_COMPLETION"] .qv-figure img')?.naturalWidth > 0, null, { timeout: 8000 });
+check("O'quvchi: rasm ustida savol raqamli nuqtalar (14, 15)", (await sq("DIAGRAM_LABEL_COMPLETION").locator('[data-testid="qv-pin"]').allTextContents()).join(",") === "14,15");
 await sq("DIAGRAM_LABEL_COMPLETION").locator(".qv-figure button").click();
 await student.waitForSelector('[data-testid="qv-figure-zoom"]');
+check("Kattalashtirishda ham nuqtalar", (await student.locator('[data-testid="qv-figure-zoom"] [data-testid="qv-pin"]').count()) === 2);
 await student.keyboard.press("Escape");
 check("O'quvchi: diagramma rasmi; bosilsa kattalashadi, Esc — yopiladi", (await student.locator('[data-testid="qv-figure-zoom"]').count()) === 0);
 await sq("TRUE_FALSE_NOT_GIVEN").locator('[data-testid="qv-enum"]', { hasText: "FALSE" }).click();
@@ -282,6 +300,7 @@ await confirmDialog(student);
 await student.waitForSelector('[data-testid="quiz-score"]', { timeout: 8000 });
 const st = await student.evaluate(() => Object.fromEntries([...document.querySelectorAll('[data-testid="quiz-question"]')].map((el) => [el.dataset.type, el.dataset.result])));
 check("O'quvchi natijasi: TFNG, matching (2/2), completion ('OLTMISH  olti.', 'SABR'), diagramma ('(Suv)', 'oʻsimlik') — to'g'ri", st.TRUE_FALSE_NOT_GIVEN === "correct" && st.MATCHING_HEADINGS === "correct" && st.SENTENCE_COMPLETION === "correct" && st.DIAGRAM_LABEL_COMPLETION === "correct" && st.TABLE_COMPLETION === "wrong", JSON.stringify(st));
+check("Natijada diagramma nuqtalari yashil", (await sq("DIAGRAM_LABEL_COMPLETION").locator(".qv-pin.correct").count()) === 2);
 check("Yuborilgan javobda apostrof `'` ga keltirildi", JSON.stringify(await mockGet("/__last-quiz-body")).includes("o'simlik"));
 check("Ball: 7 / 15 (TFNG 1 + matching 2 + completion 2 + diagramma 2; jami: 1+1+2+2+3+3+1+2)", ((await student.textContent('[data-testid="quiz-score"]')) ?? "").includes("7 / 15"), (await student.textContent('[data-testid="quiz-score"]')) ?? "");
 await student.context().close();

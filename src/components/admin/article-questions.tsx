@@ -10,8 +10,8 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Alert, Badge, Button, EmptyState, IconButton, PageHeader, Spinner, buttonClass, cn, useConfirm } from "@/components/ui";
 import * as I from "@/components/ui/icons";
-import { adminApi, errorMessage, mechanicOf, quizApi, type AdminQuestion, type Mechanic } from "@/lib/api";
-import { answerSummary, chooseCount, splitPage } from "@/lib/quiz/ielts";
+import { adminApi, errorMessage, isApiPath, mechanicOf, quizApi, type AdminQuestion, type Mechanic } from "@/lib/api";
+import { answerSummary, splitPage } from "@/lib/quiz/ielts";
 import { useAsync } from "@/lib/use-async";
 import { useT, type DictKey } from "@/i18n";
 import { QuestionForm } from "./question-form";
@@ -71,6 +71,12 @@ export function ArticleQuestionsPage({ bookId, articleId }: { bookId: string; ar
   const duplicate = (q: AdminQuestion) =>
     run(q.id, async () => {
       const copy = await quizApi.adminCreate(articleId, { type: q.type, prompt: q.prompt, data: q.data, answer: q.answer, explanation: q.explanation, order_index: list.length });
+      // 90: yuklangan diagramma rasmi asl savolga tegishli — nusxaga ham yuklanadi (asl o'chirilsa ham qoladi)
+      const url = q.data.image_url;
+      if (url && isApiPath(url)) {
+        const blob = await quizApi.diagramBlob(url).catch(() => null);
+        if (blob) await quizApi.adminUploadImage(articleId, copy.id, blob, `diagram.${blob.type.split("/")[1] || "png"}`).catch(() => null);
+      }
       setMsg({ tone: "success", text: t("ielts.admin.duplicated") });
       return copy;
     });
@@ -161,8 +167,6 @@ export function ArticleQuestionsPage({ bookId, articleId }: { bookId: string; ar
           ) : (
             <ol className="qa-list" data-testid="q-list">
               {numbered.map(({ q, start, end }, i) => {
-                // Ko'p javobli: o'quvchi nechta tanlashini bilmasa (data.choose ham, savol matnidagi son ham yo'q)
-                const multiLost = mechanicOf(q.type) === "choice" && (q.answer.correct?.length ?? 0) > 1 && chooseCount(q) !== q.answer.correct?.length;
                 const page = splitPage(q.explanation).page;
                 return (
                   <li key={q.id} className={cn("qa-item", editing !== null && editing !== "new" && editing.id === q.id && "editing")} data-testid="q-item" data-type={q.type}>
@@ -177,9 +181,9 @@ export function ArticleQuestionsPage({ bookId, articleId }: { bookId: string; ar
                             {t("ielts.admin.pageTag", { n: page })}
                           </span>
                         )}
-                        {multiLost && (
-                          <span data-testid="qa-choose-lost">
-                            <Badge tone="warning">{t("ielts.admin.chooseLostShort")}</Badge>
+                        {q.data.image_url && (
+                          <span className="qa-page" data-testid="qa-image">
+                            <I.Image size={12} />
                           </span>
                         )}
                       </div>

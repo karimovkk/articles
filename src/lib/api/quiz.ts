@@ -11,7 +11,8 @@
  *   Admin:  GET/POST /admin/articles/{id}/questions, PATCH/DELETE …/questions/{qid} (shakl turga mos emas → 422).
  *   Eski format (options + correct_index) — avtomatik MULTIPLE_CHOICE ga o'giriladi (migratsiyadan oldingi javoblar uchun).
  */
-import { api } from "./client";
+import { api, apiRaw, apiUpload, type UploadOptions } from "./client";
+import { API_PREFIX } from "@/lib/env";
 import type { MessageResponse } from "./types";
 
 export const QUESTION_TYPES = [
@@ -46,10 +47,19 @@ export interface MatchingOption {
 /** `data` — tur bo'yicha (bo'sh maydonlar ixtiyoriy; o'qishda doim tekshiriladi) */
 export interface QuestionData {
   options?: string[] | MatchingOption[];
+  /** 88/90: MULTIPLE_CHOICE — nechta variant tanlanadi (= to'g'ri javoblar soni) */
+  choose?: number;
   items?: string[];
   blanks?: number;
   text?: string;
   word_limit?: number | null;
+  /** 90: DIAGRAM_LABEL_COMPLETION — rasm (backend yo'li yoki tashqi https) va bo'sh joylar o'rni (foizda) */
+  image_url?: string | null;
+  labels?: Array<DiagramLabel | null>;
+}
+export interface DiagramLabel {
+  x: number;
+  y: number;
 }
 export interface QuestionAnswer {
   correct?: number[];
@@ -181,4 +191,22 @@ export const quizApi = {
   adminDelete(articleId: string, questionId: string): Promise<MessageResponse> {
     return api<MessageResponse>(`/admin/articles/${articleId}/questions/${questionId}`, { method: "DELETE" });
   },
+  /** 90: diagramma rasmi (JPEG/PNG/WebP ≤ 10 MB) → javobda `data.image_url`; mavjud rasm almashtiriladi */
+  async adminUploadImage(articleId: string, questionId: string, file: Blob, filename: string, opts?: UploadOptions): Promise<AdminQuestion> {
+    const fd = new FormData();
+    fd.append("file", file, filename);
+    return normalizeQuestion<AdminQuestion>(await apiUpload<Raw>(`/admin/articles/${articleId}/questions/${questionId}/image`, fd, { ...opts, method: "PUT" }));
+  },
+  /**
+   * 90: diagramma rasmi. Backend yo'li (`/api/v1/reader/questions/{id}/diagram`) token talab qiladi — blob sifatida
+   * olinadi; tashqi https havola — o'zi. `null` — yuklanmadi.
+   */
+  async diagramBlob(url: string, signal?: AbortSignal): Promise<Blob | null> {
+    if (!isApiPath(url)) return null;
+    const res = await apiRaw(url.slice(API_PREFIX.length), { headers: { Accept: "image/*" }, signal });
+    return res.ok ? res.blob() : null;
+  },
 };
+
+/** `data.image_url` backend yo'limi (token bilan olinadi) */
+export const isApiPath = (url: string) => url.startsWith(`${API_PREFIX}/`);

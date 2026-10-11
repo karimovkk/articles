@@ -1,4 +1,5 @@
-// 87–88: PROD smoke — IELTS savollari real backend bilan (admin akkaunt): admin UI'da 13 tur yaratiladi →
+// 87–90: PROD smoke — IELTS savollari real backend bilan (admin akkaunt): admin UI'da 13 tur yaratiladi (diagramma —
+// rasm yuklash + yorliqlar, tahrirda saqlanib qolishi) →
 // saqlangan shakllar API'da tekshiriladi → o'quvchi (shu akkaunt) yechadi: UI'dagi ball va element/bo'sh joy belgilari
 // server natijasiga mos, yashirin javoblar, "Matnda ko'rsatish", tuzatib qayta tekshirish (100%) → TOZALASH (yaratilgan
 // savollar o'chiriladi, mark-read=false). Maqolada oldindan savol bo'lsa — to'xtaydi (haqiqiy kontentga tegmaydi).
@@ -26,8 +27,7 @@ for (const pth of ["/login", "/library", `/admin/books/${BOOK}`]) await fetch(`$
 
 const browser = await launch();
 const page = await (await browser.newContext({ viewport: { width: 1440, height: 900 } })).newPage();
-const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64");
-await page.route("https://img.test/**", (route) => route.fulfill({ body: PNG, contentType: "image/png" }));
+const WEBP = new URL("../../public/auth/mag-1.webp", import.meta.url).pathname; // diagramma rasmi (yuklanadi)
 const pageErrors = [], apiFails = [];
 page.on("pageerror", (e) => pageErrors.push(e.message));
 page.on("response", (r) => { if (r.url().includes("/api/v1/") && r.status() >= 400) apiFails.push(`${r.status()} ${r.request().method()} ${new URL(r.url()).pathname}`); });
@@ -122,15 +122,22 @@ try {
   await page.locator('[data-testid="qf-accepted"]').nth(1).fill("reja");
   await saveAndWait(13);
   await start("DIAGRAM_LABEL_COMPLETION", "Diagrammani belgilang.");
-  await page.fill('[data-testid="qf-image-url"]', "https://img.test/plant.png");
   await page.fill('[data-testid="qf-text"]', "Ildiz: ___\nBarg: ___");
+  await page.setInputFiles('[data-testid="qf-image-file"]', WEBP);
+  const labelsImg = page.locator('[data-testid="qf-labels-img"]');
+  await page.waitForFunction(() => document.querySelector('[data-testid="qf-labels-img"]')?.naturalWidth > 0, null, { timeout: 15000 });
+  for (const [fx, fy] of [[0.5, 0.45], [0.7, 0.8]]) {
+    await labelsImg.scrollIntoViewIfNeeded();
+    const bb = await labelsImg.boundingBox();
+    await labelsImg.click({ position: { x: bb.width * fx, y: bb.height * fy } });
+  }
   await page.locator('[data-testid="qf-accepted"]').nth(0).fill("suv");
   await page.locator('[data-testid="qf-accepted"]').nth(1).fill("quyosh");
   await saveAndWait(14);
   check("Admin UI: 14 ta savol (13 tur) real backend'da saqlandi, 4xx yo'q", (await items()) === 14 && apiFails.length === 0, apiFails.join(", "));
   const nums = await page.$$eval('[data-testid="q-item"] .qa-num', (els) => els.map((e) => e.textContent).join(","));
   check("Raqamlar ballar bo'yicha (backend `points`)", nums === "1,2,3,4,5–6,7–8,9–10,11–12,13–14,15,16–17,18–19,20–21,22–23", nums);
-  check("Choose TWO: ogohlantirish/belgi yo'q (backend data.choose ni saqlaydi)", (await page.locator('[data-testid="qa-choose-lost"]').count()) === 0);
+  check("Ro'yxatda diagramma savolida rasm belgisi (yuklandi)", (await page.locator('[data-testid="qa-image"]').count()) === 1);
   await page.screenshot({ path: OUT + "99-prod-ielts-admin.png", fullPage: true });
 
   const saved = await adminQs();
@@ -138,7 +145,17 @@ try {
   check("API: data.choose=2, answer.correct=[0,2]", byType("MULTIPLE_CHOICE", 1)?.data.choose === 2 && JSON.stringify(byType("MULTIPLE_CHOICE", 1)?.answer.correct) === "[0,2]");
   check("API: TFNG izohi '… [p. 2]'", byType("TRUE_FALSE_NOT_GIVEN")?.explanation === "Natija sekin, lekin barqaror. [p. 2]");
   check("API: completion — apostrof `'` ga keltirilgan, word_limit 2", JSON.stringify(byType("SENTENCE_COMPLETION")?.answer.blanks) === JSON.stringify([["oltmish olti"], ["o'z-o'zini nazorat"]]) && byType("SENTENCE_COMPLETION")?.data.word_limit === 2);
-  check("API: jadval/oqim matni, diagramma rasm satri", byType("TABLE_COMPLETION")?.data.text.includes(" | ") && byType("FLOW_CHART_COMPLETION")?.data.blanks === 2 && byType("DIAGRAM_LABEL_COMPLETION")?.data.text.startsWith("![diagram](https://img.test/plant.png)\n"));
+  const dg = byType("DIAGRAM_LABEL_COMPLETION");
+  check("API: jadval/oqim matni; diagramma — yuklangan rasm (data.image_url) va 2 ta yorliq", byType("TABLE_COMPLETION")?.data.text.includes(" | ") && byType("FLOW_CHART_COMPLETION")?.data.blanks === 2 && dg?.data.image_url === `/api/v1/reader/questions/${dg?.id}/diagram` && dg?.data.labels?.length === 2, JSON.stringify(dg?.data));
+  check("API: bitta to'g'ri javobli tanlovda choose=1", byType("MULTIPLE_CHOICE", 0)?.data.choose === 1);
+  // Tahrir (PATCH data'ni to'liq almashtiradi): rasm va yorliqlar yo'qolmasin
+  await page.locator('[data-testid="q-edit"]').last().click();
+  await page.waitForFunction(() => document.querySelector('[data-testid="qf-labels-img"]')?.naturalWidth > 0, null, { timeout: 15000 });
+  await page.fill('[data-testid="qf-prompt"]', "Diagrammani belgilang (rasmga qarang).");
+  await page.click('[data-testid="qf-save"]');
+  await page.waitForSelector("text=Diagrammani belgilang (rasmga qarang).", { timeout: 30000 });
+  const dg2 = (await adminQs()).find((x) => x.id === dg.id);
+  check("Admin tahriri: rasm token bilan ko'rindi; saqlangach image_url va labels joyida", dg2?.data.image_url === dg.data.image_url && dg2?.data.labels?.length === 2);
 
   // ---- O'quvchi (shu akkaunt)
   await page.goto(`${BASE}/reader/${ART}`);
@@ -150,6 +167,7 @@ try {
   check("O'quvchi: 14 savol, 13 guruh (2 ta tanlov — bitta guruh), '23 ta savol'", (await page.locator('[data-testid="quiz-question"]').count()) === 14 && (await page.locator('[data-testid="quiz-group"]').count()) === 13 && ((await page.textContent(".quiz-intro")) ?? "").includes("23"));
   check("Choose TWO: '2 ta javobni tanlang', belgilash kataklari", ((await q("MULTIPLE_CHOICE", 1).textContent()) ?? "").includes("2 ta javobni tanlang") && (await q("MULTIPLE_CHOICE", 1).locator('input[type="checkbox"]').count()) === 4);
   await page.waitForFunction(() => document.querySelector('[data-type="DIAGRAM_LABEL_COMPLETION"] .qv-figure img')?.naturalWidth > 0, null, { timeout: 15000 });
+  check("O'quvchi: diagramma rasmi (GET …/diagram, token bilan) va nuqtalar 22, 23", (await q("DIAGRAM_LABEL_COMPLETION").locator('[data-testid="qv-pin"]').allTextContents()).join(",") === "22,23");
   check("Diagramma rasmi, jadval, oqim, qaydlar ko'rinishi", (await q("TABLE_COMPLETION").locator(".qv-table").count()) === 1 && (await q("FLOW_CHART_COMPLETION").locator(".qv-flow-box").count()) === 2 && (await q("NOTE_COMPLETION").locator(".qv-note-line.bullet").count()) === 2);
 
   // Aralash javoblar: to'g'ri / xato / qisman / normalizatsiya

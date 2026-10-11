@@ -13,7 +13,7 @@ import { Fragment, useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/components/ui";
 import * as I from "@/components/ui/icons";
-import { mechanicOf, type QuestionResponse, type QuizAnswerResult, type QuizQuestion } from "@/lib/api";
+import { isApiPath, mechanicOf, quizApi, type QuestionResponse, type QuizAnswerResult, type QuizQuestion } from "@/lib/api";
 import { chooseCount, choiceOptions, enumValues, matchingOptions, normAnswer, splitBlanks, splitImage, splitPage, uniqueOptions, unifyApostrophes, wordCount } from "@/lib/quiz/ielts";
 import { useT } from "@/i18n";
 
@@ -29,6 +29,7 @@ export function QuestionView({
   disabled,
   reveal = true,
   onShowPage,
+  imageOverride,
 }: {
   q: QuizQuestion;
   /** Birinchi raqam (IELTS: har element/bo'sh joy — alohida raqam) */
@@ -41,6 +42,8 @@ export function QuestionView({
   reveal?: boolean;
   /** "Matnda ko'rsatish" — PDF'ning javob betiga o'tish */
   onShowPage?: (page: number) => void;
+  /** Admin: hali yuklanmagan rasm (lokal blob URL) — `data.image_url` o'rniga */
+  imageOverride?: string | null;
 }) {
   const { t } = useT();
   const mech = mechanicOf(q.type);
@@ -220,6 +223,9 @@ export function QuestionView({
       </Fragment>
     );
     const { image, rest: text } = splitImage((q.data.text ?? "").replace(/\r\n/g, "\n"));
+    // 90: rasm — `data.image_url` (yuklangan yoki tashqi), eski savollarda — matnning 1-satri; yorliqlar — raqamli nuqtalar
+    const imageUrl = imageOverride ?? q.data.image_url ?? image?.src ?? null;
+    const pins = (q.data.labels ?? []).slice(0, n).flatMap((l, i) => (l ? [{ x: l.x, y: l.y, n: start + i, state: result ? blankVerdict(i) : undefined }] : []));
     let layout: ReactNode;
     if (!text.trim()) {
       layout = (
@@ -289,7 +295,7 @@ export function QuestionView({
             {t("ielts.wordLimit", { n: limit })}
           </p>
         )}
-        {image && <Figure src={image.src} alt={image.alt} />}
+        {imageUrl && <Figure url={imageUrl} alt={image?.alt || q.prompt} pins={pins} />}
         {layout}
         {show && vals.some((_, i) => !blankOk(i)) && (
           <ul className="qv-fixes" data-testid="qv-fix">
@@ -337,10 +343,50 @@ export function QuestionView({
   );
 }
 
-/** 88.2: diagramma rasmi — bosilsa kattalashadi (Esc / bosish — yopiladi); yuklanmasa — xabar */
-function Figure({ src, alt }: { src: string; alt: string }) {
+/** 90: rasm manzili — backend yo'li token bilan blob qilib olinadi, tashqi https / lokal blob — o'zi */
+export function useDiagramSrc(url: string | null): { src: string | null; failed: boolean } {
+  const [loaded, setLoaded] = useState<{ url: string; src: string | null; failed: boolean } | null>(null);
+  const api = !!url && isApiPath(url);
+  useEffect(() => {
+    if (!url || !api) return;
+    const ctl = new AbortController();
+    let obj: string | null = null;
+    quizApi
+      .diagramBlob(url, ctl.signal)
+      .then((b) => {
+        if (ctl.signal.aborted) return;
+        obj = b ? URL.createObjectURL(b) : null;
+        setLoaded({ url, src: obj, failed: !b });
+      })
+      .catch(() => !ctl.signal.aborted && setLoaded({ url, src: null, failed: true }));
+    return () => {
+      ctl.abort();
+      if (obj) URL.revokeObjectURL(obj);
+    };
+  }, [url, api]);
+  if (!url) return { src: null, failed: false };
+  if (!api) return { src: url, failed: false };
+  return loaded?.url === url ? { src: loaded.src, failed: loaded.failed } : { src: null, failed: false };
+}
+
+type Pin = { x: number; y: number; n: number; state?: string };
+function Pins({ pins }: { pins: Pin[] }) {
+  return (
+    <>
+      {pins.map((p) => (
+        <span key={p.n} className={cn("qv-pin", p.state)} style={{ left: `${p.x}%`, top: `${p.y}%` }} data-testid="qv-pin">
+          {p.n}
+        </span>
+      ))}
+    </>
+  );
+}
+
+/** 88.2 → 90: diagramma rasmi + bo'sh joylar nuqtalari; bosilsa kattalashadi (Esc / bosish — yopiladi); yuklanmasa — xabar */
+function Figure({ url, alt, pins }: { url: string; alt: string; pins: Pin[] }) {
   const { t } = useT();
-  const [failed, setFailed] = useState(false);
+  const { src, failed: loadFailed } = useDiagramSrc(url);
+  const [broken, setBroken] = useState<string | null>(null);
   const [zoom, setZoom] = useState(false);
   useEffect(() => {
     if (!zoom) return;
@@ -348,24 +394,31 @@ function Figure({ src, alt }: { src: string; alt: string }) {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [zoom]);
-  if (failed)
+  if (loadFailed || (src && broken === src))
     return (
       <p className="qv-figure-fail" data-testid="qv-figure-fail">
         <I.Image size={14} />
         {t("ielts.imageFailed")}
       </p>
     );
+  if (!src) return <div className="qv-figure-loading" aria-busy="true" />;
   return (
     <figure className="qv-figure" data-testid="qv-figure">
       <button type="button" onClick={() => setZoom(true)} aria-label={t("ielts.imageZoom")}>
-        {/* eslint-disable-next-line @next/next/no-img-element -- admin kiritgan tashqi havola (o'lchami noma'lum) */}
-        <img src={src} alt={alt} referrerPolicy="no-referrer" onError={() => setFailed(true)} />
+        <span className="qv-figure-box">
+          {/* eslint-disable-next-line @next/next/no-img-element -- blob / admin kiritgan tashqi havola (o'lchami noma'lum) */}
+          <img src={src} alt={alt} referrerPolicy="no-referrer" onError={() => setBroken(src)} />
+          <Pins pins={pins} />
+        </span>
       </button>
       {zoom &&
         createPortal(
           <div className="qv-figure-zoom" role="dialog" aria-label={alt || t("ielts.imageZoom")} onClick={() => setZoom(false)} data-testid="qv-figure-zoom">
-          {/* eslint-disable-next-line @next/next/no-img-element -- yuqoridagi rasmning kattasi */}
-          <img src={src} alt={alt} referrerPolicy="no-referrer" />
+            <span className="qv-figure-box">
+              {/* eslint-disable-next-line @next/next/no-img-element -- yuqoridagi rasmning kattasi */}
+              <img src={src} alt={alt} referrerPolicy="no-referrer" />
+              <Pins pins={pins} />
+            </span>
           </div>,
           document.body,
         )}

@@ -10,7 +10,7 @@
  *              qabul qilinadigan variantlar, so'z chegarasi.
  * O'ngda — o'quvchi ko'rinishi (jonli; "To'g'ri javob bilan" — natija rejimi). Tekshiruv — `validateDraft` (backend 422 ham).
  */
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   Button,
@@ -23,6 +23,7 @@ import {
 } from "@/components/ui";
 import * as I from "@/components/ui/icons";
 import { QuestionView } from "@/components/quiz/question-view";
+import { DiagramImageField } from "./diagram-image-field";
 import {
   errorMessage,
   mechanicOf,
@@ -47,12 +48,10 @@ import {
   matchingOptions,
   optionKey,
   validateDraft,
-  promptChooseCount,
   splitImage,
   withImage,
   splitPage,
   withPage,
-  HTTPS_URL_RE,
 } from "@/lib/quiz/ielts";
 import { useT, type DictKey } from "@/i18n";
 
@@ -125,10 +124,26 @@ export function QuestionForm({
     initial?.type ?? "MULTIPLE_CHOICE",
   );
   const [prompt, setPrompt] = useState(initial?.prompt ?? "");
-  const [data, setData] = useState<QuestionData>(() =>
-    initial
-      ? structuredClone(initial.data)
-      : emptyDraft("MULTIPLE_CHOICE").data,
+  const [data, setData] = useState<QuestionData>(() => {
+    if (!initial) return emptyDraft("MULTIPLE_CHOICE").data;
+    const d = structuredClone(initial.data);
+    // 90: eski savol — rasm matnning 1-satrida (`![…](https://…)`) → `data.image_url`
+    const img = splitImage(d.text ?? "");
+    if (img.raw !== null && !d.image_url)
+      return { ...d, image_url: img.raw, text: img.rest };
+    return d;
+  });
+  // 90: tanlangan, hali yuklanmagan diagramma rasmi (savol saqlangach yuboriladi)
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const pendingSrc = useMemo(
+    () => (pendingFile ? URL.createObjectURL(pendingFile) : null),
+    [pendingFile],
+  );
+  useEffect(
+    () => () => {
+      if (pendingSrc) URL.revokeObjectURL(pendingSrc);
+    },
+    [pendingSrc],
   );
   const [answer, setAnswer] = useState<QuestionAnswer>(() =>
     initial
@@ -277,21 +292,28 @@ export function QuestionForm({
     setError(null);
     try {
       const body = { ...v.input, explanation: fullExplanation };
-      const saved = initial
+      let saved = initial
         ? await quizApi.adminUpdate(articleId, initial.id, body)
         : await quizApi.adminCreate(articleId, {
             ...body,
             order_index: orderIndex,
           });
-      // Ko'p javobli savol: server `choose` ni saqlamasa — o'quvchi bitta variant tanlay oladi (ogohlantirish)
-      // (savol matnida son bo'lsa — "Choose TWO" — o'quvchi baribir to'g'ri ko'radi)
-      const wantChoose = (v.input.data as { choose?: number }).choose;
-      const warning =
-        wantChoose &&
-        !(saved.data as { choose?: number }).choose &&
-        promptChooseCount(saved.prompt) !== wantChoose
-          ? t("ielts.admin.chooseLost")
-          : null;
+      // 90: diagramma rasmi — savol saqlangach (id kerak); yuklanmasa savol baribir saqlangan
+      let warning: string | null = null;
+      if (pendingFile && mech === "text") {
+        try {
+          saved = await quizApi.adminUploadImage(
+            articleId,
+            saved.id,
+            pendingFile,
+            pendingFile.name,
+          );
+        } catch (e) {
+          warning = t("ielts.admin.imageUploadFailed", {
+            msg: errorMessage(e),
+          });
+        }
+      }
       onSaved(saved, warning);
     } catch (e) {
       setError(errorMessage(e));
@@ -385,13 +407,6 @@ export function QuestionForm({
               ? t("ielts.admin.singleHint")
               : t("ielts.admin.pickCorrect")}
         </p>
-        {/* 88.1: server `choose` ni saqlamasa ham — savol matnidagi son bo'yicha */}
-        {correct.size > 1 && !promptChooseCount(prompt) && (
-          <p className="text-xs text-text-2" data-testid="qf-choose-tip">
-            <I.Info size={12} className="mr-1 inline" />
-            {t("ielts.admin.chooseTip", { n: correct.size })}
-          </p>
-        )}
       </div>
     );
   } else if (mech === "enum") {
@@ -599,7 +614,8 @@ export function QuestionForm({
     const n = countBlanks(text);
     // 88.2: diagramma rasmi — 1-satr `![…](https://…)`; matn maydonida ko'rinmaydi, alohida havola maydoni
     const img = splitImage(text);
-    const withImg = type === "DIAGRAM_LABEL_COMPLETION" || img.raw !== null;
+    const withImg =
+      type === "DIAGRAM_LABEL_COMPLETION" || !!data.image_url || !!pendingFile;
     const blanks = answer.blanks ?? [];
     let editor: React.ReactNode;
     if (type === "TABLE_COMPLETION") {
@@ -766,31 +782,33 @@ export function QuestionForm({
     }
     fields = (
       <div className="space-y-3" data-testid="qf-text-type">
-        {withImg &&
-          type !== "TABLE_COMPLETION" &&
-          type !== "FLOW_CHART_COMPLETION" && (
-            <Field
-              label={t("ielts.admin.imageUrl")}
-              hint={t("ielts.admin.imageUrlHint")}
-            >
-              <Input
-                type="url"
-                inputMode="url"
-                value={img.raw ?? ""}
-                placeholder="https://…/diagram.png"
-                onChange={(e) => {
-                  touch();
-                  setText(withImage(e.target.value, img.rest));
-                }}
-                data-testid="qf-image-url"
-              />
-              {img.raw && !HTTPS_URL_RE.test(img.raw) && (
-                <p className="mt-1 text-xs font-semibold text-danger">
-                  {t("ielts.err.image")}
-                </p>
-              )}
-            </Field>
-          )}
+        {withImg && (
+          <DiagramImageField
+            imageUrl={data.image_url ?? null}
+            pendingSrc={pendingSrc}
+            count={n}
+            labels={data.labels ?? []}
+            onFile={(f) => {
+              touch();
+              setPendingFile(f);
+            }}
+            onRemove={() => {
+              touch();
+              setPendingFile(null);
+              setData({ ...data, image_url: null, labels: [] });
+            }}
+            onUrl={(url) => {
+              touch();
+              setPendingFile(null);
+              setData({ ...data, image_url: url });
+            }}
+            onLabels={(labels) => {
+              touch();
+              setData({ ...data, labels });
+            }}
+            onError={setError}
+          />
+        )}
         <p className="qf-label">{t("ielts.admin.textLabel")}</p>
         {editor}
         <div className="space-y-2">
@@ -1070,6 +1088,7 @@ export function QuestionForm({
             }
             onChange={(r) => setPreviewResp((s) => ({ ...s, [type]: r }))}
             result={previewResult}
+            imageOverride={pendingSrc}
           />
         </div>
         {v.error && (

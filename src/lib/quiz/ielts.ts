@@ -28,6 +28,9 @@ export function splitImage(text: string): { image: { alt: string; src: string } 
   const rest = nl < 0 ? "" : text.slice(nl + 1);
   return { image: HTTPS_URL_RE.test(m[2]) ? { alt: m[1], src: m[2] } : null, raw: m[2], rest };
 }
+/** 90: `data.image_url` — backend yo'li (`/api/v1/…`, yuklangan rasm) yoki tashqi https */
+export const imageUrlOk = (url: string) => url.startsWith("/api/v1/") || HTTPS_URL_RE.test(url);
+const clampPct = (v: number) => Math.round(Math.min(100, Math.max(0, v)) * 10) / 10;
 export const withImage = (src: string, rest: string) => (src.trim() ? `![diagram](${src.trim()})\n${rest}` : rest);
 
 // ---- 88.4: javob sahifasi — izoh oxirida `[p. 12]`
@@ -171,10 +174,8 @@ export function validateDraft(type: QuestionType, prompt: string, data: Question
       // Savol matnidagi son ("Choose TWO") to'g'ri javoblar soniga mos bo'lsin — aks holda o'quvchi to'liq ball ololmaydi
       const said = promptChooseCount(base.prompt);
       if (said && said !== correct.length) return { error: "ielts.err.chooseMismatch", input: { ...base, data, answer } };
-      // Ko'p javobli: o'quvchi nechta tanlashini bilishi uchun `choose` (o'quvchi `answer` ni ko'rmaydi — backend kontraktida yo'q)
-      const out: QuestionData & { choose?: number } = { options };
-      if (correct.length > 1) out.choose = correct.length;
-      return { error: null, input: { ...base, data: out, answer: { correct } } };
+      // `choose` — o'quvchi nechta tanlaydi (backend v1.1: = to'g'ri javoblar soni, aks holda 422) — doim yuboriladi
+      return { error: null, input: { ...base, data: { options, choose: correct.length }, answer: { correct } } };
     }
     case "enum": {
       if (!enumValues(type).includes(answer.value ?? "")) return { error: "ielts.err.value", input: { ...base, data: {}, answer } };
@@ -200,6 +201,9 @@ export function validateDraft(type: QuestionType, prompt: string, data: Question
       const text = (data.text ?? "").replace(/\r\n/g, "\n");
       const img = splitImage(text);
       if (img.raw !== null && !img.image) return { error: "ielts.err.image", input: { ...base, data, answer } };
+      // 90: diagramma rasmi — backend yo'li (yuklangan) yoki tashqi https
+      const imageUrl = typeof data.image_url === "string" ? data.image_url.trim() : "";
+      if (imageUrl && !imageUrlOk(imageUrl)) return { error: "ielts.err.image", input: { ...base, data, answer } };
       const n = text.trim() ? countBlanks(text) : Number(data.blanks) || 0;
       if (n < 1) return { error: "ielts.err.blanks", input: { ...base, data, answer } };
       const blanks = Array.from({ length: n }, (_, i) => (answer.blanks?.[i] ?? []).map((v) => unifyApostrophes(v.trim())).filter(Boolean));
@@ -212,6 +216,12 @@ export function validateDraft(type: QuestionType, prompt: string, data: Question
       const out: QuestionData = { blanks: n };
       if (text.trim()) out.text = text;
       if (wl > 0) out.word_limit = wl;
+      // PATCH `data` ni to'liq almashtiradi — rasm va yorliqlar yo'qolmasin
+      if (imageUrl) out.image_url = imageUrl;
+      // indeks = bo'sh joy tartibi; joylanmagani — null (oxiridagi null'lar olib tashlanadi)
+      const labels = (data.labels ?? []).slice(0, n).map((l) => (l && Number.isFinite(l.x) && Number.isFinite(l.y) ? { x: clampPct(l.x), y: clampPct(l.y) } : null));
+      while (labels.length && !labels[labels.length - 1]) labels.pop();
+      if (labels.length) out.labels = labels;
       return { error: null, input: { ...base, data: out, answer: { blanks } } };
     }
   }

@@ -14,12 +14,14 @@ export { appApi, type AppSettings, type AppImage, type AppImageTheme } from "./a
 export { streakApi, type Streak, type Leaderboard, type LeaderboardEntry } from "./streak";
 export {
   quizApi,
+  isApiPath,
   QUESTION_TYPES,
   mechanicOf,
   pointsOf,
   type QuestionType,
   type Mechanic,
   type MatchingOption,
+  type DiagramLabel,
   type QuestionData,
   type QuestionAnswer,
   type QuestionResponse,
