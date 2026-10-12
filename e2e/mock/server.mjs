@@ -168,7 +168,20 @@ function qGrade(q, r) {
   }
   return 0;
 }
-const qReader = ({ id, type, prompt, data, order_index, ...q }) => ({ id, type, prompt, data, points: qPoints({ type, data, ...q }), order_index });
+// 94: javob joyi — answer_page / answer_text (real backend: matn betda bo'lishi shart; faqat matn → bet avtomatik)
+const mockPageText = (n) => [`Page ${n}: The quick brown fox jumps over the lazy dog.`, ...Array.from({ length: 11 }, (_, k) => `Line ${k + 1} of page ${n} - Articles365 protected reader test text.`)].join(" ");
+const ansNorm = (t) => String(t).toLowerCase().split(/\s+/).filter(Boolean).join(" ");
+/** null — joyida; aks holda [status, code, message, details] */
+function qAnswerRef(q, pageCount) {
+  if (typeof q.answer_text === "string" && !q.answer_text.trim()) q.answer_text = null;
+  if (q.answer_page != null && (!Number.isInteger(q.answer_page) || q.answer_page < 1 || q.answer_page > pageCount)) return [422, "VALIDATION_ERROR", "answer_page out of range", { page_count: pageCount }];
+  if (!q.answer_text) return null;
+  const found = Array.from({ length: pageCount }, (_, i) => i + 1).filter((n) => ansNorm(mockPageText(n)).includes(ansNorm(q.answer_text)));
+  if (q.answer_page == null) { if (!found.length) return [422, "ANSWER_TEXT_NOT_FOUND", "answer_text maqolada topilmadi", { found_pages: [] }]; q.answer_page = found[0]; return null; }
+  return found.includes(q.answer_page) ? null : [422, "ANSWER_TEXT_NOT_FOUND", `answer_text ${q.answer_page}-betda topilmadi`, { found_pages: found }];
+}
+// eslint-disable-next-line no-unused-vars -- answer_page/answer_text o'quvchiga berilmaydi (test yechilguncha)
+const qReader = ({ id, type, prompt, data, order_index, answer_page, answer_text, ...q }) => ({ id, type, prompt, data, points: qPoints({ type, data, ...q }), order_index });
 const qAdmin = (q) => ({ ...q, points: qPoints(q) });
 
 
@@ -299,11 +312,11 @@ createServer(async (req, res) => {
     const aid = q.get("article"); questions = questions.filter((x) => x.article_id !== aid);
     const mk = (o, i) => questions.push({ id: randomUUID(), article_id: aid, explanation: null, order_index: i, ...o });
     [
-      { type: "TRUE_FALSE_NOT_GIVEN", prompt: "Kichik odatlar natijani tez o'zgartiradi.", data: {}, answer: { value: "FALSE" }, explanation: "2-paragraf: natija sekin, lekin barqaror. [p. 3]" },
+      { type: "TRUE_FALSE_NOT_GIVEN", prompt: "Kichik odatlar natijani tez o'zgartiradi.", data: {}, answer: { value: "FALSE" }, explanation: "2-paragraf: natija sekin, lekin barqaror.", answer_page: 3, answer_text: "Line 4 of page 3" },
       { type: "TRUE_FALSE_NOT_GIVEN", prompt: "Muallif 21 kunlik qoida haqida yozadi.", data: {}, answer: { value: "NOT_GIVEN" } },
       { type: "MULTIPLE_CHOICE", prompt: "Odatni nima mustahkamlaydi?", data: { options: ["Iroda", "Takrorlash", "Omad", "Pul"] }, answer: { correct: [1] } },
       { type: "MULTIPLE_CHOICE", prompt: "Qaysi IKKITASI muallif tavsiyasi?", data: { options: ["Kichik boshlash", "Hammasini birdan", "Muhitni o'zgartirish", "Kutish"], choose: 2 }, answer: { correct: [0, 2] } },
-      { type: "MATCHING_HEADINGS", prompt: "A–C paragraflar uchun sarlavha tanlang.", data: { items: ["Paragraf A", "Paragraf B", "Paragraf C"], options: [{ key: "i", text: "Kichik qadamlar" }, { key: "ii", text: "Muhitning roli" }, { key: "iii", text: "Natijani o'lchash" }, { key: "iv", text: "Motivatsiya afsonasi" }] }, answer: { map: { 0: "i", 1: "ii", 2: "iii" } }, explanation: "[p. 2]" },
+      { type: "MATCHING_HEADINGS", prompt: "A–C paragraflar uchun sarlavha tanlang.", data: { items: ["Paragraf A", "Paragraf B", "Paragraf C"], options: [{ key: "i", text: "Kichik qadamlar" }, { key: "ii", text: "Muhitning roli" }, { key: "iii", text: "Natijani o'lchash" }, { key: "iv", text: "Motivatsiya afsonasi" }] }, answer: { map: { 0: "i", 1: "ii", 2: "iii" } }, answer_page: 2, answer_text: "Line 7 of page 2 - Articles365" },
       { type: "SENTENCE_COMPLETION", prompt: "Matndan BIR so'z bilan to'ldiring.", data: { blanks: 2, text: "Odat ___ kun ichida shakllanadi va ___ talab qiladi.", word_limit: 1 }, answer: { blanks: [["66", "oltmish olti"], ["sabr", "sabr-toqat"]] }, explanation: "3-paragraf." },
       { type: "TABLE_COMPLETION", prompt: "Jadvalni to'ldiring.", data: { blanks: 2, text: "Bosqich | Tavsif\nBoshlash | ___\nTakrorlash | ___", word_limit: 2 }, answer: { blanks: [["kichik qadam"], ["har kuni"]] } },
     ].forEach(mk);
@@ -529,7 +542,7 @@ createServer(async (req, res) => {
     if (rq[2] === "quiz" && m === "POST") {
       if (me === GUEST) return err(res, 401, "AUTHENTICATION_REQUIRED", "Authentication required");
       const b = await readBody(req); __lastQuizBody = b; const ans = new Map((b.answers ?? []).map((x) => [x.question_id, x.response]));
-      const results = qs.map((q) => { const max = qPoints(q); const sc = qGrade(q, ans.get(q.id)); return { question_id: q.id, type: q.type, is_correct: sc === max, score: sc, max_score: max, correct_answer: qCorrectOut(q), explanation: q.explanation ?? null }; });
+      const results = qs.map((q) => { const max = qPoints(q); const sc = qGrade(q, ans.get(q.id)); return { question_id: q.id, type: q.type, is_correct: sc === max, score: sc, max_score: max, correct_answer: qCorrectOut(q), explanation: q.explanation ?? null, answer_page: q.answer_page ?? null, answer_text: q.answer_text ?? null }; });
       const score = results.reduce((s2, r) => s2 + r.score, 0), total = results.reduce((s2, r) => s2 + r.max_score, 0);
       return json(res, 200, { score, total, percentage: total ? Math.round((score / total) * 10000) / 100 : 0, results });
     }
@@ -812,10 +825,10 @@ createServer(async (req, res) => {
       if (!articles.some((x) => x.id === aid)) return err(res, 404, "ARTICLE_NOT_FOUND", "Article not found");
       const bad = () => err(res, 422, "VALIDATION_ERROR", "Validation failed", [{ loc: ["body", "data"], msg: "data/answer shape does not match type" }]);
       if (!qid && m === "GET") return json(res, 200, questions.filter((q) => q.article_id === aid).sort((x, y) => x.order_index - y.order_index).map(qAdmin));
-      if (!qid && m === "POST") { const b = await readBody(req); __lastQuestionBody = b; if (b.prompt === "__422__") return bad(); const q = { id: randomUUID(), article_id: aid, type: b.type, prompt: b.prompt, data: b.data, answer: b.answer, explanation: b.explanation ?? null, order_index: b.order_index ?? 0 }; if (!qValid(q)) return bad(); if (!qChoose(q)) return chooseBad(res, q); questions.push(q); return json(res, 201, qAdmin(q)); }
+      if (!qid && m === "POST") { const b = await readBody(req); __lastQuestionBody = b; if (b.prompt === "__422__") return bad(); const q = { id: randomUUID(), article_id: aid, type: b.type, prompt: b.prompt, data: b.data, answer: b.answer, explanation: b.explanation ?? null, answer_page: b.answer_page ?? null, answer_text: b.answer_text ?? null, order_index: b.order_index ?? 0 }; if (!qValid(q)) return bad(); if (!qChoose(q)) return chooseBad(res, q); { const e = qAnswerRef(q, articles.find((x) => x.id === aid).page_count ?? 0); if (e) return err(res, ...e); } questions.push(q); return json(res, 201, qAdmin(q)); }
       const q = questions.find((x) => x.id === qid && x.article_id === aid);
       if (!q) return err(res, 404, "QUESTION_NOT_FOUND", "Question not found");
-      if (m === "PATCH") { const b = await readBody(req); __lastQuestionBody = b; const next = { ...q, ...Object.fromEntries(Object.entries(b).filter(([, v]) => v !== undefined)) }; if (!qValid(next)) return bad(); if (!qChoose(next)) return chooseBad(res, next); Object.assign(q, next); return json(res, 200, qAdmin(q)); }
+      if (m === "PATCH") { const b = await readBody(req); __lastQuestionBody = b; const next = { ...q, ...Object.fromEntries(Object.entries(b).filter(([, v]) => v !== undefined)) }; if (!qValid(next)) return bad(); if (!qChoose(next)) return chooseBad(res, next); { const e = qAnswerRef(next, articles.find((x) => x.id === aid).page_count ?? 0); if (e) return err(res, ...e); } Object.assign(q, next); return json(res, 200, qAdmin(q)); }
       if (m === "DELETE") { questions = questions.filter((x) => x.id !== q.id); diagramFiles.delete(q.id); return json(res, 200, { message: "Question deleted" }); }
     }
     // 44.4: to'lovlar statistikasi — tushum = APPROVED buyurtmalar

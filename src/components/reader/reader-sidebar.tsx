@@ -20,6 +20,8 @@ interface Props {
   onClose: () => void;
   goToPage: (p: number) => void;
   currentPage: number;
+  /** 94: test — javob beti va matni (bo'rttiriladi) */
+  onShowAnswer: (page: number, text?: string | null) => void;
 
   toc: TocEntry[] | null;
   tocAvailable: boolean;
@@ -80,7 +82,7 @@ export function ReaderSidebar(p: Props) {
       <div className="min-h-0 flex-1 overflow-auto p-3 text-sm">
         {p.tab === "toc" && <TocPanel toc={p.toc} available={p.tocAvailable} goToPage={p.goToPage} />}
         {p.tab === "search" && <SearchPanel {...p} />}
-        {p.tab === "test" && p.quiz.length > 0 && <QuizPanel articleId={p.articleId} questions={p.quiz} onShowPage={p.goToPage} />}
+        {p.tab === "test" && p.quiz.length > 0 && <QuizPanel articleId={p.articleId} questions={p.quiz} onShowPage={p.onShowAnswer} />}
         {p.tab === "bookmarks" && (
           <AnnotationList
             items={p.annotations.filter((a) => a.type === "BOOKMARK")}

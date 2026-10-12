@@ -92,6 +92,9 @@ export interface QuizAnswerResult {
   max_score: number;
   correct_answer: QuestionAnswer | null;
   explanation: string | null;
+  /** 94: javob joyi — bet va maqoladagi matn parchasi (natijada; test yechilguncha berilmaydi) */
+  answer_page?: number | null;
+  answer_text?: string | null;
 }
 
 export interface QuizResult {
@@ -105,6 +108,8 @@ export interface AdminQuestion extends QuizQuestion {
   article_id: string;
   answer: QuestionAnswer;
   explanation: string | null;
+  answer_page?: number | null;
+  answer_text?: string | null;
 }
 
 export interface QuestionInput {
@@ -113,6 +118,8 @@ export interface QuestionInput {
   data: QuestionData;
   answer: QuestionAnswer;
   explanation?: string | null;
+  answer_page?: number | null;
+  answer_text?: string | null;
   order_index?: number;
 }
 

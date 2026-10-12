@@ -47,7 +47,7 @@ function write(key: string, value: unknown) {
   }
 }
 
-export function QuizPanel({ articleId, questions, onShowPage }: { articleId: string; questions: QuizQuestion[]; onShowPage?: (page: number) => void }) {
+export function QuizPanel({ articleId, questions, onShowPage }: { articleId: string; questions: QuizQuestion[]; onShowPage?: (page: number, text?: string | null) => void }) {
   const { t } = useT();
   const confirm = useConfirm();
   const csr = typeof window !== "undefined";
@@ -133,9 +133,9 @@ export function QuizPanel({ articleId, questions, onShowPage }: { articleId: str
     setRevealed(false);
   };
   const showPage = onShowPage
-    ? (qid: string) => (page: number) => {
+    ? (qid: string) => (page: number, text?: string | null) => {
         write(focusKey(articleId), qid);
-        onShowPage(page);
+        onShowPage(page, text);
       }
     : null;
 

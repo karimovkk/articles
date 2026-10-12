@@ -175,7 +175,7 @@ html {
   background: rgba(250, 204, 21, 0.55);
   box-shadow: 0 0 0 1.5px rgba(202, 138, 4, 0.45);
   mix-blend-mode: multiply;
-  animation: search-hit 6s ease forwards;
+  animation: search-hit var(--hit-ms, 6s) ease forwards;
 }
 .reader-night .searchLayer > div {
   background: rgba(250, 204, 21, 0.42);

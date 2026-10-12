@@ -41,7 +41,7 @@ export function QuestionView({
   /** Natijada to'g'ri javoblar va izoh ko'rinsinmi (o'quvchi "Ko'rsatish" ni bosguncha — yo'q) */
   reveal?: boolean;
   /** "Matnda ko'rsatish" — PDF'ning javob betiga o'tish */
-  onShowPage?: (page: number) => void;
+  onShowPage?: (page: number, text?: string | null) => void;
   /** Admin: hali yuklanmagan rasm (lokal blob URL) — `data.image_url` o'rniga */
   imageOverride?: string | null;
 }) {
@@ -53,6 +53,9 @@ export function QuestionView({
   const range = q.points > 1 ? `${start}–${start + q.points - 1}` : String(start);
   const show = !!result && reveal; // to'g'ri javoblar ochiq
   const expl = splitPage(result?.explanation);
+  // 94: javob joyi — `answer_page` / `answer_text` (backend); eski savollarda bet izoh oxirida (`[p. N]`)
+  const answerPage = result?.answer_page ?? expl.page;
+  const answerText = result?.answer_text ?? null;
 
   let body: ReactNode = null;
 
@@ -337,10 +340,10 @@ export function QuestionView({
           <span className="user-text">{expl.text}</span>
         </p>
       )}
-      {result && expl.page && onShowPage && (show || verdict !== "correct") && (
-        <button type="button" className="qv-show-page" onClick={() => onShowPage(expl.page!)} data-testid="qv-show-page">
+      {result && answerPage && onShowPage && (show || verdict !== "correct") && (
+        <button type="button" className="qv-show-page" onClick={() => onShowPage(answerPage, answerText)} data-testid="qv-show-page">
           <I.BookOpen size={13} />
-          {t("ielts.showInText", { n: expl.page })}
+          {t("ielts.showInText", { n: answerPage })}
         </button>
       )}
     </div>

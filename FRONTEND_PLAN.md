@@ -1430,6 +1430,15 @@ fayl storage'da qoladi va hali ham beriladi — shuning uchun DELETE shart.
 - [x] 93.3 Native `<select>` o'rniga qo'lbola Select (o'quvchi moslashtirish, admin to'g'ri kalit)
 - [x] 93.4 e2e dev + prod, real backend smoke
 
+## 94. IELTS — javob matni: "Matnda ko'rsatish" betga o'tadi va matnni 1,2 soniya bo'rttiradi (2026-10-12)
+
+Manba: `Articles365_BACKEND_IELTS_Javob_Matni_v1.0.md` (backend prod'da): `answer_page`, `answer_text`.
+
+- [x] 94.1 Admin: "Javob matni" maydoni; bet endi `answer_page` da (izohga `[p. N]` yozilmaydi, eskisi o'qiladi);
+      422 `ANSWER_TEXT_NOT_FOUND` → "u N-betda" va "Betni N ga o'zgartirish"; nusxada ham ko'chiriladi
+- [x] 94.2 O'quvchi: "Matnda ko'rsatish" → bet + matn 1,2 s bo'rttiriladi (qidiruv mexanizmi, davomiylik sozlanadi)
+- [x] 94.3 Mock, e2e dev + prod, real backend smoke
+
 ## 31. Keyingi vazifalar
 
 - [ ] 31.1 Safari (WebKit): varaqlash rejimida oldingi sahifaga qaytilganda (3-sahifa) belgilash qatlami

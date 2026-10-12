@@ -80,11 +80,18 @@ await page.fill('[data-testid="qf-explanation"]', "2-paragraf.");
 await page.fill('[data-testid="qf-answer-page"]', "40");
 check("Javob sahifasi 40 (maqola 6 bet) — xato", ((await page.textContent('[data-testid="question-form"]')) ?? "").includes("1 dan 6 gacha"));
 await page.fill('[data-testid="qf-answer-page"]', "3");
+// 94: javob matni — boshqa betdagi parcha → backend 422 + topilgan bet taklifi
+await page.fill('[data-testid="qf-answer-text"]', "Line 5 of page 2 - Articles365");
+await page.click('[data-testid="qf-save"]');
+await page.waitForSelector('[data-testid="qf-text-not-found"]', { timeout: 5000 });
+check("Javob matni 3-betda yo'q — 'u 2-betda' va taklif; savol saqlanmadi", ((await page.textContent('[data-testid="qf-text-not-found"]')) ?? "").includes("2-betda") && (await qs()).length === 1);
+await page.click('[data-testid="qf-use-found-page"]');
+check("Taklif bosildi — bet 2 ga o'zgardi", (await page.inputValue('[data-testid="qf-answer-page"]')) === "2");
 await page.click('[data-testid="qf-save"]');
 await page.waitForFunction(() => document.querySelectorAll('[data-testid="q-item"]').length === 2, null, { timeout: 8000 });
 b = await last();
-check("TFNG saqlandi: data {}, answer.value FALSE, izoh + sahifa ('2-paragraf. [p. 3]')", b.type === "TRUE_FALSE_NOT_GIVEN" && JSON.stringify(b.data) === "{}" && b.answer.value === "FALSE" && b.explanation === "2-paragraf. [p. 3]", JSON.stringify(b));
-check("Ro'yxatda: '3-bet' belgisi", ((await page.locator('[data-testid="q-item"]').nth(1).locator('[data-testid="qa-page"]').textContent()) ?? "").includes("3-bet"));
+check("TFNG saqlandi: data {}, answer.value FALSE, izoh (belgisiz), answer_page 2, answer_text", b.type === "TRUE_FALSE_NOT_GIVEN" && JSON.stringify(b.data) === "{}" && b.answer.value === "FALSE" && b.explanation === "2-paragraf." && b.answer_page === 2 && b.answer_text === "Line 5 of page 2 - Articles365", JSON.stringify(b));
+check("Ro'yxatda: '2-bet' belgisi", ((await page.locator('[data-testid="q-item"]').nth(1).locator('[data-testid="qa-page"]').textContent()) ?? "").includes("2-bet"));
 
 // ---- 3) Matching headings → information (kalitlar qayta nomlanadi)
 await page.click('[data-testid="q-new"]');
@@ -185,7 +192,7 @@ await page.waitForFunction(() => document.querySelectorAll('[data-testid="q-item
 check("Nusxa: ro'yxat oxirida TFNG nusxasi", (await qs())[6]?.type === "TRUE_FALSE_NOT_GIVEN");
 await page.locator('[data-testid="q-edit"]').nth(6).click();
 await page.waitForSelector('[data-testid="question-form"]');
-check("Tahrir: forma joriy qiymatlar bilan (izoh va sahifa alohida), boshqa tugmalar o'chiq", (await page.inputValue('[data-testid="qf-prompt"]')).includes("Kichik odatlar") && (await page.inputValue('[data-testid="qf-explanation"]')) === "2-paragraf." && (await page.inputValue('[data-testid="qf-answer-page"]')) === "3" && (await page.locator('[data-testid="q-new"]').isDisabled()));
+check("Tahrir: forma joriy qiymatlar bilan (izoh va sahifa alohida), boshqa tugmalar o'chiq", (await page.inputValue('[data-testid="qf-prompt"]')).includes("Kichik odatlar") && (await page.inputValue('[data-testid="qf-explanation"]')) === "2-paragraf." && (await page.inputValue('[data-testid="qf-answer-page"]')) === "2" && (await page.inputValue('[data-testid="qf-answer-text"]')).startsWith("Line 5 of page 2") && (await page.locator('[data-testid="q-new"]').isDisabled()));
 await page.fill('[data-testid="qf-prompt"]', "Odat shakllanishi uchun iroda yetarli.");
 await page.locator('[data-testid="qf-enum"]', { hasText: "NOT GIVEN" }).click();
 await page.click('[data-testid="qf-save"]');

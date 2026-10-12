@@ -28,6 +28,7 @@ import { DiagramImageField } from "./diagram-image-field";
 import { useUnsavedGuard } from "@/lib/use-unsaved-guard";
 import {
   errorMessage,
+  isApiError,
   isApiPath,
   mechanicOf,
   pointsOf,
@@ -54,7 +55,6 @@ import {
   splitImage,
   withImage,
   splitPage,
-  withPage,
 } from "@/lib/quiz/ielts";
 import { useT, type DictKey } from "@/i18n";
 
@@ -158,15 +158,19 @@ export function QuestionForm({
     () => splitPage(initial?.explanation).text,
   );
   const [answerPage, setAnswerPage] = useState(() =>
-    String(splitPage(initial?.explanation).page ?? ""),
+    String(initial?.answer_page ?? splitPage(initial?.explanation).page ?? ""),
   );
+  // 94: maqoladagi javob matni — o'quvchida "Matnda ko'rsatish" shu parchani bo'rttiradi
+  const [answerText, setAnswerText] = useState(initial?.answer_text ?? "");
+  // Backend: matn ko'rsatilgan betda topilmadi → topilgan betlar (taklif)
+  const [foundPages, setFoundPages] = useState<number[] | null>(null);
   const pageNo = Number(answerPage) || null;
   const pageBad =
     answerPage.trim() !== "" &&
     (!Number.isInteger(Number(answerPage)) ||
       Number(answerPage) < 1 ||
       Number(answerPage) > (pageCount || 9999));
-  const fullExplanation = withPage(explanation, pageBad ? null : pageNo);
+  const fullExplanation = explanation.trim() || null; // bet endi `answer_page` da (izohga `[p. N]` yozilmaydi)
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showAnswer, setShowAnswer] = useState(false);
@@ -182,7 +186,15 @@ export function QuestionForm({
   };
   const [uploadPct, setUploadPct] = useState<number | null>(null);
   const snapshotOf = () =>
-    JSON.stringify({ type, prompt, data, answer, explanation, answerPage });
+    JSON.stringify({
+      type,
+      prompt,
+      data,
+      answer,
+      explanation,
+      answerPage,
+      answerText,
+    });
   const [initialSnapshot] = useState(snapshotOf);
   const dirty =
     !busy && ((edited && snapshotOf() !== initialSnapshot) || !!pendingFile);
@@ -288,6 +300,8 @@ export function QuestionForm({
         max_score: previewQ.points,
         correct_answer: v.error ? answer : v.input.answer,
         explanation: fullExplanation,
+        answer_page: pageBad ? null : pageNo,
+        answer_text: answerText.trim() || null,
       }
     : null;
   const answerAsResponse = (a: QuestionAnswer) =>
@@ -311,7 +325,13 @@ export function QuestionForm({
     setBusy(true);
     setError(null);
     try {
-      const body = { ...v.input, explanation: fullExplanation };
+      const body = {
+        ...v.input,
+        explanation: fullExplanation,
+        answer_page: pageNo,
+        answer_text: answerText.trim() || null,
+      };
+      setFoundPages(null);
       // 92: yuklangan rasm olib tashlangan yoki tashqi havolaga almashtirilgan — storage faylini o'chirish (PATCH
       // `image_url` ni olib tashlasa ham fayl qoladi). PATCH'dan oldin: DELETE `image_url` ni tozalaydi, keyingi PATCH
       // yangi havolani yozadi. Yangi fayl yuklansa — PUT eskisini o'zi almashtiradi.
@@ -353,7 +373,13 @@ export function QuestionForm({
       }
       onSaved(saved, warning);
     } catch (e) {
-      setError(errorMessage(e));
+      // 94: javob matni ko'rsatilgan betda (yoki maqolada) topilmadi — topilgan betni taklif qilamiz
+      if (isApiError(e) && e.code === "ANSWER_TEXT_NOT_FOUND") {
+        const pages = (e.details as { found_pages?: number[] } | null)
+          ?.found_pages;
+        setFoundPages(Array.isArray(pages) ? pages : []);
+        setError(null);
+      } else setError(errorMessage(e));
     } finally {
       setBusy(false);
       setUploadPct(null);
@@ -1084,6 +1110,45 @@ export function QuestionForm({
             </p>
           )}
         </Field>
+        <Field
+          label={t("ielts.admin.answerText")}
+          hint={t("ielts.admin.answerTextHint")}
+        >
+          <Textarea
+            rows={2}
+            value={answerText}
+            maxLength={500}
+            onChange={(e) => {
+              touch();
+              setFoundPages(null);
+              setAnswerText(e.target.value);
+            }}
+            data-testid="qf-answer-text"
+          />
+        </Field>
+        {foundPages && (
+          <div data-testid="qf-text-not-found">
+            <Alert tone="warning">
+              {foundPages.length
+                ? t("ielts.admin.textFoundOn", { pages: foundPages.join(", ") })
+                : t("ielts.admin.textNotFound")}{" "}
+              {foundPages.length > 0 && (
+                <button
+                  type="button"
+                  className="font-bold underline"
+                  onClick={() => {
+                    touch();
+                    setAnswerPage(String(foundPages[0]));
+                    setFoundPages(null);
+                  }}
+                  data-testid="qf-use-found-page"
+                >
+                  {t("ielts.admin.useFoundPage", { n: foundPages[0] })}
+                </button>
+              )}
+            </Alert>
+          </div>
+        )}
 
         {error && <Alert>{error}</Alert>}
         {uploadPct !== null && (

@@ -53,7 +53,7 @@ export interface PdfViewerProps {
   /** Sahifa ustida chiziladigan highlight'lar (type=HIGHLIGHT) */
   highlights?: Annotation[];
   /** Qidiruv natijasi (17.5): shu sahifadagi mosliklar vaqtincha bo'rttiriladi; `nonce` — qayta bosilganda yangilash */
-  searchHit?: { page: number; query: string; nonce: number } | null;
+  searchHit?: { page: number; query: string; nonce: number; ms?: number } | null;
   /** Sahifadagi belgilangan joy bosildi (21.3) — rang almashtirish / o'chirish paneli uchun */
   onHighlightPick?: (id: string, x: number, y: number) => void;
   /** 33.3: lug'at so'zlari — PDF'da nuqtali chiziq bilan belgilanadi; bosilsa tarjima oynasi */
@@ -728,6 +728,7 @@ export const PdfViewer = forwardRef<PdfViewerHandle, PdfViewerProps>(function Pd
                 highlights={highlightsByPage.get(i + 1)}
                 searchQuery={searchHit?.page === i + 1 ? searchHit.query : undefined}
                 searchNonce={searchHit?.nonce}
+                searchMs={searchHit?.ms}
                 onSearchRects={onSearchRects}
                 onHighlightPick={onHighlightPick}
                 vocab={vocabByPage.get(i + 1)}
@@ -758,6 +759,7 @@ export const PdfViewer = forwardRef<PdfViewerHandle, PdfViewerProps>(function Pd
                 highlights={highlightsByPage.get(n)}
                 searchQuery={searchHit?.page === n ? searchHit.query : undefined}
                 searchNonce={searchHit?.nonce}
+                searchMs={searchHit?.ms}
                 onHighlightPick={onHighlightPick}
                 vocab={vocabByPage.get(n)}
                 onVocabPick={onVocabPick}
@@ -788,6 +790,7 @@ export const PdfViewer = forwardRef<PdfViewerHandle, PdfViewerProps>(function Pd
                 highlights={highlightsByPage.get(n)}
                 searchQuery={searchHit?.page === n ? searchHit.query : undefined}
                 searchNonce={searchHit?.nonce}
+                searchMs={searchHit?.ms}
                 onHighlightPick={onHighlightPick}
                 vocab={vocabByPage.get(n)}
                 onVocabPick={onVocabPick}
@@ -1136,6 +1139,7 @@ function PdfPage({
   highlights,
   searchQuery,
   searchNonce,
+  searchMs,
   onSearchRects,
   onHighlightPick,
   vocab,
@@ -1153,6 +1157,8 @@ function PdfPage({
   /** Vaqtincha bo'rttiriladigan qidiruv so'zi (17.5) */
   searchQuery?: string;
   searchNonce?: number;
+  /** 94: bo'rttirish davomiyligi (ms); berilmasa — qidiruvdagi kabi */
+  searchMs?: number;
   onSearchRects?: (page: number, rects: HighlightRect[]) => void;
   /** Belgilangan joy bosildi (21.3) */
   onHighlightPick?: (id: string, x: number, y: number) => void;
@@ -1251,9 +1257,9 @@ function PdfPage({
     const rects = findTextRects(textRef.current, wrapRef.current, searchQuery);
     setFound(rects.length ? rects : null);
     if (rects.length) onSearchRects?.(pageNumber, rects);
-    const timer = window.setTimeout(() => setFound(null), SEARCH_HIT_MS + 400);
+    const timer = window.setTimeout(() => setFound(null), searchMs ?? SEARCH_HIT_MS + 400);
     return () => window.clearTimeout(timer);
-  }, [rendered, searchQuery, searchNonce, pageNumber, onSearchRects, scale]);
+  }, [rendered, searchQuery, searchNonce, searchMs, pageNumber, onSearchRects, scale]);
 
   /** Bosilgan nuqta belgilangan joyga tushdimi? (matn qatlami ustida bo'lgani uchun klik shu yerda tekshiriladi) */
   function pickHighlight(e: React.MouseEvent<HTMLDivElement>) {
@@ -1324,7 +1330,7 @@ function PdfPage({
         </div>
       )}
       {found && (
-        <div className="searchLayer pointer-events-none absolute inset-0" aria-hidden data-testid="search-hits" key={searchNonce}>
+        <div className="searchLayer pointer-events-none absolute inset-0" aria-hidden data-testid="search-hits" key={searchNonce} style={searchMs ? ({ "--hit-ms": `${searchMs}ms` } as React.CSSProperties) : undefined}>
           {found.map((r, i) => (
             <div key={i} style={{ left: `${r[0] * 100}%`, top: `${r[1] * 100}%`, width: `${r[2] * 100}%`, height: `${r[3] * 100}%` }} />
           ))}

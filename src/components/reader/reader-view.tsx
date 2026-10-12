@@ -136,7 +136,7 @@ export function ReaderView({ articleId }: { articleId: string }) {
   const [toc, setToc] = useState<TocEntry[] | null>(null);
   const [searchHits, setSearchHits] = useState<SearchMatch[] | null>(null);
   // Natija bosilganda — PDF'da vaqtincha bo'rttiriladigan moslik (nonce: bir xil natija qayta bosilsa ham yonadi)
-  const [searchHit, setSearchHit] = useState<{ page: number; query: string; nonce: number } | null>(null);
+  const [searchHit, setSearchHit] = useState<{ page: number; query: string; nonce: number; ms?: number } | null>(null);
   const [searching, setSearching] = useState(false);
   const [searchAvailable, setSearchAvailable] = useState(true);
   const [toast, setToast] = useState<string | null>(null);
@@ -655,6 +655,14 @@ export function ReaderView({ articleId }: { articleId: string }) {
     viewerRef.current?.goToPage(p);
     if (window.innerWidth < 768) setSidebarOpen(false);
   }, []);
+  // 94: test natijasidan "Matnda ko'rsatish" — betga o'tib, javob matnini 1,2 soniya bo'rttiradi
+  const showAnswer = useCallback(
+    (p: number, text?: string | null) => {
+      goToPage(p);
+      if (text?.trim()) setSearchHit({ page: p, query: text.trim(), nonce: Date.now(), ms: 1200 });
+    },
+    [goToPage],
+  );
 
   // ---- Xatolik ekrani (403 BOOK_ACCESS_DENIED, 404 va h.k.)
   if (fatal) {
@@ -831,6 +839,7 @@ export function ReaderView({ articleId }: { articleId: string }) {
                 guest={guest}
                 articleId={articleId}
                 quiz={quiz}
+                onShowAnswer={showAnswer}
                 annotations={plainAnnotations}
                 vocab={vocab}
                 onVocabGo={goToVocab}

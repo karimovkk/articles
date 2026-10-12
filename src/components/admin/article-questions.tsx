@@ -70,7 +70,7 @@ export function ArticleQuestionsPage({ bookId, articleId }: { bookId: string; ar
     });
   const duplicate = (q: AdminQuestion) =>
     run(q.id, async () => {
-      const copy = await quizApi.adminCreate(articleId, { type: q.type, prompt: q.prompt, data: q.data, answer: q.answer, explanation: q.explanation, order_index: list.length });
+      const copy = await quizApi.adminCreate(articleId, { type: q.type, prompt: q.prompt, data: q.data, answer: q.answer, explanation: q.explanation, answer_page: q.answer_page ?? null, answer_text: q.answer_text ?? null, order_index: list.length });
       // 90: yuklangan diagramma rasmi asl savolga tegishli — nusxaga ham yuklanadi (asl o'chirilsa ham qoladi)
       const url = q.data.image_url;
       if (url && isApiPath(url)) {
@@ -167,7 +167,7 @@ export function ArticleQuestionsPage({ bookId, articleId }: { bookId: string; ar
           ) : (
             <ol className="qa-list" data-testid="q-list">
               {numbered.map(({ q, start, end }, i) => {
-                const page = splitPage(q.explanation).page;
+                const page = q.answer_page ?? splitPage(q.explanation).page;
                 return (
                   <li key={q.id} className={cn("qa-item", editing !== null && editing !== "new" && editing.id === q.id && "editing")} data-testid="q-item" data-type={q.type}>
                     <span className="qa-num">{start === end ? start : `${start}–${end}`}</span>

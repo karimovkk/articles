@@ -137,6 +137,14 @@ check("'Matnda ko'rsatish': faqat xato/qisman savolda (sarlavhalar — 2-bet)", 
 await q(4).locator('[data-testid="qv-show-page"]').click();
 await reader.waitForFunction(() => document.querySelector('input[aria-label="Sahifa"]')?.value === "2", null, { timeout: 8000 });
 check("'Matnda ko'rsatish' → PDF 2-betga o'tdi, panel (kompyuterda) ochiq", (await reader.locator('[data-testid="quiz-score"]').count()) === 1);
+// 94: javob matni 2-betda 1,2 soniya bo'rttiriladi
+await reader.waitForSelector('[data-page="2"] [data-testid="search-hits"] div', { timeout: 5000 });
+const hitAt = Date.now();
+check("Javob matni 2-betda bo'rttirildi", (await reader.locator('[data-page="2"] [data-testid="search-hits"] div').count()) >= 1);
+await reader.locator('[data-page="2"] [data-testid="search-hits"]').waitFor({ state: "detached", timeout: 4000 });
+const hitMs = Date.now() - hitAt;
+check("Bo'rttirish ~1,2 soniyadan keyin o'chadi (6 s emas)", hitMs < 2500, `${hitMs} ms`);
+check("GET savollarda answer_page / answer_text yo'q (test yechilguncha)", !/answer_page|answer_text/.test(JSON.stringify(await (await fetch(`${API}/reader/articles/${ART}/questions`, { headers: { Authorization: "Bearer access-token-1" } })).json())));
 check("Tugma: 'To'g'ri javoblarni ko'rsatish'", ((await reader.textContent('[data-testid="quiz-reveal"]')) ?? "").includes("ko'rsatish"));
 await reader.click('[data-testid="quiz-reveal"]');
 check("Ko'rsatildi: TFNG — NOT GIVEN yashil, jadvalda 'har kuni', izohlar (sahifa belgisisiz)", (await q(1).locator(".qv-enum-btn.correct", { hasText: "NOT GIVEN" }).count()) === 1 && ((await q(6).locator('[data-testid="qv-fix"]').textContent()) ?? "").includes("har kuni") && (await reader.locator('[data-testid="quiz-explanation"]').count()) === 2 && !((await reader.locator('[data-testid="quiz-explanation"]').first().textContent()) ?? "").includes("[p."));

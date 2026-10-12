@@ -21,6 +21,7 @@ const H = { Authorization: `Bearer ${login.access_token}`, "Content-Type": "appl
 const arts = await (await fetch(`${API}/admin/books/${BOOK}/articles`, { headers: H })).json();
 const ART = [...(Array.isArray(arts) ? arts : arts.items)].sort((a, b) => a.order_index - b.order_index)[0].id;
 const adminQs = async () => (await (await fetch(`${API}/admin/articles/${ART}/questions`, { headers: H })).json()).sort((a, b) => a.order_index - b.order_index);
+const ANSWER_TEXT = "Mentored students in Python backend development"; // maqolaning 2-betidagi matn
 const before = await adminQs();
 if (before.length) throw new Error(`Maqolada ${before.length} ta savol bor — haqiqiy kontentga tegmaslik uchun to'xtatildi`);
 for (const pth of ["/login", "/library", `/admin/books/${BOOK}`]) await fetch(`${BASE}${pth}`).catch(() => undefined);
@@ -90,7 +91,14 @@ try {
   await start("TRUE_FALSE_NOT_GIVEN", "Kichik odatlar natijani tez o'zgartiradi.");
   await page.locator('[data-testid="qf-enum"]', { hasText: "FALSE" }).click();
   await page.fill('[data-testid="qf-explanation"]', "Natija sekin, lekin barqaror.");
-  await page.fill('[data-testid="qf-answer-page"]', "2");
+  // 94: javob matni — avval noto'g'ri bet (1) → 422 + topilgan bet taklifi → 2
+  await page.fill('[data-testid="qf-answer-page"]', "1");
+  await page.fill('[data-testid="qf-answer-text"]', ANSWER_TEXT);
+  await page.click('[data-testid="qf-save"]');
+  await page.waitForSelector('[data-testid="qf-text-not-found"]', { timeout: 30000 });
+  check("Javob matni 1-betda yo'q → backend 422 ANSWER_TEXT_NOT_FOUND, '2-betda' taklifi", ((await page.textContent('[data-testid="qf-text-not-found"]')) ?? "").includes("2-betda"), (await page.textContent('[data-testid="qf-text-not-found"]')) ?? "");
+  apiFails.length = 0; // kutilgan 422
+  await page.click('[data-testid="qf-use-found-page"]');
   await saveAndWait(3);
   await start("YES_NO_NOT_GIVEN", "Muallif iroda yetarli deb hisoblaydi.");
   await page.locator('[data-testid="qf-enum"]', { hasText: /^NO$/ }).click();
@@ -143,7 +151,7 @@ try {
   const saved = await adminQs();
   const byType = (t, i = 0) => saved.filter((q) => q.type === t)[i];
   check("API: data.choose=2, answer.correct=[0,2]", byType("MULTIPLE_CHOICE", 1)?.data.choose === 2 && JSON.stringify(byType("MULTIPLE_CHOICE", 1)?.answer.correct) === "[0,2]");
-  check("API: TFNG izohi '… [p. 2]'", byType("TRUE_FALSE_NOT_GIVEN")?.explanation === "Natija sekin, lekin barqaror. [p. 2]");
+  check("API: TFNG — izoh (belgisiz), answer_page 2, answer_text", byType("TRUE_FALSE_NOT_GIVEN")?.explanation === "Natija sekin, lekin barqaror." && byType("TRUE_FALSE_NOT_GIVEN")?.answer_page === 2 && byType("TRUE_FALSE_NOT_GIVEN")?.answer_text === ANSWER_TEXT, JSON.stringify(byType("TRUE_FALSE_NOT_GIVEN")));
   check("API: completion — apostrof `'` ga keltirilgan, word_limit 2", JSON.stringify(byType("SENTENCE_COMPLETION")?.answer.blanks) === JSON.stringify([["oltmish olti"], ["o'z-o'zini nazorat"]]) && byType("SENTENCE_COMPLETION")?.data.word_limit === 2);
   const dg = byType("DIAGRAM_LABEL_COMPLETION");
   check("API: jadval/oqim matni; diagramma — yuklangan rasm (data.image_url) va 2 ta yorliq", byType("TABLE_COMPLETION")?.data.text.includes(" | ") && byType("FLOW_CHART_COMPLETION")?.data.blanks === 2 && dg?.data.image_url === `/api/v1/reader/questions/${dg?.id}/diagram` && dg?.data.labels?.length === 2, JSON.stringify(dg?.data));
@@ -219,7 +227,11 @@ try {
   check("TFNG xato → 'Matnda ko'rsatish · 2-bet'", ((await q("TRUE_FALSE_NOT_GIVEN").locator('[data-testid="qv-show-page"]').textContent()) ?? "").includes("2-bet"));
   await q("TRUE_FALSE_NOT_GIVEN").locator('[data-testid="qv-show-page"]').click();
   await page.waitForFunction(() => document.querySelector('input[aria-label="Sahifa"]')?.value === "2", null, { timeout: 15000 });
-  check("PDF 2-betga o'tdi", true);
+  await page.waitForSelector('[data-page="2"] [data-testid="search-hits"] div', { timeout: 10000 });
+  const t0 = Date.now();
+  await page.screenshot({ path: OUT + "99-prod-ielts-highlight.png" });
+  await page.locator('[data-page="2"] [data-testid="search-hits"]').waitFor({ state: "detached", timeout: 5000 });
+  check("PDF 2-betga o'tdi, javob matni bo'rttirildi va ~1,2 soniyada o'chdi", Date.now() - t0 < 3000, `${Date.now() - t0} ms`);
   await page.screenshot({ path: OUT + "99-prod-ielts-result.png" });
 
   // Ko'rsatish → to'g'ri javoblar; tuzatib qayta tekshirish → 100%
