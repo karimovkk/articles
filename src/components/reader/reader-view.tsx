@@ -596,6 +596,8 @@ export function ReaderView({ articleId }: { articleId: string }) {
   /** 95.4: so'z konteksti — tanlangan joy joylashgan gap (ustun-ustun o'qish tartibida; qo'shni ustun aralashmaydi) */
   const contextFor = (s: TextSelection) => {
     const pageEl = stageRef.current?.querySelector<HTMLElement>(`[data-page="${s.page}"]`);
+    // Aniq joy (tanlov paytida Range'dan) — bo'lmasa to'rtburchaklar bo'yicha
+    if (s.context) return { context: s.context, word: s.word ?? null };
     return pageEl ? selectionContext(pageEl, s.rects, s.text) : { context: "", word: null };
   };
   /** Tanlangan matndan so'z: ortiqcha bo'shliq va chetdagi tinish belgilari olib tashlanadi (asl harflar saqlanadi) */
@@ -618,7 +620,7 @@ export function ReaderView({ articleId }: { articleId: string }) {
       page: s.page,
       rects: s.rects,
       existing,
-      values: { word, translation: existing?.translation ?? "", context: existing?.context ?? ctx.context },
+      values: { word, translation: existing?.translation ?? "", context: ctx.context || existing?.context || "" },
     });
     setSelection(null);
     viewerRef.current?.clearSelection();

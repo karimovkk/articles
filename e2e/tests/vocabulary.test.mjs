@@ -228,6 +228,63 @@ const c1 = await ctxOf("Repetition");
 check("Kontekst (chap ustun): butun gap, o'ng ustun aralashmadi, 'auto-matic' qo'shildi", c1.ctx === "Repetition makes the routine almost automatic over time.", c1.ctx);
 const c2 = await ctxOf("Small");
 check("Kontekst (o'ng ustun): 'Small steps beat willpower in the long run.'", c2.ctx === "Small steps beat willpower in the long run.", c2.ctx);
+// "while" sahifada uch marta, turli gaplarda — aynan tanlangani (matn bo'yicha qidirilmaydi)
+await fetch(`${API_HOST}/__setbig?path=${new URL("../mock/repeat-word.pdf", import.meta.url).pathname}`);
+await page.goto(`${BASE}/reader/eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee`);
+await page.waitForFunction(() => document.querySelectorAll('[data-page="1"] .textLayer span').length > 0, null, { timeout: 30000 });
+await page.waitForTimeout(500);
+const whileSelect = async (n) => {
+  const b = await page.evaluate((n) => {
+    let k = 0;
+    for (const sp of document.querySelectorAll('[data-page="1"] .textLayer span')) {
+      const t = sp.firstChild;
+      let i = -1;
+      while (t && (i = t.textContent.indexOf("while", i + 1)) >= 0) {
+        if (k++ === n) {
+          const r = document.createRange();
+          r.setStart(t, i);
+          r.setEnd(t, i + 5);
+          const q = r.getBoundingClientRect();
+          return { x1: q.left + 1, x2: q.right - 1, y: q.top + q.height / 2 };
+        }
+      }
+    }
+    return null;
+  }, n);
+  await page.mouse.move(b.x1, b.y);
+  await page.mouse.down();
+  for (let s2 = 1; s2 <= 6; s2++) {
+    await page.mouse.move(b.x1 + ((b.x2 - b.x1) * s2) / 6, b.y);
+    await page.waitForTimeout(16);
+  }
+  await page.mouse.up();
+  await page.waitForSelector('[data-testid="selection-vocab"]', { timeout: 5000 });
+  await page.click('[data-testid="selection-vocab"]');
+  await page.waitForSelector('[data-testid="vocab-dialog"]');
+};
+const nthWhile = async (n) => {
+  await whileSelect(n);
+  const v = await page.evaluate(() => document.querySelector('[data-testid="vocab-context"]').value);
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(300);
+  return v;
+};
+const nthWhileSave = async (n, tr) => {
+  await whileSelect(n);
+  await page.fill('[data-testid="vocab-translation"]', tr);
+  await page.click('[data-testid="vocab-save"]');
+  await page.waitForSelector('[data-testid="vocab-dialog"]', { state: "detached", timeout: 5000 });
+};
+const w1 = await nthWhile(0);
+const w2 = await nthWhile(1);
+const w3 = await nthWhile(2);
+check("'while' (1-gap) — o'z gapi", w1 === "Readers relax while waiting for the bus.", w1);
+check("'while' (2-gap, qator boshida) — o'z gapi, 1-gap emas", w2 === "A man stood still while the rain kept falling.", w2);
+check("'while' (3-gap) — o'z gapi", w3 === "Then he left the station while it was getting dark.", w3);
+// So'z lug'atda bor (1-gap konteksti bilan saqlangan) — boshqa joyda tanlansa, kontekst — shu joydagi gap
+await nthWhileSave(0, "paytida");
+const w3b = await nthWhile(2);
+check("Lug'atdagi so'z boshqa joyda tanlansa — kontekst shu joydagi gap (eski gap emas)", w3b === "Then he left the station while it was getting dark.", w3b);
 await fetch(`${API_HOST}/__setbig`);
 
 check("Sahifa xatolari yo'q", pageErrors.length === 0, pageErrors.join(" | ").slice(0, 300));

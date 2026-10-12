@@ -18,7 +18,11 @@ function layerText(layer: Element): { text: string; spans: Array<{ el: Element; 
   for (let n = walker.nextNode() as Element | null; n; n = walker.nextNode() as Element | null) {
     if (n.nodeName === "BR") {
       // Qator oxirida bo'lingan so'z: "auto-" + "matic" → "automatic"; aks holda — bo'shliq
-      if (/\p{L}-$/u.test(text)) text = text.slice(0, -1);
+      if (/\p{L}-$/u.test(text)) {
+        text = text.slice(0, -1);
+        const last = spans[spans.length - 1];
+        if (last && last.end > text.length) last.end = text.length; // defis olib tashlandi — span oxiri ham
+      }
       else if (text && !/\s$/.test(text)) text += " ";
       continue;
     }
@@ -67,6 +71,11 @@ export function selectionContext(pageEl: Element, rects: HighlightRect[], select
   if (at < 0 || at > to) at = from;
   const len = needle && text.startsWith(needle, at) ? needle.length : Math.max(1, to - from);
 
+  return contextAt(text, at, len, selected, needle, max);
+}
+
+/** Matndagi aniq joy (`at`, `len`) atrofidagi gap; qator oxirida bo'lingan so'z tanlangan bo'lsa — to'liq so'z */
+function contextAt(text: string, at: number, len: number, selected: string, needle: string, max: number): { context: string; word: string | null } {
   // Qator oxirida bo'lingan so'z ("auto-" tanlangan) → to'liq so'z ("automatic")
   let word: string | null = null;
   const tail = text.slice(at + len).match(/^[\p{L}\p{N}'’ʻʼ]+/u);
@@ -96,4 +105,33 @@ export function selectionContext(pageEl: Element, rects: HighlightRect[], select
     }
   }
   return { context: pre + squash(text.slice(start, end)) + post, word };
+}
+
+/**
+ * 96.x: tanlovning aniq joyidan (Range) — matn bo'yicha qidirilmaydi: so'z sahifada bir necha marta uchrasa ham
+ * ("while") aynan tanlangani olinadi.
+ */
+export function rangeContext(pageEl: Element, range: Range, max = 320): { context: string; word: string | null } {
+  const layer = pageEl.querySelector(".textLayer");
+  if (!layer) return { context: "", word: null };
+  const { text, spans } = layerText(layer);
+  const pos = (node: Node, offset: number): number | null => {
+    for (const sp of spans) {
+      if (!sp.el.contains(node)) continue;
+      // span ichidagi matn tugunlari bo'yicha siljish
+      let off = 0;
+      const w = document.createTreeWalker(sp.el, NodeFilter.SHOW_TEXT);
+      for (let t = w.nextNode(); t; t = w.nextNode()) {
+        if (t === node) return Math.min(sp.end, sp.start + off + offset);
+        off += t.textContent?.length ?? 0;
+      }
+      return sp.start + Math.min(offset, sp.end - sp.start);
+    }
+    return null;
+  };
+  const a = pos(range.startContainer, range.startOffset);
+  const b = pos(range.endContainer, range.endOffset);
+  if (a === null || b === null || b <= a) return { context: "", word: null };
+  const selected = range.toString();
+  return contextAt(text, a, b - a, selected, squash(selected).replace(/-\s*$/, ""), max);
 }

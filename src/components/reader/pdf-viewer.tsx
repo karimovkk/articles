@@ -16,6 +16,7 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffec
 import type { PDFDocumentProxy, PDFPageProxy, RenderTask } from "pdfjs-dist";
 import { loadPdfJs, openProtectedPdf } from "@/lib/reader/range-transport";
 import { getHighlightRects, normalizeColor, rectsFromClientRects, type HighlightRect } from "@/lib/reader/highlights";
+import { rangeContext } from "@/lib/reader/context";
 import { drawCurl, edgeTable, progressForEdge } from "@/lib/reader/page-curl";
 import { findTextRects } from "@/lib/reader/find-text";
 import { SpreadStage, lastOf, leftOf, spreadOf } from "./spread-stage";
@@ -41,6 +42,9 @@ export interface TextSelection {
   y: number;
   /** Sahifaga nisbatan ulush-koordinatalar (highlight uchun) */
   rects: HighlightRect[];
+  /** Lug'at konteksti — tanlovning aniq joyidagi gap (va qator oxirida bo'lingan bo'lsa — to'liq so'z) */
+  context?: string;
+  word?: string | null;
 }
 
 export interface PdfViewerProps {
@@ -587,7 +591,8 @@ export const PdfViewer = forwardRef<PdfViewerHandle, PdfViewerProps>(function Pd
       const rects = rectsFromClientRects(Array.from(range.getClientRects()), page);
       const box = range.getBoundingClientRect();
       setPick({ page: Number(page.dataset.page), rects, handles });
-      onTextSelected({ page: Number(page.dataset.page), text: text.slice(0, 2000), x: box.left + box.width / 2, y: box.top, rects });
+      const ctx = rangeContext(page, range);
+      onTextSelected({ page: Number(page.dataset.page), text: text.slice(0, 2000), x: box.left + box.width / 2, y: box.top, rects, context: ctx.context, word: ctx.word });
     };
     let word: { start: Caret; end: Caret } | null = null;
     let timer = 0;
