@@ -3856,3 +3856,74 @@ circle.donut-slice {
   background: var(--accent);
   transition: width 0.2s ease;
 }
+
+/* 95.5: fon rasmining qurilmalarda ko'rinadigan qismi */
+.bg-focus-img {
+  position: relative;
+  display: block;
+  width: fit-content; /* rasmning o'zi o'lchamida — ramka foizlari rasmga to'g'ri keladi */
+  max-width: 100%;
+  margin-inline: auto;
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: crosshair;
+  touch-action: none;
+  user-select: none;
+  background: var(--surface-2);
+}
+.bg-focus-img img {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  max-height: 340px;
+  pointer-events: none;
+}
+.bg-focus-frame {
+  position: absolute;
+  border: 2px solid #fff;
+  border-radius: 6px;
+  box-shadow: 0 0 0 9999px rgb(0 0 0 / 0.45), 0 0 0 1px rgb(0 0 0 / 0.4);
+  cursor: grab;
+}
+.bg-focus-devices {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.bg-focus-device {
+  position: relative;
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  background-size: cover;
+  background-repeat: no-repeat;
+  overflow: hidden;
+}
+.bg-focus-device.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.bg-focus-device.mobile {
+  width: 62px;
+  height: 134px;
+}
+.bg-focus-device.tablet {
+  width: 94px;
+  height: 135px;
+}
+.bg-focus-device.desktop {
+  width: 200px;
+  height: 125px;
+}
+.bg-focus-device span {
+  position: absolute;
+  left: 4px;
+  bottom: 4px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgb(0 0 0 / 0.55);
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 700;
+}

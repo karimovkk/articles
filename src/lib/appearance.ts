@@ -7,6 +7,8 @@
  *                   | "https://…" (eski: rasm havolasi). 49: rang faqat shu mavzuning `BG_PRESETS` to'plamidan — boshqasi
  *                   standart fon sifatida ko'rsatiladi (matn ko'rinmay qolmasin)
  *   font            "manrope" | "system"
+ *   95.5: background_focus_light / background_focus_dark — rasmning qaysi qismi ko'rinadi, qurilma bo'yicha:
+ *                   { mobile: {x, y}, tablet: {x, y}, desktop: {x, y} } (0–100, `background-position` foizi)
  * Natija — `<style id="a365-appearance">` dagi CSS o'zgaruvchilar; birinchi chizishda "sakrash" bo'lmasligi uchun
  * localStorage'da keshlanadi va layout'dagi inline skript uni hydration'dan oldin qo'yadi.
  */
@@ -16,10 +18,38 @@ export interface Appearance {
   background_light?: string | null;
   background_dark?: string | null;
   font?: "manrope" | "system" | null;
+  /** 95.5: fon rasmining ko'rinadigan qismi — qurilma bo'yicha */
+  background_focus_light?: BgFocus | null;
+  background_focus_dark?: BgFocus | null;
   /** 46: serverdagi yuklangan fon rasmlari URL'lari (sozlamaga yozilmaydi — `GET /app-settings` `images` dan) */
   images?: { light?: string | null; dark?: string | null };
   /** 72: sekin internet uchun yengil nusxalar (asl rasm o'zgarmaydi): md ≤ 1920 px, sm ≤ 960 px */
   variants?: Partial<Record<AppearanceTheme, { md?: string | null; sm?: string | null }>>;
+}
+
+/** 95.5: qurilmalar (CSS chegaralari) va fon rasmining ko'rinadigan qismi (background-position foizi) */
+export const BG_DEVICES = ["mobile", "tablet", "desktop"] as const;
+export type BgDevice = (typeof BG_DEVICES)[number];
+export type BgFocusPoint = { x: number; y: number };
+export type BgFocus = Partial<Record<BgDevice, BgFocusPoint>>;
+export const BG_DEVICE_MEDIA: Record<BgDevice, string> = {
+  mobile: "(max-width: 640px)",
+  tablet: "(min-width: 641px) and (max-width: 1024px)",
+  desktop: "(min-width: 1025px)",
+};
+/** Oldindan ko'rish uchun ekran nisbati (eni / bo'yi) */
+export const BG_DEVICE_ASPECT: Record<BgDevice, number> = { mobile: 390 / 844, tablet: 820 / 1180, desktop: 1440 / 900 };
+const pct = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? Math.round(Math.min(100, Math.max(0, v)) * 10) / 10 : null);
+export function parseFocus(v: unknown): BgFocus | null {
+  if (!v || typeof v !== "object") return null;
+  const out: BgFocus = {};
+  for (const d of BG_DEVICES) {
+    const p = (v as Record<string, unknown>)[d] as Record<string, unknown> | undefined;
+    const x = pct(p?.x);
+    const y = pct(p?.y);
+    if (x !== null && y !== null) out[d] = { x, y };
+  }
+  return Object.keys(out).length ? out : null;
 }
 
 /** 46: fon rasmi nomi (`/admin/app-settings/images/{name}`) — 72: asl holida (siqilmaydi) */
@@ -161,7 +191,7 @@ export function deriveColors(primary: string): DerivedColors {
   return { accent, contrastText, ink, darkAccent, darkContrastText };
 }
 
-function bgCss(value: string | null | undefined, uploaded: string | null | undefined, theme: AppearanceTheme, variants?: { md?: string | null; sm?: string | null }): string {
+function bgCss(value: string | null | undefined, uploaded: string | null | undefined, theme: AppearanceTheme, variants?: { md?: string | null; sm?: string | null }, focus?: BgFocus | null): string {
   const html = theme === "dark" ? "html.dark" : "html:not(.dark)";
   const base = `${html} .client-bg`;
   // 49: rang — faqat shu mavzu to'plamidan; rasm uchun mo'ljallangan parda o'chadi, fon butun ekranni qoplaydi
@@ -176,6 +206,11 @@ function bgCss(value: string | null | undefined, uploaded: string | null | undef
   const out = [`${base}::before{background:url("${md ?? url}") center top / cover no-repeat !important;}`];
   if (sm) out.push(`${html}[data-net="sm"] .client-bg::before{background-image:url("${sm}") !important;}`);
   if (md) out.push(`${html}[data-net="full"] .client-bg::before{background-image:url("${url}") !important;}`);
+  // 95.5: admin tanlagan qism — har qurilmada (telefon / planshet / kompyuter)
+  for (const d of BG_DEVICES) {
+    const f = focus?.[d];
+    if (f) out.push(`@media ${BG_DEVICE_MEDIA[d]}{${base}::before{background-position:${f.x}% ${f.y}% !important;}}`);
+  }
   return out.join("");
 }
 
@@ -189,8 +224,8 @@ export function appearanceCss(a: Appearance | null | undefined): string {
     out.push(`:root.dark,.dark{--accent:${c.darkAccent};--accent-contrast:${c.darkContrastText};--accent-ink:${c.darkAccent};}`);
   }
   if (a.font === "system") out.push(`:root{--font-sans:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;}`);
-  out.push(bgCss(a.background_light, a.images?.light, "light", a.variants?.light));
-  out.push(bgCss(a.background_dark, a.images?.dark, "dark", a.variants?.dark));
+  out.push(bgCss(a.background_light, a.images?.light, "light", a.variants?.light, a.background_focus_light));
+  out.push(bgCss(a.background_dark, a.images?.dark, "dark", a.variants?.dark, a.background_focus_dark));
   return out.filter(Boolean).join("\n");
 }
 
@@ -214,6 +249,8 @@ export function parseAppearance(settings: unknown, images?: Record<string, Parti
     background_light: bg(r.background_light, "light"),
     background_dark: bg(r.background_dark, "dark"),
     font: r.font === "system" ? "system" : r.font === "manrope" ? "manrope" : null,
+    background_focus_light: parseFocus(r.background_focus_light),
+    background_focus_dark: parseFocus(r.background_focus_dark),
     images: imgs,
     variants,
   };

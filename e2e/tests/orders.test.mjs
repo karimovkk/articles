@@ -161,6 +161,45 @@ await page.click('button[type="submit"]');
 await page.waitForURL(`${BASE}/library`, { timeout: 10000 });
 check("2FA: to'g'ri kod → kirdi", true);
 
+// ---- 96: telefonda — bo'sh tab ham, t.me veb-sahifasi ham yo'q: to'g'ridan tg:// (ilova), ochilmasa — https
+await reset("");
+{
+  const mctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1" });
+  await mctx.addInitScript(() => {
+    window.__nav = [];
+    document.addEventListener("click", (e) => { const a = e.target.closest?.("a[href]"); if (a && /^(tg:|https:\/\/t\.me)/.test(a.href)) { window.__nav.push(a.href); e.preventDefault(); } }, true);
+  });
+  const m = await mctx.newPage();
+  await m.goto(`${BASE}/login`);
+  await m.waitForSelector('input[autocomplete="username"]:not([readonly])', { timeout: 60000 });
+  await m.fill('input[autocomplete="username"]', "user@articles365.local");
+  await m.fill('input[type="password"]', "User12345!");
+  await m.click('button[type="submit"]');
+  await m.waitForURL(`${BASE}/library`, { timeout: 30000 });
+  await m.goto(`${BASE}/catalog/${BOOK2}`);
+  await m.waitForSelector("text=Buyurtma berish", { timeout: 15000 });
+  await m.click("text=Buyurtma berish");
+  await m.waitForSelector('[data-testid="tg-pay-btn"]', { timeout: 15000 });
+  const pages0 = mctx.pages().length;
+  await m.click('[data-testid="tg-pay-btn"]');
+  await m.waitForFunction(() => window.__nav.length > 0, null, { timeout: 8000 });
+  const first = await m.evaluate(() => window.__nav[0]);
+  check("Telefon: to'g'ridan Telegram ilovasi (tg://resolve?domain=…&start=…), yangi tab ochilmadi", /^tg:\/\/resolve\?domain=articles365_test_bot&start=.+/.test(first) && mctx.pages().length === pages0, first);
+  await m.waitForTimeout(1800);
+  const nav = await m.evaluate(() => window.__nav);
+  check("Ilova ochilmasa (sahifa 1,5 s ko'rinib tursa) — https://t.me havolasi", nav.length === 2 && nav[1].startsWith("https://t.me/articles365_test_bot?start="), JSON.stringify(nav));
+  await m.evaluate(() => (window.__nav = []));
+  await m.click('[data-testid="tg-pay-btn"]');
+  await m.waitForFunction(() => window.__nav.length > 0, null, { timeout: 8000 });
+  await m.evaluate(() => {
+    Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "hidden" });
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+  await m.waitForTimeout(1800);
+  check("Ilova ochildi (sahifa yashirindi) — https zaxira ochilmaydi", (await m.evaluate(() => window.__nav.length)) === 1);
+  await mctx.close();
+}
+
 check("Sahifa xatolari yo'q", pageErrors.length === 0, pageErrors.join(" | ").slice(0, 300));
 await browser.close();
 console.log(failures ? `\n${failures} ta tekshiruv muvaffaqiyatsiz` : "\nBarcha tekshiruvlar o'tdi");

@@ -298,7 +298,8 @@ export const PdfViewer = forwardRef<PdfViewerHandle, PdfViewerProps>(function Pd
   );
 
   // O'z tanlov mexanizmi (22.1) holati
-  const [pick, setPick] = useState<{ page: number; rects: HighlightRect[] } | null>(null);
+  // 95.2: `handles` — telefonda tanlov tugagach boshi/oxirida tutqichlar (sudrab tanlovni o'zgartirish)
+  const [pick, setPick] = useState<{ page: number; rects: HighlightRect[]; handles?: boolean } | null>(null);
   const pickRef = useRef(pick);
   useLayoutEffect(() => {
     pickRef.current = pick;
@@ -577,6 +578,17 @@ export const PdfViewer = forwardRef<PdfViewerHandle, PdfViewerProps>(function Pd
 
     let startPt: { x: number; y: number; id: number; page: HTMLElement; touch: boolean } | null = null;
     let active = false;
+    // 95.2: tugagan tanlov (tutqichlar bilan o'zgartirish uchun) va sudralayotgan tutqich
+    let sel: { page: HTMLElement; start: Caret; end: Caret } | null = null;
+    let drag: { which: "start" | "end"; dy: number; id: number } | null = null;
+    const emit = (page: HTMLElement, range: Range, handles: boolean) => {
+      const text = rangeText(range).trim();
+      if (!text) return;
+      const rects = rectsFromClientRects(Array.from(range.getClientRects()), page);
+      const box = range.getBoundingClientRect();
+      setPick({ page: Number(page.dataset.page), rects, handles });
+      onTextSelected({ page: Number(page.dataset.page), text: text.slice(0, 2000), x: box.left + box.width / 2, y: box.top, rects });
+    };
     let word: { start: Caret; end: Caret } | null = null;
     let timer = 0;
     const pointers = new Set<number>();
@@ -603,6 +615,17 @@ export const PdfViewer = forwardRef<PdfViewerHandle, PdfViewerProps>(function Pd
     };
 
     const onDown = (e: PointerEvent) => {
+      // 95.2: tutqich — tanlovning shu uchini sudrash (qolgan uchi joyida)
+      const handle = (e.target as HTMLElement)?.closest<HTMLElement>("[data-sel-handle]");
+      if (handle && sel && pickRef.current) {
+        e.preventDefault();
+        e.stopPropagation();
+        const which = handle.dataset.selHandle === "start" ? "start" : "end";
+        const hb = handle.getBoundingClientRect();
+        drag = { which, dy: e.clientY - (hb.top + hb.height / 2), id: e.pointerId };
+        el.dataset.selecting = "1";
+        return;
+      }
       if (e.pointerType !== "mouse") pointers.add(e.pointerId);
       // Ikkinchi barmoq — zoom: boshlanayotgan tanlov bekor
       if (pointers.size > 1) {
@@ -631,6 +654,21 @@ export const PdfViewer = forwardRef<PdfViewerHandle, PdfViewerProps>(function Pd
       }
     };
     const onMove = (e: PointerEvent) => {
+      if (drag && sel && e.pointerId === drag.id) {
+        e.preventDefault();
+        const layer = sel.page.querySelector(".textLayer");
+        const c = layer ? caretAt(e.clientX, e.clientY - drag.dy, layer) : null;
+        if (!layer || !c) return;
+        const fixed = drag.which === "start" ? sel.end : sel.start;
+        const r = rangeBetween(layer, c, fixed);
+        if (!r) return;
+        // Uchlar kesishsa — tutqichlar o'rin almashadi
+        const cIsStart = r.startContainer === c.node && r.startOffset === c.offset;
+        drag.which = cIsStart ? "start" : "end";
+        sel = { page: sel.page, start: { node: r.startContainer, offset: r.startOffset }, end: { node: r.endContainer, offset: r.endOffset } };
+        setPick({ page: Number(sel.page.dataset.page), rects: rectsFromClientRects(Array.from(r.getClientRects()), sel.page), handles: true });
+        return;
+      }
       if (!startPt || e.pointerId !== startPt.id) return;
       if (!active) {
         if (Math.abs(e.clientX - startPt.x) > LONG_PRESS_TOLERANCE || Math.abs(e.clientY - startPt.y) > LONG_PRESS_TOLERANCE) stop();
@@ -644,6 +682,16 @@ export const PdfViewer = forwardRef<PdfViewerHandle, PdfViewerProps>(function Pd
       setPick({ page: Number(startPt.page.dataset.page), rects: rectsFromClientRects(Array.from(range.getClientRects()), startPt.page) });
     };
     const onUp = (e: PointerEvent) => {
+      if (drag && e.pointerId === drag.id) {
+        drag = null;
+        delete el.dataset.selecting;
+        const layer = sel?.page.querySelector(".textLayer");
+        if (sel && layer) {
+          const r = rangeBetween(layer, sel.start, sel.end);
+          if (r) emit(sel.page, r, true);
+        }
+        return;
+      }
       pointers.delete(e.pointerId);
       if (!startPt || e.pointerId !== startPt.id) {
         stop();
@@ -658,6 +706,7 @@ export const PdfViewer = forwardRef<PdfViewerHandle, PdfViewerProps>(function Pd
       if (!wasActive) {
         // 71: oddiy tegish — ochiq tanlov yopiladi (hech narsa belgilanmaydi)
         if (tapped && pickRef.current) {
+          sel = null;
           setPick(null);
           onTextSelected(null);
         }
@@ -665,14 +714,15 @@ export const PdfViewer = forwardRef<PdfViewerHandle, PdfViewerProps>(function Pd
       }
       const text = range ? rangeText(range).trim() : "";
       if (!range || !text) {
+        sel = null;
         setPick(null);
         onTextSelected(null);
         return;
       }
-      const rects = rectsFromClientRects(Array.from(range.getClientRects()), page);
-      const box = range.getBoundingClientRect();
-      setPick({ page: Number(page.dataset.page), rects });
-      onTextSelected({ page: Number(page.dataset.page), text: text.slice(0, 2000), x: box.left + box.width / 2, y: box.top, rects });
+      // Telefonda — tutqichlar (uchlarni sudrab o'zgartirish); sichqonchada — yangi sudrash bilan
+      const touch = e.pointerType !== "mouse";
+      sel = touch ? { page, start: { node: range.startContainer, offset: range.startOffset }, end: { node: range.endContainer, offset: range.endOffset } } : null;
+      emit(page, range, touch);
     };
 
     el.addEventListener("pointerdown", onDown);
@@ -734,6 +784,7 @@ export const PdfViewer = forwardRef<PdfViewerHandle, PdfViewerProps>(function Pd
                 vocab={vocabByPage.get(i + 1)}
                 onVocabPick={onVocabPick}
                 pickRects={pick?.page === i + 1 ? pick.rects : undefined}
+                pickHandles={pick?.page === i + 1 && !!pick.handles}
                 watermarkText={watermarkText}
                 label={t("common.pageN", { n: i + 1 })}
               />
@@ -764,6 +815,7 @@ export const PdfViewer = forwardRef<PdfViewerHandle, PdfViewerProps>(function Pd
                 vocab={vocabByPage.get(n)}
                 onVocabPick={onVocabPick}
                 pickRects={pick?.page === n ? pick.rects : undefined}
+                pickHandles={pick?.page === n && !!pick.handles}
                 watermarkText={watermarkText}
                 label={t("common.pageN", { n })}
               />
@@ -795,6 +847,7 @@ export const PdfViewer = forwardRef<PdfViewerHandle, PdfViewerProps>(function Pd
                 vocab={vocabByPage.get(n)}
                 onVocabPick={onVocabPick}
                 pickRects={pick?.page === n ? pick.rects : undefined}
+                pickHandles={pick?.page === n && !!pick.handles}
                 watermarkText={watermarkText}
                 label={t("common.pageN", { n })}
               />
@@ -1145,6 +1198,7 @@ function PdfPage({
   vocab,
   onVocabPick,
   pickRects,
+  pickHandles,
   watermarkText,
   label,
 }: {
@@ -1167,6 +1221,8 @@ function PdfPage({
   onVocabPick?: (id: string, x: number, y: number) => void;
   /** Foydalanuvchi sudrab tanlagan joy (22.1 — brauzer tanlovi o'rniga) */
   pickRects?: HighlightRect[];
+  /** 95.2: tanlov boshi/oxirida sudraladigan tutqichlar (telefon) */
+  pickHandles?: boolean;
   /** Canvas ichiga chiziladigan suv belgisi (22.3) */
   watermarkText?: string | null;
   label: string;
@@ -1329,6 +1385,7 @@ function PdfPage({
           ))}
         </div>
       )}
+      {pickHandles && pickRects && pickRects.length > 0 && <SelectionHandles rects={pickRects} />}
       {found && (
         <div className="searchLayer pointer-events-none absolute inset-0" aria-hidden data-testid="search-hits" key={searchNonce} style={searchMs ? ({ "--hit-ms": `${searchMs}ms` } as React.CSSProperties) : undefined}>
           {found.map((r, i) => (
@@ -1353,14 +1410,15 @@ function drawWatermark(canvas: HTMLCanvasElement, text: string, dpr: number) {
   const h = canvas.height / dpr;
   ctx.save();
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.globalAlpha = 0.1;
+  // 95.3: o'qishga xalaqit bermasin — ochroq va siyrakroq (~20 → ~9 ta sahifada)
+  ctx.globalAlpha = 0.06;
   ctx.fillStyle = "#101010";
   // Canvas CSS o'zgaruvchilarini tushunmaydi — aniq shrift ro'yxati
-  ctx.font = `600 ${Math.max(11, Math.round(w / 62))}px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif`;
+  ctx.font = `500 ${Math.max(11, Math.round(w / 64))}px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  const stepX = w / 2.2;
-  const stepY = h / 7;
+  const stepX = w / 1.6;
+  const stepY = h / 4.5;
   for (let y = stepY / 2; y < h; y += stepY) {
     for (let x = stepX / 2, i = 0; x < w + stepX; x += stepX, i++) {
       ctx.save();
@@ -1395,4 +1453,18 @@ function rangeText(range: Range): string {
     }
   }
   return out.replace(/\s+/g, " ");
+}
+
+/** 95.2: tanlov tutqichlari — boshida (tepada dumaloq) va oxirida (pastda dumaloq) "devorcha"; sudrash PdfViewer'da */
+function SelectionHandles({ rects }: { rects: HighlightRect[] }) {
+  const sorted = [...rects].sort((a, b) => a[1] - b[1] || a[0] - b[0]);
+  const first = sorted[0];
+  const last = sorted.reduce((m, r) => (r[1] > m[1] + m[3] * 0.5 || (Math.abs(r[1] - m[1]) < m[3] * 0.5 && r[0] + r[2] > m[0] + m[2]) ? r : m), sorted[0]);
+  const style = (x: number, y: number, h: number) => ({ left: `${x * 100}%`, top: `calc(${y * 100}% - 16px)`, height: `calc(${h * 100}% + 32px)` });
+  return (
+    <>
+      <span className="selHandle start" data-sel-handle="start" style={style(first[0], first[1], first[3])} data-testid="sel-handle-start" />
+      <span className="selHandle end" data-sel-handle="end" style={style(last[0] + last[2], last[1], last[3])} data-testid="sel-handle-end" />
+    </>
+  );
 }

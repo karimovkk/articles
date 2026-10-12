@@ -15,6 +15,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/providers/auth-provider";
+import { selectionContext } from "@/lib/reader/context";
 import { Alert, Button, IconButton, Modal, Spinner, cn, useConfirm } from "@/components/ui";
 import {
   errorMessage,
@@ -406,6 +407,60 @@ export function ReaderView({ articleId }: { articleId: string }) {
     };
   }, [showToast, t]);
 
+  // ---- 95.1: screenshot'ga qarshi. Brauzer screenshot'ni to'liq bloklay olmaydi — eng yaxshi chora: tegishli tugmalar
+  // bosilishi yoki oyna fokusni yo'qotishi bilan sahifa DARHOL xiralashadi (DOM'ga to'g'ridan — React render'ini
+  // kutmaydi):
+  //  - PrintScreen (Windows: faqat keyup keladi) — xiralashadi va bufer tozalanadi (ekran rasmi buferga tushadi);
+  //  - Win/Cmd tugmasi bosilganda (Win+Shift+S, Cmd+Shift+3/4/5 dan oldin keladi); Shift bilan — 6 soniya;
+  //  - oyna fokusni yo'qotsa (Snipping Tool, boshqa dastur) — fokus qaytguncha;
+  //  - sahifa yashirinsa (telefonda ilovalar ro'yxati — u yerdagi ko'rinish ham xira bo'ladi).
+  // Telefondagi tugmalar (quvvat + ovoz) brauzerga umuman kelmaydi — bu yerda watermark himoya qiladi.
+  const shieldTimer = useRef(0);
+  const shield = useCallback((ms: number | null) => {
+    const el = stageRef.current;
+    if (!el) return;
+    window.clearTimeout(shieldTimer.current);
+    el.classList.add("shielded");
+    if (ms !== null) shieldTimer.current = window.setTimeout(() => el.classList.remove("shielded"), ms);
+  }, []);
+  const unshield = useCallback((delay = 0) => {
+    window.clearTimeout(shieldTimer.current);
+    shieldTimer.current = window.setTimeout(() => stageRef.current?.classList.remove("shielded"), delay);
+  }, []);
+  useEffect(() => {
+    const wipeClipboard = () => void navigator.clipboard?.writeText(t("reader.noScreenshot")).catch(() => undefined);
+    const onDown = (e: KeyboardEvent) => {
+      if (e.key === "PrintScreen") {
+        shield(2500);
+        wipeClipboard();
+      } else if (e.key === "Meta" || e.key === "OS" || e.key === "Super") shield(null);
+      else if (e.metaKey && e.shiftKey) shield(6000);
+    };
+    const onUp = (e: KeyboardEvent) => {
+      if (e.key === "PrintScreen") {
+        shield(2500);
+        wipeClipboard();
+        showToast(t("reader.noScreenshot"));
+      } else if ((e.key === "Meta" || e.key === "OS" || e.key === "Super") && !e.shiftKey) unshield(500);
+    };
+    const onBlur = () => shield(null);
+    const onFocus = () => unshield(150);
+    const onVis = () => (document.visibilityState === "hidden" ? shield(null) : unshield(300));
+    window.addEventListener("keydown", onDown, true);
+    window.addEventListener("keyup", onUp, true);
+    window.addEventListener("blur", onBlur);
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      window.removeEventListener("keydown", onDown, true);
+      window.removeEventListener("keyup", onUp, true);
+      window.removeEventListener("blur", onBlur);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVis);
+      window.clearTimeout(shieldTimer.current);
+    };
+  }, [shield, unshield, showToast, t]);
+
   // ---- Klaviatura: navigatsiya + chop etish/saqlash/hammasini tanlash bloklash
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -538,28 +593,10 @@ export function ReaderView({ articleId }: { articleId: string }) {
   };
 
   // ---- 33: lug'at
-  /** Tanlangan joy joylashgan qator(lar) matni — so'zning konteksti (PDF matn qatlamidan) */
-  const contextFor = (s: TextSelection): string => {
+  /** 95.4: so'z konteksti — tanlangan joy joylashgan gap (ustun-ustun o'qish tartibida; qo'shni ustun aralashmaydi) */
+  const contextFor = (s: TextSelection) => {
     const pageEl = stageRef.current?.querySelector<HTMLElement>(`[data-page="${s.page}"]`);
-    const layer = pageEl?.querySelector(".textLayer");
-    if (!pageEl || !layer || !s.rects.length) return "";
-    const box = pageEl.getBoundingClientRect();
-    const top = Math.min(...s.rects.map((r) => r[1]));
-    const bottom = Math.max(...s.rects.map((r) => r[1] + r[3]));
-    const parts: Array<{ y: number; x: number; text: string }> = [];
-    for (const sp of Array.from(layer.querySelectorAll("span"))) {
-      const r = sp.getBoundingClientRect();
-      if (!r.height || !sp.textContent?.trim()) continue;
-      const cy = (r.top + r.height / 2 - box.top) / box.height;
-      if (cy >= top - 0.004 && cy <= bottom + 0.004) parts.push({ y: Math.round(cy * 400), x: r.left, text: sp.textContent });
-    }
-    parts.sort((a, b) => a.y - b.y || a.x - b.x);
-    return parts
-      .map((p) => p.text)
-      .join(" ")
-      .replace(/\s+/g, " ")
-      .trim()
-      .slice(0, 400);
+    return pageEl ? selectionContext(pageEl, s.rects, s.text) : { context: "", word: null };
   };
   /** Tanlangan matndan so'z: ortiqcha bo'shliq va chetdagi tinish belgilari olib tashlanadi (asl harflar saqlanadi) */
   const cleanWord = (text: string) =>
@@ -572,14 +609,16 @@ export function ReaderView({ articleId }: { articleId: string }) {
   const openVocabFromSelection = () => {
     if (!selection) return;
     const s = selection;
-    const word = cleanWord(s.text);
+    const ctx = contextFor(s);
+    // Qator oxirida bo'lingan so'z ("auto-") — to'liq so'z ("automatic")
+    const word = cleanWord(ctx.word ?? s.text);
     const existing = vocab.find((v) => normalizeWord(v.word) === normalizeWord(word)) ?? null;
     setVocabDraft({
       mode: "add",
       page: s.page,
       rects: s.rects,
       existing,
-      values: { word, translation: existing?.translation ?? "", context: existing?.context ?? contextFor(s) },
+      values: { word, translation: existing?.translation ?? "", context: existing?.context ?? ctx.context },
     });
     setSelection(null);
     viewerRef.current?.clearSelection();
@@ -854,7 +893,7 @@ export function ReaderView({ articleId }: { articleId: string }) {
             </div>
           )}
 
-          <div ref={stageRef} className="relative min-w-0 flex-1">
+          <div ref={stageRef} className="reader-stage relative min-w-0 flex-1" data-testid="reader-stage">
             <PdfViewer
               ref={viewerRef}
               articleId={articleId}
@@ -886,6 +925,10 @@ export function ReaderView({ articleId }: { articleId: string }) {
               }}
             />
             {meta.features?.watermark !== false && <WatermarkOverlay payload={watermark} night={night} />}
+            <div className="shield-msg" aria-hidden data-testid="shield-msg">
+              <I.Lock size={22} />
+              <span>{t("reader.protected")}</span>
+            </div>
             {/* 44.5: maqola oxiriga yetdi — test taklifi (panel "Test" tabida ochiladi) */}
             {quiz.length > 0 && pageCount > 0 && page >= pageCount - (shownMode === "spread" ? 1 : 0) && !(sidebarOpen && tab === "test") && (
               <button

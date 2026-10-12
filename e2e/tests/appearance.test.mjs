@@ -13,8 +13,8 @@ await reset("");
 const browser = await launch();
 const pageErrors = [];
 // 72: `net` — foydalanuvchi interneti (navigator.connection taqlidi): null — aniqlab bo'lmaydi (iPhone kabi)
-const newPage = async (theme = "light", net) => {
-  const ctx = await browser.newContext({ viewport: { width: 1366, height: 860 } });
+const newPage = async (theme = "light", net, viewport = { width: 1366, height: 860 }) => {
+  const ctx = await browser.newContext({ viewport });
   await ctx.addInitScript((t) => localStorage.setItem("a365.theme", t), theme);
   if (net !== undefined)
     await ctx.addInitScript((n) => {
@@ -108,6 +108,18 @@ imgs = await mockWait("/__app-images", (x) => x.background?.dark?.type === "imag
 check("Katta rasm: asl holida (JPEG, hajmi bir xil)", imgs.background?.dark?.type === "image/jpeg" && imgs.background.dark.size === bigSize, `${imgs.background?.dark?.size} / ${bigSize}`);
 check("Katta rasm: yengil nusxalar — md < asl, sm < md", imgs.background_md?.dark?.size > 0 && imgs.background_md.dark.size < bigSize && imgs.background_sm?.dark?.size < imgs.background_md.dark.size, JSON.stringify({ asl: bigSize, md: imgs.background_md?.dark?.size, sm: imgs.background_sm?.dark?.size }));
 const v1 = imgs.background.dark.v;
+// 95.5: qurilmalar bo'yicha ko'rinadigan qism — telefonda rasmning chap cheti, kompyuterda — standart
+await admin.waitForFunction(() => document.querySelector('[data-testid="bg-dark-focus-frame"]'), null, { timeout: 15000 });
+await admin.click('[data-testid="bg-dark-focus-device-mobile"]');
+await admin.locator('[data-testid="bg-dark-focus-img"]').scrollIntoViewIfNeeded();
+const fbox = await admin.locator('[data-testid="bg-dark-focus-img"]').boundingBox();
+await admin.mouse.click(fbox.x + 3, fbox.y + fbox.height / 2);
+const prevMobile = await admin.getAttribute('[data-testid="bg-dark-focus-preview-mobile"]', "style");
+const frame = await admin.locator('[data-testid="bg-dark-focus-frame"]').boundingBox();
+check("Fon qismi: telefon ramkasi rasmning chap chetiga o'tdi, oldindan ko'rishda 0%", Math.abs(frame.x - fbox.x) < 3 && frame.width < fbox.width * 0.5 && /background-position:\s*0%/.test(prevMobile ?? ""), `${JSON.stringify(frame)} ${prevMobile}`);
+await admin.click('[data-testid="bg-dark-focus-device-tablet"]');
+await admin.mouse.click(fbox.x + fbox.width - 3, fbox.y + fbox.height / 2);
+await admin.screenshot({ path: OUT + "87b-admin-bg-focus.png", fullPage: true });
 await admin.click('[data-testid="bg-light-color"]');
 const lightSw = await admin.locator('[data-testid="bg-light-swatch"]').count();
 check("Yorug' fon: 8 ta tayyor rang, kod maydoni yo'q", lightSw === 8 && (await admin.locator('[data-testid="bg-light"] input').count()) === 0, `${lightSw}`);
@@ -117,6 +129,7 @@ await admin.screenshot({ path: OUT + "87-admin-appearance.png", fullPage: true }
 await admin.click('[data-testid="appearance-save"]');
 await admin.waitForSelector("text=Saqlandi", { timeout: 5000 });
 const st = (await mockGet("/__app-settings")).appearance;
+check("Saqlandi: fon qismi — telefon x=0, planshet x=100, kompyuter yo'q (standart)", st?.background_focus_dark?.mobile?.x === 0 && st?.background_focus_dark?.tablet?.x === 100 && !st?.background_focus_dark?.desktop, JSON.stringify(st?.background_focus_dark));
 check("Saqlandi: rang, yorug' fon, qorong'i fon — yuklangan rasm, tizim shrifti", st?.primary_color === "#2563eb" && st?.background_light === "#e9f0f8" && st?.background_dark === "upload" && st?.font === "system" && !("images" in st), JSON.stringify(st));
 
 // Boshqa foydalanuvchi — login sahifasidan boshlab yangi ko'rinish
@@ -159,6 +172,17 @@ for (const [label, net, want] of [
   const got = bgi.match(/images\/([a-z_]+)\?/)?.[1];
   check(`${label}: fon — ${want}, boshqa nusxalar yuklanmadi`, got === want && reqs.every((n) => n === want), `${got} · so'rovlar: ${[...new Set(reqs)].join(",")}`);
   await p.context().close();
+}
+// 95.5: foydalanuvchida — telefonda rasm chap chetdan, kompyuterda — standart (center top)
+{
+  const ph = await newPage("dark", undefined, { width: 390, height: 844 });
+  await ph.goto(`${BASE}/catalog`);
+  await ph.waitForSelector('[data-testid="book-card"]', { timeout: 20000 });
+  const pos = await ph.evaluate(() => getComputedStyle(document.querySelector(".client-bg"), "::before").backgroundPosition);
+  await ph.screenshot({ path: OUT + "87c-user-bg-focus-390.png" });
+  const deskPos = await dark.evaluate(() => getComputedStyle(document.querySelector(".client-bg"), "::before").backgroundPosition);
+  check("Foydalanuvchi: telefonda fon — 0% (admin tanlagan qism), kompyuterda — standart (50% 0%)", pos.startsWith("0%") && deskPos === "50% 0%", `${pos} | ${deskPos}`);
+  await ph.context().close();
 }
 const served = await dark.evaluate(async (u) => { const r = await fetch(u); return { ok: r.ok, type: r.headers.get("content-type") }; }, darkBg.match(/url\("(.+?)"\)/)[1]);
 check("Rasm public serve qilinadi (asl format — image/jpeg)", served.ok && served.type === "image/jpeg", JSON.stringify(served));

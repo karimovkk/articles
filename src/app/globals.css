@@ -471,3 +471,64 @@ html {
   top: 6px;
   right: 6px;
 }
+
+/* 95.1: screenshot'ga qarshi — xiralashtirish darhol (o'tishsiz); xabar faqat shu holatda */
+.reader-stage {
+  -webkit-touch-callout: none;
+}
+.reader-stage.shielded > :not(.shield-msg) {
+  filter: blur(28px) saturate(0.6);
+}
+.reader-stage .shield-msg {
+  display: none;
+}
+.reader-stage.shielded .shield-msg {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 8px;
+  font-weight: 700;
+  color: var(--text);
+  pointer-events: none;
+}
+
+/* 95.2: telefonda tanlov tutqichlari — chiziq ("devorcha") va dumaloq: boshida tepada, oxirida pastda.
+   Element kengroq (barmoq uchun), ko'rinadigani — ichidagi chiziq va dumaloq */
+.selHandle {
+  position: absolute;
+  z-index: 8;
+  width: 32px;
+  margin-left: -16px;
+  pointer-events: auto;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.selHandle::before {
+  content: "";
+  position: absolute;
+  left: 15px;
+  top: 16px;
+  bottom: 16px;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--accent-ink);
+}
+.selHandle::after {
+  content: "";
+  position: absolute;
+  left: 9px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--accent-ink);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.3);
+}
+.selHandle.start::after {
+  top: 3px;
+}
+.selHandle.end::after {
+  bottom: 3px;
+}

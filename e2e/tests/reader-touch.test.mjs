@@ -174,6 +174,33 @@ const { page, cdp } = await openReader(390, 844);
   check("Uzoq bosish: so'z darhol tanlandi (ushlab turganda ko'rinadi) + tebranish", pickWhileHold > 0 && (await page.evaluate(() => window.__vib)) === 1, `rects ${pickWhileHold}`);
   check("Uzoq bosish → barmoq ko'tarilgach tanlov paneli", await selectionOpen(page));
   await page.screenshot({ path: OUT + "98-reader-longpress-390.png" });
+  // 95.2: tutqichlar — boshida va oxirida; oxirgisini o'ngga sudrab tanlov kengaytiriladi, boshini — qisqartiriladi
+  const hb = async (w) => page.evaluate((w) => { const r = document.querySelector(`[data-testid="sel-handle-${w}"]`)?.getBoundingClientRect(); return r ? { x: r.left + r.width / 2, y: r.top + r.height / 2, b: r.bottom, t: r.top } : null; }, w);
+  const pickWidth = () => page.evaluate(() => [...document.querySelectorAll('[data-testid="pick-rects"] > div')].reduce((s, d) => s + d.getBoundingClientRect().width, 0));
+  const hS = await hb("start");
+  const hE = await hb("end");
+  check("Tanlov boshi va oxirida tutqichlar (devorcha)", !!hS && !!hE && hE.x > hS.x, JSON.stringify({ hS, hE }));
+  const pw0 = await pickWidth();
+  const word0 = await page.evaluate(() => document.querySelector('[data-testid="selection-vocab"]') && 1);
+  await touch(cdp, "touchStart", [[hE.x, hE.b - 6]]);
+  for (let i = 1; i <= 10; i++) {
+    await touch(cdp, "touchMove", [[hE.x + 9 * i, hE.b - 6]]);
+    await sleep(16);
+  }
+  await touch(cdp, "touchEnd", []);
+  await page.waitForTimeout(300);
+  const pw1 = await pickWidth();
+  check("Oxirgi tutqich sudraldi — tanlov kengaydi, panel joyida, sahifa siljimadi", pw1 > pw0 + 20 && (await selectionOpen(page)) && word0 === 1, `${Math.round(pw0)}→${Math.round(pw1)}`);
+  await page.screenshot({ path: OUT + "98-reader-handles-390.png" });
+  const hs2 = await hb("start");
+  await touch(cdp, "touchStart", [[hs2.x, hs2.t + 6]]);
+  for (let i = 1; i <= 6; i++) {
+    await touch(cdp, "touchMove", [[hs2.x + 6 * i, hs2.t + 6]]);
+    await sleep(16);
+  }
+  await touch(cdp, "touchEnd", []);
+  await page.waitForTimeout(300);
+  check("Bosh tutqich o'ngga — tanlov qisqardi", (await pickWidth()) < pw1 - 5 && (await selectionOpen(page)), `${Math.round(pw1)}→${Math.round(await pickWidth())}`);
   // Panel ochiq — boshqa joyga tegish yopadi
   await tap(cdp, cx, box.y + box.h - 120);
   await page.waitForTimeout(400);

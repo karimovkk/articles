@@ -10,6 +10,7 @@
  */
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import { Alert, Badge, Button, Card, Field, PageHeader, Spinner, cn } from "@/components/ui";
+import { BgFocusEditor } from "@/components/admin/bg-focus-editor";
 import * as I from "@/components/ui/icons";
 import { adminApi, errorMessage, type AppImageTheme } from "@/lib/api";
 import {
@@ -27,6 +28,7 @@ import {
   isSafeAssetUrl,
   isSafeImageUrl,
   type Appearance,
+  type BgFocus,
   type ColorPreset,
 } from "@/lib/appearance";
 import { compressImage } from "@/lib/image-compress";
@@ -103,10 +105,15 @@ function BgField({
   value,
   imageUrl,
   onChange,
+  focus,
+  onFocus,
   testid,
 }: {
   label: string;
   theme: AppImageTheme;
+  /** 95.5: qurilmalar bo'yicha ko'rinadigan qism */
+  focus?: BgFocus | null;
+  onFocus: (f: BgFocus) => void;
   value: string | null | undefined;
   /** Shu mavzu uchun serverdagi (yoki yangi yuklangan) rasm URL'i */
   imageUrl: string | null | undefined;
@@ -228,6 +235,7 @@ function BgField({
               </div>
             )}
             {error && <p className="text-xs text-danger" data-testid={`${testid}-error`}>{error}</p>}
+            {shownUrl && progress === null && <BgFocusEditor url={shownUrl} focus={focus} onChange={onFocus} testid={`${testid}-focus`} />}
           </>
         )}
       </div>
@@ -336,6 +344,8 @@ export default function AdminAppearancePage() {
                 value={a.background_light}
                 imageUrl={a.images?.light}
                 onChange={(v, url) => set({ background_light: v, ...(url ? { images: { ...a.images, light: url } } : {}) })}
+                focus={a.background_focus_light}
+                onFocus={(f) => set({ background_focus_light: f })}
                 testid="bg-light"
               />
               <BgField
@@ -345,6 +355,8 @@ export default function AdminAppearancePage() {
                 value={a.background_dark}
                 imageUrl={a.images?.dark}
                 onChange={(v, url) => set({ background_dark: v, ...(url ? { images: { ...a.images, dark: url } } : {}) })}
+                focus={a.background_focus_dark}
+                onFocus={(f) => set({ background_focus_dark: f })}
                 testid="bg-dark"
               />
               <Field label={t("appearance.font")} group>

@@ -146,6 +146,40 @@ const wmDrawn = await page
   .catch(() => false);
 check("Suv belgisi canvas piksellarida (ekran suratida ham qoladi)", wmDrawn);
 
+// ---- 95.1: screenshot'ga qarshi — PrintScreen / Win(Cmd) / oyna fokusni yo'qotsa / sahifa yashirinsa — darhol xira
+const shielded = () => page.evaluate(() => {
+  const st = document.querySelector('[data-testid="reader-stage"]');
+  const kid = st?.querySelector(":scope > :not(.shield-msg)");
+  return { on: !!st?.classList.contains("shielded"), blur: kid ? getComputedStyle(kid).filter : "", msg: getComputedStyle(st.querySelector(".shield-msg")).display };
+});
+check("Odatda — xira emas, xabar yashirin", !(await shielded()).on && (await shielded()).msg === "none");
+await page.keyboard.press("PrintScreen");
+const ps = await shielded();
+check("PrintScreen — sahifa darhol xira (blur), 'Himoyalangan kontent' xabari", ps.on && ps.blur.includes("blur") && ps.msg !== "none", JSON.stringify(ps));
+await page.waitForTimeout(2800);
+check("PrintScreen'dan ~2,5 s keyin — yana ko'rinadi", !(await shielded()).on);
+await page.keyboard.down("Meta");
+check("Win/Cmd bosilganda — xira (Win+Shift+S, Cmd+Shift+4 dan oldin)", (await shielded()).on);
+await page.keyboard.up("Meta");
+await page.waitForTimeout(700);
+check("Win/Cmd qo'yib yuborilgach — ko'rinadi", !(await shielded()).on);
+await page.evaluate(() => window.dispatchEvent(new Event("blur")));
+check("Oyna fokusni yo'qotsa (Snipping Tool, boshqa dastur) — xira", (await shielded()).on);
+await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+await page.waitForTimeout(300);
+check("Fokus qaytsa — ko'rinadi", !(await shielded()).on);
+await page.evaluate(() => {
+  Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "hidden" });
+  document.dispatchEvent(new Event("visibilitychange"));
+});
+check("Sahifa yashirinsa (telefonda ilovalar ro'yxati) — xira", (await shielded()).on);
+await page.evaluate(() => {
+  Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "visible" });
+  document.dispatchEvent(new Event("visibilitychange"));
+});
+await page.waitForTimeout(500);
+check("Qaytilganda — ko'rinadi", !(await shielded()).on);
+
 // ---- Belgilash: yaratish → panel → rang → o'chirish; dublikat yaratilmaydi
 await selectSpan(1);
 await page.click('button[aria-label="Ko\'k rang bilan belgilash"]');

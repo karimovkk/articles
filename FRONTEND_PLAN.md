@@ -1439,6 +1439,25 @@ Manba: `Articles365_BACKEND_IELTS_Javob_Matni_v1.0.md` (backend prod'da): `answe
 - [x] 94.2 O'quvchi: "Matnda ko'rsatish" → bet + matn 1,2 s bo'rttiriladi (qidiruv mexanizmi, davomiylik sozlanadi)
 - [x] 94.3 Mock, e2e dev + prod, real backend smoke
 
+## 95. Reader himoyasi, telefonda tanlash, watermark, lug'at konteksti, fon rasmi joyi (2026-10-13)
+
+- [x] 95.1 Screenshot'ga qarshi (kompyuter): PrintScreen / Win+Shift+S / Cmd+Shift+3-5 / oyna fokusni yo'qotsa — sahifa
+      darhol xiralashadi; PrintScreen'da bufer tozalanadi. Telefon: ilovalar ro'yxatiga o'tganda (sahifa yashirinsa)
+      xiralashadi (brauzer screenshot'ni to'liq bloklay olmaydi — cheklov)
+- [x] 95.2 Telefonda tanlash: belgilangan matn boshi va oxirida "devorcha" tutqichlar — sudrab tanlovni kengaytirish /
+      qisqartirish
+- [x] 95.3 Watermark — kamroq va ochroq (o'qishga xalaqit bermasin)
+- [x] 95.4 Lug'at konteksti: to'liq tekshiruv (ikki ustunli PDF, qator uzilishi, so'z bo'linishi) va tuzatish
+- [x] 95.5 Fon rasmi: admin telefon / planshet / kompyuter uchun rasmning ko'rinadigan qismini tanlaydi (oldindan
+      ko'rish), barcha foydalanuvchilarga shunday ko'rinadi (`settings.appearance`, backend o'zgarishsiz)
+- [x] 95.6 e2e dev + prod, skrinshotlar
+
+## 96. Telefonda to'lov: Telegram "qotib qolishi" (2026-10-13)
+
+- [x] 96.1 Telefonda bo'sh tab va t.me veb-sahifasi o'rniga to'g'ridan `tg://resolve?domain=…&start=…`; ilova 1,5 s ichida
+      ochilmasa — `https://t.me/…`. Kompyuterda o'zgarishsiz (yangi oyna)
+- [x] 96.2 e2e (orders): telefon — tg:// havola, yangi tab yo'q, zaxira faqat ilova ochilmaganda
+
 ## 31. Keyingi vazifalar
 
 - [ ] 31.1 Safari (WebKit): varaqlash rejimida oldingi sahifaga qaytilganda (3-sahifa) belgilash qatlami

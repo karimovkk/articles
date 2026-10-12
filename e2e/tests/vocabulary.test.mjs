@@ -1,7 +1,7 @@
 // 33 — Lug'at: PDF'dan so'z qo'shish (tarjima bilan), dublikat, PDF'dagi belgi va tarjima oynasi, reader sidebar'dagi
 // "Lug'at" tabi, /vocabulary sahifasi (bo'sh holat, qidiruv, filtr, saralash, tarjima qo'shish, o'rgandim, takrorlash,
 // PDF'da ochish → o'sha bet + so'z bo'rttiriladi, o'chirish, CSV), telefon/planshet/TV'da gorizontal scroll yo'q.
-import { launch, BASE, reset, mockGet, ignorablePageError, selectPick } from "../lib.mjs";
+import { launch, BASE, API_HOST, reset, mockGet, ignorablePageError, selectPick } from "../lib.mjs";
 import { mkdirSync } from "node:fs";
 const ART = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const OUT = new URL("../out/", import.meta.url).pathname;
@@ -209,6 +209,26 @@ for (const [w, h] of sizes) {
   if (w === 320) await page.screenshot({ path: OUT + "33-vocab-320.png", fullPage: true });
 }
 check(`Lug'at sahifasi ${sizes.length} ta o'lchamda: gorizontal scroll yo'q`, bad.length === 0, bad.join(" | "));
+
+// ---- 95.4: kontekst — ikki ustunli sahifa: qo'shni ustun aralashmaydi, butun gap, qator oxirida bo'lingan so'z qo'shiladi
+await fetch(`${API_HOST}/__setbig?path=${new URL("../mock/two-col.pdf", import.meta.url).pathname}`);
+await page.goto(`${BASE}/reader/eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee`);
+await page.waitForFunction(() => document.querySelectorAll('[data-page="1"] .textLayer span').length > 0, null, { timeout: 30000 });
+await page.waitForTimeout(500);
+const ctxOf = async (w) => {
+  await dragSelect(w);
+  await page.click('[data-testid="selection-vocab"]');
+  await page.waitForSelector('[data-testid="vocab-dialog"]');
+  const v = await page.evaluate(() => ({ word: document.querySelector('[data-testid="vocab-word"]').value, ctx: document.querySelector('[data-testid="vocab-context"]').value }));
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(300);
+  return v;
+};
+const c1 = await ctxOf("Repetition");
+check("Kontekst (chap ustun): butun gap, o'ng ustun aralashmadi, 'auto-matic' qo'shildi", c1.ctx === "Repetition makes the routine almost automatic over time.", c1.ctx);
+const c2 = await ctxOf("Small");
+check("Kontekst (o'ng ustun): 'Small steps beat willpower in the long run.'", c2.ctx === "Small steps beat willpower in the long run.", c2.ctx);
+await fetch(`${API_HOST}/__setbig`);
 
 check("Sahifa xatolari yo'q", pageErrors.length === 0, pageErrors.join(" | ").slice(0, 300));
 await browser.close();

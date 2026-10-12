@@ -5,12 +5,41 @@
  * bot foydalanuvchi va buyurtmani o'zi taniydi — karta raqami, chek va tasdiq botda. Oyna bosish paytida (sinxron)
  * ochiladi: so'rov tugagach ochilsa brauzer uni pop-up deb bloklaydi; bloklansa — shu tabda o'tiladi.
  * Natija (tasdiq/rad) sayt holat kuzatuvida ko'rinadi. `children` — tugma yonidagi amallar (masalan, bekor qilish).
+ * 96: telefonda — bo'sh tab ochilmaydi va t.me veb-sahifasi orqali o'tilmaydi (bo'sh tab → t.me → ilova: "qotib qolish"):
+ * to'g'ridan `tg://resolve?domain=…&start=…` — Telegram darhol ochiladi; ilova o'rnatilmagan bo'lsa (sahifa 1,5 s ichida
+ * yashirinmasa) — oddiy `https://t.me/…` havolasi.
  */
 import { useState, type ReactNode } from "react";
 import { Alert, Button } from "@/components/ui";
 import * as I from "@/components/ui/icons";
 import { errorMessage, isApiError, ordersApi, type Order } from "@/lib/api";
 import { useT } from "@/i18n";
+
+/** Telefon / planshet (sensorli, mobil OS) */
+const isMobile = () => typeof window !== "undefined" && (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent)));
+
+/** `https://t.me/<bot>?start=<token>` → `tg://resolve?domain=<bot>&start=<token>` (ilova sxemasi) */
+export function tgAppLink(deepLink: string, bot?: string | null, token?: string | null): string | null {
+  try {
+    const u = new URL(deepLink);
+    const domain = bot || u.pathname.split("/").filter(Boolean)[0];
+    const start = token || u.searchParams.get("start");
+    if (!domain || !/^[A-Za-z0-9_]{3,64}$/.test(domain)) return null;
+    return `tg://resolve?domain=${domain}${start ? `&start=${encodeURIComponent(start)}` : ""}`;
+  } catch {
+    return null;
+  }
+}
+
+/** Havolani shu tabda ochish (ilova sxemasi uchun ham) */
+function go(url: string) {
+  const a = document.createElement("a");
+  a.href = url;
+  a.rel = "noopener";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
 
 export function TelegramPay({ order, onStale, compact, children }: { order: Order; onStale?: () => void; compact?: boolean; children?: ReactNode }) {
   const { t } = useT();
@@ -21,6 +50,7 @@ export function TelegramPay({ order, onStale, compact, children }: { order: Orde
 
   const pay = async () => {
     setError(null);
+    if (isMobile()) return payMobile();
     const win = window.open("", "_blank");
     setBusy(true);
     try {
@@ -33,10 +63,42 @@ export function TelegramPay({ order, onStale, compact, children }: { order: Orde
       if (win) {
         win.opener = null;
         win.location.href = deep_link;
-      } else window.location.href = deep_link;
+      } else go(deep_link);
       setOpened(true);
     } catch (e) {
       win?.close();
+      if (isApiError(e) && e.code === "INVALID_ORDER_STATE") onStale?.();
+      setError(errorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // 96: telefon — ilova sxemasi (oraliq tab va veb-sahifa yo'q), ilova yo'q bo'lsa — https
+  const payMobile = async () => {
+    setBusy(true);
+    try {
+      const { deep_link, bot_username, token } = await ordersApi.telegramLink(order.id);
+      if (!deep_link) {
+        setError(t("orders.tg.unavailable"));
+        return;
+      }
+      const app = tgAppLink(deep_link, bot_username, token);
+      setOpened(true);
+      if (!app) return go(deep_link);
+      let left = false;
+      const onHide = () => {
+        if (document.visibilityState === "hidden") left = true;
+      };
+      document.addEventListener("visibilitychange", onHide);
+      window.addEventListener("pagehide", onHide);
+      go(app);
+      window.setTimeout(() => {
+        document.removeEventListener("visibilitychange", onHide);
+        window.removeEventListener("pagehide", onHide);
+        if (!left && document.visibilityState === "visible") go(deep_link); // ilova ochilmadi — veb havola
+      }, 1500);
+    } catch (e) {
       if (isApiError(e) && e.code === "INVALID_ORDER_STATE") onStale?.();
       setError(errorMessage(e));
     } finally {
