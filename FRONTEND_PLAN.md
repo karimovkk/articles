@@ -1423,6 +1423,13 @@ fayl storage'da qoladi va hali ham beriladi — shuning uchun DELETE shart.
 - [x] 92.2 To'liq variantlar: bo'sh joy belgilari aniq (neytral holat faqat eski javob shakli uchun qoladi); mock real
       shaklda; e2e + real backend smoke
 
+## 93. IELTS test — soddalashtirish va admin tuzatishlari (2026-10-12)
+
+- [x] 93.1 O'quvchi: urinishlar tarixi va taymer olib tashlanadi; to'g'ri javoblar — bitta tugma (ko'rsatish / yashirish)
+- [x] 93.2 Admin: diagrammada rasmni bosganda fayl tanlash oynasi ochilmasin (maydon `label` ichida edi)
+- [x] 93.3 Native `<select>` o'rniga qo'lbola Select (o'quvchi moslashtirish, admin to'g'ri kalit)
+- [x] 93.4 e2e dev + prod, real backend smoke
+
 ## 31. Keyingi vazifalar
 
 - [ ] 31.1 Safari (WebKit): varaqlash rejimida oldingi sahifaga qaytilganda (3-sahifa) belgilash qatlami

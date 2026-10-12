@@ -11,7 +11,7 @@
  */
 import { Fragment, useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { cn } from "@/components/ui";
+import { Select, cn } from "@/components/ui";
 import * as I from "@/components/ui/icons";
 import { isApiPath, mechanicOf, quizApi, type QuestionResponse, type QuizAnswerResult, type QuizQuestion } from "@/lib/api";
 import { chooseCount, choiceOptions, enumValues, matchingOptions, normAnswer, splitBlanks, splitImage, splitPage, uniqueOptions, unifyApostrophes, wordCount } from "@/lib/quiz/ielts";
@@ -137,19 +137,23 @@ export function QuestionView({
               <li key={i} className={cn("qv-match-row", result && (ok ? "correct" : "wrong"))} data-testid="qv-match-row">
                 <span className="qv-num">{start + i}</span>
                 <span className="qv-match-text user-text">{it}</span>
-                <select className="input sm qv-select" value={mine} disabled={ro} onChange={(e) => onChange?.({ map: { ...map, [String(i)]: e.target.value } })} aria-label={`${start + i}. ${it}`} data-testid="qv-match-select">
-                  <option value="">—</option>
-                  {opts.map((o) => {
+                <Select
+                  size="sm"
+                  className="qv-select"
+                  matchWidth={false}
+                  searchable={false}
+                  value={mine}
+                  disabled={ro}
+                  placeholder="—"
+                  onChange={(v) => onChange?.({ map: { ...map, [String(i)]: v } })}
+                  options={[
+                    { value: "", label: "—" },
                     // IELTS: sarlavha / gap tugatmasi bir marta — boshqa elementda tanlangani o'chiq
-                    const taken = uniqueOptions(q.type) && o.key !== mine && Object.entries(map).some(([k, v]) => k !== String(i) && v === o.key);
-                    return (
-                      <option key={o.key} value={o.key} disabled={taken}>
-                        {o.key}
-                        {taken ? " ✓" : ""}
-                      </option>
-                    );
-                  })}
-                </select>
+                    ...opts.map((o) => ({ value: o.key, label: o.key, description: o.text, disabled: uniqueOptions(q.type) && o.key !== mine && Object.entries(map).some(([k, v]) => k !== String(i) && v === o.key) })),
+                  ]}
+                  aria-label={`${start + i}. ${it}`}
+                  data-testid="qv-match-select"
+                />
                 {result && (ok ? <I.CheckCircle size={15} className="text-success" /> : <I.XCircle size={15} className="text-danger" />)}
                 {show && !ok && right && (
                   <span className="qv-fix" data-testid="qv-fix">

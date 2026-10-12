@@ -71,7 +71,7 @@ export function DiagramImageField({
   };
 
   return (
-    <Field label={t("ielts.admin.diagram")} hint={t("ielts.admin.diagramHint")}>
+    <Field group label={t("ielts.admin.diagram")} hint={t("ielts.admin.diagramHint")}>
       <div className="space-y-3" data-testid="qf-diagram">
         <div className="flex flex-wrap items-center gap-2">
           <input

@@ -8,7 +8,7 @@
 // yuklangan rasm, savol raqamli nuqtalar (natijada yashil), kattalashtirish.
 // 91: saqlanmagan o'zgarishlar (havola / "Bekor" / tabni yopish — tasdiq), rasm yuklanish foizi, telefonda diagramma
 // (admin: nuqta qo'yish; o'quvchi: rasm panelga sig'adi, nuqtalar rasm ustida, kattalashtirish).
-import { launch, BASE, API_HOST, reset, mockGet, mockWait, ignorablePageError, confirmDialog, makeCheck } from "../lib.mjs";
+import { launch, selectPick, BASE, API_HOST, reset, mockGet, mockWait, ignorablePageError, confirmDialog, makeCheck } from "../lib.mjs";
 const OUT = new URL("../out/", import.meta.url).pathname;
 const BOOK = "11111111-1111-4111-8111-111111111111";
 const ART = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
@@ -95,17 +95,17 @@ await page.fill('[data-testid="qf-prompt"]', "A–B paragraflar uchun sarlavha t
 await page.locator('[data-testid="qf-item"]').nth(0).fill("Paragraf A");
 await page.locator('[data-testid="qf-item"]').nth(1).fill("Paragraf B");
 for (const [i, txt] of ["Kichik qadamlar", "Muhitning roli", "Motivatsiya afsonasi"].entries()) await page.locator('[data-testid="qf-opt-text"]').nth(i).fill(txt);
-await page.locator('[data-testid="qf-item-answer"]').nth(0).selectOption("i");
+await selectPick(page, page.locator('[data-testid="qf-item-answer"]').nth(0), "i");
 await page.click('[data-testid="qf-save"]');
 check("Element uchun to'g'ri kalit tanlanmagan — xato", ((await page.textContent('[data-testid="question-form"] .alert')) ?? "").includes("Har bir element uchun"));
-await page.locator('[data-testid="qf-item-answer"]').nth(1).selectOption("i");
+await selectPick(page, page.locator('[data-testid="qf-item-answer"]').nth(1), "i");
 await page.click('[data-testid="qf-save"]');
 check("Sarlavhalar: bitta sarlavha ikki paragrafga — xato (IELTS: faqat bir marta)", ((await page.textContent('[data-testid="question-form"] .alert')) ?? "").includes("faqat bir marta"));
-await page.locator('[data-testid="qf-item-answer"]').nth(1).selectOption("ii");
+await selectPick(page, page.locator('[data-testid="qf-item-answer"]').nth(1), "ii");
 await page.click('[data-testid="qf-type"][data-type="MATCHING_INFORMATION"]');
-check("Turni MATCHING_INFORMATION ga — kalitlar A, B, C va javoblar ham (A, B)", JSON.stringify(await keys()) === JSON.stringify(["A", "B", "C"]) && (await page.locator('[data-testid="qf-item-answer"]').nth(1).inputValue()) === "B");
+check("Turni MATCHING_INFORMATION ga — kalitlar A, B, C va javoblar ham (A, B)", JSON.stringify(await keys()) === JSON.stringify(["A", "B", "C"]) && (await page.locator('[data-testid="qf-item-answer"]').nth(1).getAttribute("data-value")) === "B");
 await page.click('[data-testid="qf-type"][data-type="MATCHING_HEADINGS"]');
-check("Yana sarlavhalarga — i, ii, iii (javob ii)", JSON.stringify(await keys()) === JSON.stringify(["i", "ii", "iii"]) && (await page.locator('[data-testid="qf-item-answer"]').nth(1).inputValue()) === "ii");
+check("Yana sarlavhalarga — i, ii, iii (javob ii)", JSON.stringify(await keys()) === JSON.stringify(["i", "ii", "iii"]) && (await page.locator('[data-testid="qf-item-answer"]').nth(1).getAttribute("data-value")) === "ii");
 await page.click('[data-testid="qf-save"]');
 await page.waitForFunction(() => document.querySelectorAll('[data-testid="q-item"]').length === 3, null, { timeout: 8000 });
 b = await last();
@@ -239,7 +239,11 @@ const clickImg = async (fx, fy) => {
 };
 const imgOffset = () => labelsImg.evaluate((img) => img.getBoundingClientRect().top - img.closest('[data-testid="qf-labels"]').getBoundingClientRect().top);
 const off0 = await imgOffset();
+let chooser = false;
+page.once("filechooser", () => (chooser = true));
 await clickImg(0.25, 0.3);
+await page.waitForTimeout(300);
+check("Rasmni bosganda fayl tanlash oynasi ochilmaydi", !chooser);
 check("Birinchi nuqtadan keyin rasm siljimaydi", Math.abs((await imgOffset()) - off0) < 1);
 await clickImg(0.75, 0.8);
 const pv = await page.$$eval('[data-testid="qf-preview"] [data-testid="qv-pin"]', (els) => els.map((e) => e.textContent).join(","));
@@ -322,8 +326,8 @@ await sq("SENTENCE_COMPLETION").locator('[data-testid="qv-blank"]').nth(0).fill(
 await sq("SENTENCE_COMPLETION").locator('[data-testid="qv-blank"]').nth(1).fill("SABR");
 await sq("DIAGRAM_LABEL_COMPLETION").locator('[data-testid="qv-blank"]').nth(0).fill("(Suv)");
 await sq("DIAGRAM_LABEL_COMPLETION").locator('[data-testid="qv-blank"]').nth(1).fill("oʻsimlik"); // boshqa apostrof shakli
-await sq("MATCHING_HEADINGS").locator('[data-testid="qv-match-select"]').nth(0).selectOption("i");
-await sq("MATCHING_HEADINGS").locator('[data-testid="qv-match-select"]').nth(1).selectOption("ii");
+await selectPick(student, sq("MATCHING_HEADINGS").locator('[data-testid="qv-match-select"]').nth(0), "i");
+await selectPick(student, sq("MATCHING_HEADINGS").locator('[data-testid="qv-match-select"]').nth(1), "ii");
 await student.click('[data-testid="quiz-submit"]');
 await confirmDialog(student);
 await student.waitForSelector('[data-testid="quiz-score"]', { timeout: 8000 });

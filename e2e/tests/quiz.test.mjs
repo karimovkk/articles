@@ -6,7 +6,7 @@
 // 88: natijada to'g'ri javoblar yashirin → "Xatolarni tuzatib qayta tekshirish" (javoblar saqlanadi) → "Ko'rsatish";
 // urinishlar tarixi va eng yaxshi natija (javob ko'rilgandan keyingilari kirmaydi); "Matnda ko'rsatish" (javob beti;
 // telefonda panel yopiladi, qayta ochilganda natija joyida); vaqt bilan yechish — tugasa avtomatik tekshiruv.
-import { launch, BASE, API, API_HOST, reset, mockGet, ignorablePageError, confirmDialog, makeCheck } from "../lib.mjs";
+import { launch, selectPick, BASE, API, API_HOST, reset, mockGet, ignorablePageError, confirmDialog, makeCheck } from "../lib.mjs";
 const OUT = new URL("../out/", import.meta.url).pathname;
 const ART = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const ART2 = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
@@ -94,10 +94,10 @@ const multi = await q(3).evaluate((el) => [...el.querySelectorAll('input[type="c
 check("Ko'p javobli: 2 tadan ortiq tanlanmaydi (oxirgi ikkitasi qoladi)", JSON.stringify(multi) === JSON.stringify([false, true, true, false]), JSON.stringify(multi));
 await q(3).locator('[data-testid="qv-option"]').nth(1).click(); // B ni olib tashlash
 await q(3).locator('[data-testid="qv-option"]').nth(0).click(); // A — endi A + C (to'g'ri)
-await q(4).locator('[data-testid="qv-match-select"]').nth(0).selectOption("i"); // to'g'ri
-check("Sarlavha bir marta: 'i' tanlangach boshqa elementlarda o'chiq", await q(4).locator('[data-testid="qv-match-select"]').nth(1).evaluate((sel) => sel.querySelector('option[value="i"]').disabled));
-await q(4).locator('[data-testid="qv-match-select"]').nth(1).selectOption("iii"); // xato (ii)
-await q(4).locator('[data-testid="qv-match-select"]').nth(2).selectOption("ii"); // xato (iii)
+await selectPick(reader, q(4).locator('[data-testid="qv-match-select"]').nth(0), "i"); // to'g'ri
+check("Sarlavha bir marta: 'i' tanlangach boshqa elementlarda o'chiq", await (async () => { await q(4).locator('[data-testid="qv-match-select"]').nth(1).click(); const d = await reader.locator('[role="listbox"] [role="option"][data-value="i"]').getAttribute("aria-disabled"); await reader.keyboard.press("Escape"); if (await reader.locator('[role="listbox"]').count()) await q(4).locator('[data-testid="qv-match-select"]').nth(1).click(); await reader.locator('[role="listbox"]').waitFor({ state: "detached", timeout: 5000 }); return d === "true"; })());
+await selectPick(reader, q(4).locator('[data-testid="qv-match-select"]').nth(1), "iii"); // xato (ii)
+await selectPick(reader, q(4).locator('[data-testid="qv-match-select"]').nth(2), "ii"); // xato (iii)
 await q(5).locator('[data-testid="qv-blank"]').nth(0).fill("66");
 await q(5).locator('[data-testid="qv-blank"]').nth(1).fill("Sabr!"); // normalizatsiya: "sabr"
 // Tab almashsa ham javoblar saqlanadi
@@ -105,7 +105,7 @@ await reader.click('[role="tab"]:has-text("Mundarija")').catch(async () => reade
 await reader.waitForTimeout(300);
 await reader.click('[role="tab"]:has-text("Test")');
 await reader.waitForSelector('[data-testid="quiz-panel"]');
-check("Tab almashsa ham javoblar saqlanadi (sessionStorage)", (await q(5).locator('[data-testid="qv-blank"]').nth(0).inputValue()) === "66" && (await q(4).locator('[data-testid="qv-match-select"]').nth(0).inputValue()) === "i");
+check("Tab almashsa ham javoblar saqlanadi (sessionStorage)", (await q(5).locator('[data-testid="qv-blank"]').nth(0).inputValue()) === "66" && (await q(4).locator('[data-testid="qv-match-select"]').nth(0).getAttribute("data-value")) === "i");
 // Bo'sh joyga uzun javob — so'z chegarasi ogohlantirishi
 await q(6).locator('[data-testid="qv-blank"]').nth(0).fill("kichik qadam");
 check("Jadval: 2 so'z (chegara 2) — ogohlantirish yo'q", (await q(6).locator(".qv-blank.over").count()) === 0);
@@ -129,65 +129,33 @@ const verdicts = await reader.evaluate(() => [...document.querySelectorAll('[dat
 check("Savollar: to'g'ri, xato, to'g'ri, to'g'ri, qisman, to'g'ri (normalizatsiya), qisman", JSON.stringify(verdicts) === JSON.stringify(["correct", "wrong", "correct", "correct", "partial", "correct", "partial"]), JSON.stringify(verdicts));
 const sum = ((await reader.textContent('[data-testid="quiz-summary"]')) ?? "").replace(/\s+/g, " ");
 check("Xulosa: to'g'ri / qisman / xato soni", sum.includes("4 to'g'ri") && sum.includes("2 qisman") && sum.includes("1 xato"), sum);
-// 88: to'g'ri javoblar avval yashirin
-check("Yashirin rejim: eslatma, to'g'ri javoblar va izohlar ko'rinmaydi", (await reader.locator('[data-testid="quiz-hidden-note"]').count()) === 1 && (await reader.locator('[data-testid="qv-fix"]').count()) === 0 && (await reader.locator('[data-testid="quiz-explanation"]').count()) === 0);
+// 93: to'g'ri javoblar — bitta tugma (ko'rsatish / yashirish); urinishlar tarixi va taymer yo'q
+check("Natijada: to'g'ri javoblar va izohlar yashirin; tarix/taymer yo'q", (await reader.locator('[data-testid="qv-fix"]').count()) === 0 && (await reader.locator('[data-testid="quiz-explanation"]').count()) === 0 && (await reader.locator('[data-testid="quiz-history"], [data-testid="quiz-attempt"], [data-testid="quiz-timer-start"], [data-testid="quiz-prev"]').count()) === 0);
 check("Yashirin: TFNG — tanlangan TRUE qizil, NOT GIVEN belgilanmagan", (await q(1).locator(".qv-enum-btn.wrong", { hasText: "TRUE" }).count()) === 1 && (await q(1).locator(".qv-enum-btn.correct").count()) === 0);
-check("Qisman savolda: 'Qisman: 1 / 3', elementlar ✓/✗, kalitlar yo'q", ((await q(4).locator('[data-testid="quiz-verdict"]').textContent()) ?? "").includes("Qisman: 1 / 3") && (await q(4).locator(".qv-match-row.wrong").count()) === 2);
-check("'Matnda ko'rsatish': faqat xato/qisman savolda (sarlavhalar — 2-bet); to'g'ri TFNG'da (3-bet) — yo'q", (await reader.locator('[data-testid="qv-show-page"]').count()) === 1 && ((await q(4).locator('[data-testid="qv-show-page"]').textContent()) ?? "").includes("2-bet"));
-check("Natija: 1-urinish", ((await reader.textContent('[data-testid="quiz-attempt"]')) ?? "").includes("1-urinish"));
+check("Qisman savolda: 'Qisman: 1 / 3', elementlar ✓/✗", ((await q(4).locator('[data-testid="quiz-verdict"]').textContent()) ?? "").includes("Qisman: 1 / 3") && (await q(4).locator(".qv-match-row.wrong").count()) === 2);
+check("'Matnda ko'rsatish': faqat xato/qisman savolda (sarlavhalar — 2-bet)", (await reader.locator('[data-testid="qv-show-page"]').count()) === 1 && ((await q(4).locator('[data-testid="qv-show-page"]').textContent()) ?? "").includes("2-bet"));
 await q(4).locator('[data-testid="qv-show-page"]').click();
 await reader.waitForFunction(() => document.querySelector('input[aria-label="Sahifa"]')?.value === "2", null, { timeout: 8000 });
 check("'Matnda ko'rsatish' → PDF 2-betga o'tdi, panel (kompyuterda) ochiq", (await reader.locator('[data-testid="quiz-score"]').count()) === 1);
-// Xatolarni tuzatib qayta tekshirish — javoblar saqlanadi
-await reader.click('[data-testid="quiz-amend"]');
-check("Tuzatish: natija yopildi, javoblar joyida", (await reader.locator('[data-testid="quiz-score"]').count()) === 0 && (await q(5).locator('[data-testid="qv-blank"]').nth(0).inputValue()) === "66" && (await q(4).locator('[data-testid="qv-match-select"]').nth(0).inputValue()) === "i");
-await q(4).locator('[data-testid="qv-match-select"]').nth(2).selectOption("");
-await q(4).locator('[data-testid="qv-match-select"]').nth(1).selectOption("ii");
-await q(4).locator('[data-testid="qv-match-select"]').nth(2).selectOption("iii");
-await reader.click('[data-testid="quiz-submit"]');
-await confirmDialog(reader);
-await reader.waitForSelector('[data-testid="quiz-score"]', { timeout: 8000 });
-const score2 = ((await reader.textContent('[data-testid="quiz-score"]')) ?? "").replace(/\s+/g, " ");
-check("2-urinish: 9 / 11, eng yaxshi 9 / 11 (82%)", score2.includes("9 / 11") && score2.includes("2-urinish") && score2.includes("eng yaxshi: 9 / 11 (82%)"), score2);
-await reader.click('[data-testid="quiz-history"] summary');
-await reader.locator('[data-testid="quiz-score"]').scrollIntoViewIfNeeded();
-await reader.screenshot({ path: OUT + "84d-reader-ielts-attempt.png" });
-check("Urinishlar tarixi: 2 ta", (await reader.locator('[data-testid="quiz-history"] li').count()) === 2);
-// Ko'rsatish
+check("Tugma: 'To'g'ri javoblarni ko'rsatish'", ((await reader.textContent('[data-testid="quiz-reveal"]')) ?? "").includes("ko'rsatish"));
 await reader.click('[data-testid="quiz-reveal"]');
 check("Ko'rsatildi: TFNG — NOT GIVEN yashil, jadvalda 'har kuni', izohlar (sahifa belgisisiz)", (await q(1).locator(".qv-enum-btn.correct", { hasText: "NOT GIVEN" }).count()) === 1 && ((await q(6).locator('[data-testid="qv-fix"]').textContent()) ?? "").includes("har kuni") && (await reader.locator('[data-testid="quiz-explanation"]').count()) === 2 && !((await reader.locator('[data-testid="quiz-explanation"]').first().textContent()) ?? "").includes("[p."));
-check("Ko'rsatilgach: TFNG'da ham 'Matnda ko'rsatish · 3-bet'; tugma — 'Qayta yechish'", ((await q(0).locator('[data-testid="qv-show-page"]').textContent()) ?? "").includes("3-bet") && (await reader.locator('[data-testid="quiz-retry"]').count()) === 1 && (await reader.locator('[data-testid="quiz-hidden-note"]').count()) === 0);
+check("Ko'rsatilgach: TFNG'da ham 'Matnda ko'rsatish · 3-bet'", ((await q(0).locator('[data-testid="qv-show-page"]').textContent()) ?? "").includes("3-bet"));
 await reader.screenshot({ path: OUT + "84-reader-ielts-result.png", fullPage: true });
 await q(4).scrollIntoViewIfNeeded();
 await reader.screenshot({ path: OUT + "84b-reader-ielts-matching.png" });
 await q(6).scrollIntoViewIfNeeded();
 await reader.screenshot({ path: OUT + "84b-reader-ielts-table.png" });
-await reader.click('[data-testid="quiz-retry"]');
-check("Qayta yechish: javoblar tozalandi; 'Oldingi urinishlar: 2 · eng yaxshi: 9 / 11'", (await reader.locator('[data-testid="quiz-score"]').count()) === 0 && ((await reader.textContent('[data-testid="quiz-submit"]')) ?? "").includes("0/11") && ((await reader.textContent('[data-testid="quiz-prev"]')) ?? "").includes("Oldingi urinishlar: 2"));
-
-// ---- Vaqt bilan yechish: 11 ball × 1,5 = 17 daqiqa; tab almashsa davom etadi; tugasa — avtomatik
-check("Vaqt tugmasi: '17 daqiqa'", ((await reader.textContent('[data-testid="quiz-timer-start"]')) ?? "").includes("17 daqiqa"));
-await reader.click('[data-testid="quiz-timer-start"]');
-await reader.waitForFunction(() => /^16:5\d$/.test(document.querySelector('[data-testid="quiz-timer-left"]')?.textContent ?? ""), null, { timeout: 5000 }).catch(() => {});
-check("Taymer: 16:5x", /^16:5\d$/.test((await reader.textContent('[data-testid="quiz-timer-left"]')) ?? ""), (await reader.textContent('[data-testid="quiz-timer-left"]')) ?? "");
-await q(0).locator('[data-testid="qv-enum"]', { hasText: "FALSE" }).click();
-await reader.screenshot({ path: OUT + "84e-reader-ielts-timer.png" });
-// Muddatni 2 soniyaga qisqartirib, tabni almashtiramiz (qayta o'rnatilganda saqlangan muddat o'qiladi)
-await reader.evaluate((id) => {
-  const k = `a365.quiz.timer.${id}`;
-  const t0 = JSON.parse(sessionStorage.getItem(k));
-  sessionStorage.setItem(k, JSON.stringify({ ...t0, deadline: Date.now() + 2500 }));
-}, ART);
+// Tab almashsa ham natija va "ko'rsatilgan" holat saqlanadi
 await reader.click('[role="tab"]:has-text("Mundarija")').catch(async () => reader.locator('[role="tab"]').first().click());
 await reader.click('[role="tab"]:has-text("Test")');
-await reader.waitForSelector('[data-testid="quiz-timer"]');
-await reader.waitForFunction(() => /^0:0\d$/.test(document.querySelector('[data-testid="quiz-timer-left"]')?.textContent ?? ""), null, { timeout: 3000 }).catch(() => {});
-check("Tab almashgach taymer davom etadi (0:0x)", /^0:0\d$/.test((await reader.textContent('[data-testid="quiz-timer-left"]')) ?? ""));
-await reader.waitForSelector('[data-testid="quiz-score"]', { timeout: 8000 });
-const score3 = ((await reader.textContent('[data-testid="quiz-score"]')) ?? "").replace(/\s+/g, " ");
-check("Vaqt tugadi: so'rovsiz avtomatik tekshirildi (1 / 11), xabar, 3-urinish, eng yaxshi — 9 / 11", (await reader.locator('[role="dialog"]').count()) === 0 && score3.includes("1 / 11") && score3.includes("3-urinish") && score3.includes("vaqt: ") && score3.includes("eng yaxshi: 9 / 11") && ((await reader.textContent('[data-testid="quiz-panel"]')) ?? "").includes("Vaqt tugadi"), score3);
-check("Tarixda 3-urinish — 'javoblar ko'rilgandan keyin'", ((await reader.locator('[data-testid="quiz-history"] li').first().textContent()) ?? "").includes("javoblar ko'rilgandan keyin"));
-await reader.click('[data-testid="quiz-amend"]');
+await reader.waitForSelector('[data-testid="quiz-score"]');
+check("Tab almashgach natija joyida, javoblar ochiq", (await reader.locator('[data-testid="qv-fix"]').count()) > 0);
+check("Tugma endi: 'yashirish'", ((await reader.textContent('[data-testid="quiz-reveal"]')) ?? "").includes("yashirish"));
+await reader.click('[data-testid="quiz-reveal"]');
+check("Yashirildi: to'g'ri javoblar va izohlar yana ko'rinmaydi", (await reader.locator('[data-testid="qv-fix"]').count()) === 0 && (await reader.locator('[data-testid="quiz-explanation"]').count()) === 0);
+await reader.click('[data-testid="quiz-retry"]');
+check("Qayta yechish: javoblar tozalandi", (await reader.locator('[data-testid="quiz-score"]').count()) === 0 && ((await reader.textContent('[data-testid="quiz-submit"]')) ?? "").includes("0/11"));
 
 // Savolsiz maqola — "Test" tabi yo'q
 await reader.goto(`${BASE}/reader/${ART2}`);
@@ -228,7 +196,7 @@ const fit = await phone.evaluate(() => {
 check("390px: savollar panel ichida (toshish yo'q)", fit.over === 0 && fit.sw <= 1, JSON.stringify(fit));
 await phone.locator('[data-testid="quiz-panel"]').screenshot({ path: OUT + "84c-reader-ielts-390.png" });
 const pq = (i) => phone.locator('[data-testid="quiz-question"]').nth(i);
-await pq(4).locator('[data-testid="qv-match-select"]').nth(0).selectOption("iv");
+await selectPick(phone, pq(4).locator('[data-testid="qv-match-select"]').nth(0), "iv");
 await phone.click('[data-testid="quiz-submit"]');
 await confirmDialog(phone);
 await phone.waitForSelector('[data-testid="quiz-score"]', { timeout: 8000 });

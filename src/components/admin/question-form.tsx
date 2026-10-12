@@ -20,6 +20,7 @@ import {
   Textarea,
   cn,
   useConfirm,
+  Select,
 } from "@/components/ui";
 import * as I from "@/components/ui/icons";
 import { QuestionView } from "@/components/quiz/question-view";
@@ -506,24 +507,25 @@ export function QuestionForm({
                 }}
                 data-testid="qf-item"
               />
-              <select
-                className="input sm qf-key-select"
+              <Select
+                size="sm"
+                className="qf-key-select"
+                matchWidth={false}
+                searchable={false}
                 value={map[String(i)] ?? ""}
-                onChange={(e) => {
+                placeholder={t("ielts.admin.correctKey")}
+                onChange={(val) => {
                   touch();
-                  setAnswer({ map: { ...map, [String(i)]: e.target.value } });
+                  setAnswer({ map: { ...map, [String(i)]: val } });
                 }}
+                options={opts.map((o) => ({
+                  value: o.key,
+                  label: o.key,
+                  description: o.text || undefined,
+                }))}
                 aria-label={t("ielts.admin.correctKey")}
                 data-testid="qf-item-answer"
-              >
-                <option value="">{t("ielts.admin.correctKey")}</option>
-                {opts.map((o) => (
-                  <option key={o.key} value={o.key}>
-                    {o.key}
-                    {o.text ? ` — ${o.text.slice(0, 40)}` : ""}
-                  </option>
-                ))}
-              </select>
+              />
               <IconButton
                 size="sm"
                 variant="plain"

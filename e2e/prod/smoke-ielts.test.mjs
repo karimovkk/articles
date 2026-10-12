@@ -3,7 +3,7 @@
 // saqlangan shakllar API'da tekshiriladi → o'quvchi (shu akkaunt) yechadi: UI'dagi ball va element/bo'sh joy belgilari
 // server natijasiga mos, yashirin javoblar, "Matnda ko'rsatish", tuzatib qayta tekshirish (100%) → TOZALASH (yaratilgan
 // savollar o'chiriladi, mark-read=false). Maqolada oldindan savol bo'lsa — to'xtaydi (haqiqiy kontentga tegmaydi).
-import { launch, confirmDialog } from "../lib.mjs";
+import { launch, selectPick, confirmDialog } from "../lib.mjs";
 import { mkdirSync } from "node:fs";
 
 const BASE = process.env.E2E_BASE ?? "http://localhost:3200";
@@ -69,7 +69,7 @@ try {
     await start(type, prompt);
     for (const [i, t] of its.entries()) await page.locator('[data-testid="qf-item"]').nth(i).fill(t);
     for (const [i, t] of opts.entries()) await page.locator('[data-testid="qf-opt-text"]').nth(i).fill(t);
-    for (const [i, k] of answers.entries()) await page.locator('[data-testid="qf-item-answer"]').nth(i).selectOption(k);
+    for (const [i, k] of answers.entries()) await selectPick(page, page.locator('[data-testid="qf-item-answer"]').nth(i), k);
   };
   const completion = async (type, prompt, text, accepted) => {
     await start(type, prompt);
@@ -176,13 +176,13 @@ try {
   await q("MULTIPLE_CHOICE", 1).locator('[data-testid="qv-option"]').nth(1).click(); // ✗ (A+B)
   await q("TRUE_FALSE_NOT_GIVEN").locator('[data-testid="qv-enum"]', { hasText: /^TRUE$/ }).click(); // ✗
   await q("YES_NO_NOT_GIVEN").locator('[data-testid="qv-enum"]', { hasText: /^NO$/ }).click(); // ✓
-  await q("MATCHING_INFORMATION").locator('[data-testid="qv-match-select"]').nth(0).selectOption("A");
-  await q("MATCHING_INFORMATION").locator('[data-testid="qv-match-select"]').nth(1).selectOption("A"); // 2/2
-  await q("MATCHING_HEADINGS").locator('[data-testid="qv-match-select"]').nth(0).selectOption("ii");
-  await q("MATCHING_HEADINGS").locator('[data-testid="qv-match-select"]').nth(1).selectOption("i"); // 0/2
-  await q("MATCHING_FEATURES").locator('[data-testid="qv-match-select"]').nth(0).selectOption("A"); // 1/2
-  await q("MATCHING_SENTENCE_ENDINGS").locator('[data-testid="qv-match-select"]').nth(0).selectOption("A");
-  await q("MATCHING_SENTENCE_ENDINGS").locator('[data-testid="qv-match-select"]').nth(1).selectOption("B"); // 2/2
+  await selectPick(page, q("MATCHING_INFORMATION").locator('[data-testid="qv-match-select"]').nth(0), "A");
+  await selectPick(page, q("MATCHING_INFORMATION").locator('[data-testid="qv-match-select"]').nth(1), "A"); // 2/2
+  await selectPick(page, q("MATCHING_HEADINGS").locator('[data-testid="qv-match-select"]').nth(0), "ii");
+  await selectPick(page, q("MATCHING_HEADINGS").locator('[data-testid="qv-match-select"]').nth(1), "i"); // 0/2
+  await selectPick(page, q("MATCHING_FEATURES").locator('[data-testid="qv-match-select"]').nth(0), "A"); // 1/2
+  await selectPick(page, q("MATCHING_SENTENCE_ENDINGS").locator('[data-testid="qv-match-select"]').nth(0), "A");
+  await selectPick(page, q("MATCHING_SENTENCE_ENDINGS").locator('[data-testid="qv-match-select"]').nth(1), "B"); // 2/2
   await q("SENTENCE_COMPLETION").locator('[data-testid="qv-blank"]').nth(0).fill("OLTMISH  olti."); // ✓ (katta harf, bo'shliq, nuqta)
   await q("SENTENCE_COMPLETION").locator('[data-testid="qv-blank"]').nth(1).fill("oʻz-oʻzini nazorat"); // ✓ (boshqa apostrof)
   await q("SUMMARY_COMPLETION").locator('[data-testid="qv-blank"]').nth(0).fill("(Sekin)"); // ✓
@@ -215,7 +215,7 @@ try {
   check("Har savol: UI hukmi va ✓ belgilar server natijasiga mos (14/14)", mism.length === 0, mism.join("; "));
   const note = ui.find((x) => x.id === server.results.find((r) => r.type === "NOTE_COMPLETION").question_id);
   check("NOTE: 'Soat' (2-variant) ✓, 'quvonch-shodlik' ✗ — backend barcha variantlarni qaytaradi (v1.2), neytral belgi yo'q", note.ok === 1 && note.unk === 0, JSON.stringify(note));
-  check("Yashirin rejim: to'g'ri javoblar ko'rinmaydi, eslatma bor", (await page.locator('[data-testid="qv-fix"]').count()) === 0 && (await page.locator('[data-testid="quiz-hidden-note"]').count()) === 1);
+  check("Yashirin rejim: to'g'ri javoblar ko'rinmaydi, eslatma bor", (await page.locator('[data-testid="qv-fix"]').count()) === 0 && ((await page.textContent('[data-testid="quiz-reveal"]')) ?? "").includes("ko'rsatish"));
   check("TFNG xato → 'Matnda ko'rsatish · 2-bet'", ((await q("TRUE_FALSE_NOT_GIVEN").locator('[data-testid="qv-show-page"]').textContent()) ?? "").includes("2-bet"));
   await q("TRUE_FALSE_NOT_GIVEN").locator('[data-testid="qv-show-page"]').click();
   await page.waitForFunction(() => document.querySelector('input[aria-label="Sahifa"]')?.value === "2", null, { timeout: 15000 });
@@ -232,14 +232,14 @@ try {
   await q("TRUE_FALSE_NOT_GIVEN").locator('[data-testid="qv-enum"]', { hasText: "FALSE" }).click();
   await q("YES_NO_NOT_GIVEN").locator('[data-testid="qv-enum"]', { hasText: /^NO$/ }).click();
   for (const [t, v] of [["MATCHING_INFORMATION", ["A", "A"]], ["MATCHING_HEADINGS", ["i", "ii"]], ["MATCHING_FEATURES", ["A", "B"]], ["MATCHING_SENTENCE_ENDINGS", ["A", "B"]]])
-    for (const [i, k] of v.entries()) await q(t).locator('[data-testid="qv-match-select"]').nth(i).selectOption(k);
+    for (const [i, k] of v.entries()) await selectPick(page, q(t).locator('[data-testid="qv-match-select"]').nth(i), k);
   for (const [t, v] of [["SENTENCE_COMPLETION", ["66", "o'z-o'zini nazorat"]], ["SUMMARY_COMPLETION", ["sekin"]], ["NOTE_COMPLETION", ["vaqt", "quvonch"]], ["TABLE_COMPLETION", ["kichik qadam", "har kuni"]], ["FLOW_CHART_COMPLETION", ["maqsad", "reja"]], ["DIAGRAM_LABEL_COMPLETION", ["suv", "quyosh"]]])
     for (const [i, x] of v.entries()) await q(t).locator('[data-testid="qv-blank"]').nth(i).fill(x);
   // "66" — qabul qilingan variant emas (faqat "oltmish olti") → 22 / 23
   await page.click('[data-testid="quiz-submit"]');
   await page.waitForSelector('[data-testid="quiz-score"]', { timeout: 30000 });
   const s2 = ((await page.textContent('[data-testid="quiz-score"]')) ?? "").replace(/\s+/g, " ");
-  check("Qayta: 22 / 23 ('66' variant emas), 2-urinish, eng yaxshi — birinchi (ko'rsatilgandan keyingi hisobga olinmaydi)", s2.includes("22 / 23") && s2.includes("2-urinish") && s2.includes(`eng yaxshi: ${expected} / 23`), s2);
+  check("Qayta: 22 / 23 ('66' variant emas)", s2.includes("22 / 23"), s2);
   // ---- 92: admin rasmni olib tashlaydi → DELETE …/image (fayl o'chadi), yorliqlar qoladi
   await page.goto(`${BASE}/admin/books/${BOOK}/articles/${ART}/questions`);
   await page.waitForSelector('[data-testid="q-item"]', { timeout: 30000 });
