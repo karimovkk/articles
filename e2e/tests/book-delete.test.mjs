@@ -57,5 +57,23 @@ await page.waitForSelector('[data-testid="confirm-dialog"]:has-text("buyurtma")'
 await confirmDialog(page);
 await page.waitForSelector('[data-testid="book-deleted-note"]', { timeout: 15000 });
 check("Tasdiqlandi → yana DELETE (409) va force bilan (jami 3 so'rov), kitob va buyurtmasi o'chdi, '1 ta buyurtma'", (await log()).filter((l) => l.endsWith(BOOK2)).length === 3 && !(await has(BOOK2)) && (await mockGet("/__orders")).length === 0 && ((await page.textContent('[data-testid="book-deleted-note"]')) ?? "").includes("1 ta buyurtma"));
+// ---- Ro'yxatdan o'chirish: har qatorda tugma, tasdiq bilan; qator bosilishi ishlamaydi
+await reset("");
+await page.goto(`${BASE}/admin/books`);
+await page.waitForSelector('[data-testid="book-row-delete"]', { timeout: 30000 });
+const rows0 = await page.locator('[data-testid="book-row-delete"]').count();
+const row = page.locator("tr", { has: page.locator(`a[href="/admin/books/${BOOK}"]`) });
+await row.locator('[data-testid="book-row-delete"]').click();
+await page.waitForSelector('[data-testid="confirm-dialog"]');
+check("Ro'yxat: har kitobda o'chirish tugmasi; bosilganda tasdiq (kitob sahifasiga o'tmadi)", rows0 >= 2 && page.url().endsWith("/admin/books") && ((await page.textContent('[data-testid="confirm-dialog"]')) ?? "").includes("Test kitob"));
+await confirmDialog(page, false);
+check("Bekor — kitob joyida", (await has(BOOK)) && (await log()).length === 0);
+await row.locator('[data-testid="book-row-delete"]').click();
+await confirmDialog(page);
+await page.waitForSelector('[data-testid="book-deleted-note"]', { timeout: 15000 });
+await page.waitForFunction((id) => !document.querySelector(`a[href="/admin/books/${id}"]`), BOOK, { timeout: 10000 });
+check("Tasdiqlandi — kitob o'chdi, ro'yxatda yo'q, natija xabari", !(await has(BOOK)) && (await page.locator(`a[href="/admin/books/${BOOK}"]`).count()) === 0 && ((await page.textContent('[data-testid="book-deleted-note"]')) ?? "").includes("Test kitob"));
+await page.screenshot({ path: OUT + "97b-admin-books-list-delete.png" });
+
 check("Sahifa xatolari yo'q", errors.length === 0, errors.join(" | ").slice(0, 300));
 await done(browser);

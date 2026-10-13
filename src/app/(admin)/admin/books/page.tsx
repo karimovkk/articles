@@ -4,13 +4,14 @@ import { useEffect, useState, type FormEvent, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { DataTable, Toolbar, usePaged, type Column } from "@/components/admin/data-table";
-import { Alert, Badge, Button, Field, Input, Modal, PageHeader, SearchInput, Select, Textarea, formatDate, statusTone, Switch } from "@/components/ui";
+import { Alert, Badge, Button, Field, IconButton, Input, Modal, PageHeader, SearchInput, Select, Textarea, formatDate, statusTone, Switch } from "@/components/ui";
 import * as I from "@/components/ui/icons";
 import { adminApi, errorMessage, type Book, type BookStatus, type Category } from "@/lib/api";
 import { PriceTag } from "@/components/catalog/price";
 import { PriceFields } from "@/components/admin/price-fields";
 import { isFreeBook } from "@/lib/free-books";
 import { useDebounced } from "@/lib/use-debounce";
+import { useDeleteBook } from "@/components/admin/use-delete-book";
 import { useT } from "@/i18n";
 
 /** 97: kitob butunlay o'chirilgach — ro'yxatda natija (`?deleted=<nom>&a=<maqolalar>&o=<buyurtmalar>`) */
@@ -35,7 +36,7 @@ export default function AdminBooksPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
 
-  const { data, loading, error, setPage } = usePaged<Book>(
+  const { data, loading, error, setPage, reload } = usePaged<Book>(
     (page) => adminApi.books({ page, search: query || undefined, status: status || undefined }),
     [query, status],
   );
@@ -46,6 +47,15 @@ export default function AdminBooksPage() {
       .then((r) => setCategories(r.items))
       .catch(() => undefined);
   }, []);
+
+  // 97: ro'yxatdan butunlay o'chirish (tasdiq bilan; buyurtmali kitob — ikkinchi tasdiq)
+  const del = useDeleteBook();
+  const removeBook = async (b: Book) => {
+    const res = await del.remove({ id: b.id, title: b.title });
+    if (!res) return;
+    router.replace(`/admin/books?deleted=${encodeURIComponent(b.title)}&a=${res.articles_deleted}&o=${res.orders_deleted}`);
+    reload();
+  };
 
   const columns: Column<Book>[] = [
     {
@@ -78,6 +88,26 @@ export default function AdminBooksPage() {
     { key: "price", header: t("admin.books.price"), num: true, render: (b) => (isFreeBook(b) ? <Badge tone="success">{t("catalog.free")}</Badge> : <PriceTag item={b} size="sm" />) },
     { key: "cover", header: t("admin.books.cover"), render: (b) => (b.has_cover ? <Badge tone="success">✓</Badge> : <span className="muted">{t("common.none")}</span>) },
     { key: "created", header: t("common.created"), render: (b) => <span className="muted">{formatDate(b.created_at)}</span> },
+    {
+      key: "actions",
+      header: "",
+      render: (b) => (
+        <IconButton
+          size="sm"
+          variant="plain"
+          label={t("admin.books.deleteConfirm")}
+          disabled={del.busyId !== null}
+          onClick={(e) => {
+            e.stopPropagation(); // qator bosilishi (kitob sahifasiga o'tish) ishlamasin
+            void removeBook(b);
+          }}
+          className="text-danger"
+          data-testid="book-row-delete"
+        >
+          <I.Trash size={15} />
+        </IconButton>
+      ),
+    },
   ];
 
   const statusOptions = [
@@ -100,6 +130,7 @@ export default function AdminBooksPage() {
       <Suspense fallback={null}>
         <DeletedNote />
       </Suspense>
+      {del.error && <Alert>{del.error}</Alert>}
       <Toolbar onSubmit={flush} meta={data ? `${t("common.total")}: ${data.total}` : undefined} busy={loading && !!data}>
         <SearchInput placeholder={t("admin.books.searchPlaceholder")} value={search} onChange={(e) => setSearch(e.target.value)} className="w-full max-w-xs" aria-label={t("common.search")} />
         <Select value={status} onChange={(v) => setStatus(v as BookStatus | "")} options={statusOptions} className="w-44" aria-label={t("common.status")} data-testid="filter-status" />

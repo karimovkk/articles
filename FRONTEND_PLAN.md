@@ -1466,6 +1466,7 @@ Manba: `Articles365_Frontend_Kitob_Ochirish_v1.0.md` — `DELETE /admin/books/{i
       (buyurtmalar soni) → `force=true`; ro'yxatga qaytadi, natija xabari. "Nofaol qilish" o'zgarmadi
 - [x] 97.2 Watermark: ustki qatlam 0.045 → 0.075, canvas 0.06 → 0.09 (soni o'zgarmadi)
 - [x] 97.3 Mock + e2e (book-delete), dev + prod
+- [x] 97.4 Kitoblar ro'yxatida har qatorda o'chirish tugmasi (xuddi shu tasdiq oqimi, `useDeleteBook`)
 
 ## 31. Keyingi vazifalar
 

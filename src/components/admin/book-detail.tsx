@@ -15,8 +15,9 @@ import { PriceTag } from "@/components/catalog/price";
 import { PriceFields } from "./price-fields";
 import { isFreeBook } from "@/lib/free-books";
 import { BookCover } from "@/components/book-cover";
-import { adminApi, errorMessage, isApiError, type Article, type BookAccess, type BookStatus, type Category } from "@/lib/api";
+import { adminApi, errorMessage, type Article, type BookAccess, type BookStatus, type Category } from "@/lib/api";
 import { useAsync } from "@/lib/use-async";
+import { useDeleteBook } from "./use-delete-book";
 import { env } from "@/lib/env";
 import { formatMb, validateCover } from "@/lib/uploads";
 import { GrantModal } from "./user-detail";
@@ -154,8 +155,9 @@ export function AdminBookDetail({ bookId }: { bookId: string }) {
   }
 
   const router = useRouter();
-  const [deleting, setDeleting] = useState(false);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const del = useDeleteBook();
+  const deleting = del.busyId !== null;
+  const deleteError = del.error;
   async function toggleStatus(next: BookStatus) {
     if (next === "INACTIVE") {
       const ok = await confirm({ title: t("common.deactivate"), message: t("admin.books.statusNote"), confirmLabel: t("common.deactivate"), tone: "danger" });
@@ -164,28 +166,11 @@ export function AdminBookDetail({ bookId }: { bookId: string }) {
     await run(t("admin.books.statusSet", { s: next }), () => adminApi.updateBook(bookId, { status: next }));
   }
 
-  // 97: butunlay o'chirish — qaytmas; buyurtmali kitob (409 BOOK_HAS_ORDERS) — ikkinchi tasdiq va `force=true`
+  // 97: butunlay o'chirish — umumiy oqim (`useDeleteBook`), so'ng ro'yxatga
   async function hardDelete() {
     if (!book) return;
-    if (!(await confirm({ title: t("admin.books.deleteTitle"), message: t("admin.books.deleteBody", { title: book.title }), confirmLabel: t("admin.books.deleteConfirm"), tone: "danger" }))) return;
-    setDeleting(true);
-    setDeleteError(null);
-    try {
-      let res;
-      try {
-        res = await adminApi.deleteBook(bookId);
-      } catch (e) {
-        if (!(isApiError(e) && e.code === "BOOK_HAS_ORDERS")) throw e;
-        const n = Number((e.details as { order_count?: number } | null)?.order_count) || 0;
-        if (!(await confirm({ title: t("admin.books.deleteOrdersTitle"), message: t("admin.books.deleteOrdersBody", { n }), confirmLabel: t("admin.books.deleteForce"), tone: "danger" }))) return;
-        res = await adminApi.deleteBook(bookId, true);
-      }
-      router.replace(`/admin/books?deleted=${encodeURIComponent(book.title)}&a=${res.articles_deleted}&o=${res.orders_deleted}`);
-    } catch (e) {
-      setDeleteError(errorMessage(e));
-    } finally {
-      setDeleting(false);
-    }
+    const res = await del.remove({ id: bookId, title: book.title });
+    if (res) router.replace(`/admin/books?deleted=${encodeURIComponent(book.title)}&a=${res.articles_deleted}&o=${res.orders_deleted}`);
   }
 
   if (!book) return error ? <Alert>{error}</Alert> : <Spinner />;
