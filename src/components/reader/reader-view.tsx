@@ -47,7 +47,6 @@ import * as I from "@/components/ui/icons";
 import { PdfViewer, type PdfViewerHandle, type TextSelection, type ViewMode } from "./pdf-viewer";
 import { loadPdfJs } from "@/lib/reader/range-transport";
 import { ReaderSidebar, type SidebarTab } from "./reader-sidebar";
-import { WatermarkOverlay, type WatermarkLike } from "./watermark-overlay";
 import { ShareMenu } from "@/components/share/share-menu";
 import { isFreeBook } from "@/lib/free-books";
 
@@ -116,7 +115,7 @@ export function ReaderView({ articleId }: { articleId: string }) {
     };
   }, [metaBookId]);
   const [fatal, setFatal] = useState<{ code: string; message: string } | null>(null);
-  const [watermark, setWatermark] = useState<WatermarkLike | null>(null);
+  const [watermark, setWatermark] = useState<{ watermark_text: string } | null>(null);
   const [siblings, setSiblings] = useState<ArticleListItem[]>([]);
   const [isRead, setIsRead] = useState(false);
 
@@ -926,7 +925,6 @@ export function ReaderView({ articleId }: { articleId: string }) {
                 setVocabPop({ id, x: x - (box?.left ?? 0), y: y - (box?.top ?? 0), w: box?.width ?? 0 });
               }}
             />
-            {meta.features?.watermark !== false && <WatermarkOverlay payload={watermark} night={night} />}
             <div className="shield-msg" aria-hidden data-testid="shield-msg">
               <I.Lock size={22} />
               <span>{t("reader.protected")}</span>

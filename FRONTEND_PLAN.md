@@ -1468,6 +1468,11 @@ Manba: `Articles365_Frontend_Kitob_Ochirish_v1.0.md` — `DELETE /admin/books/{i
 - [x] 97.3 Mock + e2e (book-delete), dev + prod
 - [x] 97.4 Kitoblar ro'yxatida har qatorda o'chirish tugmasi (xuddi shu tasdiq oqimi, `useDeleteBook`)
 
+## 98. Watermark: faqat sahifadagisi (2026-10-13)
+
+- [x] 98.1 Ekranga yopishgan ustki qatlam (`WatermarkOverlay`, burchakdagi trace id bilan) olib tashlandi; sahifa
+      canvas'iga chizilgani (kitob bilan suriladigan) qoldi. e2e: `canvas[data-wm]` (reader, watermark, free-books)
+
 ## 31. Keyingi vazifalar
 
 - [ ] 31.1 Safari (WebKit): varaqlash rejimida oldingi sahifaga qaytilganda (3-sahifa) belgilash qatlami

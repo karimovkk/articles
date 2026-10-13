@@ -58,7 +58,8 @@ const waitRendered = async (n = 1) => {
 await waitRendered(1);
 const pageCount = await page.locator(".reader-page").count();
 check("Scroll rejimi: 6 ta sahifa render konteynerida", pageCount === 6, `count=${pageCount}`);
-check("Watermark ko'rinadi", (await page.locator("text=TRACE-42").count()) > 0);
+await page.waitForSelector('[data-page="1"] canvas[data-wm]', { state: "attached", timeout: 10000 }).catch(() => {});
+check("Watermark sahifaga chizilgan; ekranga yopishgan qatlam yo'q (98)", (await page.locator('[data-page="1"] canvas[data-wm]').count()) > 0 && (await page.locator('[data-testid="watermark-overlay"]').count()) === 0);
 await page.screenshot({ path: OUT + "01-reader.png" });
 
 // ---- Matn tanlash → 8 rang paneli

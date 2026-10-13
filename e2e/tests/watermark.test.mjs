@@ -33,7 +33,7 @@ const openReader = async () => {
   await reader.waitForFunction(() => document.querySelector('[data-page="1"] canvas')?.width > 0, null, { timeout: 30000 });
   await reader.waitForTimeout(800);
   const log = (await mockGet("/__log")).slice(n);
-  return { overlay: (await reader.locator("text=TRACE-42").count()) > 0, fetched: log.some((l) => l === `GET /reader/articles/${ART}/watermark`) };
+  return { overlay: (await reader.locator('[data-page="1"] canvas[data-wm]').count()) > 0 && (await reader.locator('[data-testid="watermark-overlay"]').count()) === 0, fetched: log.some((l) => l === `GET /reader/articles/${ART}/watermark`) };
 };
 
 let r = await openReader();

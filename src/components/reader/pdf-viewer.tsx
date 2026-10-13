@@ -1289,6 +1289,8 @@ function PdfPage({
       // 22.3: suv belgisi sahifa piksellariga chiziladi — ekran suratida ham qoladi,
       // DOM'dan o'chirib tashlab bo'lmaydi
       if (watermarkText) drawWatermark(canvas, watermarkText, dpr);
+      // 98: suv belgisi faqat shu yerda (sahifa bilan birga suriladi) — belgi e2e uchun
+      canvas.toggleAttribute("data-wm", !!watermarkText);
       textDiv.replaceChildren();
       // pdfjs-dist 6: matn qatlami o'lchamlari shu o'zgaruvchidan hisoblanadi (bo'lmasa matn canvas bilan mos kelmaydi)
       textDiv.style.setProperty("--total-scale-factor", String(viewport.scale));
