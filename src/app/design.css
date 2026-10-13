@@ -3927,3 +3927,16 @@ circle.donut-slice {
   font-size: 10.5px;
   font-weight: 700;
 }
+
+/* 97: xavfli zona (kitobni butunlay o'chirish) */
+.danger-zone {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 18px;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--danger) 40%, transparent);
+  background: color-mix(in srgb, var(--danger) 6%, var(--surface));
+}

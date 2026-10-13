@@ -1416,7 +1416,7 @@ function drawWatermark(canvas: HTMLCanvasElement, text: string, dpr: number) {
   ctx.save();
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   // 95.3: o'qishga xalaqit bermasin — ochroq va siyrakroq (~20 → ~9 ta sahifada)
-  ctx.globalAlpha = 0.06;
+  ctx.globalAlpha = 0.09;
   ctx.fillStyle = "#101010";
   // Canvas CSS o'zgaruvchilarini tushunmaydi — aniq shrift ro'yxati
   ctx.font = `500 ${Math.max(11, Math.round(w / 64))}px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif`;

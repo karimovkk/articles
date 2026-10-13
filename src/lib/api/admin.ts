@@ -186,6 +186,13 @@ export const adminApi = {
   updateBook(id: string, patch: Partial<BookInput> & { status?: BookStatus }) {
     return api<Book>(`/admin/books/${id}`, { method: "PATCH", body: patch });
   },
+  /**
+   * 97: butunlay o'chirish (qaytmas): maqolalar, savollar, ruxsatlar, buyurtmalar va storage fayllari bilan.
+   * Buyurtmali kitob — `force` siz 409 `BOOK_HAS_ORDERS` (`details.order_count`); tasdiqdan keyin `force=true`.
+   */
+  deleteBook(id: string, force = false) {
+    return api<{ deleted: boolean; book_id: string; articles_deleted: number; orders_deleted: number; storage_objects_deleted: number }>(`/admin/books/${id}`, { method: "DELETE", query: force ? { force: true } : undefined });
+  },
   uploadCover(id: string, file: File, opts?: UploadOptions) {
     const fd = new FormData();
     fd.append("file", file, file.name);

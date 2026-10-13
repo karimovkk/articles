@@ -8,14 +8,14 @@
  */
 import { useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Alert, Badge, Button, Card, DatePicker, Field, Input, Select, Spinner, Switch, Textarea, buttonClass, cn, formatDate, statusTone, useConfirm } from "@/components/ui";
 import * as I from "@/components/ui/icons";
 import { PriceTag } from "@/components/catalog/price";
 import { PriceFields } from "./price-fields";
 import { isFreeBook } from "@/lib/free-books";
 import { BookCover } from "@/components/book-cover";
-import { adminApi, errorMessage, type Article, type BookAccess, type BookStatus, type Category } from "@/lib/api";
+import { adminApi, errorMessage, isApiError, type Article, type BookAccess, type BookStatus, type Category } from "@/lib/api";
 import { useAsync } from "@/lib/use-async";
 import { env } from "@/lib/env";
 import { formatMb, validateCover } from "@/lib/uploads";
@@ -153,12 +153,39 @@ export function AdminBookDetail({ bookId }: { bookId: string }) {
     );
   }
 
+  const router = useRouter();
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   async function toggleStatus(next: BookStatus) {
     if (next === "INACTIVE") {
       const ok = await confirm({ title: t("common.deactivate"), message: t("admin.books.statusNote"), confirmLabel: t("common.deactivate"), tone: "danger" });
       if (!ok) return;
     }
     await run(t("admin.books.statusSet", { s: next }), () => adminApi.updateBook(bookId, { status: next }));
+  }
+
+  // 97: butunlay o'chirish — qaytmas; buyurtmali kitob (409 BOOK_HAS_ORDERS) — ikkinchi tasdiq va `force=true`
+  async function hardDelete() {
+    if (!book) return;
+    if (!(await confirm({ title: t("admin.books.deleteTitle"), message: t("admin.books.deleteBody", { title: book.title }), confirmLabel: t("admin.books.deleteConfirm"), tone: "danger" }))) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      let res;
+      try {
+        res = await adminApi.deleteBook(bookId);
+      } catch (e) {
+        if (!(isApiError(e) && e.code === "BOOK_HAS_ORDERS")) throw e;
+        const n = Number((e.details as { order_count?: number } | null)?.order_count) || 0;
+        if (!(await confirm({ title: t("admin.books.deleteOrdersTitle"), message: t("admin.books.deleteOrdersBody", { n }), confirmLabel: t("admin.books.deleteForce"), tone: "danger" }))) return;
+        res = await adminApi.deleteBook(bookId, true);
+      }
+      router.replace(`/admin/books?deleted=${encodeURIComponent(book.title)}&a=${res.articles_deleted}&o=${res.orders_deleted}`);
+    } catch (e) {
+      setDeleteError(errorMessage(e));
+    } finally {
+      setDeleting(false);
+    }
   }
 
   if (!book) return error ? <Alert>{error}</Alert> : <Spinner />;
@@ -259,6 +286,7 @@ export function AdminBookDetail({ bookId }: { bookId: string }) {
 
       {error && <Alert>{error}</Alert>}
       {notice && <Alert tone="success">{notice}</Alert>}
+      {deleteError && <Alert>{deleteError}</Alert>}
 
       {/* Tablar */}
       <div className="tabs" role="tablist">
@@ -398,6 +426,15 @@ export function AdminBookDetail({ bookId }: { bookId: string }) {
           load();
         }}
       />
+      <section className="danger-zone" data-testid="book-danger-zone">
+        <div className="min-w-0">
+          <p className="font-bold text-danger">{t("admin.books.deleteTitle")}</p>
+          <p className="text-sm text-text-2">{t("admin.books.deleteHint")}</p>
+        </div>
+        <Button variant="danger-ghost" onClick={() => void hardDelete()} loading={deleting} icon={<I.Trash size={15} />} data-testid="book-delete">
+          {t("admin.books.deleteConfirm")}
+        </Button>
+      </section>
     </div>
   );
 }

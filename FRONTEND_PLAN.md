@@ -1458,6 +1458,15 @@ Manba: `Articles365_BACKEND_IELTS_Javob_Matni_v1.0.md` (backend prod'da): `answe
       ochilmasa — `https://t.me/…`. Kompyuterda o'zgarishsiz (yangi oyna)
 - [x] 96.2 e2e (orders): telefon — tg:// havola, yangi tab yo'q, zaxira faqat ilova ochilmaganda
 
+## 97. Kitobni butunlay o'chirish (hard delete); watermark biroz ko'rinarliroq (2026-10-13)
+
+Manba: `Articles365_Frontend_Kitob_Ochirish_v1.0.md` — `DELETE /admin/books/{id}?force=`.
+
+- [x] 97.1 Kitob sahifasida "xavfli zona": "Butunlay o'chirish" — tasdiq; 409 `BOOK_HAS_ORDERS` → ikkinchi tasdiq
+      (buyurtmalar soni) → `force=true`; ro'yxatga qaytadi, natija xabari. "Nofaol qilish" o'zgarmadi
+- [x] 97.2 Watermark: ustki qatlam 0.045 → 0.075, canvas 0.06 → 0.09 (soni o'zgarmadi)
+- [x] 97.3 Mock + e2e (book-delete), dev + prod
+
 ## 31. Keyingi vazifalar
 
 - [ ] 31.1 Safari (WebKit): varaqlash rejimida oldingi sahifaga qaytilganda (3-sahifa) belgilash qatlami

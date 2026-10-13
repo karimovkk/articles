@@ -23,7 +23,7 @@ export function WatermarkOverlay({ payload, night }: { payload: WatermarkLike | 
           <span
             key={i}
             className={`-rotate-[22deg] whitespace-nowrap text-[12px] font-medium tracking-wide ${(Math.floor(i / 3) + (i % 3)) % 2 ? "invisible" : ""}`}
-            style={{ color: night ? "rgba(255,255,255,0.045)" : "rgba(0,0,0,0.045)" }}
+            style={{ color: night ? "rgba(255,255,255,0.075)" : "rgba(0,0,0,0.075)" }}
             data-testid="watermark-cell"
           >
             {label}

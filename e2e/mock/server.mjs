@@ -916,6 +916,16 @@ createServer(async (req, res) => {
       const [, bid, sub, aid, sub2] = bm;
       const bk = books.find((x) => x.id === bid);
       if (!bk) return err(res, 404, "BOOK_NOT_FOUND", "Not found");
+      // 97: butunlay o'chirish (cascade); buyurtmali kitob — force siz 409
+      if (!sub && m === "DELETE") {
+        const ords = orders.filter((o) => o.book_id === bid || (o.items ?? []).some((it) => it.book_id === bid));
+        if (ords.length && q.get("force") !== "true") return err(res, 409, "BOOK_HAS_ORDERS", "Book has orders; deleting will erase payment history — pass force=true to confirm", { order_count: ords.length });
+        const arts = articles.filter((a) => a.book_id === bid);
+        questions = questions.filter((x) => !arts.some((a) => a.id === x.article_id));
+        articles = articles.filter((a) => a.book_id !== bid); access = access.filter((a) => a.book_id !== bid);
+        orders = orders.filter((o) => !ords.includes(o)); books = books.filter((b) => b.id !== bid);
+        return json(res, 200, { deleted: true, book_id: bid, articles_deleted: arts.length, orders_deleted: ords.length, storage_objects_deleted: arts.length });
+      }
       if (!sub) { if (m === "PATCH") { const b = await readBody(req); if (b.status === "ACTIVE" && !articles.some((a) => a.book_id === bid && a.processing_status === "READY")) return err(res, 409, "BOOK_NOT_READY", "No READY articles"); Object.assign(bk, Object.fromEntries(Object.entries(b).filter(([, v]) => v !== undefined)), { updated_at: now() }); if (b.price != null) bk.price = Number(b.price).toFixed(2); if (b.is_free) bk.price = "0.00"; if ("is_free" in b || b.price != null) bk.is_free = !!b.is_free || Number(bk.price) === 0; if ("original_price" in b) { bk.original_price = Number(b.original_price) > 0 ? Number(b.original_price).toFixed(2) : null; if (bk.original_price && !bk.is_free && Number(bk.original_price) < Number(bk.price)) return err(res, 422, "VALIDATION_ERROR", "original_price must be greater than price"); } withDiscount(bk); __lastBookBody = b; if ("category_id" in b) bk.category = categories.find((c) => c.id === b.category_id) ?? null; } return json(res, 200, bk); }
       if (sub === "cover") { let size = 0; for await (const c of req) { size += c.length; await new Promise((r) => setTimeout(r, 3)); } uploads.push({ path, size, contentType: req.headers["content-type"]?.split(";")[0] }); bk.has_cover = true; return json(res, 200, bk); }
       if (sub === "articles" && !aid) {

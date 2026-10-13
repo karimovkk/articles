@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent, Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { DataTable, Toolbar, usePaged, type Column } from "@/components/admin/data-table";
 import { Alert, Badge, Button, Field, Input, Modal, PageHeader, SearchInput, Select, Textarea, formatDate, statusTone, Switch } from "@/components/ui";
 import * as I from "@/components/ui/icons";
@@ -12,6 +12,19 @@ import { PriceFields } from "@/components/admin/price-fields";
 import { isFreeBook } from "@/lib/free-books";
 import { useDebounced } from "@/lib/use-debounce";
 import { useT } from "@/i18n";
+
+/** 97: kitob butunlay o'chirilgach — ro'yxatda natija (`?deleted=<nom>&a=<maqolalar>&o=<buyurtmalar>`) */
+function DeletedNote() {
+  const { t } = useT();
+  const sp = useSearchParams();
+  const deleted = sp.get("deleted");
+  if (!deleted) return null;
+  return (
+    <div className="mb-4" data-testid="book-deleted-note">
+      <Alert tone="success">{t("admin.books.deletedNote", { title: deleted, a: Number(sp.get("a")) || 0, o: Number(sp.get("o")) || 0 })}</Alert>
+    </div>
+  );
+}
 
 export default function AdminBooksPage() {
   const { t } = useT();
@@ -84,6 +97,9 @@ export default function AdminBooksPage() {
           </Button>
         }
       />
+      <Suspense fallback={null}>
+        <DeletedNote />
+      </Suspense>
       <Toolbar onSubmit={flush} meta={data ? `${t("common.total")}: ${data.total}` : undefined} busy={loading && !!data}>
         <SearchInput placeholder={t("admin.books.searchPlaceholder")} value={search} onChange={(e) => setSearch(e.target.value)} className="w-full max-w-xs" aria-label={t("common.search")} />
         <Select value={status} onChange={(v) => setStatus(v as BookStatus | "")} options={statusOptions} className="w-44" aria-label={t("common.status")} data-testid="filter-status" />
@@ -147,6 +163,7 @@ function CreateBookModal({ open, onClose, categories, onCreated }: { open: boole
     <Modal open={open} onClose={onClose} title={t("admin.books.newTitle")} icon={<I.Book size={18} />}>
       <form onSubmit={submit} className="space-y-4">
         {error && <Alert>{error}</Alert>}
+
         <Field label={t("admin.books.name")}>
           <Input value={title} onChange={(e) => setTitle(e.target.value)} required />
         </Field>
