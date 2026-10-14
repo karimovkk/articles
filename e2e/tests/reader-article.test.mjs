@@ -58,15 +58,9 @@ await page.screenshot({ path: OUT + "12-search-hits.png" });
 await page.waitForFunction(() => !document.querySelector('[data-page="2"] [data-testid="search-hits"]'), null, { timeout: 12000 });
 check("Bo'rttirish ~6 s dan keyin o'chdi", true);
 
-// ---- Mark-read: qo'lda
-await page.click('button[aria-label="O\'qib bo\'lindi deb belgilash"]');
-await page.waitForSelector("text=Maqola o'qilgan deb belgilandi", { timeout: 5000 });
-let prog = await mockGet("/__progress");
-check("Mark-read qo'lda → is_read=true", Object.values(prog).some((p) => p.article_id === ART1 && p.is_read === true));
-await page.click('button[aria-label="O\'qilmagan deb belgilash"]');
-await page.waitForSelector("text=Belgi olib tashlandi", { timeout: 5000 });
-prog = await mockGet("/__progress");
-check("Mark-unread → is_read=false", Object.values(prog).some((p) => p.article_id === ART1 && p.is_read === false));
+// ---- 104: qo'lda "O'qildi" tugmasi yo'q
+check("104: qo'lda 'O'qildi' belgilash tugmasi yo'q", (await page.locator(`button[aria-label="O'qib bo'lindi deb belgilash"], button[aria-label="O'qilmagan deb belgilash"]`).count()) === 0);
+let prog;
 
 // ---- 101: Mark-read avtomatik — oxirgi sahifa OCHIQ TURGANDAN keyin (shunchaki o'tib ketish yetmaydi)
 await page.fill('input[aria-label="Sahifa"]', "6");
@@ -74,8 +68,8 @@ await page.press('input[aria-label="Sahifa"]', "Enter");
 await page.waitForTimeout(700);
 prog = await mockGet("/__progress");
 const early = Object.values(prog).find((p) => p.article_id === ART1);
-check("101: oxirgi sahifaga o'tildi, lekin hali ochiq turmadi — o'qilmagan, foiz 100 emas", (await page.locator(`button[aria-label="O'qilmagan deb belgilash"]`).count()) === 0 && early?.is_read === false && early?.percentage < 100, JSON.stringify(early));
-await page.waitForSelector(`button[aria-label="O'qilmagan deb belgilash"]`, { timeout: 8000 });
+check("101: oxirgi sahifaga o'tildi, lekin hali ochiq turmadi — o'qilmagan, foiz 100 emas", early?.is_read === false && early?.percentage < 100, JSON.stringify(early));
+await mockWait("/__progress", (all) => Object.values(all).some((p) => p.article_id === ART1 && p.is_read === true));
 prog = await mockGet("/__progress");
 check("Oxirgi sahifa → avtomatik o'qilgan deb belgilandi", Object.values(prog).some((p) => p.article_id === ART1 && p.is_read === true));
 

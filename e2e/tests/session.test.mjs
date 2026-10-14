@@ -1,5 +1,5 @@
 // 9.3 — access token muddati tugashi: 401 → refresh (single-flight) → qayta so'rov; reader Range o'rtasida; refresh xatosi → login
-import { launch, BASE, API, reset, mockGet, ignorablePageError } from "../lib.mjs";
+import { launch, BASE, API, reset, mockGet, ignorablePageError, mockWait } from "../lib.mjs";
 const ART1 = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const MOCK = API.replace("/api/v1", "");
 let failures = 0;
@@ -42,7 +42,7 @@ n = (await mockGet("/__log")).length;
 // 6-sahifaga o'tish → yangi Range so'rovlari (mock 512KB chunk, kichik PDF — bo'lak allaqachon bor, shuning uchun progress/annotations so'rovlarida sinaladi)
 await page.fill('input[aria-label="Sahifa"]', "6");
 await page.press('input[aria-label="Sahifa"]', "Enter");
-await page.waitForFunction(() => document.querySelector('button[aria-pressed="true"]') !== null, null, { timeout: 10000 }); // avtomatik mark-read (POST → 401 → refresh → 200)
+await mockWait("/__progress", (all) => Object.values(all).some((p) => p.article_id === ART1 && p.is_read === true), 10000); // avtomatik mark-read (POST → 401 → refresh → 200)
 log = await logSince(n);
 check("Reader ichida: eskirgan token bilan so'rov → refresh → muvaffaqiyat (mark-read/progress)", log.includes("POST /auth/refresh") && log.some((l) => l.includes("mark-read")), log.filter((l) => l.includes("refresh") || l.includes("mark-read")).join(","));
 check("Reader xato ekraniga tushmadi", (await page.locator(".reader-page").count()) === 6);

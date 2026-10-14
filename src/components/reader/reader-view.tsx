@@ -447,26 +447,17 @@ export function ReaderView({ articleId }: { articleId: string }) {
     toastTimer.current = window.setTimeout(() => setToast(null), 2500);
   }, []);
 
-  // ---- "O'qib bo'lindi" (FE-5.8): qo'lda + oxirgi sahifaga yetganda avtomatik
-  const toggleRead = useCallback(
-    async (value: boolean, silent = false) => {
-      try {
-        const p = await readingApi.markRead(articleId, value);
-        setIsRead(p.is_read);
-        if (!silent) showToast(p.is_read ? t("reader.markedRead") : t("reader.markedUnread"));
-      } catch (e) {
-        showToast(errorMessage(e));
-      }
-    },
-    [articleId, showToast, t],
-  );
+  // ---- "O'qib bo'lindi" (FE-5.8) — faqat avtomatik: oxirgi bet o'qilganda (101: ochiq turgan; shunchaki oxiriga surib
+  // o'tish yetmaydi). 104: qo'lda belgilash tugmasi olib tashlandi
   const autoMarked = useRef(false);
   useEffect(() => {
-    // 101: oxirgi sahifa o'qilgandagina (ochiq turgan) — shunchaki oxiriga surib o'tish yetmaydi
     if (guest || !ready || !pageCount || isRead || autoMarked.current || readTo < pageCount) return;
     autoMarked.current = true;
-    void toggleRead(true);
-  }, [readTo, pageCount, isRead, ready, toggleRead, guest]);
+    readingApi
+      .markRead(articleId, true)
+      .then((p) => setIsRead(p.is_read))
+      .catch(() => undefined);
+  }, [readTo, pageCount, isRead, ready, guest, articleId]);
 
   // ---- 53: o'qib tugatildi → test taklifi (savol bo'lsa; panel "Test"da ochiq bo'lsa yoki sessiyada ko'rsatilgan bo'lsa — yo'q)
   const quizPromptKey = `a365.quiz-prompt.${articleId}`;
@@ -915,18 +906,6 @@ export function ReaderView({ articleId }: { articleId: string }) {
               {sync.pending > 0 && <span className="tabular-nums">{sync.pending}</span>}
             </span>
           )}
-          <button
-            type="button"
-            onClick={() => void toggleRead(!isRead)}
-            hidden={guest}
-            className={cn("btn ghost sm max-sm:!px-2", isRead && "text-success")}
-            title={isRead ? t("reader.markUnread") : t("reader.markRead")}
-            aria-label={isRead ? t("reader.markUnread") : t("reader.markRead")}
-            aria-pressed={isRead}
-          >
-            {isRead ? <I.CheckCircle size={16} /> : <I.Check size={16} className="opacity-50" />}
-            <span className="hidden md:inline">{t("reader.readLabel")}</span>
-          </button>
           <button
             type="button"
             onClick={toggleMode}

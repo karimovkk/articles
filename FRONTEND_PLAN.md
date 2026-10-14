@@ -1528,6 +1528,12 @@ yuborilgandek saqlanadi.
 - [x] 103.5 Mock jonli backend kabi (foiz `current_page` dan); e2e yangilandi; jonli backend'da brauzerda tekshirildi
       (4-betga sakrash foizni oshirmadi, 3-bet ochiq turgach 75%, 1-betga qaytganda joy 1, foiz 75% da qoldi; tiklandi)
 
+## 104. Qo'lda "O'qildi" belgilash olib tashlandi (2026-10-14)
+
+- [x] 104.1 Reader yuqori panelidagi "O'qildi" tugmasi (qo'lda belgilash / olib tashlash) va uning matnlari olib tashlandi;
+      oxirgi bet o'qilganda avtomatik belgilash (101) qoladi — kutubxonadagi "✓ O'qilgan" shundan
+- [x] 104.2 e2e (reader-article, session, free-books) yangilandi; dev + prod
+
 ## 31. Keyingi vazifalar
 
 - [ ] 31.1 Safari (WebKit): varaqlash rejimida oldingi sahifaga qaytilganda (3-sahifa) belgilash qatlami
