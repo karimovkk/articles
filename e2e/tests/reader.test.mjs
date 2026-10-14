@@ -320,7 +320,7 @@ await gotoViaInput(2);
 await page.waitForTimeout(2000);
 const progAll = await mockGet("/__progress");
 const prog = Object.values(progAll).find((p) => p.article_id === ART) ?? {};
-check("Progress debounce'dan keyin saqlandi (2)", prog.current_page === 2, JSON.stringify(prog));
+check("Progress debounce'dan keyin saqlandi: joy current_location=2 (103)", prog.current_location?.page === 2, JSON.stringify(prog));
 
 // ---- Zoom'da joriy sahifa saqlanadi (scroll rejimi)
 await gotoViaInput(4);
@@ -343,7 +343,7 @@ await page.reload();
 await waitRendered(1).catch(() => {});
 await page.waitForTimeout(500);
 const prog2 = Object.values(await mockGet("/__progress")).find((p) => p.article_id === ART) ?? {};
-check("pagehide flush (keepalive) progress'ni saqladi (5)", prog2.current_page === 5, JSON.stringify(prog2));
+check("pagehide flush (keepalive) progress'ni saqladi: joy current_location=5 (103)", prog2.current_location?.page === 5, JSON.stringify(prog2));
 const resumed = await page.$eval('input[aria-label="Sahifa"]', (i) => i.value);
 check("Qayta ochilganda oxirgi sahifadan davom etadi", resumed === "5", `page=${resumed}`);
 

@@ -66,6 +66,11 @@ const HEARTBEAT_MS = 30_000;
  * 102: 1:25; vaqt har bet uchun localStorage'da yig'iladi (qayta kirganda davom etadi). e2e — `a365.readAfterMs`.
  */
 const READ_AFTER_MS = 85_000;
+/**
+ * 103: backend foizni `current_page / page_count` dan O'ZI hisoblaydi (yuborilgan `percentage` e'tiborsiz) — shuning uchun
+ * `current_page` = o'qilgan eng uzoq bet (kamaymaydi); haqiqiy joy — `current_location.page` va shu qurilmada localStorage.
+ */
+const posKey = (userId: string, articleId: string) => `a365.pos.${userId}.${articleId}`;
 /** 102: betlarda o'tkazilgan vaqt (ms) — foydalanuvchi va maqola bo'yicha, shu qurilmada */
 const dwellKey = (userId: string, articleId: string) => `a365.dwell.${userId}.${articleId}`;
 function readDwell(key: string): Record<string, number> {
@@ -108,6 +113,7 @@ export function ReaderView({ articleId }: { articleId: string }) {
     return errorMessage(e, m);
   };
   const { user, loading: authLoading } = useAuth();
+  const userId = user?.id;
   // 37: mehmon (tekin kitob) — o'qish mumkin, lekin progress/belgilash/lug'at/eslatma saqlanmaydi
   const guest = !authLoading && !user;
   const router = useRouter();
@@ -133,8 +139,8 @@ export function ReaderView({ articleId }: { articleId: string }) {
   const [watermark, setWatermark] = useState<{ watermark_text: string } | null>(null);
   const [siblings, setSiblings] = useState<ArticleListItem[]>([]);
   const [isRead, setIsRead] = useState(false);
-  // 101: progress — serverdagi foiz (kamaymaydi), eng uzoq o'qilgan sahifa, server progress'i keldimi
-  const bestPct = useRef(0);
+  // 101/103: progress — serverdagi o'qilgan bet (kamaymaydi), shu kirishda o'qilgan eng uzoq bet, server progress'i keldimi
+  const bestPage = useRef(0);
   const readUpTo = useRef(0);
   const [readTo, setReadTo] = useState(0);
   const [progressReady, setProgressReady] = useState(false);
@@ -170,7 +176,8 @@ export function ReaderView({ articleId }: { articleId: string }) {
   const params = useSearchParams();
   const deepPage = Number(params.get("page")) || 0;
   const deepWord = params.get("word")?.trim() || "";
-  const initialPage = useMemo(() => Math.max(1, deepPage || meta?.current_page || 1), [meta, deepPage]);
+  const [startPage, setStartPage] = useState(1);
+  const initialPage = Math.max(1, deepPage || startPage);
   const [deepShown, setDeepShown] = useState(false);
   if (!deepShown && deepPage && deepWord && pageCount > 0) {
     setDeepShown(true);
@@ -211,13 +218,26 @@ export function ReaderView({ articleId }: { articleId: string }) {
     (async () => {
       // 44.3: suv belgisi tanlov bo'yicha (admin o'chirgan yoki kitob tekin) — `false` bo'lsa so'ralmaydi ham
       let wantWatermark = true;
+      // 103: progress metadata bilan parallel — qayerdan davom etish (`current_location`) va o'qilgan bet shundan
+      const progP = user ? readingApi.getProgress(articleId).catch(() => null) : Promise.resolve(null);
       try {
         const m = await readerApi.meta(articleId);
         wantWatermark = m.features?.watermark !== false;
+        const prog = await progP;
         if (cancelled) return;
         setMeta(m);
-        setPageCount(m.page_count ?? 0);
-        const start = Math.max(1, m.current_page ?? 1);
+        const total = m.page_count ?? 0;
+        setPageCount(total);
+        if (prog) {
+          setIsRead(prog.is_read);
+          // 101/103: o'qilgan bet kamaymaydi — o'qib bo'lingan (is_read) maqola qayta ochilsa ham 100% qoladi
+          bestPage.current = Math.max(bestPage.current, prog.is_read ? total : (prog.current_page ?? 0));
+          setProgressReady(true);
+        }
+        const locPage = Number((prog?.current_location as { page?: unknown } | null)?.page) || 0;
+        const local = user ? Number(readPref(posKey(user.id, articleId))) || 0 : 0;
+        const start = Math.min(Math.max(1, total || 1), Math.max(1, local || locPage || m.current_page || 1));
+        setStartPage(start);
         setPage(start);
         setPageInput(String(start));
         setSearchAvailable(m.features?.can_search ?? m.text_extractable ?? true);
@@ -264,16 +284,6 @@ export function ReaderView({ articleId }: { articleId: string }) {
         .listForArticle(articleId)
         .then((v) => !cancelled && setVocab(v))
         .catch(() => undefined);
-      readingApi
-        .getProgress(articleId)
-        .then((p) => {
-          if (cancelled) return;
-          setIsRead(p.is_read);
-          // 101: foiz kamaymaydi — o'qib bo'lingan (is_read) maqola qayta ochilsa ham 100% qoladi
-          bestPct.current = Math.max(bestPct.current, p.is_read ? 100 : (p.percentage ?? 0));
-        })
-        .catch(() => undefined)
-        .finally(() => !cancelled && setProgressReady(true));
     })();
     return () => {
       cancelled = true;
@@ -301,18 +311,21 @@ export function ReaderView({ articleId }: { articleId: string }) {
   const persistProgress = useCallback(
     (p: number) => {
       if (guest || !pageCount) return;
+      if (userId) writePref(posKey(userId, articleId), String(p)); // joy — shu qurilmada darhol
+      // Server progress'i noma'lum (yuklanmadi) — saqlanmaydi: aks holda o'qilgan betni kichigi bilan bosib ketardi
       if (!progressReady) {
         pendingSave.current = p;
         return;
       }
       pendingSave.current = null;
-      const pct = Math.max(bestPct.current, Math.round((Math.min(readUpTo.current, pageCount) / pageCount) * 10000) / 100);
-      const key = `${p}:${pct}`;
+      // 103: `current_page` — o'qilgan eng uzoq bet (backend foizni shundan hisoblaydi); joy — `current_location`
+      const readPage = Math.max(bestPage.current, Math.min(readUpTo.current, pageCount));
+      const key = `${p}:${readPage}`;
       if (key === lastSaved.current) return;
       lastSaved.current = key;
-      bestPct.current = pct;
+      bestPage.current = readPage;
       readingApi
-        .saveProgress(articleId, { current_page: p, total_pages: pageCount, percentage: pct })
+        .saveProgress(articleId, { current_page: readPage, total_pages: pageCount, location: { page: p } })
         .then(() => {
           if (streakSynced.current) return;
           streakSynced.current = true;
@@ -320,7 +333,7 @@ export function ReaderView({ articleId }: { articleId: string }) {
         })
         .catch(() => undefined);
     },
-    [articleId, pageCount, guest, progressReady],
+    [articleId, pageCount, guest, progressReady, userId],
   );
   const onPageChange = useCallback(
     (p: number) => {
@@ -354,7 +367,6 @@ export function ReaderView({ articleId }: { articleId: string }) {
 
   // ---- 101/102: bet READ_AFTER_MS ochiq tursa (ko'rinib turganda) — o'qilgan; varaqlash rejimida ikkala bet.
   // Vaqt localStorage'da yig'iladi: chiqib ketib qaytilsa yoki boshqa betga o'tib kelinsa ham davom etadi.
-  const userId = user?.id;
   useEffect(() => {
     if (guest || !ready || !pageCount || !userId) return;
     const shown = shownMode === "spread" && page < pageCount ? [page, page + 1] : [page];
@@ -410,7 +422,7 @@ export function ReaderView({ articleId }: { articleId: string }) {
       }
       const seconds = Math.round((Date.now() - since) / 1000);
       since = Date.now();
-      if (seconds >= 5) readingApi.heartbeat(articleId, Math.min(seconds, HEARTBEAT_MS / 1000 + 5), latest.current.page).catch(() => undefined);
+      if (seconds >= 5) readingApi.heartbeat(articleId, Math.min(seconds, HEARTBEAT_MS / 1000 + 5)).catch(() => undefined);
     };
     const timer = window.setInterval(() => beat(), HEARTBEAT_MS);
     const onVis = () => {

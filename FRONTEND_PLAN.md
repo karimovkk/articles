@@ -1515,6 +1515,19 @@ progress, test natijalari, lug'at kitobdan uziladi (`book_id`/`article_id` = nul
 - [x] 102.2 Chegara 2:00 → 1:25 (85 s)
 - [x] 102.3 e2e (reader-article): qisman vaqt + qayta ochish → o'qilgan; dev + prod
 
+## 103. Progress jonli backend'da ishlamasdi — tuzatildi (2026-10-14)
+
+Sabab (jonli backend'da tekshirildi): `PUT /articles/{id}/progress` yuborilgan `percentage` ni e'tiborsiz qoldiradi va foizni
+`current_page / page_count` dan o'zi hisoblaydi; `reading-heartbeat` ham `current_page` ni yangilaydi; `current_location` —
+yuborilgandek saqlanadi.
+
+- [x] 103.1 `current_page` = o'qilgan eng uzoq bet (kamaymaydi; is_read → oxirgi bet); haqiqiy joy — `current_location.page`
+- [x] 103.2 Heartbeat `current_page` yubormaydi (null — backend joyni o'zgartirmaydi)
+- [x] 103.3 Davom etish: localStorage (shu qurilma) → `current_location.page` → `current_page`; progress metadata bilan parallel
+- [x] 103.4 Server progress'i yuklanmasa — saqlanmaydi (o'qilgan betni kichigi bilan bosib ketmasin)
+- [x] 103.5 Mock jonli backend kabi (foiz `current_page` dan); e2e yangilandi; jonli backend'da brauzerda tekshirildi
+      (4-betga sakrash foizni oshirmadi, 3-bet ochiq turgach 75%, 1-betga qaytganda joy 1, foiz 75% da qoldi; tiklandi)
+
 ## 31. Keyingi vazifalar
 
 - [ ] 31.1 Safari (WebKit): varaqlash rejimida oldingi sahifaga qaytilganda (3-sahifa) belgilash qatlami

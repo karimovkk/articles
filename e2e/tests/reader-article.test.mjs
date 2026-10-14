@@ -91,7 +91,7 @@ await page.press('input[aria-label="Sahifa"]', "Enter");
 await page.waitForTimeout(3500);
 prog = await mockGet("/__progress");
 const back = Object.values(prog).find((p) => p.article_id === ART1);
-check("101: 1-sahifaga qaytildi — current_page=1, foiz 100 da qoldi, is_read o'zgarmadi", back?.current_page === 1 && back?.percentage === 100 && back?.is_read === true, JSON.stringify(back));
+check("101/103: 1-sahifaga qaytildi — joy current_location=1, o'qilgan bet (current_page) 6 va foiz 100 da qoldi, is_read o'zgarmadi", back?.current_location?.page === 1 && back?.current_page === 6 && back?.percentage === 100 && back?.is_read === true, JSON.stringify(back));
 
 // ---- Heartbeat: sahifa yashiringanda qoldiq yuboriladi (visibilitychange → hidden)
 await page.waitForTimeout(5200);

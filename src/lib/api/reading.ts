@@ -24,7 +24,8 @@ export const readingApi = {
   /**
    * `keepalive` — reader yopilganda (pagehide) yuborilgan so'rov ham serverga yetib boradi.
    * `current_page` 1-based; `percentage` sahifa/jami dan hisoblanadi (B9).
-   * 101: `percentage` berilsa — o'shasi (reader: o'qilgan sahifalar bo'yicha, kamaymaydi).
+   * 101: `percentage` berilsa — o'shasi. 103: haqiqiy backend uni e'tiborsiz qoldiradi va `current_page / page_count`
+   * dan hisoblaydi — reader `current_page` sifatida o'qilgan eng uzoq betni, joyni esa `location` da yuboradi.
    */
   saveProgress(articleId: string, p: { current_page: number; total_pages: number; percentage?: number; location?: Record<string, unknown> }): Promise<ReadingProgress> {
     const percentage = p.percentage ?? (p.total_pages ? Math.round((p.current_page / p.total_pages) * 10000) / 100 : 0);
@@ -35,7 +36,10 @@ export const readingApi = {
     });
   },
 
-  /** Faol o'qish vaqti (T1-21): har N soniyada, faqat sahifa ko'rinayotganda. */
+  /**
+   * Faol o'qish vaqti (T1-21): har N soniyada, faqat sahifa ko'rinayotganda.
+   * 103: reader `currentPage` yubormaydi — backend uni `current_page` ga yozib, o'qilgan bet (foiz) ni buzardi.
+   */
   heartbeat(articleId: string, seconds: number, currentPage?: number): Promise<ReadingProgress> {
     return api<ReadingProgress>(`/articles/${articleId}/reading-heartbeat`, {
       method: "POST",

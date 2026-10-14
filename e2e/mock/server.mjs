@@ -579,7 +579,7 @@ createServer(async (req, res) => {
     if (!canRead(me.id, a.book_id)) return err(res, 403, "BOOK_ACCESS_DENIED", "Access to this book has not been granted");
     const key = progKey(me.id, aid);
     if (what === "progress") {
-      if (m === "PUT") { bumpStreak(me.id); const b = await readBody(req); progress[key] = { ...getProg(me.id, aid), current_page: b.current_page, current_location: b.current_location ?? null, percentage: b.percentage ?? 0, updated_at: now() }; }
+      if (m === "PUT") { bumpStreak(me.id); const b = await readBody(req); progress[key] = { ...getProg(me.id, aid), current_page: b.current_page, current_location: b.current_location ?? null, percentage: a.page_count ? Math.round((Math.min(b.current_page ?? 0, a.page_count) / a.page_count) * 10000) / 100 : 0, updated_at: now() }; } // 103: jonli backend kabi — foiz current_page / page_count dan (yuborilgan percentage e'tiborsiz)
       return json(res, 200, getProg(me.id, aid));
     }
     if (what === "reading-heartbeat") { bumpStreak(me.id); const b = await readBody(req); const p = getProg(me.id, aid); progress[key] = { ...p, reading_seconds: p.reading_seconds + (b.seconds ?? 0), current_page: b.current_page ?? p.current_page, last_read_at: now(), updated_at: now() }; return json(res, 200, progress[key]); }
