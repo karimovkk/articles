@@ -1560,6 +1560,22 @@ Manba: `Articles365_Frontend_Telegram_MiniApp_v1.0.md` — `POST /auth/telegram/
       `frame-ancestors 'self' https://web.telegram.org` (admin — `'none'`, DENY qoladi)
 - [x] 106.8 Mock + e2e (Telegram SDK soxta obyekt bilan), dev + prod
 
+## 107. Rasmli (skaner) PDF'ga brauzerda OCR — admin yuklaganda (2026-10-14)
+
+Sabab: TRAVEL kabi maqolalar PDF'i to'liq rasm — matn yo'q (`text_extractable: false`): belgilash, lug'at, qidiruv ishlamaydi.
+Yechim (frontend, "A"): admin PDF yuklaganda brauzer matnsiz sahifalarni taniydi (tesseract.js, faqat ingliz) va
+PDF'ga KO'RINMAS matn qatlamini qo'shadi (pdf-lib, `Tr 3`); backend'ga shu fayl ketadi — u oddiy matnli PDF kabi.
+
+- [x] 107.1 Yuklashdan oldin pdf.js bilan tekshiruv: matni bor sahifalar o'zgarmaydi (`--skip-text` kabi); hammasi matnli —
+      fayl o'zi yuboriladi
+- [x] 107.2 Matnsiz sahifa → yuqori aniqlikda chizish → tesseract.js (`eng`) → so'zlar va joylari → pdf-lib bilan har so'z
+      o'z joyiga, o'lchamiga moslab, ko'rinmas (render mode 3). Sahifa rasmi, o'lchami, sahifalar soni o'zgarmaydi
+- [x] 107.3 Jarayon ko'rinadi: "Matn tanilmoqda: 2/4 bet"; bekor qilish; xato bo'lsa — asl fayl bilan davom etish taklifi
+- [x] 107.4 e2e: rasmli PDF → yuborilgan faylda matn bor (pdf.js), sahifa soni/o'lchami bir xil; matnli PDF o'zgarmaydi;
+      reader'da belgilash ishlaydi; dev + prod
+- [x] 107.5 Mock: keep-alive 120 s (Next proxy uzoq jarayondan keyin yopilgan ulanishni ishlatib, "socket hang up" → 500 bo'lardi)
+- [x] 107.6 Haqiqiy TRAVEL (4 bet jurnal): 19 s, 2361 so'z; belgilash so'zga aniq tushadi; hajm 2,62 → 2,68 MB
+
 ## 31. Keyingi vazifalar
 
 - [ ] 31.1 Safari (WebKit): varaqlash rejimida oldingi sahifaga qaytilganda (3-sahifa) belgilash qatlami

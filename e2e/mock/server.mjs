@@ -102,6 +102,7 @@ let integ = {}, integLog = [], webhookCalls = 0;
 let broadcasts = [];
 // 106: Telegram Mini App — tg_id → foydalanuvchi, handoff tokenlar (bir martalik), oxirgi webapp so'rovi
 let tgUsers = new Map(), handoffs = new Map(), __lastTgBody = null;
+let __lastUpload = null; // 107: oxirgi maqola fayli yuklash so'rovi (multipart tanasi)
 let paymentsUnscoped = false;
 let __lastQuizBody = null; // 87: oxirgi test yuborish (o'quvchi) — testlar javob shaklini tekshiradi
 let __lastQuestionBody = null; // 87: oxirgi admin savol so'rovi
@@ -291,7 +292,7 @@ const libraryItem = (userId, b) => {
   return { book_id: b.id, title: b.title, author: b.author, description: b.description, category_id: b.category_id, category_name: b.category?.name ?? null, has_cover: b.has_cover, price: b.price, article_count: arts.length, read_count: ps.filter((p) => p.is_read).length, overall_percentage: ps.length ? ps.reduce((s, p) => s + p.percentage, 0) / ps.length : 0, last_read_at: ps.map((p) => p.last_read_at).filter(Boolean).sort().at(-1) ?? null, access_granted_at: acc?.granted_at ?? now() };
 };
 
-createServer(async (req, res) => {
+const server = createServer(async (req, res) => {
   const url = new URL(req.url, "http://x");
   const path = url.pathname.replace(/^\/api\/v1/, "");
   const m = req.method;
@@ -370,6 +371,13 @@ createServer(async (req, res) => {
   if (path === "/__progress") return json(res, 200, progress);
   if (path === "/__uploads") return json(res, 200, uploads);
   if (path === "/__orders") return json(res, 200, orders);
+  // 107: oxirgi yuklangan PDF (multipart'dan ajratilgan: %PDF- … oxirgi %%EOF)
+  if (path === "/__last-upload") {
+    if (!__lastUpload) return err(res, 404, "NOT_FOUND", "No upload");
+    const s = __lastUpload.indexOf("%PDF-"); const e = __lastUpload.lastIndexOf("%%EOF");
+    const pdf = s >= 0 && e > s ? __lastUpload.subarray(s, e + 5) : __lastUpload;
+    res.writeHead(200, { "Content-Type": "application/pdf", "Content-Length": pdf.length }); return res.end(pdf);
+  }
   // 106: Telegram — oxirgi webapp so'rovi; bot webhook telefonni yozdi (`/__tg-phone?tg=<id>&phone=`)
   if (path === "/__tg-last") return json(res, 200, { body: __lastTgBody, handoffs: [...handoffs.values()].map(({ used }) => ({ used })) });
   if (path === "/__tg-phone") { const u = tgUsers.get(q.get("tg")); if (u) u.phone = q.get("phone"); return json(res, 200, u ?? null); }
@@ -386,7 +394,7 @@ createServer(async (req, res) => {
     books = books.filter((b) => b.id !== BOOK_BIG_ID); articles = articles.filter((a) => a.id !== ART_BIG_ID); access = access.filter((a) => a.book_id !== BOOK_BIG_ID);
     if (BIG_PDF) {
       books.push({ id: BOOK_BIG_ID, title: "Katta kitob", author: null, description: null, price: "0", status: "ACTIVE", category_id: null, category: null, book_metadata: {}, created_at: now(), updated_at: now(), has_cover: false });
-      articles.push({ id: ART_BIG_ID, book_id: BOOK_BIG_ID, title: "Katta maqola (60 MB)", order_index: 0, mime_type: "application/pdf", file_size: BIG_PDF.length, format: "pdf", page_count: 300, processing_status: "READY", processing_error: null, text_extractable: false, file_version: 1, content_updated_at: null, article_metadata: {}, created_at: now(), updated_at: now(), has_source_file: true });
+      articles.push({ id: ART_BIG_ID, book_id: BOOK_BIG_ID, title: "Katta maqola (60 MB)", order_index: 0, mime_type: "application/pdf", file_size: BIG_PDF.length, format: "pdf", page_count: Number(q.get("pages")) || 300, processing_status: "READY", processing_error: null, text_extractable: q.get("text") === "1", file_version: 1, content_updated_at: null, article_metadata: {}, created_at: now(), updated_at: now(), has_source_file: true });
       access.push({ id: "acc-big", user_id: USER.id, book_id: BOOK_BIG_ID, status: "ACTIVE", granted_at: now(), granted_by_admin_id: ADMIN.id, revoked_at: null, revoked_by_admin_id: null, created_at: now(), updated_at: now() });
     }
     return json(res, 200, { size: BIG_PDF?.length ?? 0 });
@@ -982,7 +990,7 @@ createServer(async (req, res) => {
       const a = articles.find((x) => x.id === aid && x.book_id === bid);
       if (!a) return err(res, 404, "ARTICLE_NOT_FOUND", "Not found");
       if (!sub2) { if (m === "PATCH") { const b = await readBody(req); Object.assign(a, Object.fromEntries(Object.entries(b).filter(([, v]) => v !== null && v !== undefined)), { updated_at: now() }); return json(res, 200, a); } if (m === "DELETE") { articles = articles.filter((x) => x.id !== aid); return json(res, 200, { message: "Article deleted" }); } }
-      if (sub2 === "file") { let size = 0; for await (const c of req) { size += c.length; await new Promise((r) => setTimeout(r, 3)); } uploads.push({ path, size, contentType: req.headers["content-type"]?.split(";")[0] }); Object.assign(a, { has_source_file: true, processing_status: "PROCESSING", file_size: size, mime_type: "application/pdf", format: "pdf", file_version: a.file_version + 1, updated_at: now() }); setTimeout(() => Object.assign(a, { processing_status: "READY", page_count: 6, text_extractable: true }), 1500); return json(res, 200, a); }
+      if (sub2 === "file") { let size = 0; const parts = []; for await (const c of req) { size += c.length; parts.push(c); await new Promise((r) => setTimeout(r, 3)); } __lastUpload = Buffer.concat(parts); uploads.push({ path, size, contentType: req.headers["content-type"]?.split(";")[0] }); Object.assign(a, { has_source_file: true, processing_status: "PROCESSING", file_size: size, mime_type: "application/pdf", format: "pdf", file_version: a.file_version + 1, updated_at: now() }); setTimeout(() => Object.assign(a, { processing_status: "READY", page_count: 6, text_extractable: true }), 1500); return json(res, 200, a); }
       if (sub2 === "toc") { const b = await readBody(req); a.article_metadata = { ...a.article_metadata, toc: b.entries }; return json(res, 200, a); }
     }
     if (path === "/admin/book-access" && m === "GET") return json(res, 200, paged(access.filter((a) => (!q.get("book_id") || a.book_id === q.get("book_id")) && (!q.get("user_id") || a.user_id === q.get("user_id")) && (!q.get("status") || a.status === q.get("status"))).map(withNames)));
@@ -999,4 +1007,9 @@ createServer(async (req, res) => {
     return err(res, 404, "NOT_FOUND", `No admin route ${m} ${path}`);
   }
   return err(res, 404, "NOT_FOUND", "Not Found");
-}).listen(PORT, () => console.log(`mock backend (OpenAPI 2026-09-21) on :${PORT}`));
+});
+// 107: Next proxy ulanishlarni qayta ishlatadi (keep-alive); Node standarti (5 s) bo'sh ulanishni yopib qo'yadi va uzoq
+// mijoz jarayonidan keyingi (masalan, OCR ~8 s) so'rov "socket hang up" (ECONNRESET → 500) bo'lardi
+server.keepAliveTimeout = 120_000;
+server.headersTimeout = 121_000;
+server.listen(PORT, () => console.log(`mock backend (OpenAPI 2026-09-21) on :${PORT}`));

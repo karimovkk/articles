@@ -111,6 +111,13 @@ e2e yordamchilari (`e2e/lib.mjs`): `selectPick`, `selectOptionCount`, `confirmDi
   `/auth/handoff?token=` da kirgan holda ochiladi (backend `FRONTEND_BASE_URL` + `FRONTEND_HANDOFF_PATH=/auth/handoff`).
 - Telegram Web Mini App'ni iframe'da ochadi — sahifalarda `frame-ancestors 'self' https://web.telegram.org` (admin — `'none'`).
 
+## Rasmli (skaner) PDF — brauzerda OCR
+
+- Admin PDF yuklaganda matnsiz betlar brauzerda tanib olinadi (`src/lib/pdf-ocr.ts`: tesseract.js, faqat `eng`) va PDF'ga
+  ko'rinmas matn qatlami qo'shiladi (pdf-lib, `Tr 3`) — belgilash, lug'at, qidiruv ishlaydi. Matnli PDF o'zgarmaydi.
+- tesseract.js worker / yadro / `eng` modeli birinchi marta `cdn.jsdelivr.net` dan yuklanadi (~10 MB, keyin brauzer keshida).
+- Tezlik: ~5 s / bet (kompyuterda). Jarayonni bekor qilish mumkin; xato bo'lsa — asl faylni yuklash taklif qilinadi.
+
 ## Integratsiya kelishuvi (FE registri §0)
 
 - Har himoyalangan so'rov: `Authorization: Bearer <access>`; 401 → `POST /auth/refresh` (rotatsiya) → bir marta qayta.

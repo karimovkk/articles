@@ -4,12 +4,14 @@
  * Kitob maqolalari (admin): yaratish, nomini/tartibini o'zgartirish, o'chirish, PDF yuklash (progress),
  * qo'lda mundarija (FE-6.10, `PUT .../toc`). PROCESSING holatida ro'yxat avtomatik yangilanadi.
  * Amallar — qatorda asosiy tugma (PDF) + qo'lbola menyu (mundarija, tahrirlash, o'chirish).
+ * 107: yuklashdan oldin rasmli (skaner) betlar brauzerda OCR qilinadi — PDF'ga ko'rinmas matn qatlami (`pdf-ocr`).
  */
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { Alert, Badge, Button, Field, IconButton, Input, Menu, MenuItem, MenuSep, Modal, Select, Switch, cn, statusTone, useConfirm } from "@/components/ui";
 import * as I from "@/components/ui/icons";
 import { adminApi, errorMessage, quizApi, type Article } from "@/lib/api";
 import { formatMb, validatePdf } from "@/lib/uploads";
+import { isOcrAbort, ocrPdfIfNeeded, type OcrProgress } from "@/lib/pdf-ocr";
 import Link from "next/link";
 import { env } from "@/lib/env";
 import { useT } from "@/i18n";
@@ -50,6 +52,10 @@ export function ArticlesPanel({
   const questionsHref = (a: Article) => `/admin/books/${bookId}/articles/${a.id}/questions`;
   const [tocRows, setTocRows] = useState<TocRow[]>([]);
   const [upload, setUpload] = useState<{ id: string; loaded: number; total: number } | null>(null);
+  // 107: OCR jarayoni (qaysi maqola, bosqich) va natija xabari
+  const [ocr, setOcr] = useState<{ id: string; p: OcrProgress | null } | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const ocrAbort = useRef<AbortController | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const uploadTarget = useRef<string | null>(null);
 
@@ -118,11 +124,30 @@ export function ArticlesPanel({
     const id = uploadTarget.current;
     if (!id) return;
     setError(null);
+    setNotice(null);
     const problem = await validatePdf(file);
     if (problem) return setError(problem);
-    setUpload({ id, loaded: 0, total: file.size });
+    // 107: matnsiz (rasmli) betlar — brauzerda OCR; matnli PDF o'zgarmaydi
+    let toSend = file;
+    const ac = new AbortController();
+    ocrAbort.current = ac;
+    setOcr({ id, p: null });
+    try {
+      const r = await ocrPdfIfNeeded(file, { signal: ac.signal, onProgress: (p) => setOcr({ id, p }) });
+      toSend = r.file;
+      if (r.ocrPages) setNotice(t("admin.ocr.done", { pages: r.ocrPages, words: r.words }));
+    } catch (e) {
+      setOcr(null);
+      if (isOcrAbort(e)) return; // bekor qilindi — hech narsa yuklanmaydi
+      const ok = await confirm({ title: t("admin.ocr.failTitle"), message: t("admin.ocr.failBody", { msg: errorMessage(e) }), confirmLabel: t("admin.ocr.uploadOriginal") });
+      if (!ok) return;
+    } finally {
+      ocrAbort.current = null;
+    }
+    setOcr(null);
+    setUpload({ id, loaded: 0, total: toSend.size });
     await run(id, () =>
-      adminApi.uploadArticleFile(bookId, id, file, {
+      adminApi.uploadArticleFile(bookId, id, toSend, {
         onProgress: (loaded, total) => setUpload({ id, loaded, total }),
       }),
     );
@@ -152,6 +177,11 @@ export function ArticlesPanel({
   return (
     <div className="space-y-4">
       {error && <Alert>{error}</Alert>}
+      {notice && (
+        <div data-testid="ocr-done">
+          <Alert tone="success">{notice}</Alert>
+        </div>
+      )}
       <input
         ref={fileRef}
         type="file"
@@ -229,6 +259,24 @@ export function ArticlesPanel({
                     <td className="num text-right">{a.page_count ?? "—"}</td>
                     <td className="muted text-xs">
                       {a.has_source_file ? `${t("admin.books.pdfYes")}${a.file_size ? ` · ${formatMb(a.file_size)}` : ""}${a.file_version > 1 ? ` · v${a.file_version}` : ""}` : t("common.none")}
+                      {ocr?.id === a.id && (
+                        // 107: OCR jarayoni — bosqich, bet, foiz; bekor qilish
+                        <div className="mt-1 w-48 space-y-1" data-testid="ocr-progress">
+                          <span className="block text-[11px] font-semibold text-text-2">
+                            {!ocr.p || ocr.p.stage === "check"
+                              ? t("admin.ocr.checking")
+                              : ocr.p.stage === "build"
+                                ? t("admin.ocr.building")
+                                : t("admin.ocr.page", { done: ocr.p.done + 1, total: ocr.p.total, pct: Math.round(ocr.p.pageProgress * 100) })}
+                          </span>
+                          <div className="progress thin">
+                            <i style={{ width: `${ocr.p && ocr.p.stage !== "check" ? Math.min(100, ((ocr.p.done + ocr.p.pageProgress) / Math.max(1, ocr.p.total)) * 100) : 4}%` }} />
+                          </div>
+                          <button type="button" className="text-[11px] font-bold text-danger hover:underline" onClick={() => ocrAbort.current?.abort()} data-testid="ocr-cancel">
+                            {t("common.cancel")}
+                          </button>
+                        </div>
+                      )}
                       {upload?.id === a.id && (
                         <div className="mt-1 w-40" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round((upload.loaded / upload.total) * 100)}>
                           <div className="progress thin">
@@ -264,7 +312,8 @@ export function ArticlesPanel({
                         <Button
                           size="sm"
                           variant="secondary"
-                          loading={busyId === a.id}
+                          loading={busyId === a.id || ocr?.id === a.id}
+                          disabled={!!ocr}
                           icon={<I.Upload size={14} />}
                           onClick={() => {
                             uploadTarget.current = a.id;

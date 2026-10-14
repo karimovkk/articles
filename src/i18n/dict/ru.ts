@@ -1272,4 +1272,12 @@ export const ru: Dict = {
   "tg.handoff.loading": "Вход на сайт…",
   "tg.handoff.expired": "Ссылка устарела или уже использована. Нажмите «Открыть на сайте» в Mini App ещё раз или войдите обычным способом.",
   "tg.handoff.missing": "Ссылка для входа неполная.",
+  // 107: rasmli PDF — brauzerda OCR
+  "admin.ocr.checking": "Проверка текстового слоя…",
+  "admin.ocr.page": "Распознавание текста: {done}/{total} стр. · {pct}%",
+  "admin.ocr.building": "Подготовка PDF…",
+  "admin.ocr.done": "Текст распознан на {pages} стр. с изображениями (слов: {words}) — выделение, словарь и поиск работают.",
+  "admin.ocr.failTitle": "Не удалось распознать текст",
+  "admin.ocr.failBody": "Ошибка: {msg}. Загрузить исходный файл без текста? (выделение и поиск не будут работать)",
+  "admin.ocr.uploadOriginal": "Загрузить исходный",
 };
