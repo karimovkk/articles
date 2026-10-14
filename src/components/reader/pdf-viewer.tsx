@@ -391,9 +391,13 @@ export const PdfViewer = forwardRef<PdfViewerHandle, PdfViewerProps>(function Pd
     zoomNowRef.current = zoom;
   });
   const pillRef = useRef<HTMLDivElement>(null);
+  const zoomRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
+    // 105: transform — aylantiriladigan konteynerga emas, ichidagi kontentga: konteyner scrollbar'i (o'ngdagi qora chiziq)
+    // harakat paytida kattalashib/siljimaydi, kichraytirishda esa atrofdagi betlar ham ko'rinadi
+    const zoomBox = () => zoomRef.current ?? el;
     let g: { d0: number; mx: number; my: number; ox: number; oy: number; z0: number; s: number; tx: number; ty: number } | null = null;
     let tap: { t: number; x: number; y: number; moved: boolean } | null = null;
     let lastTap: { t: number; x: number; y: number } | null = null;
@@ -420,8 +424,8 @@ export const PdfViewer = forwardRef<PdfViewerHandle, PdfViewerProps>(function Pd
         const r = el.getBoundingClientRect();
         const m = mid(e.touches);
         g = { d0: Math.max(10, dist(e.touches)), mx: m.x, my: m.y, ox: m.x - r.left, oy: m.y - r.top, z0: zoomNowRef.current, s: 1, tx: 0, ty: 0 };
-        el.style.transformOrigin = `${g.ox}px ${g.oy}px`;
-        el.style.willChange = "transform";
+        zoomBox().style.transformOrigin = `${el.scrollLeft + g.ox}px ${el.scrollTop + g.oy}px`;
+        zoomBox().style.willChange = "transform";
         el.dataset.pinching = "1";
         pill(g.z0);
       } else if (e.touches.length === 1 && !g) {
@@ -438,7 +442,7 @@ export const PdfViewer = forwardRef<PdfViewerHandle, PdfViewerProps>(function Pd
       g.s = clampZ(g.z0 * (dist(e.touches) / g.d0)) / g.z0;
       g.tx = m.x - g.mx;
       g.ty = m.y - g.my;
-      el.style.transform = `translate(${g.tx}px, ${g.ty}px) scale(${g.s})`;
+      zoomBox().style.transform = `translate(${g.tx}px, ${g.ty}px) scale(${g.s})`;
       pill(g.z0 * g.s);
     };
     const finish = () => {
@@ -448,9 +452,9 @@ export const PdfViewer = forwardRef<PdfViewerHandle, PdfViewerProps>(function Pd
       commit(z0, s, ox, oy, tx, ty);
     };
     const commit = (z0: number, s: number, ox: number, oy: number, tx: number, ty: number) => {
-      el.style.transform = "";
-      el.style.transformOrigin = "";
-      el.style.willChange = "";
+      zoomBox().style.transform = "";
+      zoomBox().style.transformOrigin = "";
+      zoomBox().style.willChange = "";
       delete el.dataset.pinching;
       pill(null);
       const z1 = Math.round(clampZ(z0 * s) * 100) / 100;
@@ -494,14 +498,14 @@ export const PdfViewer = forwardRef<PdfViewerHandle, PdfViewerProps>(function Pd
     const wheelStart = (x: number, y: number) => {
       const r = el.getBoundingClientRect();
       w = { ox: x - r.left, oy: y - r.top, z0: zoomNowRef.current, s: 1 };
-      el.style.transformOrigin = `${w.ox}px ${w.oy}px`;
-      el.style.willChange = "transform";
+      zoomBox().style.transformOrigin = `${el.scrollLeft + w.ox}px ${el.scrollTop + w.oy}px`;
+      zoomBox().style.willChange = "transform";
       el.dataset.pinching = "1";
     };
     const wheelApply = (s: number) => {
       if (!w) return;
       w.s = clampZ(w.z0 * s) / w.z0;
-      el.style.transform = `scale(${w.s})`;
+      zoomBox().style.transform = `scale(${w.s})`;
       pill(w.z0 * w.s);
     };
     const wheelEnd = () => {
@@ -832,96 +836,99 @@ export const PdfViewer = forwardRef<PdfViewerHandle, PdfViewerProps>(function Pd
           </div>
         )}
 
-        {pageCount > 0 && mode === "scroll" && (
-          <div className="mx-auto flex flex-col items-center" style={{ width: pageWidth, gap: PAGE_GAP, paddingBlock: SCROLL_PAD }}>
-            {Array.from({ length: pageCount }, (_, i) => (
-              <PdfPage
-                key={i + 1}
-                pageNumber={i + 1}
-                docRef={docRef}
-                scale={scale}
-                width={pageWidth}
-                height={pageHeight}
-                highlights={highlightsByPage.get(i + 1)}
-                searchQuery={searchHit?.page === i + 1 ? searchHit.query : undefined}
-                searchNonce={searchHit?.nonce}
-                searchMs={searchHit?.ms}
-                onSearchRects={onSearchRects}
-                onHighlightPick={onHighlightPick}
-                vocab={vocabByPage.get(i + 1)}
-                onVocabPick={onVocabPick}
-                pickRects={pick?.page === i + 1 ? pick.rects : undefined}
-                pickHandles={pick?.page === i + 1 && !!pick.handles}
-                watermarkText={watermarkText}
-                label={t("common.pageN", { n: i + 1 })}
-              />
-            ))}
-          </div>
-        )}
+        {/* 105: pinch / touchpad zoom paytida transform shu qatlamga (konteyner va uning scrollbar'i joyida qoladi) */}
+        <div ref={zoomRef} className="reader-zoom">
+          {pageCount > 0 && mode === "scroll" && (
+            <div className="mx-auto flex flex-col items-center" style={{ width: pageWidth, gap: PAGE_GAP, paddingBlock: SCROLL_PAD }}>
+              {Array.from({ length: pageCount }, (_, i) => (
+                <PdfPage
+                  key={i + 1}
+                  pageNumber={i + 1}
+                  docRef={docRef}
+                  scale={scale}
+                  width={pageWidth}
+                  height={pageHeight}
+                  highlights={highlightsByPage.get(i + 1)}
+                  searchQuery={searchHit?.page === i + 1 ? searchHit.query : undefined}
+                  searchNonce={searchHit?.nonce}
+                  searchMs={searchHit?.ms}
+                  onSearchRects={onSearchRects}
+                  onHighlightPick={onHighlightPick}
+                  vocab={vocabByPage.get(i + 1)}
+                  onVocabPick={onVocabPick}
+                  pickRects={pick?.page === i + 1 ? pick.rects : undefined}
+                  pickHandles={pick?.page === i + 1 && !!pick.handles}
+                  watermarkText={watermarkText}
+                  label={t("common.pageN", { n: i + 1 })}
+                />
+              ))}
+            </div>
+          )}
 
-        {pageCount > 0 && mode === "page" && (
-          <FlipStage
-            current={shownPage}
-            pageCount={pageCount}
-            width={pageWidth}
-            height={pageHeight}
-            night={night}
-            onCommit={goToPage}
-            renderPage={(n) => (
-              <PdfPage
-                pageNumber={n}
-                docRef={docRef}
-                scale={scale}
-                width={pageWidth}
-                height={pageHeight}
-                highlights={highlightsByPage.get(n)}
-                searchQuery={searchHit?.page === n ? searchHit.query : undefined}
-                searchNonce={searchHit?.nonce}
-                searchMs={searchHit?.ms}
-                onHighlightPick={onHighlightPick}
-                vocab={vocabByPage.get(n)}
-                onVocabPick={onVocabPick}
-                pickRects={pick?.page === n ? pick.rects : undefined}
-                pickHandles={pick?.page === n && !!pick.handles}
-                watermarkText={watermarkText}
-                label={t("common.pageN", { n })}
-              />
-            )}
-            labels={{ prev: t("reader.prevPage"), next: t("reader.nextPage") }}
-          />
-        )}
+          {pageCount > 0 && mode === "page" && (
+            <FlipStage
+              current={shownPage}
+              pageCount={pageCount}
+              width={pageWidth}
+              height={pageHeight}
+              night={night}
+              onCommit={goToPage}
+              renderPage={(n) => (
+                <PdfPage
+                  pageNumber={n}
+                  docRef={docRef}
+                  scale={scale}
+                  width={pageWidth}
+                  height={pageHeight}
+                  highlights={highlightsByPage.get(n)}
+                  searchQuery={searchHit?.page === n ? searchHit.query : undefined}
+                  searchNonce={searchHit?.nonce}
+                  searchMs={searchHit?.ms}
+                  onHighlightPick={onHighlightPick}
+                  vocab={vocabByPage.get(n)}
+                  onVocabPick={onVocabPick}
+                  pickRects={pick?.page === n ? pick.rects : undefined}
+                  pickHandles={pick?.page === n && !!pick.handles}
+                  watermarkText={watermarkText}
+                  label={t("common.pageN", { n })}
+                />
+              )}
+              labels={{ prev: t("reader.prevPage"), next: t("reader.nextPage") }}
+            />
+          )}
 
-        {pageCount > 0 && mode === "spread" && (
-          <SpreadStage
-            current={shownPage}
-            pageCount={pageCount}
-            width={pageWidth}
-            height={pageHeight}
-            night={night}
-            onCommit={goToPage}
-            renderPage={(n) => (
-              <PdfPage
-                pageNumber={n}
-                docRef={docRef}
-                scale={scale}
-                width={pageWidth}
-                height={pageHeight}
-                highlights={highlightsByPage.get(n)}
-                searchQuery={searchHit?.page === n ? searchHit.query : undefined}
-                searchNonce={searchHit?.nonce}
-                searchMs={searchHit?.ms}
-                onHighlightPick={onHighlightPick}
-                vocab={vocabByPage.get(n)}
-                onVocabPick={onVocabPick}
-                pickRects={pick?.page === n ? pick.rects : undefined}
-                pickHandles={pick?.page === n && !!pick.handles}
-                watermarkText={watermarkText}
-                label={t("common.pageN", { n })}
-              />
-            )}
-            labels={{ prev: t("reader.prevPage"), next: t("reader.nextPage") }}
-          />
-        )}
+          {pageCount > 0 && mode === "spread" && (
+            <SpreadStage
+              current={shownPage}
+              pageCount={pageCount}
+              width={pageWidth}
+              height={pageHeight}
+              night={night}
+              onCommit={goToPage}
+              renderPage={(n) => (
+                <PdfPage
+                  pageNumber={n}
+                  docRef={docRef}
+                  scale={scale}
+                  width={pageWidth}
+                  height={pageHeight}
+                  highlights={highlightsByPage.get(n)}
+                  searchQuery={searchHit?.page === n ? searchHit.query : undefined}
+                  searchNonce={searchHit?.nonce}
+                  searchMs={searchHit?.ms}
+                  onHighlightPick={onHighlightPick}
+                  vocab={vocabByPage.get(n)}
+                  onVocabPick={onVocabPick}
+                  pickRects={pick?.page === n ? pick.rects : undefined}
+                  pickHandles={pick?.page === n && !!pick.handles}
+                  watermarkText={watermarkText}
+                  label={t("common.pageN", { n })}
+                />
+              )}
+              labels={{ prev: t("reader.prevPage"), next: t("reader.nextPage") }}
+            />
+          )}
+        </div>
       </div>
 
       {/* 71: zoom foizi — pinch / ikki marta tegish paytida */}

@@ -1534,6 +1534,13 @@ yuborilgandek saqlanadi.
       oxirgi bet o'qilganda avtomatik belgilash (101) qoladi — kutubxonadagi "✓ O'qilgan" shundan
 - [x] 104.2 e2e (reader-article, session, free-books) yangilandi; dev + prod
 
+## 105. Touchpad zoom: qora chiziq (scrollbar) siljimasin (2026-10-14)
+
+- [x] 105.1 Pinch / touchpad zoom paytidagi transform aylantiriladigan konteynerga emas, ichki qatlamga (`.reader-zoom`):
+      konteyner scrollbar'i (o'ngdagi qora chiziq) harakat paytida kattalashib/siljimaydi; kichraytirishda kesilgan bo'lak
+      emas, butun bet ko'rinadi
+- [x] 105.2 e2e (reader-touch): konteynerda transform yo'q, ichki qatlamda bor; dev + prod
+
 ## 31. Keyingi vazifalar
 
 - [ ] 31.1 Safari (WebKit): varaqlash rejimida oldingi sahifaga qaytilganda (3-sahifa) belgilash qatlami

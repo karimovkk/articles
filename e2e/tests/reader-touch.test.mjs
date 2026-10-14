@@ -93,7 +93,7 @@ const { page, cdp } = await openReader(390, 844);
     await sleep(16);
   }
   const pillMid = await page.evaluate(() => { const p = document.querySelector('[data-testid="zoom-pill"]'); return p.classList.contains("on") ? p.textContent : ""; });
-  const tfMid = await page.evaluate(() => document.querySelector('[data-testid="reader-scroller"]').style.transform);
+  const tfMid = await page.evaluate(() => document.querySelector('[data-testid="reader-scroller"] .reader-zoom').style.transform);
   for (let i = 1; i <= 6; i++) {
     await touch(cdp, "touchMove", [[cx - 75 - (25 * i) / 6, cy], [cx + 75 + (25 * i) / 6, cy]]);
     await sleep(16);
@@ -105,7 +105,7 @@ const { page, cdp } = await openReader(390, 844);
   const w1 = await pageWidth(page);
   const vv = await page.evaluate(() => window.visualViewport?.scale ?? 1);
   check("Pinch ×2: kitob 2 barobar kattalashdi, brauzer sahifasi (panel, tugmalar) kattalashmadi", Math.abs(w1 / w0 - 2) < 0.08 && vv === 1, `${w0}→${w1}px, viewport scale ${vv}`);
-  check("Pinch: transform tozalandi (aniq chizilgan)", (await page.evaluate(() => document.querySelector('[data-testid="reader-scroller"]').style.transform)) === "");
+  check("Pinch: transform tozalandi (aniq chizilgan)", (await page.evaluate(() => document.querySelector('[data-testid="reader-scroller"] .reader-zoom').style.transform)) === "");
   const after = await spanCenter(page, ref.i);
   const expX = cx + (ref.x - cx) * (w1 / w0);
   const expY = cy + (ref.y - cy) * (w1 / w0);
@@ -275,15 +275,17 @@ for (const [W, H] of [[320, 640], [768, 1024]]) {
   }, [cx, cy]);
   const refCenter = () => page.evaluate(({ p, i }) => { const r = document.querySelectorAll(`[data-page="${p}"] .textLayer span`)[i].getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; }, ref);
   for (let i = 0; i < 3; i++) await wheel(cx, cy, -10);
-  const tfMid = await page.evaluate(() => document.querySelector('[data-testid="reader-scroller"]').style.transform);
+  const tfMid = await page.evaluate(() => document.querySelector('[data-testid="reader-scroller"] .reader-zoom').style.transform);
   const pillMid = await page.evaluate(() => { const p = document.querySelector('[data-testid="zoom-pill"]'); return p.classList.contains("on") ? p.textContent : ""; });
+  const scrollerTf = await page.evaluate(() => document.querySelector('[data-testid="reader-scroller"]').style.transform);
+  check("105: zoom paytida aylantiriladigan konteyner (va scrollbar'i) joyida — transform ichki qatlamda", scrollerTf === "", scrollerTf);
   for (let i = 0; i < 4; i++) await wheel(cx, cy, -10); // jami e^0.7 ≈ ×2.01
   check("Touchpad pinch paytida: kitob silliq kattalashadi (transform) va foiz ko'rinadi", /scale\(1\.3/.test(tfMid) && /^13\d%$/.test(pillMid), `${tfMid} · ${pillMid}`);
   await page.waitForFunction((w0) => document.querySelector("[data-page]").getBoundingClientRect().width > w0 * 1.9, w0, { timeout: 5000 }).catch(() => {});
   await page.waitForTimeout(300);
   const w1 = await pageWidth(page);
   const dpr1 = await page.evaluate(() => devicePixelRatio);
-  check("Touchpad pinch ×2: faqat kitob kattalashdi, brauzer sahifasi zoom qilinmadi", Math.abs(w1 / w0 - 2.01) < 0.08 && dpr1 === dpr0 && (await page.evaluate(() => document.querySelector('[data-testid="reader-scroller"]').style.transform)) === "", `${w0}→${w1}px, dpr ${dpr0}→${dpr1}`);
+  check("Touchpad pinch ×2: faqat kitob kattalashdi, brauzer sahifasi zoom qilinmadi", Math.abs(w1 / w0 - 2.01) < 0.08 && dpr1 === dpr0 && (await page.evaluate(() => document.querySelector('[data-testid="reader-scroller"] .reader-zoom').style.transform)) === "", `${w0}→${w1}px, dpr ${dpr0}→${dpr1}`);
   const after = await refCenter();
   const expX = cx + (ref.x - cx) * (w1 / w0);
   const expY = cy + (ref.y - cy) * (w1 / w0);
