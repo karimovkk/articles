@@ -62,9 +62,9 @@ export function CheckoutOrder({ order, onChange }: { order: Order; onChange: (o:
 
       {items.length > 0 && (
         <ul className="checkout-items">
-          {items.map((i) => (
-            <li key={i.book_id}>
-              <span className="user-text">{i.book_title ?? i.book_id.slice(0, 8)}</span>
+          {items.map((i, k) => (
+            <li key={i.book_id ?? k}>
+              <span className="user-text">{i.book_title ?? i.book_id?.slice(0, 8)}</span>
               <span className="checkout-item-price">
                 {Number(i.unit_price) < Number(i.list_price) && (
                   <s>

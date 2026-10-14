@@ -17,7 +17,7 @@ import { isFreeBook } from "@/lib/free-books";
 import { BookCover } from "@/components/book-cover";
 import { adminApi, errorMessage, type Article, type BookAccess, type BookStatus, type Category } from "@/lib/api";
 import { useAsync } from "@/lib/use-async";
-import { useDeleteBook } from "./use-delete-book";
+import { deletedUrl, useDeleteBook } from "./use-delete-book";
 import { env } from "@/lib/env";
 import { formatMb, validateCover } from "@/lib/uploads";
 import { GrantModal } from "./user-detail";
@@ -170,7 +170,7 @@ export function AdminBookDetail({ bookId }: { bookId: string }) {
   async function hardDelete() {
     if (!book) return;
     const res = await del.remove({ id: bookId, title: book.title });
-    if (res) router.replace(`/admin/books?deleted=${encodeURIComponent(book.title)}&a=${res.articles_deleted}&o=${res.orders_deleted}`);
+    if (res) router.replace(deletedUrl(book.title, res));
   }
 
   if (!book) return error ? <Alert>{error}</Alert> : <Spinner />;

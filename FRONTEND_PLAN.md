@@ -1473,6 +1473,18 @@ Manba: `Articles365_Frontend_Kitob_Ochirish_v1.0.md` — `DELETE /admin/books/{i
 - [x] 98.1 Ekranga yopishgan ustki qatlam (`WatermarkOverlay`, burchakdagi trace id bilan) olib tashlandi; sahifa
       canvas'iga chizilgani (kitob bilan suriladigan) qoldi. e2e: `canvas[data-wm]` (reader, watermark, free-books)
 
+## 99. Kitobni o'chirish v1.1: baza saqlanadi (2026-10-14)
+
+Manba: `Articles365_Frontend_Kitob_Ochirish_v1.1.md` — 409 `BOOK_HAS_ORDERS` va `force` yo'q; buyurtmalar, belgilar,
+progress, test natijalari, lug'at kitobdan uziladi (`book_id`/`article_id` = null, `book_title` snapshot).
+
+- [x] 99.1 `deleteBook(id)` — `force` yo'q; javob: `*_deleted` + `*_detached`. Oqim: bitta tasdiq → DELETE
+- [x] 99.2 Matnlar: tasdiq va xavfli zona — "to'lov tarixi va o'quv ma'lumotlari saqlanadi"; natija — "N ta maqola
+      o'chdi. Saqlandi: buyurtmalar, belgilar, progress, test natijalari, lug'at" (faqat noldan kattalari)
+- [x] 99.3 `book_id: null` (o'chgan kitob): admin buyurtmalar, "Buyurtmalarim", to'lov statistikasi (kitoblar bo'yicha) —
+      havolasiz, `book_title` + "(o'chirilgan)"; "Kitobni ochish" / "Qayta urinish" ko'rsatilmaydi
+- [x] 99.4 Mock (detach + snapshot) + e2e (book-delete, orders), dev + prod
+
 ## 31. Keyingi vazifalar
 
 - [ ] 31.1 Safari (WebKit): varaqlash rejimida oldingi sahifaga qaytilganda (3-sahifa) belgilash qatlami

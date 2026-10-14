@@ -11,18 +11,28 @@ import { PriceTag } from "@/components/catalog/price";
 import { PriceFields } from "@/components/admin/price-fields";
 import { isFreeBook } from "@/lib/free-books";
 import { useDebounced } from "@/lib/use-debounce";
-import { useDeleteBook } from "@/components/admin/use-delete-book";
+import { KEPT_PARAMS, deletedUrl, useDeleteBook } from "@/components/admin/use-delete-book";
 import { useT } from "@/i18n";
 
-/** 97: kitob butunlay o'chirilgach — ro'yxatda natija (`?deleted=<nom>&a=<maqolalar>&o=<buyurtmalar>`) */
+/**
+ * 97 → 99: kitob o'chirilgach — ro'yxatda natija (`?deleted=<nom>&a=<maqolalar>` + saqlanganlar: `o` buyurtma,
+ * `n` belgi, `p` progress, `q` test natijasi, `v` lug'at — faqat noldan kattalari)
+ */
 function DeletedNote() {
   const { t } = useT();
   const sp = useSearchParams();
   const deleted = sp.get("deleted");
   if (!deleted) return null;
+  const kept = (Object.keys(KEPT_PARAMS) as Array<keyof typeof KEPT_PARAMS>)
+    .map((k) => [k, Number(sp.get(k)) || 0] as const)
+    .filter(([, n]) => n > 0)
+    .map(([k, n]) => t(`admin.books.kept.${k}`, { n }));
   return (
     <div className="mb-4" data-testid="book-deleted-note">
-      <Alert tone="success">{t("admin.books.deletedNote", { title: deleted, a: Number(sp.get("a")) || 0, o: Number(sp.get("o")) || 0 })}</Alert>
+      <Alert tone="success">
+        {t("admin.books.deletedNote", { title: deleted, a: Number(sp.get("a")) || 0 })}
+        {kept.length > 0 && <> {t("admin.books.deletedKept", { list: kept.join(", ") })}</>}
+      </Alert>
     </div>
   );
 }
@@ -48,12 +58,12 @@ export default function AdminBooksPage() {
       .catch(() => undefined);
   }, []);
 
-  // 97: ro'yxatdan butunlay o'chirish (tasdiq bilan; buyurtmali kitob — ikkinchi tasdiq)
+  // 97: ro'yxatdan o'chirish (tasdiq bilan; buyurtmalar va o'quvchi ma'lumotlari saqlanadi)
   const del = useDeleteBook();
   const removeBook = async (b: Book) => {
     const res = await del.remove({ id: b.id, title: b.title });
     if (!res) return;
-    router.replace(`/admin/books?deleted=${encodeURIComponent(b.title)}&a=${res.articles_deleted}&o=${res.orders_deleted}`);
+    router.replace(deletedUrl(b.title, res));
     reload();
   };
 

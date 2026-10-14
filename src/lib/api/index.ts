@@ -34,4 +34,4 @@ export {
 export { translateApi, TRANSLATE_TEXT_MAX, type TranslateLang, type AutoTranslation } from "./translate";
 export { ordersApi, pricingApi, orderBookIds } from "./orders";
 export { notificationsApi } from "./notifications";
-export { adminApi, type Broadcast, type IntegrationSetting, type IntegrationSettings } from "./admin";
+export { adminApi, type BookDeleteResult, type Broadcast, type IntegrationSetting, type IntegrationSettings } from "./admin";

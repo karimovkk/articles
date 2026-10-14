@@ -8,7 +8,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { DataTable, Toolbar, usePaged, type Column } from "@/components/admin/data-table";
 import * as I from "@/components/ui/icons";
-import { OrderStatusBadge } from "@/components/orders/order-status";
+import { DeletedBook, OrderStatusBadge } from "@/components/orders/order-status";
 import { Price } from "@/components/catalog/price";
 import { Alert, Button, Field, Modal, PageHeader, Select, Textarea, formatDate } from "@/components/ui";
 import { adminApi, errorMessage, isApiError, type Order, type OrderStatus } from "@/lib/api";
@@ -31,7 +31,7 @@ export default function AdminOrdersPage() {
   // B5: backend nomlarni qo'shib beradi; eski javobda bo'lmasa — id bo'yicha resolve
   const names = useEntityNames(
     data?.items.filter((o) => !o.user_full_name && !o.user_email).map((o) => o.user_id) ?? [],
-    data?.items.filter((o) => !o.book_title).map((o) => o.book_id) ?? [],
+    data?.items.filter((o) => !o.book_title).flatMap((o) => (o.book_id ? [o.book_id] : [])) ?? [],
   );
 
   async function act(o: Order, fn: () => Promise<unknown>) {
@@ -76,20 +76,26 @@ export default function AdminOrdersPage() {
           <div className="min-w-0" data-testid="admin-order-bundle">
             <span className="font-semibold">{t("orders.itemsCount", { n: o.items!.length })}</span>
             <ul className="mt-0.5 space-y-0.5 text-xs text-muted">
-              {o.items!.map((i) => (
-                <li key={i.book_id}>
-                  <Link href={`/admin/books/${i.book_id}`} className="hover:text-accent-ink">
-                    {i.book_title || names.books[i.book_id] || i.book_id.slice(0, 8)}
-                  </Link>{" "}
+              {o.items!.map((i, k) => (
+                <li key={i.book_id ?? k}>
+                  {i.book_id ? (
+                    <Link href={`/admin/books/${i.book_id}`} className="hover:text-accent-ink">
+                      {i.book_title || names.books[i.book_id] || i.book_id.slice(0, 8)}
+                    </Link>
+                  ) : (
+                    <DeletedBook title={i.book_title} />
+                  )}{" "}
                   · <Price value={i.unit_price} />
                 </li>
               ))}
             </ul>
           </div>
-        ) : (
+        ) : o.book_id ? (
           <Link href={`/admin/books/${o.book_id}`} className="font-semibold hover:text-accent-ink">
             {o.book_title || names.books[o.book_id] || o.book_id.slice(0, 8)}
           </Link>
+        ) : (
+          <DeletedBook title={o.book_title} className="font-semibold" />
         ),
     },
     { key: "amount", header: t("admin.books.price"), num: true, render: (o) => <Price value={o.amount} /> },

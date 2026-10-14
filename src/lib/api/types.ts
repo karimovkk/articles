@@ -297,7 +297,8 @@ export interface TocResponse {
 export interface Order {
   id: UUID;
   user_id: UUID;
-  book_id: UUID;
+  /** 99: kitob o'chirilgan bo'lsa — null (nom `book_title` snapshot'da qoladi) */
+  book_id: UUID | null;
   amount: string;
   status: OrderStatus;
   receipt_note: string | null;
@@ -323,7 +324,8 @@ export interface Order {
 
 /** 35: buyurtmadagi bitta kitob — asl va chegirmadan keyingi narx */
 export interface OrderItem {
-  book_id: UUID;
+  /** 99: kitob o'chirilgan bo'lsa — null */
+  book_id: UUID | null;
   book_title?: string | null;
   list_price: string;
   unit_price: string;
@@ -478,5 +480,6 @@ export interface PaymentStats {
   date_from?: string | null;
   date_to?: string | null;
   /** Top 50 kitob */
-  revenue_by_book: Array<{ book_id: string; title: string | null; revenue: number; sold: number }>;
+  /** 99: o'chirilgan kitob — `book_id: null`, `title` snapshot'dan */
+  revenue_by_book: Array<{ book_id: string | null; title: string | null; revenue: number; sold: number }>;
 }

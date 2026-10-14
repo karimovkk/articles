@@ -273,7 +273,7 @@ function parseMultipart(buf, contentType) {
 const isPdfBytes = (b) => b.slice(0, 5).toString() === "%PDF-";
 const isImageBytes = (b) => (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) || (b[0] === 0x89 && b.slice(1, 4).toString() === "PNG") || (b.slice(0, 4).toString() === "RIFF" && b.slice(8, 12).toString() === "WEBP");
 const isOpen = (o) => o.status === "PENDING" || o.status === "AWAITING_REVIEW";
-const withNames = (x) => { const u = users.find((y) => y.id === x.user_id); const b = books.find((y) => y.id === x.book_id); return { ...x, user_email: u?.email ?? null, user_full_name: u?.full_name ?? null, book_title: b?.title ?? null, ...(x.items ? { items: x.items.map((i) => ({ ...i, book_title: books.find((y) => y.id === i.book_id)?.title ?? null })) } : {}) }; };
+const withNames = (x) => { const u = users.find((y) => y.id === x.user_id); const b = books.find((y) => y.id === x.book_id); return { ...x, user_email: u?.email ?? null, user_full_name: u?.full_name ?? null, book_title: b?.title ?? x.book_title ?? null, ...(x.items ? { items: x.items.map((i) => ({ ...i, book_title: books.find((y) => y.id === i.book_id)?.title ?? i.book_title ?? null })) } : {}) }; };
 const isFreeId = (bookId) => !!books.find((b) => b.id === bookId && b.is_free && b.status === "ACTIVE");
 const GUEST = { id: "guest-000", email: null, phone: null, full_name: null, role: "GUEST" };
 /** 37: o'qish ruxsati — tekin kitob hamma uchun */
@@ -847,7 +847,9 @@ createServer(async (req, res) => {
         by[k] = by[k] ?? { period: k, revenue: 0, orders: 0 }; by[k].revenue += amt; by[k].orders += 1;
         byMonth[mon] = byMonth[mon] ?? { month: mon, revenue: 0, orders: 0 }; byMonth[mon].revenue += amt; byMonth[mon].orders += 1;
         const ids = orderBookIds(o); const per = amt / ids.length;
-        for (const id of ids) { const bk = books.find((x) => x.id === id); byBook[id] = byBook[id] ?? { book_id: id, title: bk?.title ?? null, revenue: 0, sold: 0 }; byBook[id].revenue += per; byBook[id].sold += 1; }
+        // 99: o'chirilgan kitob — book_id null, nom snapshot'dan
+        const snap = (id, k) => (id ? null : (o.items?.[k]?.book_title ?? o.book_title ?? null));
+        ids.forEach((id, k) => { const bk = books.find((x) => x.id === id); const key = id ?? `deleted:${snap(id, k)}`; byBook[key] = byBook[key] ?? { book_id: id, title: bk?.title ?? snap(id, k), revenue: 0, sold: 0 }; byBook[key].revenue += per; byBook[key].sold += 1; });
       }
       const total = approved.reduce((a, o) => a + Number(o.amount), 0);
       const st = {}; for (const o of paymentsUnscoped ? orders : scoped) st[o.status] = (st[o.status] ?? 0) + 1;
@@ -916,15 +918,25 @@ createServer(async (req, res) => {
       const [, bid, sub, aid, sub2] = bm;
       const bk = books.find((x) => x.id === bid);
       if (!bk) return err(res, 404, "BOOK_NOT_FOUND", "Not found");
-      // 97: butunlay o'chirish (cascade); buyurtmali kitob — force siz 409
+      // 97 → 99: o'chirish — kontent o'chadi; buyurtmalar, belgilar, progress, lug'at SAQLANADI (book_id/article_id → null,
+      // nom snapshot). 409 / force yo'q (force e'tiborsiz)
       if (!sub && m === "DELETE") {
-        const ords = orders.filter((o) => o.book_id === bid || (o.items ?? []).some((it) => it.book_id === bid));
-        if (ords.length && q.get("force") !== "true") return err(res, 409, "BOOK_HAS_ORDERS", "Book has orders; deleting will erase payment history — pass force=true to confirm", { order_count: ords.length });
         const arts = articles.filter((a) => a.book_id === bid);
-        questions = questions.filter((x) => !arts.some((a) => a.id === x.article_id));
+        const artIds = new Set(arts.map((a) => a.id));
+        let ordersN = 0, itemsN = 0;
+        for (const o of orders) {
+          let hit = false;
+          if (o.book_id === bid) { o.book_title = bk.title; o.book_id = null; hit = true; }
+          for (const it of o.items ?? []) if (it.book_id === bid) { it.book_title = bk.title; it.book_id = null; itemsN++; hit = true; }
+          if (hit) ordersN++;
+        }
+        let notesN = 0; for (const a of annotations) if (artIds.has(a.article_id)) { a.article_id = null; notesN++; }
+        let progN = 0; for (const k of Object.keys(progress)) if (artIds.has(k.split(":")[1])) { delete progress[k]; progN++; }
+        let vocabN = 0; for (const v of vocab) if (v.book_id === bid || artIds.has(v.article_id)) { v.book_title = v.book_title ?? bk.title; v.book_id = null; v.article_id = null; vocabN++; }
+        questions = questions.filter((x) => !artIds.has(x.article_id));
         articles = articles.filter((a) => a.book_id !== bid); access = access.filter((a) => a.book_id !== bid);
-        orders = orders.filter((o) => !ords.includes(o)); books = books.filter((b) => b.id !== bid);
-        return json(res, 200, { deleted: true, book_id: bid, articles_deleted: arts.length, orders_deleted: ords.length, storage_objects_deleted: arts.length });
+        books = books.filter((b) => b.id !== bid);
+        return json(res, 200, { deleted: true, book_id: bid, articles_deleted: arts.length, storage_objects_deleted: arts.length, orders_detached: ordersN, order_items_detached: itemsN, annotations_detached: notesN, progress_detached: progN, quiz_attempts_detached: 0, vocabulary_detached: vocabN });
       }
       if (!sub) { if (m === "PATCH") { const b = await readBody(req); if (b.status === "ACTIVE" && !articles.some((a) => a.book_id === bid && a.processing_status === "READY")) return err(res, 409, "BOOK_NOT_READY", "No READY articles"); Object.assign(bk, Object.fromEntries(Object.entries(b).filter(([, v]) => v !== undefined)), { updated_at: now() }); if (b.price != null) bk.price = Number(b.price).toFixed(2); if (b.is_free) bk.price = "0.00"; if ("is_free" in b || b.price != null) bk.is_free = !!b.is_free || Number(bk.price) === 0; if ("original_price" in b) { bk.original_price = Number(b.original_price) > 0 ? Number(b.original_price).toFixed(2) : null; if (bk.original_price && !bk.is_free && Number(bk.original_price) < Number(bk.price)) return err(res, 422, "VALIDATION_ERROR", "original_price must be greater than price"); } withDiscount(bk); __lastBookBody = b; if ("category_id" in b) bk.category = categories.find((c) => c.id === b.category_id) ?? null; } return json(res, 200, bk); }
       if (sub === "cover") { let size = 0; for await (const c of req) { size += c.length; await new Promise((r) => setTimeout(r, 3)); } uploads.push({ path, size, contentType: req.headers["content-type"]?.split(";")[0] }); bk.has_cover = true; return json(res, 200, bk); }

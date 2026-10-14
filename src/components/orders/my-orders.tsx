@@ -11,7 +11,7 @@ import Link from "next/link";
 import { Alert, Button, Card, Spinner, formatDate, useConfirm } from "@/components/ui";
 import * as I from "@/components/ui/icons";
 import { Price } from "@/components/catalog/price";
-import { OrderStatusBadge } from "./order-status";
+import { DeletedBook, OrderStatusBadge } from "./order-status";
 import { TelegramPay } from "./telegram-pay";
 import { useOrderPoll } from "./use-order-poll";
 import { catalogApi, errorMessage, ordersApi, type Order } from "@/lib/api";
@@ -30,7 +30,7 @@ export function MyOrders() {
   // Kitob nomlari (public katalog, keshlanadi)
   useEffect(() => {
     if (!orders) return;
-    const missing = [...new Set(orders.filter((o) => !o.book_title).map((o) => o.book_id))].filter((id) => !titles[id]);
+    const missing = [...new Set(orders.filter((o) => !o.book_title).flatMap((o) => (o.book_id ? [o.book_id] : [])))].filter((id) => !titles[id]);
     if (!missing.length) return;
     let alive = true;
     Promise.all(missing.map((id) => catalogApi.find(id).then((c) => [id, c?.title ?? id.slice(0, 8)] as const).catch(() => [id, id.slice(0, 8)] as const))).then((pairs) => {
@@ -80,18 +80,24 @@ export function MyOrders() {
                     <p className="font-bold text-text" data-testid="order-bundle">
                       {t("orders.itemsCount", { n: o.items!.length })}:{" "}
                       {o.items!.map((i, k) => (
-                        <span key={i.book_id}>
+                        <span key={i.book_id ?? k}>
                           {k > 0 && ", "}
-                          <Link href={`/catalog/${i.book_id}`} className="hover:text-accent-ink">
-                            {i.book_title || titles[i.book_id] || "…"}
-                          </Link>
+                          {i.book_id ? (
+                            <Link href={`/catalog/${i.book_id}`} className="hover:text-accent-ink">
+                              {i.book_title || titles[i.book_id] || "…"}
+                            </Link>
+                          ) : (
+                            <DeletedBook title={i.book_title} />
+                          )}
                         </span>
                       ))}
                     </p>
-                  ) : (
+                  ) : o.book_id ? (
                     <Link href={`/catalog/${o.book_id}`} className="font-bold text-text hover:text-accent-ink">
                       {o.book_title || titles[o.book_id] || "…"}
                     </Link>
+                  ) : (
+                    <DeletedBook title={o.book_title} className="font-bold text-text" />
                   )}
                   <p className="text-xs text-muted">
                     <Price value={o.amount} />
@@ -129,7 +135,7 @@ export function MyOrders() {
                   </TelegramPay>
                 </div>
               )}
-              {o.status === "APPROVED" && (
+              {o.status === "APPROVED" && o.book_id && (
                 <Link href={`/books/${o.book_id}`} className="mt-1 inline-block text-xs font-bold text-accent-ink hover:underline">
                   {t("orders.openBook")} →
                 </Link>
@@ -143,9 +149,11 @@ export function MyOrders() {
                       {t("orders.rejectReason")}: {o.reject_reason}{" "}
                     </>
                   )}{" "}
-                  <Link href={`/catalog/${o.book_id}`} className="font-bold underline">
-                    {t("orders.retry")}
-                  </Link>
+                  {o.book_id && (
+                    <Link href={`/catalog/${o.book_id}`} className="font-bold underline">
+                      {t("orders.retry")}
+                    </Link>
+                  )}
                 </p>
               )}
               {o.receipt_note && <p className="mt-1 text-xs text-muted">“{o.receipt_note}”</p>}

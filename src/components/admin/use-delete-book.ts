@@ -1,14 +1,23 @@
 "use client";
 
 /**
- * 97: kitobni butunlay o'chirish oqimi (kitob sahifasi va kitoblar ro'yxati uchun umumiy): tasdiq → DELETE;
- * buyurtmali kitob (409 `BOOK_HAS_ORDERS`) — ikkinchi tasdiq (buyurtmalar soni) → `force=true`.
- * Natija — o'chirilganlar soni; bekor qilinsa — null; xato — `error`.
+ * 97 → 99: kitobni o'chirish oqimi (kitob sahifasi va kitoblar ro'yxati uchun umumiy): tasdiq → DELETE.
+ * Buyurtmalar va o'quvchi ma'lumotlari backend'da saqlanadi (kitobdan uziladi) — 409 / `force` endi yo'q.
+ * Natija — o'chirilgan va saqlangan yozuvlar soni; bekor qilinsa — null; xato — `error`.
  */
 import { useState } from "react";
 import { useConfirm } from "@/components/ui";
-import { adminApi, errorMessage, isApiError } from "@/lib/api";
+import { adminApi, errorMessage, type BookDeleteResult } from "@/lib/api";
 import { useT } from "@/i18n";
+
+/** Natija xabari uchun (`/admin/books?deleted=…`): saqlangan yozuvlar — qisqa kalitlar bilan */
+export const KEPT_PARAMS = { o: "orders_detached", n: "annotations_detached", p: "progress_detached", q: "quiz_attempts_detached", v: "vocabulary_detached" } as const;
+
+export function deletedUrl(title: string, res: BookDeleteResult): string {
+  const sp = new URLSearchParams({ deleted: title, a: String(res.articles_deleted ?? 0) });
+  for (const [k, f] of Object.entries(KEPT_PARAMS)) if (Number(res[f]) > 0) sp.set(k, String(res[f]));
+  return `/admin/books?${sp}`;
+}
 
 export function useDeleteBook() {
   const { t } = useT();
@@ -21,14 +30,7 @@ export function useDeleteBook() {
     setBusyId(book.id);
     setError(null);
     try {
-      try {
-        return await adminApi.deleteBook(book.id);
-      } catch (e) {
-        if (!(isApiError(e) && e.code === "BOOK_HAS_ORDERS")) throw e;
-        const n = Number((e.details as { order_count?: number } | null)?.order_count) || 0;
-        if (!(await confirm({ title: t("admin.books.deleteOrdersTitle"), message: t("admin.books.deleteOrdersBody", { n }), confirmLabel: t("admin.books.deleteForce"), tone: "danger" }))) return null;
-        return await adminApi.deleteBook(book.id, true);
-      }
+      return await adminApi.deleteBook(book.id);
     } catch (e) {
       setError(errorMessage(e));
       return null;

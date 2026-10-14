@@ -23,3 +23,13 @@ export function OrderStatusBadge({ status }: { status: OrderStatus }) {
   const { t } = useT();
   return <Badge tone={TONE[status] ?? "neutral"}>{KEY[status] ? t(KEY[status]) : status}</Badge>;
 }
+
+/** 99: o'chirilgan kitob (`book_id: null`) — havolasiz, snapshot nom + "(o'chirilgan)" */
+export function DeletedBook({ title, className }: { title?: string | null; className?: string }) {
+  const { t } = useT();
+  return (
+    <span className={className} data-testid="order-book-deleted">
+      {title || "—"} <span className="font-normal text-muted">({t("orders.bookDeleted")})</span>
+    </span>
+  );
+}

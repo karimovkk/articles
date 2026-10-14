@@ -177,12 +177,19 @@ export default function AdminPaymentsPage() {
               </thead>
               <tbody>
                 {books.map((b, i) => (
-                  <tr key={b.book_id}>
+                  <tr key={b.book_id ?? `deleted-${i}`}>
                     <td className="num muted">{i + 1}</td>
                     <td>
-                      <Link href={`/admin/books/${b.book_id}`} className="name user-text hover:underline">
-                        {b.title || b.book_id.slice(0, 8)}
-                      </Link>
+                      {b.book_id ? (
+                        <Link href={`/admin/books/${b.book_id}`} className="name user-text hover:underline">
+                          {b.title || b.book_id.slice(0, 8)}
+                        </Link>
+                      ) : (
+                        // 99: o'chirilgan kitob — daromadda qoladi, havolasiz
+                        <span className="name user-text" data-testid="pay-book-deleted">
+                          {b.title || "—"} <span className="muted">({t("orders.bookDeleted")})</span>
+                        </span>
+                      )}
                     </td>
                     <td className="num text-right">{formatNumber(b.sold, locale)}</td>
                     <td className="num text-right">{money(b.revenue)}</td>

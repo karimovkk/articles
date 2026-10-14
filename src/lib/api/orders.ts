@@ -63,7 +63,7 @@ export const pricingApi = {
   },
 };
 
-/** 35: buyurtmadagi kitoblar — ko'p kitobli (`items`) yoki eski bitta kitobli (`book_id`) */
+/** 35: buyurtmadagi kitoblar — ko'p kitobli (`items`) yoki eski bitta kitobli (`book_id`). 99: o'chirilgani (null) — yo'q */
 export function orderBookIds(o: Pick<Order, "book_id" | "items">): string[] {
-  return o.items?.length ? o.items.map((i) => i.book_id) : [o.book_id];
+  return (o.items?.length ? o.items.map((i) => i.book_id) : [o.book_id]).filter((id): id is string => !!id);
 }

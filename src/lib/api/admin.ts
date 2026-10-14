@@ -67,6 +67,20 @@ export interface BookInput {
   book_metadata?: Record<string, unknown>;
 }
 
+/** 99: `DELETE /admin/books/{id}` javobi — `*_deleted` o'chdi, `*_detached` saqlandi (kitobdan uzildi) */
+export interface BookDeleteResult {
+  deleted: boolean;
+  book_id: string;
+  articles_deleted: number;
+  storage_objects_deleted?: number;
+  orders_detached?: number;
+  order_items_detached?: number;
+  annotations_detached?: number;
+  progress_detached?: number;
+  quiz_attempts_detached?: number;
+  vocabulary_detached?: number;
+}
+
 export const adminApi = {
   // ---- Stats (FE-6.9)
   stats() {
@@ -187,11 +201,12 @@ export const adminApi = {
     return api<Book>(`/admin/books/${id}`, { method: "PATCH", body: patch });
   },
   /**
-   * 97: butunlay o'chirish (qaytmas): maqolalar, savollar, ruxsatlar, buyurtmalar va storage fayllari bilan.
-   * Buyurtmali kitob — `force` siz 409 `BOOK_HAS_ORDERS` (`details.order_count`); tasdiqdan keyin `force=true`.
+   * 97 → 99: kitobni o'chirish (qaytmas): kitob, maqolalar, savollar, ruxsatlar va storage fayllari o'chadi;
+   * buyurtmalar, belgilar, progress, test natijalari va lug'at SAQLANADI — kitobdan uziladi (`*_detached`,
+   * `book_id: null` + `book_title` snapshot). 409 `BOOK_HAS_ORDERS` va `force` endi yo'q.
    */
-  deleteBook(id: string, force = false) {
-    return api<{ deleted: boolean; book_id: string; articles_deleted: number; orders_deleted: number; storage_objects_deleted: number }>(`/admin/books/${id}`, { method: "DELETE", query: force ? { force: true } : undefined });
+  deleteBook(id: string) {
+    return api<BookDeleteResult>(`/admin/books/${id}`, { method: "DELETE" });
   },
   uploadCover(id: string, file: File, opts?: UploadOptions) {
     const fd = new FormData();
