@@ -9,6 +9,8 @@ const check = (name, ok, extra = "") => { console.log(`${ok ? "✅" : "❌"} ${n
 await reset("");
 const browser = await launch();
 const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+// 101: sahifa "o'qilgan" bo'lishi uchun ochiq turish vaqti (asl — 2 daqiqa) testda 1,5 s
+await ctx.addInitScript(() => localStorage.setItem("a365.readAfterMs", "1500"));
 const page = await ctx.newPage();
 const pageErrors = [];
 page.on("pageerror", (e) => !ignorablePageError(e.message) && pageErrors.push(e.message));
@@ -27,16 +29,18 @@ await page.goto(`${BASE}/reader/${ART1}`);
 await rendered();
 check("Reader: maqola sarlavhasi + 'Keyingi maqola' (1→2)", (await bodyHas("Birinchi maqola")) && (await page.getAttribute('a:has-text("Keyingi maqola")', "href")) === `/reader/${ART2}`);
 check("Reader: 'Oldingi maqola' yo'q (birinchi)", (await page.locator('a:has-text("Oldingi maqola")').count()) === 0);
-check("Watermark: backend watermark_text", await bodyHas("u***@articles365.local"));
-check("Orqaga havola → kitob sahifasi", (await page.getAttribute('header a[title="Kitobga qaytish"]', "href")) === "/books/11111111-1111-4111-8111-111111111111");
+// 98: ekrandagi qatlam yo'q — backend watermark_text faqat sahifa canvas'iga chiziladi
+await page.waitForSelector("canvas[data-wm]", { state: "attached", timeout: 10000 }).catch(() => {});
+check("Watermark: backend watermark_text sahifaga chizilgan", (await page.locator("canvas[data-wm]").count()) > 0 && !(await bodyHas("u***@articles365.local")));
+check("Orqaga havola → kitob sahifasi", (await page.getAttribute('header a[title="Maqolaga qaytish"]', "href")) === "/books/11111111-1111-4111-8111-111111111111");
 
 // ---- TOC entries (flat, level) va qidiruv matches
 await page.click('button[title="Panel"]');
 await page.waitForSelector("text=Bob 1", { timeout: 5000 });
 check("TOC: tekis entries, level 2 chekinish", (await bodyHas("2.1 Kichik bo'lim")) && (await page.evaluate(() => parseInt(getComputedStyle([...document.querySelectorAll("aside button")].find((b) => b.textContent.includes("2.1")).parentElement ? [...document.querySelectorAll("aside button")].find((b) => b.textContent.includes("2.1")) : document.body).paddingLeft) > 8)));
 await page.click("text=Qidiruv");
-await page.fill('input[placeholder="Kitob ichida qidirish…"]', "test");
-await page.press('input[placeholder="Kitob ichida qidirish…"]', "Enter");
+await page.fill('input[placeholder="Maqola ichida qidirish…"]', "test");
+await page.press('input[placeholder="Maqola ichida qidirish…"]', "Enter");
 await page.waitForSelector("text=of page 2", { timeout: 5000 });
 check("Qidiruv: matches → natija (2-bet)", true);
 // 17.5: natija bosilganda PDF'da mosliklar vaqtincha sariq fon bilan bo'rttiriladi
@@ -64,10 +68,14 @@ await page.waitForSelector("text=Belgi olib tashlandi", { timeout: 5000 });
 prog = await mockGet("/__progress");
 check("Mark-unread → is_read=false", Object.values(prog).some((p) => p.article_id === ART1 && p.is_read === false));
 
-// ---- Mark-read: avtomatik (oxirgi sahifaga yetganda)
+// ---- 101: Mark-read avtomatik — oxirgi sahifa OCHIQ TURGANDAN keyin (shunchaki o'tib ketish yetmaydi)
 await page.fill('input[aria-label="Sahifa"]', "6");
 await page.press('input[aria-label="Sahifa"]', "Enter");
-await page.waitForFunction(() => document.querySelector('button[aria-pressed="true"]') !== null, null, { timeout: 8000 });
+await page.waitForTimeout(700);
+prog = await mockGet("/__progress");
+const early = Object.values(prog).find((p) => p.article_id === ART1);
+check("101: oxirgi sahifaga o'tildi, lekin hali ochiq turmadi — o'qilmagan, foiz 100 emas", (await page.locator(`button[aria-label="O'qilmagan deb belgilash"]`).count()) === 0 && early?.is_read === false && early?.percentage < 100, JSON.stringify(early));
+await page.waitForSelector(`button[aria-label="O'qilmagan deb belgilash"]`, { timeout: 8000 });
 prog = await mockGet("/__progress");
 check("Oxirgi sahifa → avtomatik o'qilgan deb belgilandi", Object.values(prog).some((p) => p.article_id === ART1 && p.is_read === true));
 
@@ -76,6 +84,14 @@ await page.waitForTimeout(1800);
 prog = await mockGet("/__progress");
 const p1 = Object.values(prog).find((p) => p.article_id === ART1);
 check("Progress: current_page=6, percentage=100, current_location", p1?.current_page === 6 && p1?.percentage === 100 && p1?.current_location?.page === 6, JSON.stringify(p1));
+
+// ---- 101: o'qib bo'lingan maqola — boshiga qaytilsa ham foiz kamaymaydi (joy saqlanadi)
+await page.fill('input[aria-label="Sahifa"]', "1");
+await page.press('input[aria-label="Sahifa"]', "Enter");
+await page.waitForTimeout(3500);
+prog = await mockGet("/__progress");
+const back = Object.values(prog).find((p) => p.article_id === ART1);
+check("101: 1-sahifaga qaytildi — current_page=1, foiz 100 da qoldi, is_read o'zgarmadi", back?.current_page === 1 && back?.percentage === 100 && back?.is_read === true, JSON.stringify(back));
 
 // ---- Heartbeat: sahifa yashiringanda qoldiq yuboriladi (visibilitychange → hidden)
 await page.waitForTimeout(5200);
@@ -96,11 +112,11 @@ check("Keyingi maqola ochildi; 'Oldingi' bor, 'Keyingi' yo'q (3-maqola PROCESSIN
 await page.goto(`${BASE}/reader/${ART3}`);
 await page.waitForSelector("text=Maqola hali tayyorlanmoqda", { timeout: 8000 });
 const log = await mockGet("/__log");
-check("PROCESSING: holat ekrani, content so'ralmadi, 'Kitobga qaytish'", !log.some((l) => l.includes(`${ART3}/content`)) && (await page.locator('a:has-text("Kitobga qaytish")').count()) === 1);
+check("PROCESSING: holat ekrani, content so'ralmadi, 'Maqolaga qaytish'", !log.some((l) => l.includes(`${ART3}/content`)) && (await page.locator('a:has-text("Maqolaga qaytish")').count()) === 1);
 
 // ---- Ruxsatsiz maqola → 403
 await page.goto(`${BASE}/reader/${OTHER}`);
-await page.waitForSelector("text=Bu kitobga ruxsatingiz yo'q", { timeout: 8000 });
+await page.waitForSelector("text=Bu maqolaga ruxsatingiz yo'q", { timeout: 8000 });
 check("Ruxsatsiz maqola: BOOK_ACCESS_DENIED", true);
 
 // ---- Regressiya: highlight (selected_text + location_data), varaqlash, print

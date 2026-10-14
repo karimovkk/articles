@@ -34,30 +34,32 @@ await page.click('button[type="submit"]');
 await page.waitForURL(`${BASE}/catalog/${BOOK2}`, { timeout: 10000 });
 check("Login'dan keyin katalog sahifasiga qaytdi", true);
 
-// ---- Buyurtma berish → PENDING → Telegram orqali to'lash (bot) → AWAITING_REVIEW
+// ---- 101: Buyurtma berish → PENDING va Telegram bot DARHOL ochiladi (ikkinchi tugma bosilmaydi)
+await ctx.route("https://t.me/**", (r) => r.fulfill({ status: 200, contentType: "text/html", body: "<html><body>Telegram</body></html>" }));
 await page.waitForSelector("text=Buyurtma berish", { timeout: 10000 });
-await page.click("text=Buyurtma berish");
+const [popup] = await Promise.all([page.waitForEvent("popup"), page.click("text=Buyurtma berish")]);
+await popup.waitForURL(/t\.me\/articles365_test_bot\?start=/, { timeout: 8000 });
 await page.waitForSelector("text=Buyurtma yaratildi", { timeout: 5000 });
 check("POST /orders → PENDING + ko'rsatma", await bodyHas("To'lov kutilmoqda"));
 let orders = await mockGet("/__orders");
 check("Buyurtma summasi kitob narxidan", orders[0]?.amount === "70000.00" && orders[0]?.status === "PENDING" && orders[0]?.has_receipt_file === false);
-// ---- 56: to'lov — faqat Telegram bot: saytda karta/chek formasi yo'q, "Telegram orqali to'lash" → deep-link
-await ctx.route("https://t.me/**", (r) => r.fulfill({ status: 200, contentType: "text/html", body: "<html><body>Telegram</body></html>" }));
+check("Buyurtma berish → darhol POST /orders/{id}/telegram-link, Telegram yangi oynada (deep-link, start=token)", (await mockGet("/__log")).includes(`POST /orders/${orders[0].id}/telegram-link`) && popup.url().startsWith("https://t.me/articles365_test_bot?start=tg"), popup.url());
+await popup.close();
+await page.waitForSelector("text=Telegram ochildi", { timeout: 3000 });
+check("Izoh: 'Telegram ochildi — to'lovni botda yakunlang'", true);
+// ---- 56: to'lov — faqat Telegram bot: saytda karta/chek formasi yo'q; qayta ochish tugmasi bor
 await page.waitForSelector('[data-testid="tg-pay-btn"]', { timeout: 5000 });
 check(
-  "PENDING: 'Telegram orqali to'lash' + izoh; karta va chek formasi yo'q",
+  "PENDING: 'Telegram orqali to'lash' (qayta ochish); karta va chek formasi yo'q",
   ((await page.textContent('[data-testid="tg-pay-btn"]')) ?? "").includes("Telegram orqali to'lash") &&
-    (await bodyHas("Karta raqami, chek yuborish va tasdiq — Telegram botda")) &&
     (await page.locator('[data-testid="payment-details"], [data-testid="receipt-form"], [data-testid="receipt-file"]').count()) === 0 &&
     !(await bodyHas("To'ladim")),
 );
 await page.screenshot({ path: OUT + "81-order-payment.png" });
-const [popup] = await Promise.all([page.waitForEvent("popup"), page.click('[data-testid="tg-pay-btn"]')]);
-await popup.waitForURL(/t\.me\/articles365_test_bot\?start=/, { timeout: 8000 });
-check("Bosildi → POST /orders/{id}/telegram-link, Telegram yangi oynada (deep-link, start=token)", (await mockGet("/__log")).includes(`POST /orders/${orders[0].id}/telegram-link`) && popup.url().startsWith("https://t.me/articles365_test_bot?start=tg"), popup.url());
-await popup.close();
-await page.waitForSelector("text=Telegram ochildi", { timeout: 3000 });
-check("Izoh: 'Telegram ochildi — to'lovni botda yakunlang'", true);
+const [popup2] = await Promise.all([page.waitForEvent("popup"), page.click('[data-testid="tg-pay-btn"]')]);
+await popup2.waitForURL(/t\.me\/articles365_test_bot\?start=/, { timeout: 8000 });
+check("'Telegram orqali to'lash' — botni qayta ochadi", true);
+await popup2.close();
 
 // Bot chekni qabul qildi (AWAITING_REVIEW) → sayt kuzatuvda (PENDING'da ham) reload'siz yangilanadi
 await fetch(`${API_HOST}/__set-order?id=${orders[0].id}&status=AWAITING_REVIEW`);
@@ -123,7 +125,7 @@ await page.waitForSelector("text=To'lov tasdiqlandi", { timeout: 10000 });
 check("Kuzatuv yengil GET /orders/{id} orqali", (await mockGet("/__log")).includes(`GET /orders/${orders[0].id}`));
 check("Kuzatuv: APPROVED reload'siz — 'Kitob kutubxonangizda' + kitobni ochish/kutubxona", (await page.locator(`a[href="/books/${BOOK2}"]`).count()) >= 1 && (await page.locator('a[href="/library"]:has-text("Kutubxonaga o\'tish")').count()) === 1);
 await page.reload();
-await page.waitForSelector("text=Bu kitob kutubxonangizda bor", { timeout: 10000 });
+await page.waitForSelector("text=Bu maqola kutubxonangizda bor", { timeout: 10000 });
 check("Reload: ruxsat berildi → 'O'qish' ko'rinadi", (await page.locator('a:has-text("O\'qish")').count()) === 1);
 
 // ---- Bildirishnoma: ORDER_APPROVED → kitob sahifasi (meta.book_id)
@@ -139,7 +141,7 @@ await page.goto(`${BASE}/catalog/22222222-2222-4222-8222-000000000001`);
 await page.waitForSelector("text=Buyurtma berish", { timeout: 10000 });
 await page.click("text=Buyurtma berish");
 await page.waitForSelector('[data-testid="order-owned"]', { timeout: 5000 });
-check("409 ALREADY_HAS_ACCESS → 'allaqachon kutubxonangizda' + kitobni ochish", (await bodyHas("Bu kitob allaqachon kutubxonangizda")) && (await page.locator('[data-testid="order-owned"] a[href^="/books/"]').count()) === 1);
+check("409 ALREADY_HAS_ACCESS → 'allaqachon kutubxonangizda' + kitobni ochish", (await bodyHas("Bu maqola allaqachon kutubxonangizda")) && (await page.locator('[data-testid="order-owned"] a[href^="/books/"]').count()) === 1);
 await page.unroute("**/api/v1/orders");
 
 // ---- 2FA login
@@ -178,10 +180,8 @@ await reset("");
   await m.waitForURL(`${BASE}/library`, { timeout: 30000 });
   await m.goto(`${BASE}/catalog/${BOOK2}`);
   await m.waitForSelector("text=Buyurtma berish", { timeout: 15000 });
-  await m.click("text=Buyurtma berish");
-  await m.waitForSelector('[data-testid="tg-pay-btn"]', { timeout: 15000 });
   const pages0 = mctx.pages().length;
-  await m.click('[data-testid="tg-pay-btn"]');
+  await m.click("text=Buyurtma berish"); // 101: bot darhol
   await m.waitForFunction(() => window.__nav.length > 0, null, { timeout: 8000 });
   const first = await m.evaluate(() => window.__nav[0]);
   check("Telefon: to'g'ridan Telegram ilovasi (tg://resolve?domain=…&start=…), yangi tab ochilmadi", /^tg:\/\/resolve\?domain=articles365_test_bot&start=.+/.test(first) && mctx.pages().length === pages0, first);

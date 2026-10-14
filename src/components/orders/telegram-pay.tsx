@@ -8,6 +8,7 @@
  * 96: telefonda — bo'sh tab ochilmaydi va t.me veb-sahifasi orqali o'tilmaydi (bo'sh tab → t.me → ilova: "qotib qolish"):
  * to'g'ridan `tg://resolve?domain=…&start=…` — Telegram darhol ochiladi; ilova o'rnatilmagan bo'lsa (sahifa 1,5 s ichida
  * yashirinmasa) — oddiy `https://t.me/…` havolasi.
+ * 101: "Buyurtma berish" ham botni darhol ochadi (`openTelegram`) — ikkinchi tugma bosilmaydi.
  */
 import { useState, type ReactNode } from "react";
 import { Alert, Button } from "@/components/ui";
@@ -41,63 +42,71 @@ function go(url: string) {
   a.remove();
 }
 
-export function TelegramPay({ order, onStale, compact, children }: { order: Order; onStale?: () => void; compact?: boolean; children?: ReactNode }) {
+/** 96: telefon — ilova sxemasi (oraliq tab va veb-sahifa yo'q), ilova yo'q bo'lsa (1,5 s) — https */
+function openOnPhone(deepLink: string, bot?: string | null, token?: string | null) {
+  const app = tgAppLink(deepLink, bot, token);
+  if (!app) return go(deepLink);
+  let left = false;
+  const onHide = () => {
+    if (document.visibilityState === "hidden") left = true;
+  };
+  document.addEventListener("visibilitychange", onHide);
+  window.addEventListener("pagehide", onHide);
+  go(app);
+  window.setTimeout(() => {
+    document.removeEventListener("visibilitychange", onHide);
+    window.removeEventListener("pagehide", onHide);
+    if (!left && document.visibilityState === "visible") go(deepLink); // ilova ochilmadi — veb havola
+  }, 1500);
+}
+
+/**
+ * Buyurtma uchun Telegram botni ochish. BOSISH PAYTIDA (sinxron qismda) chaqirilishi kerak: kompyuterda oyna darhol
+ * ochiladi (aks holda pop-up bloklanadi), so'ng `getOrderId` (masalan, buyurtma yaratish) va havola so'raladi.
+ * Natija: "opened" | "none" (buyurtma yo'q — oyna yopildi) | "unavailable" (bot sozlanmagan). Xato — tashqariga.
+ */
+export async function openTelegram(getOrderId: () => Promise<string | null>): Promise<"opened" | "none" | "unavailable"> {
+  const mobile = isMobile();
+  const win = mobile ? null : window.open("", "_blank");
+  try {
+    const id = await getOrderId();
+    if (!id) {
+      win?.close();
+      return "none";
+    }
+    const { deep_link, bot_username, token } = await ordersApi.telegramLink(id);
+    if (!deep_link) {
+      win?.close();
+      return "unavailable";
+    }
+    if (mobile) openOnPhone(deep_link, bot_username, token);
+    else if (win) {
+      win.opener = null;
+      win.location.href = deep_link;
+    } else go(deep_link);
+    return "opened";
+  } catch (e) {
+    win?.close();
+    throw e;
+  }
+}
+
+/** `opened` — bot tashqarida (buyurtma berilganda) allaqachon ochilgan */
+export function TelegramPay({ order, onStale, compact, opened: openedOutside = false, children }: { order: Order; onStale?: () => void; compact?: boolean; opened?: boolean; children?: ReactNode }) {
   const { t } = useT();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [opened, setOpened] = useState(false);
+  const [openedHere, setOpened] = useState(false);
+  const opened = openedOutside || openedHere;
   const awaiting = order.status === "AWAITING_REVIEW";
 
   const pay = async () => {
     setError(null);
-    if (isMobile()) return payMobile();
-    const win = window.open("", "_blank");
     setBusy(true);
     try {
-      const { deep_link } = await ordersApi.telegramLink(order.id);
-      if (!deep_link) {
-        win?.close();
-        setError(t("orders.tg.unavailable"));
-        return;
-      }
-      if (win) {
-        win.opener = null;
-        win.location.href = deep_link;
-      } else go(deep_link);
-      setOpened(true);
-    } catch (e) {
-      win?.close();
-      if (isApiError(e) && e.code === "INVALID_ORDER_STATE") onStale?.();
-      setError(errorMessage(e));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  // 96: telefon — ilova sxemasi (oraliq tab va veb-sahifa yo'q), ilova yo'q bo'lsa — https
-  const payMobile = async () => {
-    setBusy(true);
-    try {
-      const { deep_link, bot_username, token } = await ordersApi.telegramLink(order.id);
-      if (!deep_link) {
-        setError(t("orders.tg.unavailable"));
-        return;
-      }
-      const app = tgAppLink(deep_link, bot_username, token);
-      setOpened(true);
-      if (!app) return go(deep_link);
-      let left = false;
-      const onHide = () => {
-        if (document.visibilityState === "hidden") left = true;
-      };
-      document.addEventListener("visibilitychange", onHide);
-      window.addEventListener("pagehide", onHide);
-      go(app);
-      window.setTimeout(() => {
-        document.removeEventListener("visibilitychange", onHide);
-        window.removeEventListener("pagehide", onHide);
-        if (!left && document.visibilityState === "visible") go(deep_link); // ilova ochilmadi — veb havola
-      }, 1500);
+      const r = await openTelegram(async () => order.id);
+      if (r === "unavailable") setError(t("orders.tg.unavailable"));
+      else setOpened(true);
     } catch (e) {
       if (isApiError(e) && e.code === "INVALID_ORDER_STATE") onStale?.();
       setError(errorMessage(e));

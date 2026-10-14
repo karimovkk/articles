@@ -17,7 +17,7 @@ import { errorMessage, ordersApi, type Order } from "@/lib/api";
 import { clearOwnedBooks } from "@/lib/owned-books";
 import { useT } from "@/i18n";
 
-export function CheckoutOrder({ order, onChange }: { order: Order; onChange: (o: Order) => void }) {
+export function CheckoutOrder({ order, onChange, tgOpened = false }: { order: Order; onChange: (o: Order) => void; tgOpened?: boolean }) {
   const { t } = useT();
   const confirm = useConfirm();
   const [error, setError] = useState<string | null>(null);
@@ -101,7 +101,7 @@ export function CheckoutOrder({ order, onChange }: { order: Order; onChange: (o:
         </p>
       )}
       {open && (
-        <TelegramPay order={order} onStale={() => void refresh()}>
+        <TelegramPay order={order} opened={tgOpened} onStale={() => void refresh()}>
           <Button variant="danger-ghost" loading={busy} onClick={() => void cancel()} data-testid="checkout-cancel">
             {t("orders.cancel")}
           </Button>

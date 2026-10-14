@@ -38,7 +38,7 @@ await page.waitForSelector('[data-testid="questions-page"]');
 await page.waitForFunction(() => !document.querySelector('[data-testid="questions-page"] nav.crumbs')?.textContent.includes("…"), null, { timeout: 10000 });
 await page.waitForSelector("text=Hali savol yo'q", { timeout: 10000 });
 const crumbs = ((await page.textContent('[data-testid="questions-page"] nav.crumbs')) ?? "").replace(/\s+/g, " ");
-check("Modal emas — alohida sahifa; breadcrumbs: Kitoblar › kitob › maqola", crumbs.includes("Kitoblar") && crumbs.includes("Test kitob") && (await page.locator('[role="dialog"]').count()) === 0, crumbs);
+check("Modal emas — alohida sahifa; breadcrumbs: Kitoblar › kitob › maqola", crumbs.includes("Maqolalar") && crumbs.includes("Test kitob") && (await page.locator('[role="dialog"]').count()) === 0, crumbs);
 check("Bo'sh holat", ((await page.textContent('[data-testid="q-list-card"]')) ?? "").includes("Hali savol yo'q"));
 
 // ---- 1) Ko'p javobli tanlov

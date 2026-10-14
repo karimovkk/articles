@@ -124,13 +124,11 @@ check("Hero: serif sarlavha ('365 Magazine') + jonli qidiruv pill", (await bodyH
 const CAT = "c1c1c1c1-c1c1-4c1c-8c1c-c1c1c1c1c1c1";
 await page.waitForSelector('[data-testid="catalog-categories"] .cat-chip', { timeout: 8000 });
 check("Kategoriya chip'lari (GET /categories): 'Barcha' + 'Fan', 'Barcha' faol", (await page.locator('[data-testid="catalog-categories"] .cat-chip').count()) === 2 && (await page.getAttribute('[data-testid="catalog-categories"] [data-value=""]', "aria-pressed")) === "true");
-await page.waitForSelector('[data-testid="side-category"]', { timeout: 8000 });
-check("Sidebar: kategoriya + kitoblar soni (12)", (await page.locator('[data-testid="side-category"]').count()) === 1 && (await page.textContent('[data-testid="side-category"] .count'))?.trim() === "12");
+check("Sidebar: kategoriyalar bo'limi yo'q (101)", (await page.locator('[data-testid="side-categories"], [data-testid="side-category"]').count()) === 0);
 await page.click(`[data-testid="catalog-categories"] [data-value="${CAT}"]`);
 await page.waitForURL((u) => u.searchParams.get("category") === CAT);
 await page.waitForFunction(() => document.querySelector(".client-main").innerText.includes("Test kitob") && !document.querySelector(".client-main").innerText.includes("Kitob 2\n"), null, { timeout: 8000 });
 check("Kategoriya chip'i: URL ?category=, ro'yxat filtrlandi, chip faol", (await page.getAttribute(`[data-testid="catalog-categories"] [data-value="${CAT}"]`, "aria-pressed")) === "true");
-check("Sidebar: faol kategoriya belgilandi", (await page.getAttribute('[data-testid="side-category"]', "aria-current")) === "page");
 await page.click('[data-testid="catalog-categories"] [data-value=""]');
 await page.waitForURL((u) => !u.searchParams.get("category"));
 await page.screenshot({ path: OUT + "30-catalog.png" });
@@ -164,7 +162,7 @@ await page.waitForSelector("h1:has-text('Kitob 29')", { timeout: 8000 });
 const log2 = await mockGet("/__log");
 check("Batafsil: to'g'ridan-to'g'ri GET /catalog/{id}", log2.some((l) => l === `GET /catalog/${page2Book}`));
 await page.goto(`${BASE}/catalog/00000000-0000-4000-8000-000000000000`);
-await page.waitForSelector("text=Kitob katalogda topilmadi", { timeout: 8000 });
+await page.waitForSelector("text=Maqola katalogda topilmadi", { timeout: 8000 });
 check("Batafsil: mavjud bo'lmagan id → topilmadi", true);
 
 // ---- Kirgan foydalanuvchi: ruxsati bor kitob → "O'qish"
@@ -176,7 +174,7 @@ await page.waitForURL(`${BASE}/library`);
 await page.waitForSelector("header", { timeout: 8000 });
 check("AppShell nav'da 365 Magazine havolasi", (await page.locator('.client-sidebar a[href="/catalog"]').count()) > 0);
 await page.goto(`${BASE}/catalog/${BOOK}`);
-await page.waitForSelector("text=Bu kitob kutubxonangizda bor", { timeout: 8000 });
+await page.waitForSelector("text=Bu maqola kutubxonangizda bor", { timeout: 8000 });
 const readHref = await page.getAttribute('a:has-text("O\'qish")', "href");
 check("Ruxsati bor kitob: 'O'qish' → kitob sahifasi", readHref === `/books/${BOOK}`, readHref);
 await page.goto(`${BASE}/catalog/${page2Book}`);

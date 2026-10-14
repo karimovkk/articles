@@ -61,6 +61,11 @@ const NIGHT_KEY = "a365.reader.night";
 const COLOR_KEY = "a365.reader.hlcolor";
 /** Faol o'qish vaqti (T1-21): har 30 s, faqat sahifa ko'rinayotganda (B10 — backend limiti aniqlanmagan) */
 const HEARTBEAT_MS = 30_000;
+/**
+ * 101: sahifa shuncha vaqt ochiq tursa (sahifa ko'rinib turganda) — "o'qilgan"; progress foizi o'qilgan sahifalardan.
+ * e2e testlar `localStorage["a365.readAfterMs"]` bilan qisqartiradi.
+ */
+const READ_AFTER_MS = 120_000;
 
 /** localStorage'dan xavfsiz o'qish (ReaderView faqat brauzerda, auth'dan so'ng render bo'ladi). */
 function readPref(key: string): string | null {
@@ -118,6 +123,12 @@ export function ReaderView({ articleId }: { articleId: string }) {
   const [watermark, setWatermark] = useState<{ watermark_text: string } | null>(null);
   const [siblings, setSiblings] = useState<ArticleListItem[]>([]);
   const [isRead, setIsRead] = useState(false);
+  // 101: progress — serverdagi foiz (kamaymaydi), eng uzoq o'qilgan sahifa, server progress'i keldimi
+  const bestPct = useRef(0);
+  const readUpTo = useRef(0);
+  const [readTo, setReadTo] = useState(0);
+  const [progressReady, setProgressReady] = useState(false);
+  const pendingSave = useRef<number | null>(null);
 
   const [page, setPage] = useState(1);
   const [pageInput, setPageInput] = useState("1");
@@ -245,8 +256,14 @@ export function ReaderView({ articleId }: { articleId: string }) {
         .catch(() => undefined);
       readingApi
         .getProgress(articleId)
-        .then((p) => !cancelled && setIsRead(p.is_read))
-        .catch(() => undefined);
+        .then((p) => {
+          if (cancelled) return;
+          setIsRead(p.is_read);
+          // 101: foiz kamaymaydi — o'qib bo'lingan (is_read) maqola qayta ochilsa ham 100% qoladi
+          bestPct.current = Math.max(bestPct.current, p.is_read ? 100 : (p.percentage ?? 0));
+        })
+        .catch(() => undefined)
+        .finally(() => !cancelled && setProgressReady(true));
     })();
     return () => {
       cancelled = true;
@@ -265,16 +282,27 @@ export function ReaderView({ articleId }: { articleId: string }) {
   }, [meta, tocAvailable, toc, tab, sidebarOpen, articleId]);
 
   // ---- Progress'ni saqlash (debounce) — TZ §4.7
+  // 101: joy (`current_page`) — darhol; foiz — faqat o'qilgan sahifalar (READ_AFTER_MS ochiq turgan) bo'yicha va kamaymaydi.
+  // Serverdagi progress kelguncha saqlanmaydi (aks holda 100% ni 0 bilan bosib ketardi).
   const saveTimer = useRef<number | null>(null);
-  const lastSaved = useRef<number>(0);
+  const lastSaved = useRef("");
   // 44.6: o'qish saqlangach seriya (streak) bir marta yangilanadi — header'dagi 🔥 "bugun o'qidingiz" bo'ladi
   const streakSynced = useRef(false);
   const persistProgress = useCallback(
     (p: number) => {
-      if (guest || !pageCount || p === lastSaved.current) return;
-      lastSaved.current = p;
+      if (guest || !pageCount) return;
+      if (!progressReady) {
+        pendingSave.current = p;
+        return;
+      }
+      pendingSave.current = null;
+      const pct = Math.max(bestPct.current, Math.round((Math.min(readUpTo.current, pageCount) / pageCount) * 10000) / 100);
+      const key = `${p}:${pct}`;
+      if (key === lastSaved.current) return;
+      lastSaved.current = key;
+      bestPct.current = pct;
       readingApi
-        .saveProgress(articleId, { current_page: p, total_pages: pageCount })
+        .saveProgress(articleId, { current_page: p, total_pages: pageCount, percentage: pct })
         .then(() => {
           if (streakSynced.current) return;
           streakSynced.current = true;
@@ -282,7 +310,7 @@ export function ReaderView({ articleId }: { articleId: string }) {
         })
         .catch(() => undefined);
     },
-    [articleId, pageCount, guest],
+    [articleId, pageCount, guest, progressReady],
   );
   const onPageChange = useCallback(
     (p: number) => {
@@ -298,6 +326,10 @@ export function ReaderView({ articleId }: { articleId: string }) {
   useEffect(() => {
     latest.current = { page, persistProgress };
   }, [page, persistProgress]);
+  // Server progress'i kelguncha kutilgan saqlash
+  useEffect(() => {
+    if (progressReady && pendingSave.current !== null) persistProgress(pendingSave.current);
+  }, [progressReady, persistProgress]);
   useEffect(() => {
     const flush = () => {
       if (saveTimer.current) window.clearTimeout(saveTimer.current);
@@ -309,6 +341,33 @@ export function ReaderView({ articleId }: { articleId: string }) {
       flush();
     };
   }, []);
+
+  // ---- 101: sahifa READ_AFTER_MS ochiq tursa (ko'rinib turganda) — o'qilgan; varaqlash rejimida ikkala bet
+  useEffect(() => {
+    if (guest || !ready || !pageCount) return;
+    const top = shownMode === "spread" ? Math.min(pageCount, page + 1) : page;
+    if (top <= readUpTo.current) return;
+    let need = READ_AFTER_MS;
+    const custom = Number(readPref("a365.readAfterMs"));
+    if (custom > 0) need = custom;
+    let acc = 0;
+    let last = Date.now();
+    const timer = window.setInterval(
+      () => {
+        const now = Date.now();
+        if (document.visibilityState === "visible") acc += now - last;
+        last = now;
+        if (acc < need) return;
+        window.clearInterval(timer);
+        if (top <= readUpTo.current) return;
+        readUpTo.current = top;
+        setReadTo(top);
+        latest.current.persistProgress(latest.current.page);
+      },
+      Math.min(1000, Math.max(50, need / 4)),
+    );
+    return () => window.clearInterval(timer);
+  }, [page, pageCount, shownMode, ready, guest]);
 
   // ---- Faol o'qish vaqti: heartbeat (faqat ko'rinayotganda; yopilganda qoldiq keepalive bilan)
   useEffect(() => {
@@ -361,10 +420,11 @@ export function ReaderView({ articleId }: { articleId: string }) {
   );
   const autoMarked = useRef(false);
   useEffect(() => {
-    if (guest || !ready || !pageCount || isRead || autoMarked.current || page < pageCount) return;
+    // 101: oxirgi sahifa o'qilgandagina (ochiq turgan) — shunchaki oxiriga surib o'tish yetmaydi
+    if (guest || !ready || !pageCount || isRead || autoMarked.current || readTo < pageCount) return;
     autoMarked.current = true;
     void toggleRead(true);
-  }, [page, pageCount, isRead, ready, toggleRead, guest]);
+  }, [readTo, pageCount, isRead, ready, toggleRead, guest]);
 
   // ---- 53: o'qib tugatildi → test taklifi (savol bo'lsa; panel "Test"da ochiq bo'lsa yoki sessiyada ko'rsatilgan bo'lsa — yo'q)
   const quizPromptKey = `a365.quiz-prompt.${articleId}`;

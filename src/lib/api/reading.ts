@@ -24,9 +24,10 @@ export const readingApi = {
   /**
    * `keepalive` — reader yopilganda (pagehide) yuborilgan so'rov ham serverga yetib boradi.
    * `current_page` 1-based; `percentage` sahifa/jami dan hisoblanadi (B9).
+   * 101: `percentage` berilsa — o'shasi (reader: o'qilgan sahifalar bo'yicha, kamaymaydi).
    */
-  saveProgress(articleId: string, p: { current_page: number; total_pages: number; location?: Record<string, unknown> }): Promise<ReadingProgress> {
-    const percentage = p.total_pages ? Math.round((p.current_page / p.total_pages) * 10000) / 100 : 0;
+  saveProgress(articleId: string, p: { current_page: number; total_pages: number; percentage?: number; location?: Record<string, unknown> }): Promise<ReadingProgress> {
+    const percentage = p.percentage ?? (p.total_pages ? Math.round((p.current_page / p.total_pages) * 10000) / 100 : 0);
     return api<ReadingProgress>(`/articles/${articleId}/progress`, {
       method: "PUT",
       keepalive: true,

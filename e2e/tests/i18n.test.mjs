@@ -147,7 +147,7 @@ await page.waitForSelector("text=A server error occurred", { timeout: 8000 });
 check("en: 500 xatosi inglizcha", true);
 await fetch(`${API.replace("/api/v1", "")}/__set500?on=0`);
 await page.goto(`${BASE}/admin/access`);
-await page.waitForSelector("text=Book access", { timeout: 8000 });
+await page.waitForSelector("text=Article access", { timeout: 8000 });
 check("en: ruxsatlar sahifasi + jami", await appears("Total: 1"));
 await page.screenshot({ path: OUT + "23-admin-en.png" });
 

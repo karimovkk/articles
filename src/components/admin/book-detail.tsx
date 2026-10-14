@@ -24,6 +24,7 @@ import { GrantModal } from "./user-detail";
 import { ArticlesPanel } from "./articles-panel";
 import { useAdminCrumb } from "./admin-shell";
 import { useEntityNames } from "@/lib/admin-names";
+import { EmojiInput } from "@/components/ui/emoji-input";
 import { useT } from "@/i18n";
 
 type Tab = "info" | "articles" | "access";
@@ -287,7 +288,7 @@ export function AdminBookDetail({ bookId }: { bookId: string }) {
         <Card title={t("admin.books.info")} actions={dirty && <Badge tone="warning">{t("common.edit")}</Badge>}>
           <form onSubmit={saveMeta} className="grid gap-4 md:grid-cols-2">
             <Field label={t("admin.books.name")} className="md:col-span-2">
-              <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required />
+              <EmojiInput value={form.title} onValueChange={(v) => setForm({ ...form, title: v })} required testid="title-emoji" />
             </Field>
             <Field label={t("admin.books.author")}>
               <Input value={form.author} onChange={(e) => setForm({ ...form, author: e.target.value })} />

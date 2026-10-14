@@ -78,7 +78,7 @@ await page.evaluate((id) => {
   localStorage.setItem("a365.cart", JSON.stringify(items));
 }, OWNED);
 await page.reload();
-await page.waitForFunction(() => document.body.innerText.includes("Kutubxonangizdagi kitoblar savatdan olib tashlandi"), null, { timeout: 10000 });
+await page.waitForFunction(() => document.body.innerText.includes("Kutubxonangizdagi maqolalar savatdan olib tashlandi"), null, { timeout: 10000 });
 check("Kutubxonadagi kitob savatdan avtomatik olib tashlandi", (await page.locator(`[data-testid="cart-item"][data-book="${OWNED}"]`).count()) === 0 && (await page.locator('[data-testid="cart-item"]').count()) === 3);
 
 // Bittasini o'chirish → 2 ta narx
@@ -109,7 +109,7 @@ await page.waitForFunction(() => document.querySelectorAll('[data-testid="book-c
 check("Kutubxonada 3 ta kitob (avvalgi + savatchadagi 2 ta)", (await page.locator('[data-testid="book-card"]').count()) === 3);
 await page.goto(`${BASE}/profile`);
 await page.waitForSelector('[data-testid="order-bundle"]', { timeout: 15000 });
-check("Profil: ko'p kitobli buyurtma (2 ta kitob, chegirma)", (await text('[data-testid="order-bundle"]')).includes("2 ta kitob"));
+check("Profil: ko'p kitobli buyurtma (2 ta kitob, chegirma)", (await text('[data-testid="order-bundle"]')).includes("2 ta maqola"));
 
 // ---- Savatchada kitob bor → boshqa kitobning "Sotib olish"i alohida buyurtma ochmaydi: savatga qo'shib, savatchaga
 const kid = (n) => `22222222-2222-4222-8222-${String(n - 1).padStart(12, "0")}`; // "Kitob n"
@@ -121,7 +121,7 @@ check("Savatdagi kitob sahifasida: 'Savatchaga o'tish' (alohida buyurtma tugmasi
 const ordersBefore = (await mockGet("/__orders")).length;
 await page.goto(`${BASE}/catalog/${kid(8)}`);
 await page.waitForSelector('[data-testid="buy-via-cart"]', { timeout: 15000 });
-check("Savatda boshqa kitob bor: 'Sotib olish' → 'Savatga qo'shib, buyurtma berish' + izoh", (await text('[data-testid="buy-via-cart"]')).includes("Savatga qo'shib") && (await text('[data-testid="buy-via-cart"]')).includes("1 ta kitob"));
+check("Savatda boshqa kitob bor: 'Sotib olish' → 'Savatga qo'shib, buyurtma berish' + izoh", (await text('[data-testid="buy-via-cart"]')).includes("Savatga qo'shib") && (await text('[data-testid="buy-via-cart"]')).includes("1 ta maqola"));
 await page.click('[data-testid="buy-via-cart"] button');
 await page.waitForURL(`${BASE}/cart`, { timeout: 10000 });
 await page.waitForFunction(() => document.querySelectorAll('[data-testid="cart-item"]').length === 2, null, { timeout: 8000 });

@@ -6,7 +6,10 @@ let failures = 0;
 const check = (name, ok, extra = "") => { console.log(`${ok ? "✅" : "❌"} ${name}${extra ? " — " + extra : ""}`); if (!ok) failures++; };
 await reset("");
 const browser = await launch();
-const page = await (await browser.newContext({ viewport: { width: 1280, height: 800 } })).newPage();
+const sctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+// 101: avtomatik "o'qildi" — oxirgi sahifa ochiq turgach (asl 2 daqiqa; testda qisqa)
+await sctx.addInitScript(() => localStorage.setItem("a365.readAfterMs", "800"));
+const page = await sctx.newPage();
 const pageErrors = [];
 page.on("pageerror", (e) => !ignorablePageError(e.message) && pageErrors.push(e.message));
 process.on("unhandledRejection", async (e) => { console.log("❌ XATO:", e.message.split("\n")[0]); await browser.close(); process.exit(1); });

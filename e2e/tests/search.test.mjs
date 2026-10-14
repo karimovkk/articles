@@ -89,11 +89,11 @@ await page.waitForFunction(() => document.querySelector(".reader-page canvas")?.
 await page.click('button[title="Panel"]');
 await page.click("text=Qidiruv");
 check("Reader: qidiruv tugmasi yo'q", (await page.locator('aside form[role="search"] button').count()) === 0);
-await page.fill('aside input[placeholder="Kitob ichida qidirish…"]', "t");
+await page.fill('aside input[placeholder="Maqola ichida qidirish…"]', "t");
 await page.waitForTimeout(600);
 const s0 = (await mockGet("/__log")).filter((l) => l.includes("/search")).length;
 check("Reader: 1 belgida so'rov ketmadi", s0 === 0, `${s0}`);
-await page.fill('aside input[placeholder="Kitob ichida qidirish…"]', "test");
+await page.fill('aside input[placeholder="Maqola ichida qidirish…"]', "test");
 await page.waitForSelector("text=2-bet", { timeout: 8000 });
 check("Reader: yozilgach natija (2-bet)", true);
 
@@ -113,11 +113,11 @@ await page.locator('form[role="search"] input[type="search"]').pressSequentially
 await page.waitForFunction(() => /Jami: (1|11)\b/.test(document.body.innerText) && !document.body.innerText.includes("Jami: 31"), null, { timeout: 8000 });
 check("Admin kitoblar: yozilgach filtrlandi", true);
 await page.goto(`${BASE}/admin/audit-logs`);
-await page.waitForSelector("text=Kitobga ruxsat berildi", { timeout: 10000 });
+await page.waitForSelector("text=Maqolaga ruxsat berildi", { timeout: 10000 });
 check("Audit: 'Filtrlash' tugmasi yo'q", (await page.locator('form[role="search"] button[type="submit"]').count()) === 0);
-check("Audit: amallar tarjima qilingan (kod ostida)", (await bodyHas("Shubhali faollik")) && (await bodyHas("SUSPICIOUS_ACTIVITY")) && (await bodyHas("Kitobga ruxsat")));
+check("Audit: amallar tarjima qilingan (kod ostida)", (await bodyHas("Shubhali faollik")) && (await bodyHas("SUSPICIOUS_ACTIVITY")) && (await bodyHas("Maqolaga ruxsat")));
 await selectPick(page, '[data-testid="filter-entity"]', "user");
-await page.waitForFunction(() => document.body.innerText.includes("Shubhali faollik") && !document.body.innerText.includes("Kitobga ruxsat berildi"), null, { timeout: 8000 });
+await page.waitForFunction(() => document.body.innerText.includes("Shubhali faollik") && !document.body.innerText.includes("Maqolaga ruxsat berildi"), null, { timeout: 8000 });
 check("Audit: obyekt filtri (qo'lbola Select, tarjima) ishladi", true);
 await selectPick(page, '[data-testid="filter-action"]', "BOOK_ACCESS_GRANTED");
 await page.waitForFunction(() => document.body.innerText.includes("Ma'lumot yo'q"), null, { timeout: 8000 });

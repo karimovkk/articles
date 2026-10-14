@@ -12,6 +12,7 @@ import { PriceFields } from "@/components/admin/price-fields";
 import { isFreeBook } from "@/lib/free-books";
 import { useDebounced } from "@/lib/use-debounce";
 import { KEPT_PARAMS, deletedUrl, useDeleteBook } from "@/components/admin/use-delete-book";
+import { EmojiInput } from "@/components/ui/emoji-input";
 import { useT } from "@/i18n";
 
 /**
@@ -206,7 +207,7 @@ function CreateBookModal({ open, onClose, categories, onCreated }: { open: boole
         {error && <Alert>{error}</Alert>}
 
         <Field label={t("admin.books.name")}>
-          <Input value={title} onChange={(e) => setTitle(e.target.value)} required />
+          <EmojiInput value={title} onValueChange={setTitle} required testid="title-emoji" />
         </Field>
         <Field label={t("admin.books.author")}>
           <Input value={author} onChange={(e) => setAuthor(e.target.value)} />

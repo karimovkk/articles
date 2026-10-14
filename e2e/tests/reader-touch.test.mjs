@@ -1,5 +1,6 @@
 // 71: telefonda o'qish — ikki barmoq bilan zoom (faqat kitob; brauzer sahifani kattalashtirmaydi), ikki marta tegish,
 // tasodifiy belgilash yo'q (qisqa tegish / surish / qisqa ushlab surish), uzoq bosish — so'z tanlanadi.
+// 100: kompyuter touchpad'i — ikki barmoq bilan zoom (Ctrl + wheel), faqat kitob.
 // Haqiqiy sensor hodisalari: CDP Input.dispatchTouchEvent (Chromium, isMobile + hasTouch).
 import { launch, BASE, reset, IS_CHROMIUM, makeCheck } from "../lib.mjs";
 const OUT = new URL("../out/", import.meta.url).pathname;
@@ -236,6 +237,76 @@ for (const [W, H] of [[320, 640], [768, 1024]]) {
   const over = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
   check(`${W}px: pinch ×1.5 — faqat kitob (${w0}→${w1}px), sahifa toshmaydi`, Math.abs(w1 / w0 - 1.5) < 0.08 && vv === 1 && over <= 1, `vv ${vv}, +${over}`);
   await page.screenshot({ path: OUT + `98-reader-pinch-${W}.png` });
+}
+
+// ---- 100: kompyuter touchpad'i — ikki barmoq bilan zoom (`wheel` + Ctrl; Ctrl + g'ildirak ham shunday)
+{
+  const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  const page = await ctx.newPage();
+  await page.goto(`${BASE}/login`);
+  await page.waitForSelector('input[autocomplete="username"]:not([readonly])', { timeout: 60000 });
+  await page.fill('input[autocomplete="username"]', "user@articles365.local");
+  await page.fill('input[type="password"]', "User12345!");
+  await page.click('button[type="submit"]');
+  await page.waitForURL(`${BASE}/library`, { timeout: 30000 });
+  await page.goto(`${BASE}/reader/${ART}`);
+  await page.waitForFunction(() => document.querySelector(".textLayer span") && [...document.querySelectorAll(".reader-page canvas")].some((c) => c.width > 0), null, { timeout: 30000 });
+  await page.waitForTimeout(500);
+  const cdp = await ctx.newCDPSession(page);
+  const wheel = (x, y, deltaY, ctrl = true) => cdp.send("Input.dispatchMouseEvent", { type: "mouseWheel", x, y, deltaX: 0, deltaY, modifiers: ctrl ? 2 : 0 });
+  const box = await scrollerBox(page);
+  const cx = Math.round(box.x + box.w / 2 + 60);
+  const cy = Math.round(box.y + box.h * 0.4);
+  await page.mouse.move(cx, cy);
+  const w0 = await pageWidth(page);
+  const dpr0 = await page.evaluate(() => devicePixelRatio);
+  // Kursor ostidagi so'z — sahifa raqami va sahifa ichidagi tartibi bilan (zoom'dan keyin boshqa sahifalar ham chiziladi)
+  const ref = await page.evaluate(([x, y]) => {
+    const el = document.elementsFromPoint(x, y).find((e) => e.closest?.("[data-page]"))?.closest("[data-page]");
+    let best = null;
+    let bd = Infinity;
+    el?.querySelectorAll(".textLayer span").forEach((s, i) => {
+      const r = s.getBoundingClientRect();
+      if (r.width < 4 || !s.textContent.trim()) return;
+      const d = Math.hypot(r.left + r.width / 2 - x, r.top + r.height / 2 - y);
+      if (d < bd) [bd, best] = [d, { p: el.dataset.page, i, x: r.left + r.width / 2, y: r.top + r.height / 2 }];
+    });
+    return best;
+  }, [cx, cy]);
+  const refCenter = () => page.evaluate(({ p, i }) => { const r = document.querySelectorAll(`[data-page="${p}"] .textLayer span`)[i].getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; }, ref);
+  for (let i = 0; i < 3; i++) await wheel(cx, cy, -10);
+  const tfMid = await page.evaluate(() => document.querySelector('[data-testid="reader-scroller"]').style.transform);
+  const pillMid = await page.evaluate(() => { const p = document.querySelector('[data-testid="zoom-pill"]'); return p.classList.contains("on") ? p.textContent : ""; });
+  for (let i = 0; i < 4; i++) await wheel(cx, cy, -10); // jami e^0.7 ≈ ×2.01
+  check("Touchpad pinch paytida: kitob silliq kattalashadi (transform) va foiz ko'rinadi", /scale\(1\.3/.test(tfMid) && /^13\d%$/.test(pillMid), `${tfMid} · ${pillMid}`);
+  await page.waitForFunction((w0) => document.querySelector("[data-page]").getBoundingClientRect().width > w0 * 1.9, w0, { timeout: 5000 }).catch(() => {});
+  await page.waitForTimeout(300);
+  const w1 = await pageWidth(page);
+  const dpr1 = await page.evaluate(() => devicePixelRatio);
+  check("Touchpad pinch ×2: faqat kitob kattalashdi, brauzer sahifasi zoom qilinmadi", Math.abs(w1 / w0 - 2.01) < 0.08 && dpr1 === dpr0 && (await page.evaluate(() => document.querySelector('[data-testid="reader-scroller"]').style.transform)) === "", `${w0}→${w1}px, dpr ${dpr0}→${dpr1}`);
+  const after = await refCenter();
+  const expX = cx + (ref.x - cx) * (w1 / w0);
+  const expY = cy + (ref.y - cy) * (w1 / w0);
+  check("Touchpad pinch: kursor ostidagi joy o'rnida qoldi", Math.hypot(after.x - expX, after.y - expY) < 24, `kutilgan (${Math.round(expX)},${Math.round(expY)}) · bor (${Math.round(after.x)},${Math.round(after.y)})`);
+  await page.screenshot({ path: OUT + "100-reader-trackpad-zoom.png" });
+  // Oddiy ikki barmoq bilan surish (Ctrl'siz wheel) — zoom emas, scroll
+  const st0 = await page.evaluate(() => document.querySelector('[data-testid="reader-scroller"]').scrollTop);
+  await wheel(cx, cy, 120, false);
+  await page.waitForTimeout(400);
+  const st1 = await page.evaluate(() => document.querySelector('[data-testid="reader-scroller"]').scrollTop);
+  check("Ctrl'siz wheel — scroll, zoom o'zgarmadi", st1 > st0 && (await pageWidth(page)) === w1, `${st0}→${st1}`);
+  // Kichraytirish va chegara
+  for (let i = 0; i < 7; i++) await wheel(cx, cy, 10);
+  await page.waitForTimeout(600);
+  const w2 = await pageWidth(page);
+  check("Touchpad pinch ÷2: yana ~100%", Math.abs(w2 / w0 - 1) < 0.03, `${w2} / ${w0}`);
+  for (let i = 0; i < 6; i++) await wheel(cx, cy, 120); // g'ildirak: katta qadamlar
+  await page.waitForTimeout(600);
+  check("Chegara: 60% dan kichraymaydi", Math.abs((await pageWidth(page)) / w0 - 0.6) < 0.04);
+  for (let i = 0; i < 10; i++) await wheel(cx, cy, -120);
+  await page.waitForTimeout(600);
+  check("Chegara: 300% dan oshmaydi", Math.abs((await pageWidth(page)) / w0 - 3) < 0.1, `${(await pageWidth(page)) / w0}`);
+  await ctx.close();
 }
 
 await done(browser);

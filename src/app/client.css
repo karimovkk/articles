@@ -313,8 +313,7 @@
   padding-bottom: 18px;
   border-bottom: 1px solid var(--border);
 }
-.side-link,
-.side-cat {
+.side-link {
   position: relative;
   display: flex;
   align-items: center;
@@ -334,36 +333,24 @@
   font-size: 15px;
   font-weight: 600;
 }
-.side-cat {
-  height: 42px;
-  padding: 0 12px;
-  font-size: 14px;
-  font-weight: 500;
-  gap: 12px;
-}
-.side-link svg,
-.side-cat svg {
+.side-link svg {
   flex-shrink: 0;
   opacity: 0.85;
 }
-.side-link:hover,
-.side-cat:hover {
+.side-link:hover {
   background: var(--hover);
   color: var(--text);
 }
-.side-link.active,
-.side-cat.active {
+.side-link.active {
   color: var(--accent-ink);
   font-weight: 700;
   border-color: var(--gold-line);
   background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 22%, transparent), color-mix(in srgb, var(--accent) 5%, transparent));
 }
-.dark .side-link.active,
-.dark .side-cat.active {
+.dark .side-link.active {
   color: var(--accent);
 }
-.side-link.active::before,
-.side-cat.active::before {
+.side-link.active::before {
   content: "";
   position: absolute;
   left: -1px;
@@ -373,8 +360,7 @@
   border-radius: 3px;
   background: var(--accent);
 }
-.side-link:focus-visible,
-.side-cat:focus-visible {
+.side-link:focus-visible {
   outline: none;
   box-shadow: var(--ring);
 }
@@ -392,42 +378,6 @@
   background: linear-gradient(145deg, color-mix(in srgb, var(--accent) 55%, #fff5cc), var(--accent));
   color: var(--accent-contrast);
   box-shadow: 0 3px 8px -3px color-mix(in srgb, var(--accent) 70%, transparent);
-}
-.client-cats-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  padding: 0 6px 10px;
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--text);
-}
-.client-cats-head a {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--accent-ink);
-  text-decoration: none;
-}
-.dark .client-cats-head a {
-  color: var(--accent);
-}
-.client-cats ul {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.side-cat .count {
-  margin-left: auto;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--muted);
-  font-variant-numeric: tabular-nums;
-}
-.side-cat.active .count {
-  color: inherit;
 }
 
 /* Promo karta */
@@ -1178,13 +1128,6 @@
     height: 58px;
     font-size: 18px;
   }
-  .side-cat {
-    height: 50px;
-    font-size: 18px;
-  }
-  .client-cats-head {
-    font-size: 20px;
-  }
   .hero-title {
     font-size: 72px;
   }
@@ -1256,10 +1199,6 @@
   .side-link {
     height: 68px;
     font-size: 24px;
-  }
-  .side-cat {
-    height: 58px;
-    font-size: 20px;
   }
   .hero-title {
     font-size: 96px;

@@ -42,6 +42,7 @@ export const Plus = make("Plus", <><path d="M12 5v14" /><path d="M5 12h14" /></>
 export const Minus = make("Minus", <path d="M5 12h14" />);
 export const Search = make("Search", <><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></>);
 export const Calendar = make("Calendar", <><rect x="3" y="4" width="18" height="18" rx="3" /><path d="M16 2v4M8 2v4M3 10h18" /></>);
+export const Smile = make("Smile", <><circle cx="12" cy="12" r="10" /><path d="M8 14s1.5 2 4 2 4-2 4-2" /><path d="M9 9h.01" /><path d="M15 9h.01" /></>);
 export const Clock = make("Clock", <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>);
 export const Menu = make("Menu", <><path d="M4 6h16" /><path d="M4 12h16" /><path d="M4 18h16" /></>);
 export const MoreHorizontal = make("MoreHorizontal", <><circle cx="5" cy="12" r="1.2" fill="currentColor" /><circle cx="12" cy="12" r="1.2" fill="currentColor" /><circle cx="19" cy="12" r="1.2" fill="currentColor" /></>);

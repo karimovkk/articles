@@ -64,7 +64,7 @@ check("Keshsiz ochilganda kitob ma'lumoti GET /library/{id} dan olindi", (await 
 
 // ---- Ruxsatsiz kitob → 403 ekrani + katalog havolasi
 await page.goto(`${BASE}/books/${BOOK2}`);
-await page.waitForSelector("text=Bu kitobga ruxsatingiz yo'q", { timeout: 10000 });
+await page.waitForSelector("text=Bu maqolaga ruxsatingiz yo'q", { timeout: 10000 });
 check("Ruxsatsiz kitob: BOOK_ACCESS_DENIED ekrani + 'Katalogda ko'rish'", (await page.locator(`a[href="/catalog/${BOOK2}"]`).count()) === 1);
 
 // ---- Reader havolasi maqola id bilan ochiladi (7.1 API: /reader/articles/{id})

@@ -18,7 +18,7 @@ import { useAuth } from "@/providers/auth-provider";
 import { Alert, Button, Spinner, buttonClass, formatDate, useConfirm } from "@/components/ui";
 import * as I from "@/components/ui/icons";
 import { OrderStatusBadge } from "./order-status";
-import { TelegramPay } from "./telegram-pay";
+import { TelegramPay, openTelegram } from "./telegram-pay";
 import { useOrderPoll } from "./use-order-poll";
 import { errorMessage, isApiError, ordersApi, type Order, orderBookIds } from "@/lib/api";
 import { clearOwnedBooks } from "@/lib/owned-books";
@@ -47,6 +47,7 @@ export function OrderPanel({ bookId, cartBook }: { bookId: string; cartBook?: Om
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [owned, setOwned] = useState(false); // 409 ALREADY_HAS_ACCESS
+  const [tgOpened, setTgOpened] = useState(false); // 101: buyurtma berilganda bot ochildi
 
   const statusRef = useRef<string | undefined>(undefined);
   useLayoutEffect(() => {
@@ -84,20 +85,33 @@ export function OrderPanel({ bookId, cartBook }: { bookId: string; cartBook?: Om
     if (orderId) void ordersApi.get(orderId).then(apply, () => undefined);
   });
 
+  // 101: buyurtma yaratiladi va Telegram bot DARHOL ochiladi (oyna bosish paytida — `openTelegram`)
   async function create() {
     setBusy(true);
     setError(null);
+    let made: Order | null = null;
     try {
-      setOrder(await ordersApi.create(bookId));
-      setNotice(t("orders.created"));
+      const r = await openTelegram(async () => {
+        try {
+          made = await ordersApi.create(bookId);
+          setNotice(t("orders.created"));
+        } catch (e) {
+          const existingId = isApiError(e) && e.code === "ORDER_ALREADY_PENDING" ? (e.details as { order_id?: string } | null)?.order_id : undefined;
+          if (isApiError(e) && e.code === "ALREADY_HAS_ACCESS") setOwned(true);
+          else if (existingId) {
+            // Ochiq buyurtma bor — xato o'rniga shu buyurtmani ko'rsatamiz (bot ham shu buyurtma uchun ochiladi)
+            made = await ordersApi.get(existingId).catch(() => null);
+            setNotice(t("orders.existingOpened"));
+          } else throw e;
+        }
+        if (made) setOrder(made);
+        setTgOpened(false);
+        return made && (made.status === "PENDING" || made.status === "AWAITING_REVIEW") ? made.id : null;
+      });
+      if (r === "opened") setTgOpened(true);
+      else if (r === "unavailable") setError(t("orders.tg.unavailable"));
     } catch (e) {
-      const existingId = isApiError(e) && e.code === "ORDER_ALREADY_PENDING" ? (e.details as { order_id?: string } | null)?.order_id : undefined;
-      if (isApiError(e) && e.code === "ALREADY_HAS_ACCESS") setOwned(true);
-      else if (existingId) {
-        // Ochiq buyurtma bor — xato o'rniga shu buyurtmani ko'rsatamiz
-        setOrder(await ordersApi.get(existingId).catch(() => null));
-        setNotice(t("orders.existingOpened"));
-      } else setError(errorMessage(e));
+      setError(errorMessage(e));
     } finally {
       setBusy(false);
     }
@@ -211,6 +225,7 @@ export function OrderPanel({ bookId, cartBook }: { bookId: string; cartBook?: Om
             <TelegramPay
               order={active}
               compact
+              opened={tgOpened}
               onStale={() => {
                 setNotice(null);
                 void load().catch(() => undefined);

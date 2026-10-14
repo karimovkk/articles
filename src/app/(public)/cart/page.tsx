@@ -14,6 +14,7 @@ import { BookCover } from "@/components/book-cover";
 import { Price, PriceTag } from "@/components/catalog/price";
 import { AddToCartButton, TierLadder } from "@/components/cart/cart-ui";
 import { CheckoutOrder } from "@/components/cart/checkout-order";
+import { openTelegram } from "@/components/orders/telegram-pay";
 import { Alert, Button, EmptyState, IconButton, PageHeader, Spinner, buttonClass, cn, useConfirm } from "@/components/ui";
 import * as I from "@/components/ui/icons";
 import { catalogApi, errorMessage, isApiError, orderBookIds, ordersApi, type CatalogItem, type Order, type OrderQuote } from "@/lib/api";
@@ -37,6 +38,7 @@ export default function CartPage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [created, setCreated] = useState<Order | null>(null);
+  const [tgOpened, setTgOpened] = useState(false); // 101: buyurtma berilganda bot darhol ochildi
   const [suggest, setSuggest] = useState<CatalogItem[]>([]);
   const [ownedIds, setOwnedIds] = useState<Set<string>>(() => new Set());
   // Savatdagi kitob → uning alohida ochiq buyurtmasi (PENDING / AWAITING_REVIEW)
@@ -140,10 +142,17 @@ export default function CartPage() {
     setBusy(true);
     setError(null);
     try {
-      const order = await ordersApi.checkout(ids);
-      cart.removeMany(orderBookIds(order));
-      setCreated(order);
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      // 101: buyurtma yaratiladi va Telegram bot DARHOL ochiladi (oyna bosish paytida — `openTelegram`)
+      setTgOpened(false);
+      const r = await openTelegram(async () => {
+        const order = await ordersApi.checkout(ids);
+        cart.removeMany(orderBookIds(order));
+        setCreated(order);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        return order.id;
+      });
+      if (r === "opened") setTgOpened(true);
+      else if (r === "unavailable") setError(t("orders.tg.unavailable"));
     } catch (e) {
       // Konflikt — muammoli kitoblar savatdan olib tashlanadi, foydalanuvchi qayta bosadi
       const bad = isApiError(e) && Array.isArray((e.details as { book_ids?: unknown })?.book_ids) ? ((e.details as { book_ids: string[] }).book_ids ?? []) : [];
@@ -186,7 +195,7 @@ export default function CartPage() {
         <Alert tone="success" className="mb-4">
           {t("cart.orderCreated")}
         </Alert>
-        <CheckoutOrder order={created} onChange={setCreated} />
+        <CheckoutOrder order={created} onChange={setCreated} tgOpened={tgOpened} />
         <Link href="/catalog" className="mt-5 inline-flex items-center gap-1 text-sm font-bold text-accent-ink hover:underline">
           <I.ArrowLeft size={15} />
           {t("cart.continue")}

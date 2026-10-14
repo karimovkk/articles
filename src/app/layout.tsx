@@ -24,7 +24,7 @@ const THEME_SCRIPT = `(function(){try{var t=localStorage.getItem('a365.theme');i
 
 export const metadata: Metadata = {
   title: { default: env.appName, template: `%s · ${env.appName}` },
-  description: "Himoyalangan elektron kutubxona — kitoblar faqat web-reader ichida o'qiladi.",
+  description: "Himoyalangan elektron kutubxona — maqolalar faqat web-reader ichida o'qiladi.",
   robots: { index: false, follow: false },
 };
 

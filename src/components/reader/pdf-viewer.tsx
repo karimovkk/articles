@@ -445,6 +445,9 @@ export const PdfViewer = forwardRef<PdfViewerHandle, PdfViewerProps>(function Pd
       if (!g) return;
       const { z0, s, ox, oy, tx, ty } = g;
       g = null;
+      commit(z0, s, ox, oy, tx, ty);
+    };
+    const commit = (z0: number, s: number, ox: number, oy: number, tx: number, ty: number) => {
       el.style.transform = "";
       el.style.transformOrigin = "";
       el.style.willChange = "";
@@ -483,22 +486,81 @@ export const PdfViewer = forwardRef<PdfViewerHandle, PdfViewerProps>(function Pd
       }
       tap = null;
     };
-    // iOS Safari: sahifa zoom'i (gesture*) ham to'xtatiladi — zoom faqat kitobda
-    const noGesture = (e: Event) => e.preventDefault();
+    // 100: kompyuter touchpad'i — ikki barmoq bilan zoom. Chrome/Edge/Firefox uni `wheel` + `ctrlKey` qilib yuboradi
+    // (Ctrl + sichqoncha g'ildiragi ham shunday); Mac Safari — `gesture*` (`scale`). Brauzer sahifani emas, faqat kitobni
+    // kattalashtiradi: harakat paytida transform (kursor nuqtasi atrofida), to'xtagach — yangi masshtabda aniq chiziladi.
+    let w: { ox: number; oy: number; z0: number; s: number } | null = null;
+    let wTimer = 0;
+    const wheelStart = (x: number, y: number) => {
+      const r = el.getBoundingClientRect();
+      w = { ox: x - r.left, oy: y - r.top, z0: zoomNowRef.current, s: 1 };
+      el.style.transformOrigin = `${w.ox}px ${w.oy}px`;
+      el.style.willChange = "transform";
+      el.dataset.pinching = "1";
+    };
+    const wheelApply = (s: number) => {
+      if (!w) return;
+      w.s = clampZ(w.z0 * s) / w.z0;
+      el.style.transform = `scale(${w.s})`;
+      pill(w.z0 * w.s);
+    };
+    const wheelEnd = () => {
+      window.clearTimeout(wTimer);
+      if (!w) return;
+      const { z0, s, ox, oy } = w;
+      w = null;
+      commit(z0, s, ox, oy, 0, 0);
+    };
+    const onWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey || !zoomCbRef.current || g || safari) return;
+      e.preventDefault();
+      if (!w) wheelStart(e.clientX, e.clientY);
+      // Touchpad — kichik qadamlar (deltaY ≈ 1–10), g'ildirak — katta (≈ 100): bir qadam ko'pi bilan ~×1.65
+      const dy = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
+      wheelApply(w!.s * Math.exp(-Math.max(-50, Math.min(50, dy)) * 0.01));
+      window.clearTimeout(wTimer);
+      wTimer = window.setTimeout(wheelEnd, 200);
+    };
+    // Safari (Mac): touchpad pinch — `gesture*`. iOS'da ham keladi, lekin u yerda sensorli pinch (`g`) ishlaydi
+    let safari = false;
+    const onGestureStart = (e: Event) => {
+      e.preventDefault();
+      if (g || !zoomCbRef.current) return;
+      const ge = e as Event & { clientX?: number; clientY?: number };
+      const r = el.getBoundingClientRect();
+      safari = true;
+      wheelStart(ge.clientX ?? r.left + r.width / 2, ge.clientY ?? r.top + r.height / 2);
+    };
+    const onGestureChange = (e: Event) => {
+      e.preventDefault();
+      if (g || !safari) return;
+      wheelApply((e as Event & { scale?: number }).scale ?? 1);
+    };
+    const onGestureEnd = (e: Event) => {
+      e.preventDefault();
+      if (!safari) return;
+      safari = false;
+      wheelEnd();
+    };
     el.addEventListener("touchstart", onStart, { passive: false });
     el.addEventListener("touchmove", onMove, { passive: false });
     el.addEventListener("touchend", onEnd, { passive: false });
     el.addEventListener("touchcancel", onEnd, { passive: false });
-    el.addEventListener("gesturestart", noGesture, { passive: false });
-    el.addEventListener("gesturechange", noGesture, { passive: false });
+    el.addEventListener("wheel", onWheel, { passive: false });
+    el.addEventListener("gesturestart", onGestureStart, { passive: false });
+    el.addEventListener("gesturechange", onGestureChange, { passive: false });
+    el.addEventListener("gestureend", onGestureEnd, { passive: false });
     return () => {
       el.removeEventListener("touchstart", onStart);
       el.removeEventListener("touchmove", onMove);
       el.removeEventListener("touchend", onEnd);
       el.removeEventListener("touchcancel", onEnd);
-      el.removeEventListener("gesturestart", noGesture);
-      el.removeEventListener("gesturechange", noGesture);
+      el.removeEventListener("wheel", onWheel);
+      el.removeEventListener("gesturestart", onGestureStart);
+      el.removeEventListener("gesturechange", onGestureChange);
+      el.removeEventListener("gestureend", onGestureEnd);
       window.clearTimeout(hideTimer);
+      window.clearTimeout(wTimer);
     };
   }, [minZoom, maxZoom]);
 

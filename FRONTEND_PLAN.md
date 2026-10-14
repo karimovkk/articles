@@ -1485,6 +1485,29 @@ progress, test natijalari, lug'at kitobdan uziladi (`book_id`/`article_id` = nul
       havolasiz, `book_title` + "(o'chirilgan)"; "Kitobni ochish" / "Qayta urinish" ko'rsatilmaydi
 - [x] 99.4 Mock (detach + snapshot) + e2e (book-delete, orders), dev + prod
 
+## 100. Kompyuter touchpad'ida ikki barmoq bilan zoom (2026-10-14)
+
+- [x] 100.1 Touchpad pinch (Chrome/Edge/Firefox: `wheel` + `ctrlKey`; Ctrl + sichqoncha g'ildiragi ham) — brauzer butun
+      sahifani emas, faqat kitobni kattalashtiradi; kursor ostidagi joy o'rnida qoladi; harakat paytida silliq (transform)
+      va foiz ko'rinadi, to'xtagach (~200 ms) aniq chiziladi; chegaralar 60%–300%
+- [x] 100.2 Mac Safari: `gesturestart/change/end` (`scale`) — xuddi shunday; iOS'da sensorli pinch o'zgarmaydi
+- [x] 100.3 e2e (reader-touch): CDP `mouseWheel` + Ctrl — kitob kattalashadi, sahifa zoom'i yo'q; dev + prod
+- [x] 100.4 `reader-article` e2e: eski ekran qatlami tekshiruvi (98) — `canvas[data-wm]` ga
+
+## 101. Progress vaqt bo'yicha, yon panel, emoji tanlagich, "Kitob → Maqola", buyurtma → Telegram (2026-10-14)
+
+- [x] 101.1 Progress: sahifa ~2 daqiqa ochiq turgandagina (sahifa ko'rinib turganda) "o'qilgan" hisoblanadi; foiz = eng uzoq
+      o'qilgan sahifa / jami; foiz hech qachon kamaymaydi (o'qib bo'lingan kitob qayta ochilsa — 0 dan boshlanmaydi);
+      "o'qib bo'lindi" avtomatik — oxirgi sahifa o'qilgandagina. Joy (`current_page`) avvalgidek darhol saqlanadi
+- [x] 101.2 Foydalanuvchi yon paneli: "Kategoriyalar" bo'limi (kategoriyalar ro'yxati, masalan "Jurnal maqolalari") olib tashlanadi
+- [x] 101.3 Admin: kitob nomi maydonining o'ng chetida emoji tugmasi — Telegram'dagidek tanlagich: barcha emojilar
+      (guruhlar bo'yicha), qidiruv (en/ru kalit so'zlar), oxirgi ishlatilganlar; kursor joyiga qo'yiladi. Yaratish va tahrirlash
+- [x] 101.4 Interfeysda "Kitob" → "Maqola" (uz/ru/en; kitob ichidagi maqolalar ham "maqola" bo'lib qoladi).
+      "Buy Real Books" (qog'oz kitoblar) va o'qish rejimi "Kitob" (ikki sahifa yonma-yon) o'zgarmaydi
+- [x] 101.5 Buyurtma berish → Telegram bot darhol ochiladi (ikkinchi "Telegram orqali to'lash" bosilmaydi): kitob sahifasi
+      va savatcha. Kompyuter — bosish paytida oyna (pop-up bloklanmaydi), telefon — `tg://` (96)
+- [x] 101.6 e2e, dev + prod
+
 ## 31. Keyingi vazifalar
 
 - [ ] 31.1 Safari (WebKit): varaqlash rejimida oldingi sahifaga qaytilganda (3-sahifa) belgilash qatlami

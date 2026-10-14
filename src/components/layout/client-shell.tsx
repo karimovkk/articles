@@ -7,9 +7,9 @@
  *  - sidebar: nav (+ o'qilmagan soni), kategoriyalar (kitoblar soni bilan), "Buy Real Books" (78); <1100px — drawer.
  * Reader va auth sahifalari bu qobiqdan foydalanmaydi.
  */
-import { Suspense, useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useAuth } from "@/providers/auth-provider";
 import { Avatar, Menu, MenuItem, MenuLabel, MenuSep, buttonClass, cn } from "@/components/ui";
 import * as I from "@/components/ui/icons";
@@ -18,7 +18,6 @@ import { NotificationBell } from "@/components/notifications/bell";
 import { CartHeaderButton, useCartNav } from "@/components/cart/cart-ui";
 import { YearDayChip, YearEmblem } from "./year-progress";
 import { useUnreadCount } from "@/components/notifications/use-unread-count";
-import { useCatalogCategories } from "@/lib/catalog-categories";
 import { env } from "@/lib/env";
 import { useOpenOrders } from "@/lib/admin-open-orders";
 import { StreakChip } from "@/components/streak/streak-chip";
@@ -222,51 +221,8 @@ function ClientSidebar({ open, onNavigate }: { open: boolean; onNavigate: () => 
         )}
       </nav>
 
-      <Suspense fallback={null}>
-        <SidebarCategories onNavigate={onNavigate} />
-      </Suspense>
-
       {/* 78: "Buy Real Books" — Uzum Market'dagi do'konimiz, muqovalar aylanib turadi */}
       <BuyRealBooks onNavigate={onNavigate} />
     </aside>
-  );
-}
-
-/** Kategoriyalar ro'yxati — kitoblar soni bilan; faol kategoriya `/catalog?category=` dan. */
-const CAT_ICONS = [I.Sparkles, I.Layers, I.Bookmark, I.Star, I.Activity, I.Hash, I.Tag, I.BookOpen];
-
-function SidebarCategories({ onNavigate }: { onNavigate: () => void }) {
-  const { t } = useT();
-  const pathname = usePathname();
-  const params = useSearchParams();
-  const categories = useCatalogCategories();
-  const active = pathname === "/catalog" ? (params.get("category") ?? "") : null;
-  if (!categories?.length) return null;
-
-  return (
-    <div className="client-cats" data-testid="side-categories">
-      <div className="client-cats-head">
-        <span>{t("client.categories")}</span>
-        <Link href="/catalog" onClick={onNavigate}>
-          {t("client.viewAll")}
-          <I.ArrowRight size={13} />
-        </Link>
-      </div>
-      <ul>
-        {categories.map((c, i) => {
-          const Icon = CAT_ICONS[i % CAT_ICONS.length];
-          const on = active === c.id;
-          return (
-            <li key={c.id}>
-              <Link href={`/catalog?category=${c.id}`} prefetch={false} onClick={onNavigate} className={cn("side-cat", on && "active")} aria-current={on ? "page" : undefined} data-testid="side-category">
-                <Icon size={17} />
-                <span className="truncate">{c.name}</span>
-                {c.count !== null && <span className="count">{c.count}</span>}
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
-    </div>
   );
 }
