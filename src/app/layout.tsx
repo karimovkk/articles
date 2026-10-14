@@ -8,6 +8,7 @@ import { AppearanceProvider } from "@/providers/appearance-provider";
 import { APPEARANCE_SCRIPT } from "@/lib/appearance";
 import { LocaleEffect } from "@/i18n/locale-effect";
 import { ConfirmProvider } from "@/components/ui/confirm";
+import { TelegramMiniApp } from "@/components/telegram/telegram-mini-app";
 import { env } from "@/lib/env";
 
 // 43: minimalistik tipografiya — ikki shrift: matn, tugma, raqam — Manrope; sarlavhalar — Playfair Display (serif).
@@ -41,7 +42,11 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <AppearanceProvider />
           <LocaleEffect />
           <AuthProvider>
-            <ConfirmProvider>{children}</ConfirmProvider>
+            <ConfirmProvider>
+              {children}
+              {/* 106: Telegram Mini App — parolsiz kirish, telefon, "Saytda ochish" (oddiy brauzerda hech narsa qilmaydi) */}
+              <TelegramMiniApp />
+            </ConfirmProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>

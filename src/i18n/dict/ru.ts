@@ -1258,4 +1258,18 @@ export const ru: Dict = {
   "emoji.group.objects": "Предметы",
   "emoji.group.symbols": "Символы",
   "emoji.group.flags": "Флаги",
+  // 106: Telegram Mini App
+  "tg.loggingIn": "Вход через Telegram…",
+  "tg.authFailed": "Не удалось войти через Telegram. Закройте Mini App и откройте снова.",
+  "tg.openSite": "Открыть на сайте",
+  "tg.phone.title": "Поделитесь номером телефона",
+  "tg.phone.body": "Необязательно — номер сохранится в аккаунте. Для покупки не требуется.",
+  "tg.phone.share": "Поделиться номером",
+  "tg.phone.later": "Позже",
+  "tg.notTelegram.title": "Эта страница для Telegram",
+  "tg.notTelegram.body": "Откройте её из меню нашего бота в Telegram. В браузере можно продолжить в каталоге.",
+  "tg.toCatalog": "В каталог",
+  "tg.handoff.loading": "Вход на сайт…",
+  "tg.handoff.expired": "Ссылка устарела или уже использована. Нажмите «Открыть на сайте» в Mini App ещё раз или войдите обычным способом.",
+  "tg.handoff.missing": "Ссылка для входа неполная.",
 };

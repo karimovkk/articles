@@ -102,6 +102,15 @@ e2e yordamchilari (`e2e/lib.mjs`): `selectPick`, `selectOptionCount`, `confirmDi
   URL-prefiksli marshrutlash ishlatilmagan — ilova auth'langan SPA (`noindex`).
 - Almashtirgich: header (`LocaleSwitcher`) va auth sahifalari.
 
+## Telegram Mini App
+
+- Kirish manzili: `https://<sayt>/tg` — @BotFather → bot → Bot Settings → **Menu Button** (yoki `web_app` tugmasi) URL'i.
+  Bosh sahifa (`/`) ham ishlaydi, lekin `/tg` kirishni kutib, katalogni ochadi.
+- Telegram ichida: SDK (`telegram-web-app.js`) faqat shunda yuklanadi; parolsiz kirish `POST /auth/telegram/webapp`;
+  telefon — ixtiyoriy (`requestContact`); pastki tugma "Saytda ochish" → `POST /auth/telegram/handoff` → sayt
+  `/auth/handoff?token=` da kirgan holda ochiladi (backend `FRONTEND_BASE_URL` + `FRONTEND_HANDOFF_PATH=/auth/handoff`).
+- Telegram Web Mini App'ni iframe'da ochadi — sahifalarda `frame-ancestors 'self' https://web.telegram.org` (admin — `'none'`).
+
 ## Integratsiya kelishuvi (FE registri §0)
 
 - Har himoyalangan so'rov: `Authorization: Bearer <access>`; 401 → `POST /auth/refresh` (rotatsiya) → bir marta qayta.

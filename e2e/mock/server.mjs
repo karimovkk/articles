@@ -100,6 +100,8 @@ const INTEG_SECRET = new Set(["telegram.bot_token", "telegram.webhook_secret"]);
 let integ = {}, integLog = [], webhookCalls = 0;
 // 67: reklama (broadcast) — har GET'da jarayon oldinga siljiydi (5 ta qabul qiluvchi, 1 tasi xato)
 let broadcasts = [];
+// 106: Telegram Mini App — tg_id → foydalanuvchi, handoff tokenlar (bir martalik), oxirgi webapp so'rovi
+let tgUsers = new Map(), handoffs = new Map(), __lastTgBody = null;
 let paymentsUnscoped = false;
 let __lastQuizBody = null; // 87: oxirgi test yuborish (o'quvchi) — testlar javob shaklini tekshiradi
 let __lastQuestionBody = null; // 87: oxirgi admin savol so'rovi
@@ -191,6 +193,7 @@ function reset(opts = {}) {
   deviceLimitOn = false;
   deviceRemovedOnRefresh = false;
   vocab = [];
+  tgUsers = new Map(); handoffs = new Map(); __lastTgBody = null;
   passwords.clear();
   questions = [];
   diagramFiles.clear();
@@ -367,6 +370,9 @@ createServer(async (req, res) => {
   if (path === "/__progress") return json(res, 200, progress);
   if (path === "/__uploads") return json(res, 200, uploads);
   if (path === "/__orders") return json(res, 200, orders);
+  // 106: Telegram — oxirgi webapp so'rovi; bot webhook telefonni yozdi (`/__tg-phone?tg=<id>&phone=`)
+  if (path === "/__tg-last") return json(res, 200, { body: __lastTgBody, handoffs: [...handoffs.values()].map(({ used }) => ({ used })) });
+  if (path === "/__tg-phone") { const u = tgUsers.get(q.get("tg")); if (u) u.phone = q.get("phone"); return json(res, 200, u ?? null); }
   if (path === "/__receipts") return json(res, 200, receipts);
   // /__payment?empty=1 — prod'dagidek bo'sh rekvizitlar (B21); parametrsiz — to'ldirilgan
   if (path === "/__payment") { if (q.get("empty") === "1") paymentInfo = { card_number: "", recipient: "", instructions: "" }; return json(res, 200, paymentInfo); }
@@ -420,6 +426,27 @@ createServer(async (req, res) => {
     if (!img) return err(res, 404, "IMAGE_NOT_FOUND", "Image not found");
     res.writeHead(200, { "Content-Type": img.type, "Content-Length": img.data.length, "Cache-Control": "public, max-age=300" });
     return res.end(img.data);
+  }
+  // ---- 106: Telegram Mini App — parolsiz kirish (imzo: mock'da `hash=bad` → xato), handoff almashtirish
+  if (m === "POST" && path === "/auth/telegram/webapp") {
+    const b = await readBody(req);
+    __lastTgBody = { ...b, device_secret_header: req.headers["x-device-secret"] ?? null };
+    const params = new URLSearchParams(b.init_data ?? "");
+    if (!params.get("hash") || params.get("hash") === "bad") return err(res, 401, "TELEGRAM_AUTH_FAILED", "Invalid Telegram init data");
+    let tu; try { tu = JSON.parse(params.get("user") ?? "{}"); } catch { tu = {}; }
+    const tgId = String(tu.id ?? "0");
+    let u = tgUsers.get(tgId); const created = !u;
+    if (!u) { u = { ...USER, id: randomUUID(), email: null, phone: null, full_name: [tu.first_name, tu.last_name].filter(Boolean).join(" ") || null, created_at: now(), updated_at: now() }; tgUsers.set(tgId, u); users.push(u); }
+    const tok = `access-token-tg-${tgId}`; TOKENS[tok] = u;
+    return json(res, 200, { access_token: tok, refresh_token: `refresh-tg-${tgId}`, token_type: "bearer", expires_in: 900, user: u, device_secret: created ? `secret-tg-${tgId}` : null, created, phone_required: !u.phone });
+  }
+  if (m === "POST" && path === "/auth/telegram/handoff/exchange") {
+    const b = await readBody(req);
+    const h = handoffs.get(b.handoff_token);
+    if (!h || h.used || Date.now() - h.at > 120_000) return err(res, 401, "INVALID_HANDOFF_TOKEN", "Handoff token is invalid or expired");
+    h.used = true;
+    const tok = `access-token-ho-${randomUUID().slice(0, 8)}`; TOKENS[tok] = h.user;
+    return json(res, 200, { access_token: tok, refresh_token: "refresh-ho", token_type: "bearer", expires_in: 900, user: h.user, device_secret: null });
   }
   if (m === "POST" && path === "/auth/login") {
     const b = await readBody(req);
@@ -487,6 +514,11 @@ createServer(async (req, res) => {
   if (!me) return err(res, 401, "AUTHENTICATION_REQUIRED", "Authentication required");
 
   if (path === "/auth/me" || (m === "GET" && path === "/me")) return json(res, 200, me);
+  if (m === "POST" && path === "/auth/telegram/handoff") {
+    const token = `ho-${randomUUID()}`; handoffs.set(token, { user: me, at: Date.now(), used: false });
+    const host = req.headers["x-forwarded-host"] ?? req.headers.host;
+    return json(res, 200, { handoff_token: token, expires_in: 120, url: `http://${host}/auth/handoff?token=${token}` });
+  }
   if (m === "POST" && path === "/auth/logout") return json(res, 200, { message: "Logged out" });
   if (m === "PATCH" && path === "/me") { const b = await readBody(req); Object.assign(me, { full_name: b.full_name ?? me.full_name, updated_at: now() }); return json(res, 200, me); }
   if (m === "POST" && path === "/me/password") { const b = await readBody(req); if (b.old_password !== "User12345!" && b.old_password !== "Admin12345!") return err(res, 400, "INVALID_CREDENTIALS", "Old password is wrong"); if ((b.new_password ?? "").length < 8) return err(res, 422, "VALIDATION_ERROR", "Validation failed", [{ loc: ["body", "new_password"], msg: "too short" }]); return json(res, 200, { message: "Password changed" }); }

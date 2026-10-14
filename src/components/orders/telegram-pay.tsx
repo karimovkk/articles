@@ -14,6 +14,7 @@ import { useState, type ReactNode } from "react";
 import { Alert, Button } from "@/components/ui";
 import * as I from "@/components/ui/icons";
 import { errorMessage, isApiError, ordersApi, type Order } from "@/lib/api";
+import { telegramWebApp } from "@/lib/telegram";
 import { useT } from "@/i18n";
 
 /** Telefon / planshet (sensorli, mobil OS) */
@@ -66,8 +67,10 @@ function openOnPhone(deepLink: string, bot?: string | null, token?: string | nul
  * Natija: "opened" | "none" (buyurtma yo'q — oyna yopildi) | "unavailable" (bot sozlanmagan). Xato — tashqariga.
  */
 export async function openTelegram(getOrderId: () => Promise<string | null>): Promise<"opened" | "none" | "unavailable"> {
+  // 106: Telegram Mini App ichida — bot havolasi Telegram'ning o'zida (`openTelegramLink`), yangi oyna ochilmaydi
+  const tg = telegramWebApp();
   const mobile = isMobile();
-  const win = mobile ? null : window.open("", "_blank");
+  const win = mobile || tg ? null : window.open("", "_blank");
   try {
     const id = await getOrderId();
     if (!id) {
@@ -79,7 +82,8 @@ export async function openTelegram(getOrderId: () => Promise<string | null>): Pr
       win?.close();
       return "unavailable";
     }
-    if (mobile) openOnPhone(deep_link, bot_username, token);
+    if (tg) tg.openTelegramLink(deep_link);
+    else if (mobile) openOnPhone(deep_link, bot_username, token);
     else if (win) {
       win.opener = null;
       win.location.href = deep_link;

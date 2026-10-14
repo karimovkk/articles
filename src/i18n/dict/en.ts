@@ -1258,4 +1258,18 @@ export const en: Dict = {
   "emoji.group.objects": "Objects",
   "emoji.group.symbols": "Symbols",
   "emoji.group.flags": "Flags",
+  // 106: Telegram Mini App
+  "tg.loggingIn": "Signing in with Telegram…",
+  "tg.authFailed": "Could not sign in with Telegram. Close the Mini App and open it again.",
+  "tg.openSite": "Open on the website",
+  "tg.phone.title": "Share your phone number",
+  "tg.phone.body": "Optional — it is saved to your account. Not required for buying.",
+  "tg.phone.share": "Share number",
+  "tg.phone.later": "Later",
+  "tg.notTelegram.title": "This page is for Telegram",
+  "tg.notTelegram.body": "Open it from our bot's menu in Telegram. In the browser you can continue in the catalog.",
+  "tg.toCatalog": "Go to catalog",
+  "tg.handoff.loading": "Signing in to the website…",
+  "tg.handoff.expired": "The link has expired or was already used. Tap “Open on the website” in the Mini App again, or sign in as usual.",
+  "tg.handoff.missing": "The sign-in link is incomplete.",
 };

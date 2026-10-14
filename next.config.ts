@@ -20,10 +20,22 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
-        // Barcha sahifalar: asosiy xavfsizlik header'lari (TZ §4 — clickjacking, MIME sniffing, referrer, sensorlar)
-        source: "/:path*",
+        // Barcha sahifalar: asosiy xavfsizlik header'lari (TZ §4 — clickjacking, MIME sniffing, referrer, sensorlar).
+        // 106: Telegram Web (web.telegram.org) Mini App'ni iframe'da ochadi — faqat shu manbaga ruxsat (frame-ancestors;
+        // X-Frame-Options ro'yxatni qo'llamaydi). Admin — hech qayerga (pastda)
+        source: "/((?!admin).*)",
+        headers: [{ key: "Content-Security-Policy", value: "frame-ancestors 'self' https://web.telegram.org" }],
+      },
+      {
+        source: "/admin/:path*",
         headers: [
           { key: "X-Frame-Options", value: "DENY" },
+          { key: "Content-Security-Policy", value: "frame-ancestors 'none'" },
+        ],
+      },
+      {
+        source: "/:path*",
+        headers: [
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=()" },

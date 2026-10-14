@@ -1541,6 +1541,25 @@ yuborilgandek saqlanadi.
       emas, butun bet ko'rinadi
 - [x] 105.2 e2e (reader-touch): konteynerda transform yo'q, ichki qatlamda bor; dev + prod
 
+## 106. Telegram Mini App: parolsiz kirish, telefon, saytga o'tish (handoff) (2026-10-14)
+
+Manba: `Articles365_Frontend_Telegram_MiniApp_v1.0.md` — `POST /auth/telegram/webapp`, `/auth/telegram/handoff`,
+`/auth/telegram/handoff/exchange`.
+
+- [x] 106.1 Telegram ichida ochilganini aniqlash (`#tgWebAppData` / sessiya) → SDK (`telegram-web-app.js`) faqat shunda
+      yuklanadi; `ready()`, `expand()`. Mini App kirish manzili — `/tg` (bosh sahifa ham ishlaydi)
+- [x] 106.2 Avtomatik kirish: `initData` o'zgartirmasdan → `POST /auth/telegram/webapp` (device_name, X-Device-Secret);
+      tokenlar va `device_secret` saqlanadi; `TELEGRAM_AUTH_FAILED` — tushunarli xabar
+- [x] 106.3 `phone_required` → "Telefon raqamini ulashish" (`requestContact`) — ixtiyoriy, yopish mumkin; ulashilgach
+      `GET /auth/me` qayta (telefon yozilguncha bir necha marta)
+- [x] 106.4 Mini App'da "Saytda ochish" (Telegram MainButton): `POST /auth/telegram/handoff` → `openLink(url)`
+- [x] 106.5 Sayt `/auth/handoff?token=` → `POST /auth/telegram/handoff/exchange` → kirgan holda (token URL'dan olib
+      tashlanadi); `INVALID_HANDOFF_TOKEN` — "havola eskirgan, Mini App'dan qayta oching" + kirish havolasi
+- [x] 106.6 Mini App ichida bot havolasi (to'lov) — `openTelegramLink` (yangi oyna ochilmaydi)
+- [x] 106.7 Telegram Web (web.telegram.org) Mini App'ni iframe'da ochadi: `X-Frame-Options: DENY` o'rniga
+      `frame-ancestors 'self' https://web.telegram.org` (admin — `'none'`, DENY qoladi)
+- [x] 106.8 Mock + e2e (Telegram SDK soxta obyekt bilan), dev + prod
+
 ## 31. Keyingi vazifalar
 
 - [ ] 31.1 Safari (WebKit): varaqlash rejimida oldingi sahifaga qaytilganda (3-sahifa) belgilash qatlami

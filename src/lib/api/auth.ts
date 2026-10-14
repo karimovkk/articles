@@ -2,11 +2,12 @@
  * Auth (OpenAPI): POST /auth/login {identifier, password, device_name?, totp_code?} → LoginResponse;
  * POST /auth/register {phone, password, full_name?} → UserResponse (44.1: faqat telefon; token YO'Q → keyin login);
  * POST /auth/logout {refresh_token}; GET /auth/me; PATCH /me; POST /me/password; /me/2fa/*; GET /me/devices (38).
+ * 106: Telegram Mini App — POST /auth/telegram/webapp, /auth/telegram/handoff, /auth/telegram/handoff/exchange.
  */
 import { api, emitAuthChanged, resetSessionEndReason } from "./client";
 import { tokenStore } from "./token-store";
 import { shortAgent } from "@/lib/agent";
-import type { LoginResponse, MessageResponse, MyDevicesResponse, TwoFactorSetup, User } from "./types";
+import type { LoginResponse, MessageResponse, MyDevicesResponse, TelegramHandoff, TelegramLoginResponse, TwoFactorSetup, User } from "./types";
 
 /**
  * 44.1: telefon → E.164 (`+998901234567`). Qabul qilinadi: "90 123 45 67", "998901234567", "+998 (90) 123-45-67",
@@ -43,22 +44,39 @@ export interface RegisterInput {
   full_name?: string;
 }
 
+/**
+ * Kirish (login, Telegram, handoff) — umumiy: bog'langan qurilma o'z sirini ko'rsatadi (38: nusxalangan X-Device-Id bilan
+ * begona kompyuter kira olmaydi); javobdagi tokenlar va `device_secret` saqlanadi.
+ */
+async function signIn<T extends LoginResponse>(path: string, body: Record<string, unknown>): Promise<T> {
+  const secret = tokenStore.getDeviceSecret();
+  const data = await api<T>(path, { method: "POST", auth: false, headers: secret ? { "X-Device-Secret": secret } : undefined, body });
+  if (!data.access_token) throw new Error("Backend access_token qaytarmadi");
+  if (data.device_secret) tokenStore.setDeviceSecret(data.device_secret);
+  tokenStore.set(data.access_token, data.refresh_token);
+  resetSessionEndReason();
+  emitAuthChanged("login");
+  return data;
+}
+
 export const authApi = {
   async login(identifier: string, password: string, totpCode?: string): Promise<LoginResponse> {
-    // 38: bog'langan qurilma o'z sirini ko'rsatadi (nusxalangan X-Device-Id bilan begona kompyuter kira olmaydi)
-    const secret = tokenStore.getDeviceSecret();
-    const data = await api<LoginResponse>("/auth/login", {
-      method: "POST",
-      auth: false,
-      headers: secret ? { "X-Device-Secret": secret } : undefined,
-      body: { identifier: loginIdentifier(identifier), password, device_name: deviceName(), ...(totpCode ? { totp_code: totpCode } : {}) },
-    });
-    if (!data.access_token) throw new Error("Backend access_token qaytarmadi");
-    if (data.device_secret) tokenStore.setDeviceSecret(data.device_secret);
-    tokenStore.set(data.access_token, data.refresh_token);
-    resetSessionEndReason();
-    emitAuthChanged("login");
-    return data;
+    return signIn<LoginResponse>("/auth/login", { identifier: loginIdentifier(identifier), password, device_name: deviceName(), ...(totpCode ? { totp_code: totpCode } : {}) });
+  },
+
+  /** 106: Telegram Mini App — `initData` O'ZGARTIRILMASDAN (backend imzoni bot token bilan tekshiradi) */
+  telegramWebApp(initData: string): Promise<TelegramLoginResponse> {
+    return signIn<TelegramLoginResponse>("/auth/telegram/webapp", { init_data: initData, device_name: "Telegram Mini App" });
+  },
+
+  /** 106: Mini App → saytga avtomatik kirish havolasi (bir martalik, 120 s) */
+  telegramHandoff(): Promise<TelegramHandoff> {
+    return api<TelegramHandoff>("/auth/telegram/handoff", { method: "POST" });
+  },
+
+  /** 106: sayt — `/auth/handoff?token=` dagi tokenni sessiyaga almashtirish */
+  handoffExchange(token: string): Promise<LoginResponse> {
+    return signIn<LoginResponse>("/auth/telegram/handoff/exchange", { handoff_token: token, device_name: deviceName() });
   },
 
   /** Ro'yxatdan o'tish token qaytarmaydi — darhol login qilinadi. */

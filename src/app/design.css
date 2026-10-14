@@ -4085,3 +4085,41 @@ circle.donut-slice {
   font-size: 13px;
   color: var(--muted);
 }
+
+/* ---------- 106: Telegram Mini App — telefon taklifi, xato, "Saytda ochish" (MainButton bo'lmasa) ---------- */
+.tg-dock {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  z-index: 5000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 520px;
+  margin: 0 auto;
+}
+.tg-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--text-2);
+  box-shadow: 0 12px 32px -12px rgba(0, 0, 0, 0.3);
+}
+.tg-card > svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--accent-ink);
+}
+.tg-card.danger {
+  border-color: color-mix(in srgb, var(--danger) 40%, transparent);
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+.tg-card.danger > svg {
+  color: var(--danger);
+}

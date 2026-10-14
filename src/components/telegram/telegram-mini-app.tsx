@@ -1,0 +1,177 @@
+"use client";
+
+/**
+ * 106: Telegram Mini App — sayt Telegram ichida (bot menyusi) ochilganda:
+ *  - SDK yuklanadi, `ready()` / `expand()`;
+ *  - parolsiz kirish: `initData` (o'zgartirilmasdan) → `POST /auth/telegram/webapp` — Mini App sessiyasida bir marta;
+ *  - `phone_required` → "Telefon raqamini ulashish" (`requestContact`, ixtiyoriy — "Keyinroq" eslab qolinadi);
+ *  - Telegram'ning pastki tugmasi (MainButton) "Saytda ochish": `POST /auth/telegram/handoff` → `openLink(url)` —
+ *    sayt tashqi brauzerda shu akkaunt bilan kirgan holda ochiladi.
+ * Oddiy brauzerda hech narsa qilmaydi (SDK ham yuklanmaydi).
+ */
+import { useEffect, useState } from "react";
+import { Button } from "@/components/ui";
+import * as I from "@/components/ui/icons";
+import { authApi, errorMessage, isApiError, tokenStore } from "@/lib/api";
+import { loadTelegram, type TelegramWebApp } from "@/lib/telegram";
+import { useAuth } from "@/providers/auth-provider";
+import { useT } from "@/i18n";
+
+/** Shu Mini App sessiyasida kirildi (initData xeshi — o'zi saqlanmaydi) */
+const LOGIN_KEY = "a365.tg.login";
+const PHONE_SKIP_KEY = "a365.tg.phoneSkip";
+
+function hash(s: string): string {
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
+  return (h >>> 0).toString(36);
+}
+function sGet(store: () => Storage, k: string): string | null {
+  try {
+    return store().getItem(k);
+  } catch {
+    return null;
+  }
+}
+function sSet(store: () => Storage, k: string, v: string) {
+  try {
+    store().setItem(k, v);
+  } catch {
+    /* private rejim */
+  }
+}
+
+export function TelegramMiniApp() {
+  const { t } = useT();
+  const { user, setUser } = useAuth();
+  const [tg, setTg] = useState<TelegramWebApp | null>(null);
+  const [askPhone, setAskPhone] = useState(false);
+  const [phoneBusy, setPhoneBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [opening, setOpening] = useState(false);
+
+  // SDK + parolsiz kirish
+  useEffect(() => {
+    let alive = true;
+    void loadTelegram().then(async (w) => {
+      if (!alive || !w) return;
+      w.ready();
+      w.expand();
+      document.documentElement.dataset.telegram = "1";
+      setTg(w);
+      const key = hash(w.initData);
+      if (sGet(() => sessionStorage, LOGIN_KEY) === key && tokenStore.getAccess()) return;
+      try {
+        const r = await authApi.telegramWebApp(w.initData);
+        sSet(() => sessionStorage, LOGIN_KEY, key);
+        if (alive && r.phone_required && sGet(() => localStorage, PHONE_SKIP_KEY) !== "1" && w.requestContact) setAskPhone(true);
+      } catch (e) {
+        if (alive) setError(isApiError(e) && e.code === "TELEGRAM_AUTH_FAILED" ? t("tg.authFailed") : errorMessage(e));
+      }
+    });
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- bir marta (sahifa ochilganda)
+  }, []);
+
+  // Saytda ochish — avtomatik kirish havolasi (bir martalik, 120 s) shu bosishda olinadi
+  const openSite = async () => {
+    if (!tg || opening) return;
+    setOpening(true);
+    setError(null);
+    tg.MainButton?.showProgress?.(false);
+    try {
+      const h = await authApi.telegramHandoff();
+      tg.openLink(h.url);
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      tg.MainButton?.hideProgress?.();
+      setOpening(false);
+    }
+  };
+
+  // Telegram'ning pastki tugmasi (bo'lmasa — sahifadagi tugma)
+  const mainButton = tg?.MainButton;
+  useEffect(() => {
+    if (!mainButton || !user) return;
+    const onClick = () => void openSite();
+    mainButton.setText(t("tg.openSite"));
+    mainButton.onClick(onClick);
+    mainButton.show();
+    return () => {
+      mainButton.offClick(onClick);
+      mainButton.hide();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- openSite har render'da yangi; tugma bir marta ulanadi
+  }, [mainButton, user, t]);
+
+  const sharePhone = () => {
+    if (!tg?.requestContact) return;
+    setPhoneBusy(true);
+    tg.requestContact((ok) => {
+      if (!ok) {
+        setPhoneBusy(false);
+        return;
+      }
+      // Telefon botga boradi, backend uni akkauntga yozadi — biroz kechikishi mumkin
+      let n = 0;
+      const poll = () =>
+        authApi
+          .me()
+          .then((me) => {
+            if (me.phone || ++n >= 6) {
+              setUser(me);
+              setAskPhone(!me.phone);
+              setPhoneBusy(false);
+            } else window.setTimeout(poll, 1500);
+          })
+          .catch(() => setPhoneBusy(false));
+      poll();
+    });
+  };
+  const skipPhone = () => {
+    sSet(() => localStorage, PHONE_SKIP_KEY, "1");
+    setAskPhone(false);
+  };
+
+  if (!tg) return null;
+  const showFallback = !!user && !mainButton;
+  if (!askPhone && !error && !showFallback) return null;
+  return (
+    <div className="tg-dock" data-testid="tg-dock">
+      {askPhone && (
+        <div className="tg-card" data-testid="tg-phone">
+          <I.Phone size={18} />
+          <div className="min-w-0 flex-1">
+            <p className="font-bold text-text">{t("tg.phone.title")}</p>
+            <p className="text-xs text-muted">{t("tg.phone.body")}</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <Button size="sm" onClick={sharePhone} loading={phoneBusy} data-testid="tg-phone-share">
+                {t("tg.phone.share")}
+              </Button>
+              <Button size="sm" variant="ghost" onClick={skipPhone} data-testid="tg-phone-skip">
+                {t("tg.phone.later")}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+      {error && (
+        <div className="tg-card danger" role="alert" data-testid="tg-error">
+          <I.AlertTriangle size={18} />
+          <p className="min-w-0 flex-1 text-sm">{error}</p>
+          <button type="button" className="icon-btn plain sm" onClick={() => setError(null)} aria-label={t("common.close")}>
+            <I.X size={16} />
+          </button>
+        </div>
+      )}
+      {showFallback && (
+        <Button className="w-full" onClick={() => void openSite()} loading={opening} icon={<I.ArrowUpRight size={16} />} data-testid="tg-open-site">
+          {t("tg.openSite")}
+        </Button>
+      )}
+    </div>
+  );
+}

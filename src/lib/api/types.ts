@@ -101,6 +101,21 @@ export interface LoginResponse extends AuthTokens {
   device_secret?: string | null;
 }
 
+/** 106: POST /auth/telegram/webapp — Telegram Mini App'da parolsiz kirish */
+export interface TelegramLoginResponse extends LoginResponse {
+  /** akkaunt shu so'rovda yaratildimi */
+  created?: boolean;
+  /** telefon yo'q — "Kontakt ulashish" taklif qilinadi (ixtiyoriy) */
+  phone_required?: boolean;
+}
+
+/** 106: POST /auth/telegram/handoff — saytga avtomatik kirish uchun bir martalik (120 s) token */
+export interface TelegramHandoff {
+  handoff_token: string;
+  expires_in: number;
+  url: string;
+}
+
 /** 38: GET /me/devices — "Qurilmalarim" (faqat ko'rish; bo'shatish faqat admin orqali) */
 export interface MyDevice {
   id: string;

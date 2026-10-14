@@ -5,11 +5,14 @@ const check = (name, ok, extra = "") => { console.log(`${ok ? "✅" : "❌"} ${n
 const h = async (path) => { const r = await fetch(`${BASE}${path}`, { redirect: "manual" }); return { status: r.status, get: (k) => r.headers.get(k) }; };
 for (const path of ["/login", "/catalog"]) {
   const r = await h(path);
-  check(`${path}: X-Frame-Options DENY`, r.get("x-frame-options") === "DENY");
+  // 106: clickjacking — faqat o'zi va Telegram Web (Mini App iframe'i); X-Frame-Options ro'yxatni qo'llamaydi
+  check(`${path}: frame-ancestors 'self' https://web.telegram.org`, r.get("content-security-policy") === "frame-ancestors 'self' https://web.telegram.org", r.get("content-security-policy"));
   check(`${path}: X-Content-Type-Options nosniff`, r.get("x-content-type-options") === "nosniff");
   check(`${path}: Referrer-Policy`, r.get("referrer-policy") === "strict-origin-when-cross-origin");
   check(`${path}: Permissions-Policy (camera/mic/geo yopiq)`, /camera=\(\)/.test(r.get("permissions-policy") ?? ""));
 }
+const ad = await h("/admin");
+check("/admin: X-Frame-Options DENY + frame-ancestors 'none'", ad.get("x-frame-options") === "DENY" && ad.get("content-security-policy") === "frame-ancestors 'none'", `${ad.get("x-frame-options")} / ${ad.get("content-security-policy")}`);
 const rd = await h("/reader/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
 // dev'da Next sahifalarga o'zining "no-cache, must-revalidate" header'ini qo'yadi — to'liq tekshiruv production'da
 check("/reader: Cache-Control private, no-store", process.env.E2E_PROD ? /no-store/.test(rd.get("cache-control") ?? "") : /no-store|no-cache/.test(rd.get("cache-control") ?? ""), rd.get("cache-control"));
