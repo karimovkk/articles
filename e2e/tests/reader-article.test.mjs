@@ -10,7 +10,7 @@ await reset("");
 const browser = await launch();
 const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
 // 101: sahifa "o'qilgan" bo'lishi uchun ochiq turish vaqti (asl — 2 daqiqa) testda 1,5 s
-await ctx.addInitScript(() => localStorage.setItem("a365.readAfterMs", "1500"));
+await ctx.addInitScript(() => !localStorage.getItem("a365.readAfterMs") && localStorage.setItem("a365.readAfterMs", "1500"));
 const page = await ctx.newPage();
 const pageErrors = [];
 page.on("pageerror", (e) => !ignorablePageError(e.message) && pageErrors.push(e.message));
@@ -107,6 +107,23 @@ await page.click('a:has-text("Keyingi maqola")');
 await page.waitForURL(`${BASE}/reader/${ART2}`);
 await rendered();
 check("Keyingi maqola ochildi; 'Oldingi' bor, 'Keyingi' yo'q (3-maqola PROCESSING)", (await bodyHas("Ikkinchi maqola")) && (await page.locator('a:has-text("Oldingi maqola")').count()) === 1 && (await page.locator('a:has-text("Keyingi maqola")').count()) === 0);
+
+// ---- 102: betdagi vaqt yig'iladi — chiqib ketib qaytilsa davom etadi (localStorage, foydalanuvchi + maqola + bet)
+await page.evaluate(() => localStorage.setItem("a365.readAfterMs", "4000"));
+await page.goto(`${BASE}/reader/${ART2}`);
+await rendered();
+await page.waitForTimeout(2600);
+const dwell1 = await page.evaluate((a) => { const k = Object.keys(localStorage).find((x) => x.startsWith("a365.dwell.") && x.endsWith(a)); return k ? JSON.parse(localStorage.getItem(k)) : null; }, ART2);
+const pctOf = async () => Object.values(await mockGet("/__progress")).find((p) => p.article_id === ART2)?.percentage ?? 0;
+check("102: 1-kirish (~2,6 s / 4 s) — vaqt localStorage'da, bet hali o'qilmagan", dwell1?.["1"] >= 1800 && dwell1["1"] < 4000 && (await pctOf()) === 0, JSON.stringify(dwell1));
+await page.goto(`${BASE}/reader/${ART3}`); // chiqib ketdi
+await page.waitForSelector("text=Maqola hali tayyorlanmoqda", { timeout: 8000 });
+await page.goto(`${BASE}/reader/${ART2}`);
+await rendered();
+await page.waitForTimeout(2200);
+await page.waitForTimeout(1600); // debounce + saqlash
+check("102: 2-kirishda vaqt qo'shildi (jami ≥ 4 s) — bet o'qilgan, foiz oshdi", (await pctOf()) > 0, String(await pctOf()));
+await page.evaluate(() => localStorage.setItem("a365.readAfterMs", "1500"));
 
 // ---- PROCESSING maqola → holat ekrani (PDF yuklanmaydi)
 await page.goto(`${BASE}/reader/${ART3}`);

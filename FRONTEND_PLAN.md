@@ -1508,6 +1508,13 @@ progress, test natijalari, lug'at kitobdan uziladi (`book_id`/`article_id` = nul
       va savatcha. Kompyuter — bosish paytida oyna (pop-up bloklanmaydi), telefon — `tg://` (96)
 - [x] 101.6 e2e, dev + prod
 
+## 102. Progress: sahifadagi vaqt yig'iladi, 1:25 (2026-10-14)
+
+- [x] 102.1 Sahifada o'tkazilgan vaqt localStorage'da yig'iladi (foydalanuvchi + maqola + bet): chiqib ketib qaytsa,
+      boshqa betga o'tib qaytsa ham qo'shiladi; faqat shu qurilmada (qurilmalar orasida — backend kerak)
+- [x] 102.2 Chegara 2:00 → 1:25 (85 s)
+- [x] 102.3 e2e (reader-article): qisman vaqt + qayta ochish → o'qilgan; dev + prod
+
 ## 31. Keyingi vazifalar
 
 - [ ] 31.1 Safari (WebKit): varaqlash rejimida oldingi sahifaga qaytilganda (3-sahifa) belgilash qatlami

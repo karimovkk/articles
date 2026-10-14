@@ -63,9 +63,19 @@ const COLOR_KEY = "a365.reader.hlcolor";
 const HEARTBEAT_MS = 30_000;
 /**
  * 101: sahifa shuncha vaqt ochiq tursa (sahifa ko'rinib turganda) — "o'qilgan"; progress foizi o'qilgan sahifalardan.
- * e2e testlar `localStorage["a365.readAfterMs"]` bilan qisqartiradi.
+ * 102: 1:25; vaqt har bet uchun localStorage'da yig'iladi (qayta kirganda davom etadi). e2e — `a365.readAfterMs`.
  */
-const READ_AFTER_MS = 120_000;
+const READ_AFTER_MS = 85_000;
+/** 102: betlarda o'tkazilgan vaqt (ms) — foydalanuvchi va maqola bo'yicha, shu qurilmada */
+const dwellKey = (userId: string, articleId: string) => `a365.dwell.${userId}.${articleId}`;
+function readDwell(key: string): Record<string, number> {
+  try {
+    const v = JSON.parse(readPref(key) ?? "{}");
+    return v && typeof v === "object" ? (v as Record<string, number>) : {};
+  } catch {
+    return {};
+  }
+}
 
 /** localStorage'dan xavfsiz o'qish (ReaderView faqat brauzerda, auth'dan so'ng render bo'ladi). */
 function readPref(key: string): string | null {
@@ -342,32 +352,52 @@ export function ReaderView({ articleId }: { articleId: string }) {
     };
   }, []);
 
-  // ---- 101: sahifa READ_AFTER_MS ochiq tursa (ko'rinib turganda) — o'qilgan; varaqlash rejimida ikkala bet
+  // ---- 101/102: bet READ_AFTER_MS ochiq tursa (ko'rinib turganda) — o'qilgan; varaqlash rejimida ikkala bet.
+  // Vaqt localStorage'da yig'iladi: chiqib ketib qaytilsa yoki boshqa betga o'tib kelinsa ham davom etadi.
+  const userId = user?.id;
   useEffect(() => {
-    if (guest || !ready || !pageCount) return;
-    const top = shownMode === "spread" ? Math.min(pageCount, page + 1) : page;
-    if (top <= readUpTo.current) return;
+    if (guest || !ready || !pageCount || !userId) return;
+    const shown = shownMode === "spread" && page < pageCount ? [page, page + 1] : [page];
+    const key = dwellKey(userId, articleId);
     let need = READ_AFTER_MS;
     const custom = Number(readPref("a365.readAfterMs"));
     if (custom > 0) need = custom;
-    let acc = 0;
+    // Oldingi kirishlarda o'qilgan betlar (server foizi bo'lmasa ham)
+    const prev = readDwell(key);
+    const doneBefore = Math.max(0, ...Object.entries(prev).filter(([, ms]) => ms >= need).map(([pg]) => Number(pg)));
+    const markRead = (top: number) => {
+      if (top <= readUpTo.current) return;
+      readUpTo.current = top;
+      setReadTo(top);
+      latest.current.persistProgress(latest.current.page);
+    };
+    markRead(doneBefore);
+    if (shown.every((pg) => (prev[pg] ?? 0) >= need)) return;
     let last = Date.now();
-    const timer = window.setInterval(
-      () => {
-        const now = Date.now();
-        if (document.visibilityState === "visible") acc += now - last;
-        last = now;
-        if (acc < need) return;
-        window.clearInterval(timer);
-        if (top <= readUpTo.current) return;
-        readUpTo.current = top;
-        setReadTo(top);
-        latest.current.persistProgress(latest.current.page);
-      },
-      Math.min(1000, Math.max(50, need / 4)),
-    );
-    return () => window.clearInterval(timer);
-  }, [page, pageCount, shownMode, ready, guest]);
+    const tick = () => {
+      const now = Date.now();
+      const delta = document.visibilityState === "visible" ? now - last : 0;
+      last = now;
+      if (!delta) return;
+      const map = readDwell(key);
+      for (const pg of shown) map[pg] = Math.min(need, (map[pg] ?? 0) + delta);
+      writePref(key, JSON.stringify(map));
+      const read = shown.filter((pg) => map[pg] >= need);
+      if (read.length) markRead(Math.max(...read));
+      if (read.length === shown.length) window.clearInterval(timer);
+    };
+    const timer = window.setInterval(tick, Math.min(1000, Math.max(50, need / 4)));
+    // Sahifa yopilganda / boshqa tab'ga o'tilganda — qoldiq darhol yoziladi
+    const flush = () => tick();
+    window.addEventListener("pagehide", flush);
+    document.addEventListener("visibilitychange", flush);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("pagehide", flush);
+      document.removeEventListener("visibilitychange", flush);
+      tick(); // chiqishda qoldiq ham yoziladi
+    };
+  }, [page, pageCount, shownMode, ready, guest, userId, articleId]);
 
   // ---- Faol o'qish vaqti: heartbeat (faqat ko'rinayotganda; yopilganda qoldiq keepalive bilan)
   useEffect(() => {
