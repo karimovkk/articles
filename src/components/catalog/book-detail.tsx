@@ -19,10 +19,12 @@ import { FreeReadPanel } from "./free-read-panel";
 import { ShareMenu } from "@/components/share/share-menu";
 import { catalogApi, readerApi, type CatalogItem } from "@/lib/api";
 import { useT } from "@/i18n";
+import { useInTelegram } from "@/lib/use-in-telegram";
 
 export function CatalogBookDetail({ bookId }: { bookId: string }) {
   const pricing = usePricing();
   const { t } = useT();
+  const inTelegram = useInTelegram();
   const { user, loading: authLoading } = useAuth();
   const [item, setItem] = useState<CatalogItem | null | undefined>(undefined); // undefined = yuklanmoqda
   const [hasAccess, setHasAccess] = useState<boolean | null>(null);
@@ -113,10 +115,13 @@ export function CatalogBookDetail({ bookId }: { bookId: string }) {
                   <I.CheckCircle size={16} className="text-success" />
                   {t("catalog.inLibrary")}
                 </span>
-                <Link href={`/books/${item.book_id}`} className={buttonClass()}>
-                  <I.BookOpen size={16} />
-                  {t("catalog.read")}
-                </Link>
+                {/* 111: Mini App'da o'qish yo'q — saytda ("Saytda ochish") */}
+                {!inTelegram && (
+                  <Link href={`/books/${item.book_id}`} className={buttonClass()}>
+                    <I.BookOpen size={16} />
+                    {t("catalog.read")}
+                  </Link>
+                )}
               </div>
             ) : (
               <>

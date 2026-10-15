@@ -5,6 +5,8 @@
  * mehmon ham o'qiydi), `kind="paid"` — "Pullik kitoblar" (`/catalog`, savatcha aksiyasi bilan). Backend filtri:
  * `GET /catalog?is_free=true|false`. Hero (serif sarlavha, jonli qidiruv), ikki sahifa orasida almashtirgich,
  * kategoriya chip'lari, gorizontal kartalar, dumaloq pagination. URL — yagona manba: `?q=&category=&page=`.
+ * 110: pullik maqola kartasida bitta tugma — "Savatga"; tepada (aksiya bannerida) bitta "Sotib olish" → savatcha.
+ * 111: Telegram Mini App'da — almashtirgich va "O'qish" tugmasi yo'q (faqat sotib olish; o'qish — saytda).
  */
 import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
@@ -23,6 +25,8 @@ import { isFreeBook } from "@/lib/free-books";
 import { loadOwnedBookIds } from "@/lib/owned-books";
 import { useAsync } from "@/lib/use-async";
 import { useDebouncedCallback } from "@/lib/use-debounce";
+import { useInTelegram } from "@/lib/use-in-telegram";
+import { usePricing } from "@/lib/use-pricing";
 import { useAuth } from "@/providers/auth-provider";
 import { useT } from "@/i18n";
 
@@ -60,6 +64,9 @@ function CatalogList({ kind }: { kind: CatalogKind }) {
     [query, category, page, kind],
   );
   const categories = useCatalogCategories();
+  const inTelegram = useInTelegram();
+  // 110: savatcha yoqilgan (`GET /pricing`) — kartada faqat "Savatga"; aks holda eskicha "Sotib olish"
+  const cartOn = !!usePricing();
   // Kirgan foydalanuvchi: kutubxonadagi kitoblar — kartada "Kutubxonada" + "O'qish"
   const userId = user?.id;
   const { data: owned } = useAsync(() => (userId ? loadOwnedBookIds() : Promise.resolve(null)), [userId]);
@@ -140,15 +147,17 @@ function CatalogList({ kind }: { kind: CatalogKind }) {
         <HeroBrand name={env.appName} />
       </section>
 
-      {/* 45: ikki sahifa — Kunlik (tekin) / Pullik */}
-      <nav className="catalog-switch seg" aria-label={t("catalog.switch")} data-testid="catalog-switch">
-        {(["free", "paid"] as const).map((k) => (
-          <Link key={k} href={CATALOG_PATH[k]} className={cn(pathname === CATALOG_PATH[k] && "active")} aria-current={pathname === CATALOG_PATH[k] ? "page" : undefined}>
-            {k === "free" ? <I.Sun size={15} /> : <I.Grid size={15} />}
-            {t(k === "free" ? "nav.daily" : "nav.paid")}
-          </Link>
-        ))}
-      </nav>
+      {/* 45: ikki sahifa — Kunlik (tekin) / Pullik; 111: Mini App'da yo'q (faqat sotib olish) */}
+      {!inTelegram && (
+        <nav className="catalog-switch seg" aria-label={t("catalog.switch")} data-testid="catalog-switch">
+          {(["free", "paid"] as const).map((k) => (
+            <Link key={k} href={CATALOG_PATH[k]} className={cn(pathname === CATALOG_PATH[k] && "active")} aria-current={pathname === CATALOG_PATH[k] ? "page" : undefined}>
+              {k === "free" ? <I.Sun size={15} /> : <I.Grid size={15} />}
+              {t(k === "free" ? "nav.daily" : "nav.paid")}
+            </Link>
+          ))}
+        </nav>
+      )}
 
       {/* 35: ko'p kitobga chegirma (backend qo'llasa) — faqat pullik kitoblarda */}
       {kind === "paid" && <PricingPromo />}
@@ -245,17 +254,21 @@ function CatalogList({ kind }: { kind: CatalogKind }) {
                   footer={free ? <span className="bcard-price free">{t("catalog.free")}</span> : <PriceTag item={item} className="bcard-price" />}
                   cta={
                     has
-                      ? { href: `/books/${item.book_id}`, label: t("catalog.read"), icon: <I.BookOpen size={15} /> }
+                      ? inTelegram
+                        ? undefined
+                        : { href: `/books/${item.book_id}`, label: t("catalog.read"), icon: <I.BookOpen size={15} /> }
                       : free
                         ? { href: `/catalog/${item.book_id}`, label: t("catalog.read"), icon: <I.BookOpen size={15} /> }
-                        : { href: `/catalog/${item.book_id}`, label: t("catalog.buy"), icon: <I.ShoppingBag size={15} /> }
+                        : cartOn
+                          ? undefined
+                          : { href: `/catalog/${item.book_id}`, label: t("catalog.buy"), icon: <I.ShoppingBag size={15} /> }
                   }
                   ctaExtra={
                     free ? (
                       // 76: Daily Articles — ulashish (havola, Telegram, WhatsApp, …)
                       <ShareMenu compact url={`/catalog/${item.book_id}`} title={item.title} text={t("share.bookText", { title: item.title })} testid="card-share" />
                     ) : (
-                      <AddToCartButton compact owned={has} book={{ book_id: item.book_id, title: item.title, author: item.author, price: item.price, has_cover: item.has_cover }} />
+                      <AddToCartButton compact solo owned={has} book={{ book_id: item.book_id, title: item.title, author: item.author, price: item.price, has_cover: item.has_cover }} />
                     )
                   }
                 />

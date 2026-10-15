@@ -1187,7 +1187,6 @@ export const en: Dict = {
   "cart.ladder.nPlus": "{n}+ articles",
   "cart.ladder.own": "regular price",
   "cart.promo.title": "Buy more, pay less",
-  "cart.promo.cta": "Cart",
   "cart.suggest": "Add more — it gets cheaper",
   "cart.ownedRemoved": "Articles you already own were removed from the cart",
   "cart.separatePending": "This article already has a separate order (awaiting payment), so it is not included in the cart order. Cancel it to buy the article together with the rest of the cart at the discount.",

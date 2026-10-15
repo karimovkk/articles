@@ -6,6 +6,8 @@
  *  - header: 365 emblema, markazda nav, qidiruv, til, mavzu, qo'ng'iroq, profil menyusi (mehmon — Kirish/Ro'yxat);
  *  - sidebar: nav (+ o'qilmagan soni), kategoriyalar (kitoblar soni bilan), "Buy Real Books" (78); <1100px — drawer.
  * Reader va auth sahifalari bu qobiqdan foydalanmaydi.
+ * 111: Telegram Mini App'da — faqat sotib olish: menyuda "Maqolalar" va "Savatcha", header'da olovcha/qo'ng'iroq/profil
+ * havolalari va "Buy Real Books" yo'q (o'qish va qolgani — saytda).
  */
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
@@ -24,6 +26,7 @@ import { StreakChip } from "@/components/streak/streak-chip";
 import { BuyRealBooks } from "./buy-real-books";
 import { useT, type DictKey } from "@/i18n";
 import { LocaleSwitcher } from "@/i18n/locale-switcher";
+import { useInTelegram } from "@/lib/use-in-telegram";
 
 type NavItem = { href: string; label: DictKey; icon: ReactNode; auth?: boolean; badge?: number | null };
 
@@ -63,6 +66,7 @@ function ClientHeader({ menuOpen, onMenu }: { menuOpen: boolean; onMenu: () => v
   const { user, loading, isAdmin, logout } = useAuth();
   const { t } = useT();
   const pathname = usePathname();
+  const inTelegram = useInTelegram();
   const displayName = user ? user.full_name || user.email || user.phone || t("common.user") : "";
   return (
     <header className="client-header" data-guest={!user && !loading ? "" : undefined}>
@@ -71,7 +75,7 @@ function ClientHeader({ menuOpen, onMenu }: { menuOpen: boolean; onMenu: () => v
       </button>
       {/* 25/30: brend "365" markazda — yilning nechanchi kuni doim ko'rinib turadi, halqa vaqti-vaqti bilan yonadi */}
       <div className="client-brand-wrap">
-        <Link href={user ? "/library" : "/daily"} className="client-brand" aria-label={env.appName} data-testid="header-brand">
+        <Link href={inTelegram ? "/catalog" : user ? "/library" : "/daily"} className="client-brand" aria-label={env.appName} data-testid="header-brand">
           <YearEmblem />
           <BrandWord name={env.appName} />
         </Link>
@@ -98,8 +102,8 @@ function ClientHeader({ menuOpen, onMenu }: { menuOpen: boolean; onMenu: () => v
         <LocaleSwitcher variant="menu" compact className="max-sm:!px-1.5" />
         <ThemeSwitch className="ts-phone-compact" />
         <CartHeaderButton />
-        {user && <StreakChip />}
-        {user && <NotificationBell />}
+        {user && !inTelegram && <StreakChip />}
+        {user && !inTelegram && <NotificationBell />}
         {user ? (
           <Menu
             align="end"
@@ -117,13 +121,17 @@ function ClientHeader({ menuOpen, onMenu }: { menuOpen: boolean; onMenu: () => v
             )}
           >
             <MenuLabel>{user.email ?? user.phone ?? displayName}</MenuLabel>
-            <MenuItem href="/profile" icon={<I.User size={16} />}>
-              {t("nav.profile")}
-            </MenuItem>
-            <MenuItem href="/notifications" icon={<I.Bell size={16} />}>
-              {t("notifications.title")}
-            </MenuItem>
-            {isAdmin && (
+            {!inTelegram && (
+              <>
+                <MenuItem href="/profile" icon={<I.User size={16} />}>
+                  {t("nav.profile")}
+                </MenuItem>
+                <MenuItem href="/notifications" icon={<I.Bell size={16} />}>
+                  {t("notifications.title")}
+                </MenuItem>
+              </>
+            )}
+            {isAdmin && !inTelegram && (
               <MenuItem href="/admin" icon={<I.Settings size={16} />}>
                 {t("nav.admin")}
               </MenuItem>
@@ -171,7 +179,8 @@ function ClientSidebar({ open, onNavigate }: { open: boolean; onNavigate: () => 
   const pathname = usePathname();
   const unread = useUnreadCount(!!user);
   const cartNav = useCartNav();
-  const items: NavItem[] = [
+  const inTelegram = useInTelegram();
+  const all: NavItem[] = [
     // 45: katalog ikki sahifa — kunlik (tekin) va pullik
     { href: "/daily", label: "nav.daily", icon: <I.Sun size={19} /> },
     { href: "/catalog", label: "nav.paid", icon: <I.Grid size={19} /> },
@@ -183,6 +192,8 @@ function ClientSidebar({ open, onNavigate }: { open: boolean; onNavigate: () => 
     { href: "/notifications", label: "notifications.title", icon: <I.Bell size={19} />, auth: true, badge: unread },
     { href: "/profile", label: "nav.profile", icon: <I.User size={19} />, auth: true },
   ];
+  // 111: Mini App — faqat sotib olish
+  const items = inTelegram ? all.filter((n) => n.href === "/catalog" || n.href === "/cart") : all;
 
   return (
     <aside className={cn("client-sidebar", open && "open")} aria-label={t("client.nav")}>
@@ -200,7 +211,7 @@ function ClientSidebar({ open, onNavigate }: { open: boolean; onNavigate: () => 
               )}
             </Link>
           ))}
-        {isAdmin && (
+        {isAdmin && !inTelegram && (
           <Link href="/admin" prefetch={false} onClick={onNavigate} className="side-link">
             <I.Settings size={19} />
             <span>{t("nav.admin")}</span>
@@ -222,7 +233,7 @@ function ClientSidebar({ open, onNavigate }: { open: boolean; onNavigate: () => 
       </nav>
 
       {/* 78: "Buy Real Books" — Uzum Market'dagi do'konimiz, muqovalar aylanib turadi */}
-      <BuyRealBooks onNavigate={onNavigate} />
+      {!inTelegram && <BuyRealBooks onNavigate={onNavigate} />}
     </aside>
   );
 }

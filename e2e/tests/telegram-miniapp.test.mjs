@@ -69,6 +69,21 @@ await page.goto(`${BASE}/daily`);
 await page.waitForFunction(() => window.__tg.main.visible, null, { timeout: 10000 });
 check("Boshqa sahifada ham Mini App rejimi (MainButton), qayta kirish yo'q", (await tgLog()).filter((l) => l === "POST /auth/telegram/webapp").length === n0);
 
+// ---- 4b) 111: faqat sotib olish va kirish sahifalari — boshqa manzil → /catalog; menyu qisqa
+await page.waitForURL(`${BASE}/catalog`, { timeout: 10000 });
+check("111: /daily Mini App'da → /catalog", page.url() === `${BASE}/catalog`, page.url());
+await page.goto(`${BASE}/library`);
+await page.waitForURL(`${BASE}/catalog`, { timeout: 10000 });
+check("111: /library Mini App'da → /catalog", page.url() === `${BASE}/catalog`, page.url());
+await page.waitForSelector('[data-testid="book-card"]', { timeout: 20000 });
+const nav = await page.evaluate(() => ({
+  links: [...document.querySelectorAll(".client-side-nav a")].map((a) => a.getAttribute("href")),
+  sw: !!document.querySelector('[data-testid="catalog-switch"]'),
+  bell: !!document.querySelector('[data-testid="notification-bell"], .client-header a[href="/notifications"]'),
+}));
+check("111: menyuda faqat sotib olish ('/catalog'), almashtirgich va qo'ng'iroq yo'q", nav.links.every((h) => h === "/catalog" || h === "/cart") && nav.links.includes("/catalog") && !nav.sw && !nav.bell, JSON.stringify(nav));
+await page.screenshot({ path: OUT + "111-tg-catalog.png" });
+
 // ---- 5) Buyurtma → bot havolasi Telegram'ning o'zida (openTelegramLink), yangi oyna yo'q
 await page.goto(`${BASE}/catalog/${BOOK2}`);
 await page.waitForSelector("text=Buyurtma berish", { timeout: 20000 });

@@ -7,13 +7,16 @@
  *  - `phone_required` → "Telefon raqamini ulashish" (`requestContact`, ixtiyoriy — "Keyinroq" eslab qolinadi);
  *  - Telegram'ning pastki tugmasi (MainButton) "Saytda ochish": `POST /auth/telegram/handoff` → `openLink(url)` —
  *    sayt tashqi brauzerda shu akkaunt bilan kirgan holda ochiladi.
+ *  - 111: Mini App'da faqat sotib olish va kirish/ro'yxat sahifalari — boshqa manzil → `/catalog`.
  * Oddiy brauzerda hech narsa qilmaydi (SDK ham yuklanmaydi).
  */
 import { useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui";
 import * as I from "@/components/ui/icons";
 import { authApi, errorMessage, isApiError, tokenStore } from "@/lib/api";
-import { loadTelegram, type TelegramWebApp } from "@/lib/telegram";
+import { loadTelegram, miniAppAllowed, type TelegramWebApp } from "@/lib/telegram";
+import { useInTelegram } from "@/lib/use-in-telegram";
 import { useAuth } from "@/providers/auth-provider";
 import { useT } from "@/i18n";
 
@@ -49,6 +52,14 @@ export function TelegramMiniApp() {
   const [phoneBusy, setPhoneBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [opening, setOpening] = useState(false);
+  const inTelegram = useInTelegram();
+  const pathname = usePathname();
+  const router = useRouter();
+
+  // 111: ruxsat etilmagan sahifa (o'qish, kutubxona, profil…) — katalogga; ular saytda ("Saytda ochish")
+  useEffect(() => {
+    if (inTelegram && !miniAppAllowed(pathname)) router.replace("/catalog");
+  }, [inTelegram, pathname, router]);
 
   // SDK + parolsiz kirish
   useEffect(() => {

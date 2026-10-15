@@ -26,9 +26,9 @@ export function cartEligible(book: Pick<Book, "price"> & { is_free?: boolean }, 
 
 /**
  * "Savatga" / "Savatda" tugmasi. `compact` — katalog kartasi (ikonka + qisqa matn), aks holda kitob sahifasi.
- * Savatdagi kitob uchun — savatchaga havola.
+ * Savatdagi kitob uchun — savatchaga havola. 110: `solo` — kartadagi yagona tugma (asosiy rang, matn doim ko'rinadi).
  */
-export function AddToCartButton({ book, owned, compact, className }: { book: Book; owned?: boolean; compact?: boolean; className?: string }) {
+export function AddToCartButton({ book, owned, compact, solo, className }: { book: Book; owned?: boolean; compact?: boolean; solo?: boolean; className?: string }) {
   const { t } = useT();
   const cfg = usePricing();
   const items = useCart();
@@ -39,13 +39,13 @@ export function AddToCartButton({ book, owned, compact, className }: { book: Boo
     return (
       <Link href="/cart" className={buttonClass("secondary", "sm", cn("cart-btn in-cart", className))} data-testid="in-cart" title={t("cart.view")}>
         <I.Check size={15} />
-        <span className={cn(compact && "max-[400px]:hidden")}>{t("cart.inCart")}</span>
+        <span className={cn(compact && !solo && "max-[400px]:hidden")}>{t("cart.inCart")}</span>
       </Link>
     );
   return (
     <button
       type="button"
-      className={buttonClass("secondary", "sm", cn("cart-btn", className))}
+      className={buttonClass(solo ? "primary" : "secondary", "sm", cn("cart-btn", className))}
       onClick={() => {
         setFull(!cart.add(book));
       }}
@@ -54,7 +54,7 @@ export function AddToCartButton({ book, owned, compact, className }: { book: Boo
       aria-label={t("cart.addLong")}
     >
       <I.ShoppingBag size={15} />
-      <span className={cn(compact && "max-[400px]:hidden")}>{compact ? t("cart.add") : t("cart.addLong")}</span>
+      <span className={cn(compact && !solo && "max-[400px]:hidden")}>{compact ? t("cart.add") : t("cart.addLong")}</span>
     </button>
   );
 }
@@ -105,7 +105,7 @@ export function TierLadder({ cfg, current, className }: { cfg: PricingConfig; cu
   );
 }
 
-/** Katalog: aksiya banneri (chegirma yoqilgan bo'lsa) */
+/** Katalog: aksiya banneri (chegirma yoqilgan bo'lsa); 110: undagi tugma — sahifadagi yagona "Sotib olish" (→ savatcha) */
 export function PricingPromo({ className }: { className?: string }) {
   const { t } = useT();
   const cfg = usePricing();
@@ -120,9 +120,9 @@ export function PricingPromo({ className }: { className?: string }) {
         <p className="pricing-promo-title">{t("cart.promo.title")}</p>
       </div>
       <TierLadder cfg={cfg} className="pricing-promo-ladder" />
-      <Link href="/cart" className={buttonClass("primary", "sm", "pricing-promo-cta")}>
+      <Link href="/cart" className={buttonClass("primary", "sm", "pricing-promo-cta")} data-testid="catalog-buy">
         <I.ShoppingBag size={15} />
-        {t("cart.promo.cta")}
+        {t("catalog.buy")}
         {items.length > 0 && <span className="pricing-promo-count">{items.length}</span>}
       </Link>
     </section>

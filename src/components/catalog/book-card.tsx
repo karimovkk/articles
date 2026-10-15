@@ -3,6 +3,7 @@
 /**
  * Gorizontal kitob kartasi (16.3, katalog va kutubxona): chapda muqova, o'ngda teglar, nom, tavsif, meta, narx yoki
  * progress va pastda asosiy tugma. Butun karta `href` ga olib boradi (stretched link), tugma — o'z manziliga.
+ * 110: `cta` ixtiyoriy — pullik maqola kartasida faqat "Savatga" (`ctaExtra`).
  */
 import type { ReactNode } from "react";
 import Link from "next/link";
@@ -35,7 +36,7 @@ export function BookCardH({
   meta?: ReactNode;
   /** Narx yoki progress qatori */
   footer?: ReactNode;
-  cta: { href: string; label: ReactNode; icon?: ReactNode; variant?: "primary" | "secondary" };
+  cta?: { href: string; label: ReactNode; icon?: ReactNode; variant?: "primary" | "secondary" };
   /** 35: asosiy tugma yonidagi qo'shimcha tugma (masalan, "Savatga") */
   ctaExtra?: ReactNode;
   className?: string;
@@ -53,13 +54,17 @@ export function BookCardH({
         {description && <p className="bcard-desc">{description}</p>}
         {meta && <div className="bcard-meta">{meta}</div>}
         {footer}
-        <div className="bcard-cta">
-          <Link href={cta.href} prefetch={false} onClick={onOpen} className={buttonClass(cta.variant ?? "primary", "sm")} {...(cta.href === href ? { tabIndex: -1, "aria-hidden": true } : {})}>
-            {cta.icon}
-            {cta.label}
-          </Link>
-          {ctaExtra}
-        </div>
+        {(cta || ctaExtra) && (
+          <div className="bcard-cta">
+            {cta && (
+              <Link href={cta.href} prefetch={false} onClick={onOpen} className={buttonClass(cta.variant ?? "primary", "sm")} {...(cta.href === href ? { tabIndex: -1, "aria-hidden": true } : {})}>
+                {cta.icon}
+                {cta.label}
+              </Link>
+            )}
+            {ctaExtra}
+          </div>
+        )}
       </div>
     </article>
   );

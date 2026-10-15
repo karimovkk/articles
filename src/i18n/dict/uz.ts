@@ -1206,7 +1206,6 @@ export const uz = {
   "cart.ladder.nPlus": "{n}+ ta",
   "cart.ladder.own": "o'z narxi",
   "cart.promo.title": "Ko'proq oling — arzonroq",
-  "cart.promo.cta": "Savatcha",
   "cart.suggest": "Yana qo'shing — arzonroq tushadi",
   "cart.ownedRemoved": "Kutubxonangizdagi maqolalar savatdan olib tashlandi",
   "cart.separatePending": "Bu maqolaga alohida buyurtma ochilgan (to'lov kutilmoqda), shuning uchun u savatdagi buyurtmaga qo'shilmaydi. Uni bekor qilsangiz, maqola savatdagi boshqa maqolalar bilan chegirmada olinadi.",

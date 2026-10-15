@@ -79,3 +79,12 @@ export function loadTelegram(): Promise<TelegramWebApp | null> {
   });
   return sdkPromise;
 }
+
+/**
+ * 111: Mini App'da faqat sotib olish va kirish/ro'yxat sahifalari; qolgani (o'qish, kutubxona, profil…) — saytda
+ * ("Saytda ochish"). Boshqa manzil ochilsa — katalogga.
+ */
+const MINI_APP_PATHS = ["/tg", "/catalog", "/cart", "/login", "/register", "/auth/handoff"];
+export function miniAppAllowed(pathname: string): boolean {
+  return MINI_APP_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+}

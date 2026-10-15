@@ -28,9 +28,12 @@ import { useT } from "@/i18n";
 import { cart, useCart, type CartItem } from "@/lib/cart";
 import { usePricing } from "@/lib/use-pricing";
 import { cartEligible } from "@/components/cart/cart-ui";
+import { useInTelegram } from "@/lib/use-in-telegram";
 
 export function OrderPanel({ bookId, cartBook }: { bookId: string; cartBook?: Omit<CartItem, "added_at"> }) {
   const { t } = useT();
+  // 111: Mini App'da o'qish / kutubxona / profil havolalari yo'q — ular saytda
+  const inTelegram = useInTelegram();
   const router = useRouter();
   const pricing = usePricing();
   const cartItems = useCart();
@@ -166,10 +169,12 @@ export function OrderPanel({ bookId, cartBook }: { bookId: string; cartBook?: Om
     return (
       <div className="space-y-3" data-testid="order-owned">
         <Alert tone="success">{t("orders.alreadyOwned")}</Alert>
-        <Link href={`/books/${bookId}`} className={buttonClass("primary", "sm")}>
-          <I.BookOpen size={15} />
-          {t("orders.openBook")}
-        </Link>
+        {!inTelegram && (
+          <Link href={`/books/${bookId}`} className={buttonClass("primary", "sm")}>
+            <I.BookOpen size={15} />
+            {t("orders.openBook")}
+          </Link>
+        )}
       </div>
     );
   }
@@ -239,20 +244,24 @@ export function OrderPanel({ bookId, cartBook }: { bookId: string; cartBook?: Om
           {active.status === "APPROVED" && (
             <div className="space-y-2">
               {!notice && <Alert tone="success">{t("orders.approvedTitle")}</Alert>}
-              <div className="flex flex-wrap gap-2">
-                <Link href={`/books/${bookId}`} className={buttonClass("primary", "sm")}>
-                  <I.BookOpen size={15} />
-                  {t("orders.openBook")}
-                </Link>
-                <Link href="/library" className={buttonClass("secondary", "sm")}>
-                  {t("orders.goLibrary")}
-                </Link>
-              </div>
+              {!inTelegram && (
+                <div className="flex flex-wrap gap-2">
+                  <Link href={`/books/${bookId}`} className={buttonClass("primary", "sm")}>
+                    <I.BookOpen size={15} />
+                    {t("orders.openBook")}
+                  </Link>
+                  <Link href="/library" className={buttonClass("secondary", "sm")}>
+                    {t("orders.goLibrary")}
+                  </Link>
+                </div>
+              )}
             </div>
           )}
-          <Link href="/profile" className="block text-xs font-bold text-accent-ink hover:underline">
-            {t("orders.viewOrders")} →
-          </Link>
+          {!inTelegram && (
+            <Link href="/profile" className="block text-xs font-bold text-accent-ink hover:underline">
+              {t("orders.viewOrders")} →
+            </Link>
+          )}
         </div>
       )}
     </div>

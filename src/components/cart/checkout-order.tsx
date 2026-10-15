@@ -16,9 +16,12 @@ import * as I from "@/components/ui/icons";
 import { errorMessage, ordersApi, type Order } from "@/lib/api";
 import { clearOwnedBooks } from "@/lib/owned-books";
 import { useT } from "@/i18n";
+import { useInTelegram } from "@/lib/use-in-telegram";
 
 export function CheckoutOrder({ order, onChange, tgOpened = false }: { order: Order; onChange: (o: Order) => void; tgOpened?: boolean }) {
   const { t } = useT();
+  // 111: Mini App'da kutubxona / profil havolalari yo'q — ular saytda
+  const inTelegram = useInTelegram();
   const confirm = useConfirm();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -110,10 +113,12 @@ export function CheckoutOrder({ order, onChange, tgOpened = false }: { order: Or
       {order.status === "APPROVED" && (
         <div className="space-y-2">
           <Alert tone="success">{t("orders.approvedTitle")}</Alert>
-          <Link href="/library" className={buttonClass("primary", "sm")}>
-            <I.Library size={15} />
-            {t("orders.goLibrary")}
-          </Link>
+          {!inTelegram && (
+            <Link href="/library" className={buttonClass("primary", "sm")}>
+              <I.Library size={15} />
+              {t("orders.goLibrary")}
+            </Link>
+          )}
         </div>
       )}
       {(order.status === "REJECTED" || order.status === "CANCELLED") && (
@@ -122,9 +127,11 @@ export function CheckoutOrder({ order, onChange, tgOpened = false }: { order: Or
           {order.reject_reason && <span className="block">{order.reject_reason}</span>}
         </Alert>
       )}
-      <Link href="/profile" className="block text-xs font-bold text-accent-ink hover:underline">
-        {t("orders.viewOrders")} →
-      </Link>
+      {!inTelegram && (
+        <Link href="/profile" className="block text-xs font-bold text-accent-ink hover:underline">
+          {t("orders.viewOrders")} →
+        </Link>
+      )}
     </section>
   );
 }

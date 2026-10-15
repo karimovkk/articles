@@ -1599,6 +1599,25 @@ lekin Bot API 7.0+ da Mini App yopilmaydi — u chat ustida qoladi, o'quvchi to'
       borsin); o'quvchi bot chatida karta/chek/tasdiq bosqichini ko'radi. Qayta kirish — bot menyu tugmasi (parolsiz)
 - [x] 109.2 e2e `telegram-miniapp`: buyurtma → `openTelegramLink` + `close()` chaqirildi; dev + prod
 
+## 110. Pullik maqolalar katalogi: kartada bitta "Savatga", tepada bitta "Sotib olish" (2026-10-15)
+
+- [x] 110.1 Pullik (sotib olinmagan) maqola kartasida faqat bitta tugma — "Savatga" (asosiy rang; savatda bo'lsa "Savatda" →
+      savatcha). Kartadagi "Sotib olish" olib tashlanadi. Savatcha o'chirilgan bo'lsa (`GET /pricing` yo'q) — eskicha "Sotib olish"
+- [x] 110.2 Ro'yxat tepasida (aksiya bannerida) bitta "Sotib olish" tugmasi (savatdagi soni bilan) → `/cart` (buyurtma berish)
+- [x] 110.3 Kutubxonadagi ("O'qish") va tekin (kunlik) maqola kartalari o'zgarmaydi
+- [x] 110.4 e2e (catalog, cart) dev + prod
+
+## 111. Telegram Mini App — faqat sotib olish va kirish/ro'yxat sahifalari (2026-10-15)
+
+Mini App'da ruxsat: `/tg`, `/catalog`, `/catalog/[id]`, `/cart`, `/login`, `/register`, `/auth/handoff`. O'qish va boshqa
+hamma narsa — saytda ("Saytda ochish").
+
+- [x] 111.1 Boshqa manzil Mini App'da ochilsa → `/catalog` (masalan, kirgandan keyingi `/library`)
+- [x] 111.2 Menyu: faqat "Maqolalar" (pullik katalog) va "Savatcha"; header'da olovcha, qo'ng'iroq, profil/bildirishnoma
+      havolalari, "Buy Real Books", kunlik/pullik almashtirgich yo'q; brend → `/catalog`
+- [x] 111.3 "O'qish" / "Kutubxona" havolalari Mini App'da ko'rsatilmaydi (kartada "Kutubxonada" tegi qoladi; o'qish — saytda)
+- [x] 111.4 e2e `telegram-miniapp`: nav, yo'naltirish; dev + prod
+
 ## 31. Keyingi vazifalar
 
 - [ ] 31.1 Safari (WebKit): varaqlash rejimida oldingi sahifaga qaytilganda (3-sahifa) belgilash qatlami

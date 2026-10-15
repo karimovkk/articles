@@ -34,6 +34,15 @@ check("Katalogda aksiya: 1 ta / 2 ta 39 000 / 3+ ta 30 000", (await text('[data-
 await page.waitForSelector('[data-testid="add-to-cart"]');
 const freeCardHasCart = await page.evaluate(() => [...document.querySelectorAll('[data-testid="book-card"]')].filter((c) => /(^|\s)0 so.m/.test(c.textContent)).some((c) => c.querySelector('[data-testid="add-to-cart"]')));
 check("Bepul kitob kartasida 'Savatga' yo'q", !freeCardHasCart);
+// 110: pullik kartada bitta tugma — "Savatga" ("Sotib olish" yo'q); tepada bitta "Sotib olish" → savatcha
+const paidCards = await page.evaluate(() =>
+  [...document.querySelectorAll('[data-testid="book-card"]')]
+    .filter((c) => c.querySelector('[data-testid="add-to-cart"]'))
+    .map((c) => ({ n: c.querySelectorAll(".bcard-cta a, .bcard-cta button").length, label: c.querySelector('[data-testid="add-to-cart"]').textContent.trim() })),
+);
+check("110: pullik kartada faqat bitta tugma — 'Savatga'", paidCards.length > 0 && paidCards.every((c) => c.n === 1 && c.label === "Savatga"), JSON.stringify(paidCards));
+check("110: tepada bitta 'Sotib olish' → /cart", (await page.locator('[data-testid="catalog-buy"]').count()) === 1 && (await text('[data-testid="catalog-buy"]')).includes("Sotib olish") && (await page.getAttribute('[data-testid="catalog-buy"]', "href")) === "/cart");
+await page.screenshot({ path: OUT + "110-catalog-cart-only.png" });
 // "Kitob 2" va "Kitob 3" (49 000) — savatga
 const addByTitle = async (title) => {
   const card = page.locator('[data-testid="book-card"]', { has: page.locator(".bcard-title", { hasText: new RegExp(`^${title}$`) }) });
