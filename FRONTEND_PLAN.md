@@ -1615,7 +1615,7 @@ Hozircha Telegram foydalanuvchilari yo'q — migratsiya kerak emas. Backend spet
 - [x] 110.4 Telegram ichida `device_name` = `Telegram · <OS>` ("Qurilmalarim"da ajralib turadi)
 - [x] 110.5 Mock: `/auth/telegram/webapp`, `/__tg-last`, `/__tg-phone` olib tashlandi; e2e `telegram-miniapp`: mehmon →
       "Sotib olish uchun tizimga kiring" → login → kitobga qaytish → MainButton/handoff → buyurtma (`openTelegramLink` +
-      `close()`); `initData` hech qachon backend'ga yuborilmaydi
+      `close()`); `initData` hech qachon backend'ga yuborilmaydi; dev + prod
 - [ ] 110.6 Backend: `POST /auth/telegram/webapp` endpointini o'chirish (`TELEGRAM_MINI_APP_AUTH.md` §8)
 
 ## 31. Keyingi vazifalar
