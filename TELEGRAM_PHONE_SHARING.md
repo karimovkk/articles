@@ -351,7 +351,7 @@ A **link token** carries a website-authenticated user into Telegram. Together th
 | Shape | Password | Phone | TG identity | How it arises | Website | Mini App |
 |---|---|---|---|---|---|---|
 | **W**: website-only | ✓ | ✓ `self_declared` | – | registered on the site | normal login | ⚠️ opening the Mini App without a link token would create a **new** account (J4). Avoid by linking first (J2/J3) |
-| **T**: Telegram-only | – | optional `telegram` | ✓ | opened the Mini App first | only via handoff, until a password is set (J1) | automatic login |
+| **T**: Telegram-only | – | optional `telegram` | ✓ | opened the Mini App first | **"Log in with Telegram" (bot + QR) on any browser** (§6.9), handoff, or a password if they set one | automatic login |
 | **B**: both (target state) | ✓ | ✓ (ideally verified) | ✓ | linked | login **or** handoff | automatic login |
 | **M**: merged (tombstone) | – | – | – | the empty side of a merge | refused: `401 ACCOUNT_MERGED` | resolves to `merged_into` |
 
@@ -495,7 +495,86 @@ The same rules apply to every way of linking: J2 pay token, J3 link token (bot o
 - Switching to a new Telegram account = unlink + J3 from the new Telegram.
 - Admin: `DELETE /admin/users/{id}/telegram` (e.g. the user lost their Telegram account).
 
-### 6.9 Notifications across doors
+### 6.9 Telegram-only account wants to use the website
+
+**The problem.** A user who started in the Mini App (shape **T**) never typed a password. On the website login page
+(`identifier + password`) they are stuck:
+
+| Way in today | Limitation |
+|---|---|
+| Handoff "Open on site" (J1) | opens the site **in the browser of the same device** as Telegram. On a laptop it only works if Telegram Desktop is installed there. The session lasts until the refresh token expires, then the user has to repeat it |
+| Set a password after handoff | optional, and easy to skip. It also needs a login identifier (phone or email). A T account without a shared phone has none |
+
+**Rule:** a Telegram-only account must be able to log in on **any** browser **without a password**, using Telegram
+itself as the authenticator. Password stays optional.
+
+#### Options (all resolve through `telegram_identities`, so they land in the same account)
+
+| # | Method | Works on another device? | Needs | Verdict |
+|---|---|---|---|---|
+| A | Handoff (exists) | ❌ same device only | Mini App open | keep |
+| B | **Bot-confirmed login + QR** (below) | ✅ phone scans QR, or tap the link on the same phone | only the bot | **primary, recommended** |
+| C | Telegram Login Widget (J5) | ✅ | BotFather `/setdomain`, Telegram's popup (sends a confirm message from Telegram) | optional extra |
+| D | One-time code to the bot chat: user types phone → code arrives in Telegram → enters it | ✅ | a shared phone | optional. Watch for enumeration |
+| E | Set a password (J1 step 3) or "Forgot password → code via bot" | ✅ classic login afterwards | phone or email identifier | offered, never forced |
+
+#### B. Bot-confirmed login ("Log in with Telegram" button on the login page)
+
+```
+Website (any browser)                     Backend                                   Bot (user's phone/desktop)
+ "Log in with Telegram" ─ POST /auth/telegram/login-requests ─▶ create request R:
+                                          {id, poll_secret, code: "47", device, ip_city, exp: 120s}
+ ◀── {request_id, poll_secret, deep_link: t.me/<bot>?start=login_<id>, qr_svg, code:"47", expires_in}
+ shows QR (desktop) / opens deep_link (mobile) + "Pick 47 in Telegram"
+                                                                    /start login_<id> ─▶ bot message:
+                                                     "Log in on Chrome · Windows, Tashkent?  Pick the number shown:
+                                                       [12] [47] [83]   [Not me]"
+                                          ◀── callback "47" from tg_user_id T ──
+                                          check: R pending, not expired, number matches,
+                                          T linked → user U (else create T account? see below)
+ polls GET /auth/telegram/login-requests/{id}  (header X-Poll-Secret) every 2 s
+ ◀── 200 {status:"approved"} + tokens (+ device_secret) — exactly once
+```
+
+Rules:
+- `poll_secret` (128-bit) is returned **only** to the browser that started the request, and tokens are released only to
+  it. Someone who sees the QR or deep link can't collect the session.
+- **Number matching** (pick "47" out of 3) plus device/browser/city in the bot message defends against **QR-jacking**.
+  In that attack, someone shows the victim their own QR, the victim confirms, and the attacker's browser gets logged in.
+  A wrong number → request `rejected`, and the bot warns "If you didn't start this login, ignore it".
+- TTL 120 s, single use, max 3 pending requests per IP, 5 per T per hour. `Not me` → `rejected` + audit.
+- The device limit applies as for a normal login. `403 DEVICE_NOT_ALLOWED` is returned on the poll.
+- **T not linked** to any account → the bot replies "No Articles365 account is connected to this Telegram. Open the app
+  first" with a `web_app` button. Don't auto-create from here, so a mistaken scan never makes accounts.
+- **Website account (W/B) users** can use it too, once linked. It becomes a passwordless option for everyone.
+- Works on mobile without a QR: the website opens `deep_link` (via `tgAppLink`), the user picks the number in Telegram, comes
+  back, and the page is already logged in (it was polling).
+
+#### D. Code to Telegram (optional)
+
+`POST /auth/telegram/code {phone}` → if the phone belongs to an account with a linked T, the bot sends a 6-digit code (5 min,
+5 attempts) → `POST /auth/telegram/code/verify {phone, code}` → tokens. **Always** answer `202 {sent: true}`, whether or not
+the number exists, to avoid enumeration. Rate limit per phone and per IP.
+
+#### E. Making the password path reachable
+
+- Profile banner for `has_password=false`: "Set a password to log in without Telegram" (`POST /me/password`, fresh-session rule
+  from J1). If there is no phone/email yet, ask to share the phone first (§4) or add an email.
+- "Forgot password" on the website → for accounts with linked T, the reset code goes to the **bot** (not SMS). The same
+  endpoint sets a first password for T accounts. Same anti-enumeration answer as D.
+- Login error for a T account that tries phone + any password: stays `401 INVALID_CREDENTIALS` (no enumeration). The login
+  page **always** shows the "Log in with Telegram" button next to the form, so the user never hits a dead end.
+
+#### Result: every account shape can reach the website
+
+| Shape | Website login |
+|---|---|
+| W | phone/email + password; B/C/D after linking |
+| T (no phone) | **B** (or C), or handoff on the same device |
+| T (+ phone) | **B**, C, D, or set a password (E) |
+| B | everything |
+
+### 6.10 Notifications across doors
 
 - Bot messages (order status, phone change, merge, unlink) go to the linked T. If there is no link, they go in-app only.
 - Bot `403` (user blocked the bot) → set `bot_blocked_at`, fall back to in-app. Clear it on the next update from T.
@@ -507,7 +586,7 @@ The same rules apply to every way of linking: J2 pay token, J3 link token (bot o
 
 | Feature | Rule |
 |---|---|
-| **Website login by phone** (`POST /auth/login {identifier: phone}`) for a Telegram-only account (no password) | return `401 INVALID_CREDENTIALS` (same as a wrong password, to avoid enumeration). The login page hint explains "Opened via Telegram? Use **Open on site** in the Mini App" (handoff, §106.4), or "Log in with Telegram" (J5). After handoff the user can set a first password (§6.3 J1) |
+| **Website login by phone** (`POST /auth/login {identifier: phone}`) for a Telegram-only account (no password) | return `401 INVALID_CREDENTIALS` (same as a wrong password, to avoid enumeration). The login page hint explains "Opened via Telegram? Use **Open on site** in the Mini App" (handoff, §106.4), or the always-visible **"Log in with Telegram"** button (§6.9 B). After handoff the user can set a first password (§6.3 J1) |
 | **Website register** with a phone that already exists (any source) | existing `409 ALREADY_EXISTS`. Don't reveal whether it is Telegram-linked |
 | **`PATCH /me` phone change** | if the current phone is verified, changing it via `PATCH` is **forbidden** (`403 PHONE_VERIFIED_CHANGE_VIA_TELEGRAM`); change only by re-sharing in Telegram (or OTP in future). If unverified → allowed, stays unverified |
 | **Admin edit phone** | allowed, `source=admin`, clears `verified_at`, history `actor=admin:<id>`. If the phone is taken → 409 |
@@ -539,6 +618,10 @@ The same rules apply to every way of linking: J2 pay token, J3 link token (bot o
 | POST | `/api/v1/auth/telegram/widget` | widget payload | *(optional)* J5 "Log in with Telegram" on the website |
 | — | bot `/start link_<tok>` and `/start <pay token>` | webhook | bind (§6.5); merge confirmation via inline-button callback |
 | DELETE | `/api/v1/admin/users/{id}/telegram` | admin | admin unlink |
+| POST | `/api/v1/auth/telegram/login-requests` | — | §6.9 B: start a bot-confirmed login → `{request_id, poll_secret, deep_link, qr_svg, code, expires_in}` |
+| GET | `/api/v1/auth/telegram/login-requests/{id}` | `X-Poll-Secret` | `pending` / `rejected` / `expired` / `approved` + tokens (once) |
+| — | bot `/start login_<id>` + number-pick callback | webhook | approve/reject §6.9 B |
+| POST | `/api/v1/auth/telegram/code` · `/code/verify` | — | *(optional)* §6.9 D: code to the bot chat |
 
 ### 8.1 `POST /auth/telegram/contact` responses
 
@@ -555,7 +638,7 @@ The same rules apply to every way of linking: J2 pay token, J3 link token (bot o
 New error codes for `src/lib/api/error-codes.ts`: `PHONE_LINKED_TO_OTHER_ACCOUNT`, `CONTACT_NOT_OWN`,
 `PHONE_INVALID` (already used client-side), `TELEGRAM_ALREADY_LINKED`, `LAST_IDENTIFIER`,
 `PHONE_VERIFIED_CHANGE_VIA_TELEGRAM`, `INVALID_LINK_TOKEN`, `ACCOUNT_MERGED`, `PASSWORD_REAUTH_REQUIRED`,
-`MERGE_CONFIRMATION_REQUIRED`.
+`MERGE_CONFIRMATION_REQUIRED`, `LOGIN_REQUEST_EXPIRED`, `LOGIN_REQUEST_REJECTED`, `INVALID_CODE`.
 
 ---
 
@@ -631,6 +714,10 @@ Website ⇄ Mini App (§6):
 10. **Handoff page**: handle `403 DEVICE_NOT_ALLOWED` with the same devices message as the login page.
 11. **Login/register pages**: hint "Used Telegram before? Open the app in Telegram → Open on site" (+ the J5 widget button if
     enabled).
+12. **Login page → "Log in with Telegram"** (§6.9 B), always visible next to the password form: desktop shows the QR + "pick
+    {code} in Telegram"; mobile opens the deep link; poll every 2 s; handle expired/rejected/`DEVICE_NOT_ALLOWED`.
+    Uses the existing `qrcode` package if the backend returns no `qr_svg`.
+13. **Profile banner** for `has_password=false` (§6.9 E).
 
 ## 13. Acceptance tests
 
@@ -668,6 +755,13 @@ Website ⇄ Mini App (§6):
 | 30 | Unlink on an account with no password | 409 `LAST_IDENTIFIER` |
 | 31 | User with laptop + phone browser + Telegram Desktop + Telegram mobile (device key = `telegram:<T>`) | 3 devices counted, not 4. Behavior at limit 2 follows the §14 decision |
 | 32 | Admin blocks the user | both website and Mini App logins refused; all sessions revoked |
+| 33 | **T account (no password) on a laptop**: Log in with Telegram → scan QR → pick the right number | laptop logged into the same account as the Mini App |
+| 34 | Same, but picks the wrong number / taps "Not me" | `LOGIN_REQUEST_REJECTED`; no session |
+| 35 | Another browser polls with the right `request_id` but no/wrong `X-Poll-Secret` | 404; tokens never released to it |
+| 36 | Request older than 120 s / approved twice | `LOGIN_REQUEST_EXPIRED` / tokens released only once |
+| 37 | Unlinked Telegram account scans the QR | bot says "open the app first"; no account created |
+| 38 | T account sets a first password via the profile banner, then logs in with phone + password | works; Telegram login still works too |
+| 39 | `POST /auth/telegram/code` for an unknown phone | `202 {sent:true}`, no message sent (no enumeration) |
 
 ## 14. Open questions for the product owner
 
