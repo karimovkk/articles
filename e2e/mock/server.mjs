@@ -100,8 +100,8 @@ const INTEG_SECRET = new Set(["telegram.bot_token", "telegram.webhook_secret"]);
 let integ = {}, integLog = [], webhookCalls = 0;
 // 67: reklama (broadcast) — har GET'da jarayon oldinga siljiydi (5 ta qabul qiluvchi, 1 tasi xato)
 let broadcasts = [];
-// 106: Telegram Mini App — tg_id → foydalanuvchi, handoff tokenlar (bir martalik), oxirgi webapp so'rovi
-let tgUsers = new Map(), handoffs = new Map(), __lastTgBody = null;
+// 106: Telegram Mini App — handoff tokenlar (bir martalik)
+let handoffs = new Map();
 let paymentsUnscoped = false;
 let __lastQuizBody = null; // 87: oxirgi test yuborish (o'quvchi) — testlar javob shaklini tekshiradi
 let __lastQuestionBody = null; // 87: oxirgi admin savol so'rovi
@@ -193,7 +193,7 @@ function reset(opts = {}) {
   deviceLimitOn = false;
   deviceRemovedOnRefresh = false;
   vocab = [];
-  tgUsers = new Map(); handoffs = new Map(); __lastTgBody = null;
+  handoffs = new Map();
   passwords.clear();
   questions = [];
   diagramFiles.clear();
@@ -370,9 +370,6 @@ const server = createServer(async (req, res) => {
   if (path === "/__progress") return json(res, 200, progress);
   if (path === "/__uploads") return json(res, 200, uploads);
   if (path === "/__orders") return json(res, 200, orders);
-  // 106: Telegram — oxirgi webapp so'rovi; bot webhook telefonni yozdi (`/__tg-phone?tg=<id>&phone=`)
-  if (path === "/__tg-last") return json(res, 200, { body: __lastTgBody, handoffs: [...handoffs.values()].map(({ used }) => ({ used })) });
-  if (path === "/__tg-phone") { const u = tgUsers.get(q.get("tg")); if (u) u.phone = q.get("phone"); return json(res, 200, u ?? null); }
   if (path === "/__receipts") return json(res, 200, receipts);
   // /__payment?empty=1 — prod'dagidek bo'sh rekvizitlar (B21); parametrsiz — to'ldirilgan
   if (path === "/__payment") { if (q.get("empty") === "1") paymentInfo = { card_number: "", recipient: "", instructions: "" }; return json(res, 200, paymentInfo); }
@@ -427,19 +424,7 @@ const server = createServer(async (req, res) => {
     res.writeHead(200, { "Content-Type": img.type, "Content-Length": img.data.length, "Cache-Control": "public, max-age=300" });
     return res.end(img.data);
   }
-  // ---- 106: Telegram Mini App — parolsiz kirish (imzo: mock'da `hash=bad` → xato), handoff almashtirish
-  if (m === "POST" && path === "/auth/telegram/webapp") {
-    const b = await readBody(req);
-    __lastTgBody = { ...b, device_secret_header: req.headers["x-device-secret"] ?? null };
-    const params = new URLSearchParams(b.init_data ?? "");
-    if (!params.get("hash") || params.get("hash") === "bad") return err(res, 401, "TELEGRAM_AUTH_FAILED", "Invalid Telegram init data");
-    let tu; try { tu = JSON.parse(params.get("user") ?? "{}"); } catch { tu = {}; }
-    const tgId = String(tu.id ?? "0");
-    let u = tgUsers.get(tgId); const created = !u;
-    if (!u) { u = { ...USER, id: randomUUID(), email: null, phone: null, full_name: [tu.first_name, tu.last_name].filter(Boolean).join(" ") || null, created_at: now(), updated_at: now() }; tgUsers.set(tgId, u); users.push(u); }
-    const tok = `access-token-tg-${tgId}`; TOKENS[tok] = u;
-    return json(res, 200, { access_token: tok, refresh_token: `refresh-tg-${tgId}`, token_type: "bearer", expires_in: 900, user: u, device_secret: created ? `secret-tg-${tgId}` : null, created, phone_required: !u.phone });
-  }
+  // ---- 106: Telegram Mini App — handoff almashtirish (110: parolsiz `initData` kirish yo'q)
   if (m === "POST" && path === "/auth/telegram/handoff/exchange") {
     const b = await readBody(req);
     const h = handoffs.get(b.handoff_token);

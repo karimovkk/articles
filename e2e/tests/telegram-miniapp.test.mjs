@@ -1,7 +1,8 @@
-// 106: Telegram Mini App — Telegram ichida (soxta `window.Telegram.WebApp`): parolsiz kirish (initData o'zgartirilmasdan),
-// telefon ulashish, "Saytda ochish" (MainButton → handoff → openLink), to'lov havolasi Telegram'da (openTelegramLink);
+// 106/110: Telegram Mini App — Telegram ichida (soxta `window.Telegram.WebApp`): mehmon sifatida katalog, sotib olishda
+// kirish saytdagidek (telefon + parol; parolsiz `initData` kirish va telefon ulashish YO'Q), "Saytda ochish"
+// (MainButton → handoff → openLink), to'lov havolasi Telegram'da (openTelegramLink);
 // sayt: /auth/handoff?token= → kirgan holda, token bir martalik; oddiy brauzerda SDK yuklanmaydi; frame-ancestors.
-import { launch, BASE, API_HOST, reset, mockGet, ignorablePageError, makeCheck } from "../lib.mjs";
+import { launch, BASE, reset, mockGet, ignorablePageError, makeCheck } from "../lib.mjs";
 const OUT = new URL("../out/", import.meta.url).pathname;
 const BOOK2 = "33333333-3333-4333-8333-333333333333";
 const { check, done } = makeCheck();
@@ -13,10 +14,9 @@ const tgLog = async () => (await mockGet("/__log")).filter((l) => l.startsWith("
 
 /** Telegram WebApp soxta obyekti (SDK o'rniga) */
 async function miniApp(initData) {
-  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, userAgent: "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Mobile Safari/537.36" });
   let sdkRequests = 0;
   await ctx.route("https://telegram.org/**", (r) => { sdkRequests++; return r.abort(); });
-  await ctx.exposeBinding("__tgContact", async () => { await fetch(`${API_HOST}/__tg-phone?tg=777&phone=%2B998901112233`); return true; });
   await ctx.addInitScript((initData) => {
     const calls = (window.__tg = { ready: 0, expand: 0, close: 0, links: [], tgLinks: [], main: { text: "", visible: false, handlers: [] } });
     window.Telegram = {
@@ -24,7 +24,6 @@ async function miniApp(initData) {
         initData, platform: "android", version: "8.0",
         ready: () => calls.ready++, expand: () => calls.expand++, close: () => calls.close++,
         openLink: (u) => calls.links.push(u), openTelegramLink: (u) => calls.tgLinks.push(u),
-        requestContact: (cb) => window.__tgContact().then(() => cb(true)),
         MainButton: {
           setText: (t) => (calls.main.text = t), show: () => (calls.main.visible = true), hide: () => (calls.main.visible = false),
           onClick: (h) => calls.main.handlers.push(h), offClick: (h) => (calls.main.handlers = calls.main.handlers.filter((x) => x !== h)),
@@ -38,24 +37,28 @@ async function miniApp(initData) {
   return { ctx, page, sdk: () => sdkRequests };
 }
 
-// ---- 1) Mini App: /tg → parolsiz kirish → katalog
+// ---- 1) Mini App: /tg → katalog MEHMON sifatida (avtomatik kirish yo'q)
 const { ctx, page } = await miniApp(INIT);
 await page.goto(`${BASE}/tg#tgWebAppData=${encodeURIComponent(INIT)}&tgWebAppVersion=8.0`);
 await page.waitForURL(`${BASE}/catalog`, { timeout: 30000 });
-const last = (await mockGet("/__tg-last")).body;
-check("Kirish: initData O'ZGARTIRILMASDAN, device_name 'Telegram Mini App'", last?.init_data === INIT && last?.device_name === "Telegram Mini App", JSON.stringify(last)?.slice(0, 160));
-const st = await page.evaluate(() => ({ tg: window.__tg, access: localStorage.getItem("a365.access"), secret: localStorage.getItem("a365.device.secret") }));
-check("ready() va expand() chaqirildi; tokenlar va device_secret saqlandi", st.tg.ready > 0 && st.tg.expand > 0 && st.access === "access-token-tg-777" && st.secret === "secret-tg-777", JSON.stringify(st));
+await page.waitForFunction(() => window.__tg.ready > 0 && window.__tg.expand > 0, null, { timeout: 10000 });
+const st = await page.evaluate(() => ({ access: localStorage.getItem("a365.access"), main: window.__tg.main.visible }));
+check("110: /tg → katalog mehmon sifatida: ready()/expand(), token yo'q, Telegram kirish so'rovi yo'q", !st.access && (await tgLog()).length === 0, JSON.stringify(st));
+check("110: mehmonda MainButton 'Saytda ochish' ko'rinmaydi, telefon taklifi yo'q", !st.main && (await page.locator('[data-testid="tg-phone"]').count()) === 0);
 
-// ---- 2) Telefon (ixtiyoriy)
-await page.waitForSelector('[data-testid="tg-phone"]', { timeout: 10000 });
-check("phone_required → 'Telefon raqamingizni ulashing' (ixtiyoriy)", ((await page.textContent('[data-testid="tg-phone"]')) ?? "").includes("Telefon raqamingizni ulashing"));
-await page.screenshot({ path: OUT + "106-tg-phone.png" });
-await page.click('[data-testid="tg-phone-share"]');
-await page.waitForSelector('[data-testid="tg-phone"]', { state: "detached", timeout: 15000 });
-check("Ulashildi → /auth/me qayta, telefon yozildi, taklif yopildi", true);
+// ---- 2) Sotib olish → saytdagidek kirish (telefon + parol) → kitobga qaytish
+await page.goto(`${BASE}/catalog/${BOOK2}`);
+await page.click('a:has-text("Sotib olish uchun tizimga kiring")');
+await page.waitForURL((u) => u.pathname === "/login", { timeout: 15000 });
+const loginReq = page.waitForRequest((r) => r.url().endsWith("/auth/login") && r.method() === "POST");
+await page.fill('input[autocomplete="username"]', "user@articles365.local");
+await page.fill('input[type="password"]', "User12345!");
+await page.click('button[type="submit"]');
+const loginBody = JSON.parse((await loginReq).postData() ?? "{}");
+await page.waitForURL(`${BASE}/catalog/${BOOK2}`, { timeout: 15000 });
+check("110: Mini App'da kirish — oddiy POST /auth/login, device_name 'Telegram · Android'", loginBody.device_name === "Telegram · Android", loginBody.device_name);
 
-// ---- 3) MainButton "Saytda ochish" → handoff → openLink
+// ---- 3) MainButton "Saytda ochish" → handoff → openLink (faqat kirgandan keyin)
 await page.waitForFunction(() => window.__tg.main.visible && window.__tg.main.handlers.length > 0, null, { timeout: 10000 });
 check("MainButton: 'Saytda ochish' ko'rinadi", (await page.evaluate(() => window.__tg.main.text)) === "Saytda ochish");
 await page.evaluate(() => window.__tg.main.handlers.at(-1)());
@@ -63,11 +66,10 @@ await page.waitForFunction(() => window.__tg.links.length > 0, null, { timeout: 
 const handoffUrl = await page.evaluate(() => window.__tg.links[0]);
 check("Bosildi → POST /auth/telegram/handoff, openLink(/auth/handoff?token=…)", /\/auth\/handoff\?token=ho-/.test(handoffUrl) && (await tgLog()).includes("POST /auth/telegram/handoff"), handoffUrl);
 
-// ---- 4) Boshqa sahifa (hash'siz) — Telegram ichida deb taniladi, qayta kirish so'ralmaydi
-const n0 = (await tgLog()).filter((l) => l === "POST /auth/telegram/webapp").length;
+// ---- 4) Boshqa sahifa (hash'siz) — Telegram ichida deb taniladi, kirgan holat saqlanadi
 await page.goto(`${BASE}/daily`);
 await page.waitForFunction(() => window.__tg.main.visible, null, { timeout: 10000 });
-check("Boshqa sahifada ham Mini App rejimi (MainButton), qayta kirish yo'q", (await tgLog()).filter((l) => l === "POST /auth/telegram/webapp").length === n0);
+check("Boshqa sahifada ham Mini App rejimi (MainButton)", true);
 
 // ---- 5) Buyurtma → bot havolasi Telegram'ning o'zida (openTelegramLink), yangi oyna yo'q
 await page.goto(`${BASE}/catalog/${BOOK2}`);
@@ -80,6 +82,7 @@ await page.screenshot({ path: OUT + "106b-tg-order.png" });
 // 109: Mini App yopiladi — bot chati (to'lov) ko'rinadi
 await page.waitForFunction(() => window.__tg.close > 0, null, { timeout: 5000 }).catch(() => undefined);
 check("109: havoladan keyin Mini App yopildi (close()) — to'lov bot chatida ko'rinadi", (await page.evaluate(() => window.__tg.close)) === 1);
+check("110: Telegram'da hech qachon parolsiz kirish so'ralmadi", !(await tgLog()).includes("POST /auth/telegram/webapp"));
 
 // ---- 6) Sayt (oddiy brauzer): handoff → kirgan holda, token manzildan olib tashlandi
 const site = await browser.newContext({ viewport: { width: 1280, height: 800 } });
@@ -105,13 +108,7 @@ await sp.goto(`${BASE}/tg`);
 await sp.waitForSelector("text=Bu sahifa Telegram uchun", { timeout: 15000 });
 check("/tg oddiy brauzerda — 'Telegram ichida oching' + katalog havolasi", (await sp.locator('[data-testid="tg-entry"] a[href="/catalog"]').count()) === 1);
 
-// ---- 8) Buzuq imzo → tushunarli xabar
-const bad = await miniApp(INIT.replace("hash=good", "hash=bad"));
-await bad.page.goto(`${BASE}/catalog#tgWebAppData=x`);
-await bad.page.waitForSelector('[data-testid="tg-error"]', { timeout: 15000 });
-check("TELEGRAM_AUTH_FAILED → 'Telegram orqali kirib bo'lmadi…'", ((await bad.page.textContent('[data-testid="tg-error"]')) ?? "").includes("Telegram orqali kirib bo'lmadi"));
-
-// ---- 9) Telegram Web iframe'da ocha oladi (frame-ancestors), admin — yo'q
+// ---- 8) Telegram Web iframe'da ocha oladi (frame-ancestors), admin — yo'q
 const h1 = await fetch(`${BASE}/catalog`).then((r) => r.headers);
 const h2 = await fetch(`${BASE}/admin`, { redirect: "manual" }).then((r) => r.headers);
 check("Sahifalar: frame-ancestors web.telegram.org, X-Frame-Options yo'q", (h1.get("content-security-policy") ?? "").includes("frame-ancestors 'self' https://web.telegram.org") && !h1.get("x-frame-options"), `${h1.get("content-security-policy")} / ${h1.get("x-frame-options")}`);

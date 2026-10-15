@@ -2,12 +2,13 @@
  * Auth (OpenAPI): POST /auth/login {identifier, password, device_name?, totp_code?} → LoginResponse;
  * POST /auth/register {phone, password, full_name?} → UserResponse (44.1: faqat telefon; token YO'Q → keyin login);
  * POST /auth/logout {refresh_token}; GET /auth/me; PATCH /me; POST /me/password; /me/2fa/*; GET /me/devices (38).
- * 106: Telegram Mini App — POST /auth/telegram/webapp, /auth/telegram/handoff, /auth/telegram/handoff/exchange.
+ * 106: Telegram Mini App — POST /auth/telegram/handoff, /auth/telegram/handoff/exchange (110: Mini App'da kirish saytdagidek).
  */
 import { api, emitAuthChanged, resetSessionEndReason } from "./client";
 import { tokenStore } from "./token-store";
 import { shortAgent } from "@/lib/agent";
-import type { LoginResponse, MessageResponse, MyDevicesResponse, TelegramHandoff, TelegramLoginResponse, TwoFactorSetup, User } from "./types";
+import { launchedInTelegram } from "@/lib/telegram";
+import type { LoginResponse, MessageResponse, MyDevicesResponse, TelegramHandoff, TwoFactorSetup, User } from "./types";
 
 /**
  * 44.1: telefon → E.164 (`+998901234567`). Qabul qilinadi: "90 123 45 67", "998901234567", "+998 (90) 123-45-67",
@@ -30,10 +31,12 @@ export function loginIdentifier(identifier: string): string {
   return normalizePhone(v) ?? v;
 }
 
-/** Sessiyalar ro'yxatida ko'rinadigan qisqa qurilma nomi (brauzer · OS). */
+/** Sessiyalar ro'yxatida ko'rinadigan qisqa qurilma nomi (brauzer · OS; 110: Telegram Mini App ichida — "Telegram · OS"). */
 export function deviceName(): string {
   if (typeof navigator === "undefined") return "web";
-  return (shortAgent(navigator.userAgent) || "Browser").slice(0, 100);
+  const agent = shortAgent(navigator.userAgent);
+  if (launchedInTelegram()) return ["Telegram", agent.split(" · ")[1]].filter(Boolean).join(" · ");
+  return (agent || "Browser").slice(0, 100);
 }
 
 /** 44.1: ro'yxatdan faqat telefon bilan (email shart emas) */
@@ -62,11 +65,6 @@ async function signIn<T extends LoginResponse>(path: string, body: Record<string
 export const authApi = {
   async login(identifier: string, password: string, totpCode?: string): Promise<LoginResponse> {
     return signIn<LoginResponse>("/auth/login", { identifier: loginIdentifier(identifier), password, device_name: deviceName(), ...(totpCode ? { totp_code: totpCode } : {}) });
-  },
-
-  /** 106: Telegram Mini App — `initData` O'ZGARTIRILMASDAN (backend imzoni bot token bilan tekshiradi) */
-  telegramWebApp(initData: string): Promise<TelegramLoginResponse> {
-    return signIn<TelegramLoginResponse>("/auth/telegram/webapp", { init_data: initData, device_name: "Telegram Mini App" });
   },
 
   /** 106: Mini App → saytga avtomatik kirish havolasi (bir martalik, 120 s) */

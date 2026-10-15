@@ -1599,6 +1599,25 @@ lekin Bot API 7.0+ da Mini App yopilmaydi — u chat ustida qoladi, o'quvchi to'
       borsin); o'quvchi bot chatida karta/chek/tasdiq bosqichini ko'radi. Qayta kirish — bot menyu tugmasi (parolsiz)
 - [x] 109.2 e2e `telegram-miniapp`: buyurtma → `openTelegramLink` + `close()` chaqirildi; dev + prod
 
+## 110. Mini App: parolsiz kirish va telefon ulashish olib tashlandi — kirish saytdagidek (2026-10-15)
+
+Mahsulot qarori: telefon ulashish (`requestContact`) va `initData` orqali avtomatik kirish kerak emas. Mini App — Telegram
+ichidagi o'sha sayt: mehmon katalogni ko'radi, sotib olishda saytdagidek ro'yxatdan o'tadi yoki kiradi (telefon + parol).
+Natija — Mini App va sayt bitta akkaunt, bitta kirish usuli (parolsiz akkaunt saytga kira olmasligi muammosi yo'qoladi).
+Hozircha Telegram foydalanuvchilari yo'q — migratsiya kerak emas. Backend spetsifikatsiyasi: `TELEGRAM_MINI_APP_AUTH.md`.
+
+- [x] 110.1 `TelegramMiniApp`: `POST /auth/telegram/webapp`, telefon kartasi (`requestContact`, "Keyinroq"),
+      `TELEGRAM_AUTH_FAILED` xabari olib tashlandi; SDK `ready()`/`expand()` va kirgan foydalanuvchi uchun "Saytda ochish"
+      (handoff) qoladi
+- [x] 110.2 `/tg` kirishni kutmaydi — darhol `/catalog` (mehmon); sotib olish → `/login?next=…` (saytdagi oqim)
+- [x] 110.3 `authApi.telegramWebApp`, `TelegramLoginResponse`, `requestContact` tipi, `tg.loggingIn`/`tg.authFailed`/
+      `tg.phone.*` (uz/ru/en) olib tashlandi
+- [x] 110.4 Telegram ichida `device_name` = `Telegram · <OS>` ("Qurilmalarim"da ajralib turadi)
+- [x] 110.5 Mock: `/auth/telegram/webapp`, `/__tg-last`, `/__tg-phone` olib tashlandi; e2e `telegram-miniapp`: mehmon →
+      "Sotib olish uchun tizimga kiring" → login → kitobga qaytish → MainButton/handoff → buyurtma (`openTelegramLink` +
+      `close()`); `initData` hech qachon backend'ga yuborilmaydi
+- [ ] 110.6 Backend: `POST /auth/telegram/webapp` endpointini o'chirish (`TELEGRAM_MINI_APP_AUTH.md` §8)
+
 ## 31. Keyingi vazifalar
 
 - [ ] 31.1 Safari (WebKit): varaqlash rejimida oldingi sahifaga qaytilganda (3-sahifa) belgilash qatlami

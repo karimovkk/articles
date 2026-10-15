@@ -7,7 +7,7 @@
  */
 
 export interface TelegramWebApp {
-  /** Telegram imzolagan XOM query-string — backend'ga o'zgartirilmasdan yuboriladi */
+  /** Telegram imzolagan query-string — faqat Telegram ichida ochilganini aniqlash uchun (110: backend'ga yuborilmaydi) */
   initData: string;
   platform?: string;
   version?: string;
@@ -17,7 +17,6 @@ export interface TelegramWebApp {
   close(): void;
   openLink(url: string, options?: { try_instant_view?: boolean }): void;
   openTelegramLink(url: string): void;
-  requestContact?(callback?: (ok: boolean) => void): void;
   isVersionAtLeast?(version: string): boolean;
   MainButton?: {
     setText(text: string): unknown;

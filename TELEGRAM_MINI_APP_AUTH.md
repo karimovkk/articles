@@ -24,7 +24,7 @@
 4. Telegram's `initData` is **not used for authentication**. No account is ever created automatically from a Telegram identity.
 5. The bot is used only for **payment** (existing deep link `?start=<token>`, keyed by `user_id`) and **notifications**.
 6. Because there is a single login method, there are **no duplicate accounts, no merges, no phone conflicts** to resolve.
-7. One thing must be migrated: accounts that were **already** created by the old passwordless Telegram login (§8).
+7. There are **no Telegram users yet**, so the old passwordless login is simply deleted. No migration is needed (§8).
 
 ---
 
@@ -73,7 +73,7 @@ No Telegram-specific auth endpoint is needed.
 
 - Must **not** create or log in a user from Telegram `initData`, `tg_user_id`, bot `/start`, or a phone number.
 - Must **not** trust any Telegram-supplied field (name, username, phone) as identity.
-- `POST /auth/telegram/webapp` is **retired** (see §8 for the transition).
+- `POST /auth/telegram/webapp` is **deleted** (§8).
 
 ---
 
@@ -189,33 +189,27 @@ Nothing from `initData` is stored. If the Mini App frontend still loads the Tele
 
 ---
 
-## 8. Migration from the old passwordless Telegram login
+## 8. Removing the old passwordless Telegram login (no migration)
 
-Accounts may already exist that were created by `POST /auth/telegram/webapp` (**no password**, maybe a phone from
-`requestContact`, maybe purchases). If we just switch the old login off, these users are locked out.
+There are **no Telegram users** in production yet, so nothing has to be preserved. Delete outright:
 
-### 8.1 Find them
+| Backend item | Action |
+|---|---|
+| `POST /auth/telegram/webapp` (+ router, schema, `initData` HMAC verification) | delete. A request now gets the framework's `404` |
+| `TelegramLoginResponse` fields `created`, `phone_required` | delete |
+| Telegram-identity table / `users.telegram_id`-style column, if one was added for the webapp login | drop in a migration (empty) |
+| Bot webhook handling of `message.contact` (if any was added) | delete |
+| Settings only used for the webapp login (e.g. `initData` max age) | delete |
+
+Keep: the bot webhook for payments, `/orders/{id}/telegram-link`, and `/auth/telegram/handoff` + `/exchange` (§4.3).
+
+Safety check before dropping anything (it should return 0 rows):
 
 ```sql
-SELECT u.id, u.phone, u.created_at,
-       (SELECT count(*) FROM orders o WHERE o.user_id = u.id AND o.status = 'APPROVED') AS paid_orders,
-       (SELECT count(*) FROM library_items l WHERE l.user_id = u.id)                   AS library_items
-FROM users u
-WHERE u.password_hash IS NULL AND u.role <> 'ADMIN';
+SELECT count(*) FROM users WHERE password_hash IS NULL AND role <> 'ADMIN';
 ```
 
-### 8.2 Transition plan
-
-| Step | What |
-|---|---|
-| 1 | **Stop creating** accounts: `POST /auth/telegram/webapp` returns `410 TELEGRAM_LOGIN_RETIRED` for Telegram users **without** an existing account. New users go through `/register` |
-| 2 | **Transition window** (e.g. 30 days): for **existing** password-less accounts, `/auth/telegram/webapp` still logs them in but returns `password_setup_required: true`. The Mini App shows a **mandatory** "Set your login" screen: phone (prefilled if known) + new password → `POST /me/credentials {phone, password}` (allowed without a current password only when `password_hash IS NULL`) |
-| 3 | `POST /me/credentials` conflict: the phone is already used by another account (the same person also registered on the website) → `409 ALREADY_EXISTS` → "Log in with that account". If the Telegram account has **paid orders or library items**, create a support ticket for an **admin merge** (rare, manual, audited) instead of losing purchases |
-| 4 | Accounts with **no** orders, library, annotations or activity in 30 days → no action. They just disappear from use (optionally deactivate after the window) |
-| 5 | After the window: `/auth/telegram/webapp` → `410` for everyone; remove the endpoint in the next release. Remaining password-less accounts with purchases → admin sets a temporary password on request (user proves identity with the payment receipt from the bot chat) |
-| 6 | Bot broadcast (admin broadcast exists) to password-less users with purchases: "Set your login in the app before <date>" |
-
-Audit events: `auth.telegram_login_retired`, `auth.credentials_set`, `admin.account_merged`.
+If it unexpectedly returns rows (test accounts), deactivate or delete them. They can't log in anymore anyway.
 
 ---
 
@@ -223,13 +217,12 @@ Audit events: `auth.telegram_login_retired`, `auth.credentials_set`, `admin.acco
 
 | Change | Endpoint |
 |---|---|
-| **Retire** | `POST /auth/telegram/webapp`: transition per §8, then `410`, then removed |
+| **Delete** | `POST /auth/telegram/webapp` (§8) |
 | **Not built** (from the earlier draft) | `/auth/telegram/contact`, `/me/phone*`, `/auth/telegram/link`, `/me/telegram*`, link tokens, login-requests/QR, widget, phone-conflicts admin |
-| **Transition only** | `POST /me/credentials {phone, password}`: first credentials for a password-less account. Remove after §8 |
 | **Keep** | `/auth/register`, `/auth/login`, `/auth/refresh`, `/auth/logout`, `/auth/me`, `/orders/{id}/telegram-link`, bot webhook (payments), `/auth/telegram/handoff` + `/exchange` (optional, §4.3) |
 | **Small addition** | store `telegram_chat_id` / `telegram_username` on `/start <token>` (§5–6) |
 
-New error codes: `TELEGRAM_LOGIN_RETIRED` (410, transition), reuse `ALREADY_EXISTS`.
+No new error codes. `TELEGRAM_AUTH_FAILED` is no longer used.
 
 ---
 
@@ -248,16 +241,17 @@ Trade-off accepted: one more step for Telegram users (type phone + password once
 
 ---
 
-## 11. Frontend changes (for reference)
+## 11. Frontend changes: ✅ done (`FRONTEND_PLAN.md` §110)
 
 | File | Change |
 |---|---|
-| `src/components/telegram/telegram-mini-app.tsx` | remove auto-login (`authApi.telegramWebApp`), the phone card (`requestContact`), `PHONE_SKIP_KEY`. Keep: SDK `ready()`/`expand()`, MainButton "Open on site" (if handoff is kept, only shown when logged in) |
-| `src/app/tg/page.tsx` | don't wait for login. Go straight to `/catalog` as a guest |
-| `src/lib/api/auth.ts`, `types.ts` | remove `telegramWebApp`, `TelegramLoginResponse.phone_required` (after the §8 transition) |
-| `src/i18n/dict/*` | remove `tg.phone.*`, `tg.loggingIn`, `tg.authFailed` |
-| Login/register forms | ensure paste + show/hide password works in the webview. `device_name` = `"Telegram · <OS>"` inside Telegram |
-| e2e `telegram-miniapp` | replace the auto-login and phone tests with: guest browse → Buy → login → order → `openTelegramLink` + `close()` |
+| `src/components/telegram/telegram-mini-app.tsx` | removed auto-login (`authApi.telegramWebApp`), the phone card (`requestContact`) and the auth-failed message. Kept: SDK `ready()`/`expand()`, MainButton "Open on site" (shown only when logged in) |
+| `src/app/tg/page.tsx` | no longer waits for login. Goes straight to `/catalog` as a guest |
+| `src/lib/api/auth.ts`, `types.ts`, `src/lib/telegram.ts` | removed `telegramWebApp`, `TelegramLoginResponse`, `requestContact`. `deviceName()` returns `"Telegram · <OS>"` inside Telegram |
+| `src/i18n/dict/*` | removed `tg.loggingIn`, `tg.authFailed`, `tg.phone.*` |
+| e2e mock + `telegram-miniapp` test | removed the `/auth/telegram/webapp` mock. The test now covers guest browse → Buy → login → back to the book → MainButton/handoff → order (`openTelegramLink` + `close()`), and asserts `/auth/telegram/webapp` is never called |
+
+Login/register forms already use `PasswordInput` (show/hide, paste works), so no change was needed for the webview.
 
 ## 12. Acceptance tests
 
@@ -271,13 +265,11 @@ Trade-off accepted: one more step for Telegram users (type phone + password once
 | 6 | Pay via bot from the Mini App | order credited to the logged-in user. Mini App closes, bot chat shows payment steps. Status visible on both surfaces |
 | 7 | Logout in the Mini App | website session unaffected |
 | 8 | 3rd device (laptop + phone browser + Mini App) with limit 2 | `403 DEVICE_NOT_ALLOWED` (or allowed if the §4.2 decision is B) |
-| 9 | `POST /auth/telegram/webapp` for an unknown Telegram user (after step 1 of §8) | `410 TELEGRAM_LOGIN_RETIRED`. No account created |
-| 10 | Existing password-less account during the transition | forced "Set your login" → afterwards can log in on the website |
-| 11 | Backend logs | no `initData`, passwords or full phone numbers |
+| 9 | `POST /auth/telegram/webapp` | `404` (endpoint deleted). No account created |
+| 10 | Backend logs | no `initData`, passwords or full phone numbers |
 
 ## 13. Open questions
 
 1. Device limit with the Mini App (§4.2): keep 2 or raise to 3?
 2. Keep "Open on site" handoff (§4.3), or drop it for simplicity?
-3. Length of the §8 transition window (30 days?), and do any password-less accounts with purchases exist in prod (run §8.1)?
-4. Password reset: still admin-only, or plan OTP (SMS) now that phone + password is the only login on both surfaces?
+3. Password reset: still admin-only, or plan OTP (SMS) now that phone + password is the only login on both surfaces?

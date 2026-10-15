@@ -1278,13 +1278,7 @@ export const uz = {
   "emoji.group.symbols": "Belgilar",
   "emoji.group.flags": "Bayroqlar",
   // 106: Telegram Mini App
-  "tg.loggingIn": "Telegram orqali kirilmoqda…",
-  "tg.authFailed": "Telegram orqali kirib bo'lmadi. Mini App'ni yopib, qayta oching.",
   "tg.openSite": "Saytda ochish",
-  "tg.phone.title": "Telefon raqamingizni ulashing",
-  "tg.phone.body": "Ixtiyoriy — hisobingizga yoziladi. Sotib olish uchun shart emas.",
-  "tg.phone.share": "Raqamni ulashish",
-  "tg.phone.later": "Keyinroq",
   "tg.notTelegram.title": "Bu sahifa Telegram uchun",
   "tg.notTelegram.body": "Uni Telegram'dagi botimiz menyusidan oching. Brauzerda katalogdan davom etishingiz mumkin.",
   "tg.toCatalog": "Katalogga o'tish",
