@@ -112,7 +112,7 @@ The Mini App webview has its own `localStorage`, separate from the phone's brows
 *(Optional hardening: Telegram's `SecureStorage` / `DeviceStorage` (Bot API 9.0+) could hold the refresh token and
 `device_secret` so they survive webview cache clears. It is purely frontend. The backend contract doesn't change.)*
 
-### 4.2 Device limit ⚠️ (needs a product decision)
+### 4.2 Device limit (decided: unchanged, 2)
 
 With `MAX_DEVICES_PER_USER = 2` (`BACKEND_TASKS.md` part 3), **each surface is a separate device**:
 
@@ -127,7 +127,7 @@ Options:
 - **B:** raise the limit to 3.
 - **C:** don't count a Mini App device toward the limit. This weakens the anti-sharing rule: anyone can log in via Telegram.
 
-Recommendation: **A or B**. **Don't pick C**: the device limit exists to stop account sharing, and Telegram doesn't change that.
+**Decision (2026-10-15): A**. The limit stays at 2 and the Mini App counts as a device like any browser. **Not C**: the device limit exists to stop account sharing, and Telegram doesn't change that.
 `device_name` for the Mini App: `"Telegram · Android"` / `"Telegram · iOS"` / `"Telegram · Desktop"`, so the user and
 admin can tell devices apart in "My devices".
 
@@ -137,7 +137,7 @@ The existing handoff (`POST /auth/telegram/handoff` → `/auth/handoff?token=` �
 **already authenticated** session from the Mini App to the phone's browser. It never creates accounts, so it is
 compatible with this model. It's optional now: the user can simply log in on the website with the same credentials.
 - Keep it: one-time, 120 s, requires `Bearer`. The exchange is subject to the device limit like a normal login.
-- Or drop it to simplify. **Recommendation: keep**. It is small and saves typing the password on the phone browser.
+- **Decision (2026-10-15): keep** as it is. It is small and saves typing the password on the phone browser.
 
 ---
 
@@ -264,12 +264,12 @@ Login/register forms already use `PasswordInput` (show/hide, paste works), so no
 | 5 | Register in the Mini App with a phone already registered | `409 ALREADY_EXISTS` |
 | 6 | Pay via bot from the Mini App | order credited to the logged-in user. Mini App closes, bot chat shows payment steps. Status visible on both surfaces |
 | 7 | Logout in the Mini App | website session unaffected |
-| 8 | 3rd device (laptop + phone browser + Mini App) with limit 2 | `403 DEVICE_NOT_ALLOWED` (or allowed if the §4.2 decision is B) |
+| 8 | 3rd device (laptop + phone browser + Mini App) with limit 2 | `403 DEVICE_NOT_ALLOWED` |
 | 9 | `POST /auth/telegram/webapp` | `404` (endpoint deleted). No account created |
 | 10 | Backend logs | no `initData`, passwords or full phone numbers |
 
-## 13. Open questions
+## 13. Decisions (2026-10-15)
 
-1. Device limit with the Mini App (§4.2): keep 2 or raise to 3?
-2. Keep "Open on site" handoff (§4.3), or drop it for simplicity?
-3. Password reset: still admin-only, or plan OTP (SMS) now that phone + password is the only login on both surfaces?
+1. Device limit stays **2**. The Mini App counts as a device (§4.2 option A).
+2. "Open on site" handoff is **kept** unchanged (§4.3).
+3. Password reset stays as it is today (admin). No OTP for now.
