@@ -18,11 +18,11 @@ async function miniApp(initData) {
   await ctx.route("https://telegram.org/**", (r) => { sdkRequests++; return r.abort(); });
   await ctx.exposeBinding("__tgContact", async () => { await fetch(`${API_HOST}/__tg-phone?tg=777&phone=%2B998901112233`); return true; });
   await ctx.addInitScript((initData) => {
-    const calls = (window.__tg = { ready: 0, expand: 0, links: [], tgLinks: [], main: { text: "", visible: false, handlers: [] } });
+    const calls = (window.__tg = { ready: 0, expand: 0, close: 0, links: [], tgLinks: [], main: { text: "", visible: false, handlers: [] } });
     window.Telegram = {
       WebApp: {
         initData, platform: "android", version: "8.0",
-        ready: () => calls.ready++, expand: () => calls.expand++,
+        ready: () => calls.ready++, expand: () => calls.expand++, close: () => calls.close++,
         openLink: (u) => calls.links.push(u), openTelegramLink: (u) => calls.tgLinks.push(u),
         requestContact: (cb) => window.__tgContact().then(() => cb(true)),
         MainButton: {
@@ -77,6 +77,9 @@ await page.click("text=Buyurtma berish");
 await page.waitForFunction(() => window.__tg.tgLinks.length > 0, null, { timeout: 10000 });
 check("Buyurtma → openTelegramLink(t.me/…start=…), yangi oyna ochilmadi", (await page.evaluate(() => window.__tg.tgLinks[0])).startsWith("https://t.me/articles365_test_bot?start=") && ctx.pages().length === pages0);
 await page.screenshot({ path: OUT + "106b-tg-order.png" });
+// 109: Mini App yopiladi — bot chati (to'lov) ko'rinadi
+await page.waitForFunction(() => window.__tg.close > 0, null, { timeout: 5000 }).catch(() => undefined);
+check("109: havoladan keyin Mini App yopildi (close()) — to'lov bot chatida ko'rinadi", (await page.evaluate(() => window.__tg.close)) === 1);
 
 // ---- 6) Sayt (oddiy brauzer): handoff → kirgan holda, token manzildan olib tashlandi
 const site = await browser.newContext({ viewport: { width: 1280, height: 800 } });

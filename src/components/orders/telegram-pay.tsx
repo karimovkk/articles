@@ -9,6 +9,7 @@
  * to'g'ridan `tg://resolve?domain=…&start=…` — Telegram darhol ochiladi; ilova o'rnatilmagan bo'lsa (sahifa 1,5 s ichida
  * yashirinmasa) — oddiy `https://t.me/…` havolasi.
  * 101: "Buyurtma berish" ham botni darhol ochadi (`openTelegram`) — ikkinchi tugma bosilmaydi.
+ * 109: Telegram Mini App ichida — bot havolasi ochilgach Mini App yopiladi (bot chati ko'rinsin).
  */
 import { useState, type ReactNode } from "react";
 import { Alert, Button } from "@/components/ui";
@@ -82,8 +83,11 @@ export async function openTelegram(getOrderId: () => Promise<string | null>): Pr
       win?.close();
       return "unavailable";
     }
-    if (tg) tg.openTelegramLink(deep_link);
-    else if (mobile) openOnPhone(deep_link, bot_username, token);
+    if (tg) {
+      tg.openTelegramLink(deep_link);
+      // 109: Bot API 7.0+ da Mini App o'zi yopilmaydi va bot chati uning ortida qoladi — yopiladi, to'lov chatda ko'rinadi
+      window.setTimeout(() => tg.close(), 300);
+    } else if (mobile) openOnPhone(deep_link, bot_username, token);
     else if (win) {
       win.opener = null;
       win.location.href = deep_link;

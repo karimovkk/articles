@@ -1590,6 +1590,15 @@ admin esa har skaner PDF'da ~20 s kutadi va ~10 MB yuklaydi.
 - [x] 108.3 README: OCR backend'da (frontend o'zgarishsiz `text_extractable` / `can_search` ga qaraydi)
 - [x] 108.4 tsc, eslint, e2e (admin yuklash testlari) dev + prod
 
+## 109. Mini App: to'lovda bot chati ko'rinadi — Mini App yopiladi (2026-10-15)
+
+Muammo: Mini App ichida "Buyurtma berish" / "Telegram orqali to'lash" → `openTelegramLink(deep_link)` bot chatini ochadi,
+lekin Bot API 7.0+ da Mini App yopilmaydi — u chat ustida qoladi, o'quvchi to'lov botda ketayotganini ko'rmaydi.
+
+- [x] 109.1 `openTelegramLink` dan keyin Mini App yopiladi (`WebApp.close()`, ~300 ms kechikish — havola Telegram'ga yetib
+      borsin); o'quvchi bot chatida karta/chek/tasdiq bosqichini ko'radi. Qayta kirish — bot menyu tugmasi (parolsiz)
+- [x] 109.2 e2e `telegram-miniapp`: buyurtma → `openTelegramLink` + `close()` chaqirildi; dev + prod
+
 ## 31. Keyingi vazifalar
 
 - [ ] 31.1 Safari (WebKit): varaqlash rejimida oldingi sahifaga qaytilganda (3-sahifa) belgilash qatlami

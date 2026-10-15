@@ -14,6 +14,7 @@ export interface TelegramWebApp {
   colorScheme?: "light" | "dark";
   ready(): void;
   expand(): void;
+  close(): void;
   openLink(url: string, options?: { try_instant_view?: boolean }): void;
   openTelegramLink(url: string): void;
   requestContact?(callback?: (ok: boolean) => void): void;
