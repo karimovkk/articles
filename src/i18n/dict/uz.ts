@@ -1291,12 +1291,4 @@ export const uz = {
   "tg.handoff.loading": "Saytga kirilmoqda…",
   "tg.handoff.expired": "Havola eskirgan yoki ishlatilgan. Telegram'dagi Mini App'dan «Saytda ochish» ni qayta bosing yoki odatdagidek kiring.",
   "tg.handoff.missing": "Kirish havolasi to'liq emas.",
-  // 107: rasmli PDF — brauzerda OCR
-  "admin.ocr.checking": "Matn qatlami tekshirilmoqda…",
-  "admin.ocr.page": "Matn tanilmoqda: {done}/{total} bet · {pct}%",
-  "admin.ocr.building": "PDF tayyorlanmoqda…",
-  "admin.ocr.done": "Rasmli {pages} ta betda matn tanildi ({words} ta so'z) — belgilash, lug'at va qidiruv ishlaydi.",
-  "admin.ocr.failTitle": "Matnni tanib bo'lmadi",
-  "admin.ocr.failBody": "Xato: {msg}. Asl fayl matnsiz yuklansinmi? (belgilash va qidiruv ishlamaydi)",
-  "admin.ocr.uploadOriginal": "Asl faylni yuklash",
 } satisfies Record<string, string>;

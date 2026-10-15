@@ -1576,6 +1576,20 @@ PDF'ga KO'RINMAS matn qatlamini qo'shadi (pdf-lib, `Tr 3`); backend'ga shu fayl 
 - [x] 107.5 Mock: keep-alive 120 s (Next proxy uzoq jarayondan keyin yopilgan ulanishni ishlatib, "socket hang up" → 500 bo'lardi)
 - [x] 107.6 Haqiqiy TRAVEL (4 bet jurnal): 19 s, 2361 so'z; belgilash so'zga aniq tushadi; hajm 2,62 → 2,68 MB
 
+## 108. Brauzer OCR olib tashlandi — OCR backend'da (2026-10-15)
+
+Sabab: backend processing'da OCR qiladi (`ocrmypdf -l eng --skip-text --optimize 0 --output-type pdf`, prod, commit 869a1bf);
+TRAVEL qayta ishlandi (`text_extractable: true`, `can_search: true`, `file_version: 2`, `?q=backpacking` → 4 natija —
+jonli API'da tekshirildi). Brauzer OCR (§107) ortiqcha: u matn qo'shgan faylga backend `--skip-text` tufayli tegmaydi,
+admin esa har skaner PDF'da ~20 s kutadi va ~10 MB yuklaydi.
+
+- [x] 108.1 `src/lib/pdf-ocr.ts`, admin yuklashdagi OCR progress/bekor qilish/xabar, `admin.ocr.*` (uz/ru/en) olib tashlanadi —
+      PDF o'zi yuboriladi (§107 dan oldingidek)
+- [x] 108.2 `tesseract.js`, `pdf-lib` paketlari; e2e `ocr-upload`, `e2e/mock/scan.pdf`, `make-scan-pdf.mjs`, mock `/__last-upload`
+      olib tashlanadi (mock keep-alive 120 s qoladi)
+- [x] 108.3 README: OCR backend'da (frontend o'zgarishsiz `text_extractable` / `can_search` ga qaraydi)
+- [x] 108.4 tsc, eslint, e2e (admin yuklash testlari) dev + prod
+
 ## 31. Keyingi vazifalar
 
 - [ ] 31.1 Safari (WebKit): varaqlash rejimida oldingi sahifaga qaytilganda (3-sahifa) belgilash qatlami

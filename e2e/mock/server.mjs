@@ -102,7 +102,6 @@ let integ = {}, integLog = [], webhookCalls = 0;
 let broadcasts = [];
 // 106: Telegram Mini App — tg_id → foydalanuvchi, handoff tokenlar (bir martalik), oxirgi webapp so'rovi
 let tgUsers = new Map(), handoffs = new Map(), __lastTgBody = null;
-let __lastUpload = null; // 107: oxirgi maqola fayli yuklash so'rovi (multipart tanasi)
 let paymentsUnscoped = false;
 let __lastQuizBody = null; // 87: oxirgi test yuborish (o'quvchi) — testlar javob shaklini tekshiradi
 let __lastQuestionBody = null; // 87: oxirgi admin savol so'rovi
@@ -371,13 +370,6 @@ const server = createServer(async (req, res) => {
   if (path === "/__progress") return json(res, 200, progress);
   if (path === "/__uploads") return json(res, 200, uploads);
   if (path === "/__orders") return json(res, 200, orders);
-  // 107: oxirgi yuklangan PDF (multipart'dan ajratilgan: %PDF- … oxirgi %%EOF)
-  if (path === "/__last-upload") {
-    if (!__lastUpload) return err(res, 404, "NOT_FOUND", "No upload");
-    const s = __lastUpload.indexOf("%PDF-"); const e = __lastUpload.lastIndexOf("%%EOF");
-    const pdf = s >= 0 && e > s ? __lastUpload.subarray(s, e + 5) : __lastUpload;
-    res.writeHead(200, { "Content-Type": "application/pdf", "Content-Length": pdf.length }); return res.end(pdf);
-  }
   // 106: Telegram — oxirgi webapp so'rovi; bot webhook telefonni yozdi (`/__tg-phone?tg=<id>&phone=`)
   if (path === "/__tg-last") return json(res, 200, { body: __lastTgBody, handoffs: [...handoffs.values()].map(({ used }) => ({ used })) });
   if (path === "/__tg-phone") { const u = tgUsers.get(q.get("tg")); if (u) u.phone = q.get("phone"); return json(res, 200, u ?? null); }
@@ -990,7 +982,7 @@ const server = createServer(async (req, res) => {
       const a = articles.find((x) => x.id === aid && x.book_id === bid);
       if (!a) return err(res, 404, "ARTICLE_NOT_FOUND", "Not found");
       if (!sub2) { if (m === "PATCH") { const b = await readBody(req); Object.assign(a, Object.fromEntries(Object.entries(b).filter(([, v]) => v !== null && v !== undefined)), { updated_at: now() }); return json(res, 200, a); } if (m === "DELETE") { articles = articles.filter((x) => x.id !== aid); return json(res, 200, { message: "Article deleted" }); } }
-      if (sub2 === "file") { let size = 0; const parts = []; for await (const c of req) { size += c.length; parts.push(c); await new Promise((r) => setTimeout(r, 3)); } __lastUpload = Buffer.concat(parts); uploads.push({ path, size, contentType: req.headers["content-type"]?.split(";")[0] }); Object.assign(a, { has_source_file: true, processing_status: "PROCESSING", file_size: size, mime_type: "application/pdf", format: "pdf", file_version: a.file_version + 1, updated_at: now() }); setTimeout(() => Object.assign(a, { processing_status: "READY", page_count: 6, text_extractable: true }), 1500); return json(res, 200, a); }
+      if (sub2 === "file") { let size = 0; for await (const c of req) { size += c.length; await new Promise((r) => setTimeout(r, 3)); } uploads.push({ path, size, contentType: req.headers["content-type"]?.split(";")[0] }); Object.assign(a, { has_source_file: true, processing_status: "PROCESSING", file_size: size, mime_type: "application/pdf", format: "pdf", file_version: a.file_version + 1, updated_at: now() }); setTimeout(() => Object.assign(a, { processing_status: "READY", page_count: 6, text_extractable: true }), 1500); return json(res, 200, a); }
       if (sub2 === "toc") { const b = await readBody(req); a.article_metadata = { ...a.article_metadata, toc: b.entries }; return json(res, 200, a); }
     }
     if (path === "/admin/book-access" && m === "GET") return json(res, 200, paged(access.filter((a) => (!q.get("book_id") || a.book_id === q.get("book_id")) && (!q.get("user_id") || a.user_id === q.get("user_id")) && (!q.get("status") || a.status === q.get("status"))).map(withNames)));
@@ -1009,7 +1001,7 @@ const server = createServer(async (req, res) => {
   return err(res, 404, "NOT_FOUND", "Not Found");
 });
 // 107: Next proxy ulanishlarni qayta ishlatadi (keep-alive); Node standarti (5 s) bo'sh ulanishni yopib qo'yadi va uzoq
-// mijoz jarayonidan keyingi (masalan, OCR ~8 s) so'rov "socket hang up" (ECONNRESET → 500) bo'lardi
+// mijoz jarayonidan keyingi so'rov "socket hang up" (ECONNRESET → 500) bo'lardi
 server.keepAliveTimeout = 120_000;
 server.headersTimeout = 121_000;
 server.listen(PORT, () => console.log(`mock backend (OpenAPI 2026-09-21) on :${PORT}`));

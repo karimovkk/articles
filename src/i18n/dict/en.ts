@@ -1272,12 +1272,4 @@ export const en: Dict = {
   "tg.handoff.loading": "Signing in to the website…",
   "tg.handoff.expired": "The link has expired or was already used. Tap “Open on the website” in the Mini App again, or sign in as usual.",
   "tg.handoff.missing": "The sign-in link is incomplete.",
-  // 107: rasmli PDF — brauzerda OCR
-  "admin.ocr.checking": "Checking the text layer…",
-  "admin.ocr.page": "Recognizing text: page {done}/{total} · {pct}%",
-  "admin.ocr.building": "Preparing the PDF…",
-  "admin.ocr.done": "Text recognized on {pages} image page(s) ({words} words) — highlighting, vocabulary and search work.",
-  "admin.ocr.failTitle": "Could not recognize the text",
-  "admin.ocr.failBody": "Error: {msg}. Upload the original file without text? (highlighting and search will not work)",
-  "admin.ocr.uploadOriginal": "Upload original",
 };
