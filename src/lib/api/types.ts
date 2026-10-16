@@ -105,8 +105,6 @@ export interface LoginResponse extends AuthTokens {
 export interface TelegramLoginResponse extends LoginResponse {
   /** akkaunt shu so'rovda yaratildimi */
   created?: boolean;
-  /** telefon yo'q — "Kontakt ulashish" taklif qilinadi (ixtiyoriy) */
-  phone_required?: boolean;
 }
 
 /** 106: POST /auth/telegram/handoff — saytga avtomatik kirish uchun bir martalik (120 s) token */

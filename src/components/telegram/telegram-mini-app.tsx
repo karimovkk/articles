@@ -4,7 +4,6 @@
  * 106: Telegram Mini App — sayt Telegram ichida (bot menyusi) ochilganda:
  *  - SDK yuklanadi, `ready()` / `expand()`;
  *  - parolsiz kirish: `initData` (o'zgartirilmasdan) → `POST /auth/telegram/webapp` — Mini App sessiyasida bir marta;
- *  - `phone_required` → "Telefon raqamini ulashish" (`requestContact`, ixtiyoriy — "Keyinroq" eslab qolinadi);
  *  - Telegram'ning pastki tugmasi (MainButton) "Saytda ochish": `POST /auth/telegram/handoff` → `openLink(url)` —
  *    sayt tashqi brauzerda shu akkaunt bilan kirgan holda ochiladi.
  *  - 111: Mini App'da faqat sotib olish va kirish/ro'yxat sahifalari — boshqa manzil → `/catalog`.
@@ -22,7 +21,6 @@ import { useT } from "@/i18n";
 
 /** Shu Mini App sessiyasida kirildi (initData xeshi — o'zi saqlanmaydi) */
 const LOGIN_KEY = "a365.tg.login";
-const PHONE_SKIP_KEY = "a365.tg.phoneSkip";
 
 function hash(s: string): string {
   let h = 5381;
@@ -46,10 +44,8 @@ function sSet(store: () => Storage, k: string, v: string) {
 
 export function TelegramMiniApp() {
   const { t } = useT();
-  const { user, setUser } = useAuth();
+  const { user } = useAuth();
   const [tg, setTg] = useState<TelegramWebApp | null>(null);
-  const [askPhone, setAskPhone] = useState(false);
-  const [phoneBusy, setPhoneBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [opening, setOpening] = useState(false);
   const inTelegram = useInTelegram();
@@ -73,9 +69,8 @@ export function TelegramMiniApp() {
       const key = hash(w.initData);
       if (sGet(() => sessionStorage, LOGIN_KEY) === key && tokenStore.getAccess()) return;
       try {
-        const r = await authApi.telegramWebApp(w.initData);
+        await authApi.telegramWebApp(w.initData);
         sSet(() => sessionStorage, LOGIN_KEY, key);
-        if (alive && r.phone_required && sGet(() => localStorage, PHONE_SKIP_KEY) !== "1" && w.requestContact) setAskPhone(true);
       } catch (e) {
         if (alive) setError(isApiError(e) && e.code === "TELEGRAM_AUTH_FAILED" ? t("tg.authFailed") : errorMessage(e));
       }
@@ -118,57 +113,11 @@ export function TelegramMiniApp() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- openSite har render'da yangi; tugma bir marta ulanadi
   }, [mainButton, user, t]);
 
-  const sharePhone = () => {
-    if (!tg?.requestContact) return;
-    setPhoneBusy(true);
-    tg.requestContact((ok) => {
-      if (!ok) {
-        setPhoneBusy(false);
-        return;
-      }
-      // Telefon botga boradi, backend uni akkauntga yozadi — biroz kechikishi mumkin
-      let n = 0;
-      const poll = () =>
-        authApi
-          .me()
-          .then((me) => {
-            if (me.phone || ++n >= 6) {
-              setUser(me);
-              setAskPhone(!me.phone);
-              setPhoneBusy(false);
-            } else window.setTimeout(poll, 1500);
-          })
-          .catch(() => setPhoneBusy(false));
-      poll();
-    });
-  };
-  const skipPhone = () => {
-    sSet(() => localStorage, PHONE_SKIP_KEY, "1");
-    setAskPhone(false);
-  };
-
   if (!tg) return null;
   const showFallback = !!user && !mainButton;
-  if (!askPhone && !error && !showFallback) return null;
+  if (!error && !showFallback) return null;
   return (
     <div className="tg-dock" data-testid="tg-dock">
-      {askPhone && (
-        <div className="tg-card" data-testid="tg-phone">
-          <I.Phone size={18} />
-          <div className="min-w-0 flex-1">
-            <p className="font-bold text-text">{t("tg.phone.title")}</p>
-            <p className="text-xs text-muted">{t("tg.phone.body")}</p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              <Button size="sm" onClick={sharePhone} loading={phoneBusy} data-testid="tg-phone-share">
-                {t("tg.phone.share")}
-              </Button>
-              <Button size="sm" variant="ghost" onClick={skipPhone} data-testid="tg-phone-skip">
-                {t("tg.phone.later")}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
       {error && (
         <div className="tg-card danger" role="alert" data-testid="tg-error">
           <I.AlertTriangle size={18} />

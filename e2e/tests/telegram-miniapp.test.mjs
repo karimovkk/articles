@@ -1,5 +1,5 @@
 // 106: Telegram Mini App — Telegram ichida (soxta `window.Telegram.WebApp`): parolsiz kirish (initData o'zgartirilmasdan),
-// telefon ulashish, "Saytda ochish" (MainButton → handoff → openLink), to'lov havolasi Telegram'da (openTelegramLink);
+// "Saytda ochish" (MainButton → handoff → openLink), to'lov havolasi Telegram'da (openTelegramLink);
 // sayt: /auth/handoff?token= → kirgan holda, token bir martalik; oddiy brauzerda SDK yuklanmaydi; frame-ancestors.
 import { launch, BASE, API_HOST, reset, mockGet, ignorablePageError, makeCheck } from "../lib.mjs";
 const OUT = new URL("../out/", import.meta.url).pathname;
@@ -16,7 +16,6 @@ async function miniApp(initData) {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
   let sdkRequests = 0;
   await ctx.route("https://telegram.org/**", (r) => { sdkRequests++; return r.abort(); });
-  await ctx.exposeBinding("__tgContact", async () => { await fetch(`${API_HOST}/__tg-phone?tg=777&phone=%2B998901112233`); return true; });
   await ctx.addInitScript((initData) => {
     const calls = (window.__tg = { ready: 0, expand: 0, close: 0, links: [], tgLinks: [], main: { text: "", visible: false, handlers: [] } });
     window.Telegram = {
@@ -24,7 +23,6 @@ async function miniApp(initData) {
         initData, platform: "android", version: "8.0",
         ready: () => calls.ready++, expand: () => calls.expand++, close: () => calls.close++,
         openLink: (u) => calls.links.push(u), openTelegramLink: (u) => calls.tgLinks.push(u),
-        requestContact: (cb) => window.__tgContact().then(() => cb(true)),
         MainButton: {
           setText: (t) => (calls.main.text = t), show: () => (calls.main.visible = true), hide: () => (calls.main.visible = false),
           onClick: (h) => calls.main.handlers.push(h), offClick: (h) => (calls.main.handlers = calls.main.handlers.filter((x) => x !== h)),
@@ -47,13 +45,10 @@ check("Kirish: initData O'ZGARTIRILMASDAN, device_name 'Telegram Mini App'", las
 const st = await page.evaluate(() => ({ tg: window.__tg, access: localStorage.getItem("a365.access"), secret: localStorage.getItem("a365.device.secret") }));
 check("ready() va expand() chaqirildi; tokenlar va device_secret saqlandi", st.tg.ready > 0 && st.tg.expand > 0 && st.access === "access-token-tg-777" && st.secret === "secret-tg-777", JSON.stringify(st));
 
-// ---- 2) Telefon (ixtiyoriy)
-await page.waitForSelector('[data-testid="tg-phone"]', { timeout: 10000 });
-check("phone_required → 'Telefon raqamingizni ulashing' (ixtiyoriy)", ((await page.textContent('[data-testid="tg-phone"]')) ?? "").includes("Telefon raqamingizni ulashing"));
-await page.screenshot({ path: OUT + "106-tg-phone.png" });
-await page.click('[data-testid="tg-phone-share"]');
-await page.waitForSelector('[data-testid="tg-phone"]', { state: "detached", timeout: 15000 });
-check("Ulashildi → /auth/me qayta, telefon yozildi, taklif yopildi", true);
+// ---- 2) 112: telefon ulashish taklifi yo'q (phone_required bo'lsa ham)
+await page.waitForSelector('[data-testid="book-card"]', { timeout: 20000 });
+check("112: 'Telefon raqamingizni ulashing' ko'rsatilmaydi", (await page.locator("text=Telefon raqamingizni ulashing").count()) === 0 && (await page.locator('[data-testid="tg-phone"]').count()) === 0);
+await page.screenshot({ path: OUT + "112-tg-no-phone.png" });
 
 // ---- 3) MainButton "Saytda ochish" → handoff → openLink
 await page.waitForFunction(() => window.__tg.main.visible && window.__tg.main.handlers.length > 0, null, { timeout: 10000 });

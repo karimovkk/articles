@@ -370,9 +370,8 @@ const server = createServer(async (req, res) => {
   if (path === "/__progress") return json(res, 200, progress);
   if (path === "/__uploads") return json(res, 200, uploads);
   if (path === "/__orders") return json(res, 200, orders);
-  // 106: Telegram — oxirgi webapp so'rovi; bot webhook telefonni yozdi (`/__tg-phone?tg=<id>&phone=`)
+  // 106: Telegram — oxirgi webapp so'rovi
   if (path === "/__tg-last") return json(res, 200, { body: __lastTgBody, handoffs: [...handoffs.values()].map(({ used }) => ({ used })) });
-  if (path === "/__tg-phone") { const u = tgUsers.get(q.get("tg")); if (u) u.phone = q.get("phone"); return json(res, 200, u ?? null); }
   if (path === "/__receipts") return json(res, 200, receipts);
   // /__payment?empty=1 — prod'dagidek bo'sh rekvizitlar (B21); parametrsiz — to'ldirilgan
   if (path === "/__payment") { if (q.get("empty") === "1") paymentInfo = { card_number: "", recipient: "", instructions: "" }; return json(res, 200, paymentInfo); }

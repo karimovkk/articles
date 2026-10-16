@@ -1618,6 +1618,14 @@ hamma narsa — saytda ("Saytda ochish").
 - [x] 111.3 "O'qish" / "Kutubxona" havolalari Mini App'da ko'rsatilmaydi (kartada "Kutubxonada" tegi qoladi; o'qish — saytda)
 - [x] 111.4 e2e `telegram-miniapp`: nav, yo'naltirish; dev + prod
 
+## 112. Mini App: telefon raqamini ulashish olib tashlandi (2026-10-16)
+
+Talab: Mini App'da "Telefon raqamingizni ulashing" kerak emas — to'liq olib tashlanadi.
+
+- [x] 112.1 `phone_required` taklifi, `requestContact`, "Keyinroq" (localStorage `a365.tg.phoneSkip`), `/auth/me` kutish,
+      `tg.phone.*` (uz/ru/en) olib tashlandi
+- [x] 112.2 e2e `telegram-miniapp` (telefon bosqichi, mock `/__tg-phone`), README yangilandi; dev + prod
+
 ## 31. Keyingi vazifalar
 
 - [ ] 31.1 Safari (WebKit): varaqlash rejimida oldingi sahifaga qaytilganda (3-sahifa) belgilash qatlami
