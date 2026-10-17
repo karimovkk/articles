@@ -24,6 +24,7 @@ import { env } from "@/lib/env";
 import { useOpenOrders } from "@/lib/admin-open-orders";
 import { StreakChip } from "@/components/streak/streak-chip";
 import { BuyRealBooks } from "./buy-real-books";
+import { ContactWidget } from "./contact-widget";
 import { useT, type DictKey } from "@/i18n";
 import { LocaleSwitcher } from "@/i18n/locale-switcher";
 import { useInTelegram } from "@/lib/use-in-telegram";
@@ -58,6 +59,8 @@ export function ClientShell({ children }: { children: ReactNode }) {
         <ClientSidebar open={open} onNavigate={() => setOpenAt(null)} />
         <main className="client-main">{children}</main>
       </div>
+      {/* 113: bog'lanish — Telegram (@I365_admin) */}
+      <ContactWidget />
     </div>
   );
 }

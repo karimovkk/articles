@@ -1267,4 +1267,13 @@ export const en: Dict = {
   "tg.handoff.loading": "Signing in to the website…",
   "tg.handoff.expired": "The link has expired or was already used. Tap “Open on the website” in the Mini App again, or sign in as usual.",
   "tg.handoff.missing": "The sign-in link is incomplete.",
+  // 113: bog'lanish (Telegram)
+  "contact.fab": "Contact us",
+  "contact.admin": "Articles365 admin",
+  "contact.status": "On Telegram · usually replies fast",
+  "contact.title": "Have a question?",
+  "contact.sub": "Orders, payment or articles — message us on Telegram and we'll help.",
+  "contact.copy": "Copy",
+  "contact.copied": "Copied",
+  "contact.write": "Message on Telegram",
 };

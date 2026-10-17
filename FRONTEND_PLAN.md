@@ -1626,6 +1626,17 @@ Talab: Mini App'da "Telefon raqamingizni ulashing" kerak emas — to'liq olib ta
       `tg.phone.*` (uz/ru/en) olib tashlandi
 - [x] 112.2 e2e `telegram-miniapp` (telefon bosqichi, mock `/__tg-phone`), README yangilandi; dev + prod
 
+## 113. Bog'lanish — Telegram (@I365_admin) (2026-10-17)
+
+Talab: saytda bog'lanish komponenti, chiroyli dizayn; Telegram: `@I365_admin`.
+
+- [x] 113.1 O'ng pastki burchakda suzuvchi tugma (Telegram rangi) → karta: "Savolingiz bormi?", administrator, `@I365_admin`
+      (nusxa olish), "Telegram'da yozish" → `https://t.me/I365_admin` (yangi oyna; telefonda Telegram ilovasi)
+- [x] 113.2 Escape / tashqariga bosish — yopiladi; klaviatura bilan ishlaydi; yorug' / qorong'i mavzu; telefon kengligi
+- [x] 113.3 Mijoz qobig'idagi barcha sahifalar (katalog, kutubxona, savatcha…); reader, admin, login'da yo'q.
+      Mini App'da — `openTelegramLink` (chat Telegram'ning o'zida) va Mini App yopiladi (chat ko'rinsin)
+- [x] 113.4 uz/ru/en; e2e `contact` dev + prod
+
 ## 31. Keyingi vazifalar
 
 - [ ] 31.1 Safari (WebKit): varaqlash rejimida oldingi sahifaga qaytilganda (3-sahifa) belgilash qatlami

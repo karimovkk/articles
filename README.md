@@ -111,6 +111,12 @@ e2e yordamchilari (`e2e/lib.mjs`): `selectPick`, `selectOptionCount`, `confirmDi
   `/auth/handoff?token=` da kirgan holda ochiladi (backend `FRONTEND_BASE_URL` + `FRONTEND_HANDOFF_PATH=/auth/handoff`).
 - Telegram Web Mini App'ni iframe'da ochadi — sahifalarda `frame-ancestors 'self' https://web.telegram.org` (admin — `'none'`).
 
+## Bog'lanish (Telegram)
+
+- Mijoz qobig'idagi sahifalarda o'ng pastki burchakda Telegram tugmasi → karta: `@I365_admin`, nusxa olish,
+  "Telegram'da yozish" (`https://t.me/I365_admin`). Username — `src/components/layout/contact-widget.tsx`
+  (`CONTACT_TELEGRAM`). Mini App'da chat Telegram'ning o'zida ochiladi (`openTelegramLink`), Mini App yopiladi.
+
 ## Rasmli (skaner) PDF — OCR backend'da
 
 - Backend processing'da matnsiz PDF'ga ko'rinmas matn qatlami qo'shadi (`ocrmypdf -l eng --skip-text`); frontend PDF'ni

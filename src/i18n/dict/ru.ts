@@ -1267,4 +1267,13 @@ export const ru: Dict = {
   "tg.handoff.loading": "Вход на сайт…",
   "tg.handoff.expired": "Ссылка устарела или уже использована. Нажмите «Открыть на сайте» в Mini App ещё раз или войдите обычным способом.",
   "tg.handoff.missing": "Ссылка для входа неполная.",
+  // 113: bog'lanish (Telegram)
+  "contact.fab": "Связаться с нами",
+  "contact.admin": "Администратор Articles365",
+  "contact.status": "В Telegram · обычно отвечает быстро",
+  "contact.title": "Есть вопрос?",
+  "contact.sub": "Заказ, оплата или статьи — напишите в Telegram, мы поможем.",
+  "contact.copy": "Копировать",
+  "contact.copied": "Скопировано",
+  "contact.write": "Написать в Telegram",
 };

@@ -4314,3 +4314,319 @@ html:not(.dark) .hero-eyebrow {
   font-size: 12px;
   color: var(--text-2);
 }
+
+/* ---------- 113: bog'lanish — suzuvchi Telegram tugmasi va karta (@I365_admin) ----------
+   Tugma — Telegram rangi (gradient), yumshoq "nafas" halqasi; karta — Telegram rangli sarlavha (365 avatar, onlayn
+   nuqta), handle (nusxa olish) va "Telegram'da yozish". Reduced-motion — harakatsiz. */
+.contact {
+  --tg-1: #37bbfe;
+  --tg-2: #1d93d2;
+  /* mijoz qobig'ida --surface yarim shaffof (shisha) — karta orqasidagi matn ko'rinmasin, o'z foni */
+  --contact-bg: #ffffff;
+  --contact-bg-2: #f4f1e8;
+  position: fixed;
+  right: 22px;
+  bottom: calc(22px + env(safe-area-inset-bottom));
+  z-index: 42;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 12px;
+  pointer-events: none;
+}
+.contact > * {
+  pointer-events: auto;
+}
+.contact-fab {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 58px;
+  height: 58px;
+  border: 0;
+  border-radius: 50%;
+  color: #fff;
+  cursor: pointer;
+  background: linear-gradient(140deg, var(--tg-1) 0%, var(--tg-2) 100%);
+  box-shadow:
+    0 16px 32px -12px rgba(29, 147, 210, 0.75),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  transition:
+    transform 200ms var(--ease),
+    box-shadow 200ms var(--ease);
+}
+.contact-fab::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  border: 2px solid var(--tg-1);
+  opacity: 0;
+  animation: contact-breathe 3.2s var(--ease) infinite;
+}
+.contact.open .contact-fab::before {
+  animation: none;
+}
+@keyframes contact-breathe {
+  0% {
+    transform: scale(1);
+    opacity: 0.55;
+  }
+  70%,
+  100% {
+    transform: scale(1.45);
+    opacity: 0;
+  }
+}
+.contact-fab:hover {
+  transform: translateY(-2px) scale(1.04);
+  box-shadow:
+    0 20px 36px -12px rgba(29, 147, 210, 0.85),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+.contact-fab:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 3px var(--contact-bg),
+    0 0 0 6px var(--tg-1);
+}
+.contact-fab-icon {
+  display: grid;
+  place-items: center;
+  transform: translateX(-1px);
+  transition: transform 220ms var(--ease);
+}
+.contact.open .contact-fab-icon {
+  transform: rotate(90deg);
+}
+
+.contact-card {
+  width: min(344px, calc(100vw - 32px));
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  overflow: hidden;
+  background: var(--contact-bg);
+  box-shadow:
+    0 30px 60px -24px rgba(18, 22, 20, 0.45),
+    0 2px 6px rgba(18, 22, 20, 0.06);
+  transform-origin: calc(100% - 29px) 100%;
+  animation: contact-pop 240ms var(--ease);
+}
+.contact-card[hidden] {
+  display: none;
+}
+@keyframes contact-pop {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.94);
+  }
+}
+.contact-head {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 16px 18px;
+  color: #fff;
+  background:
+    radial-gradient(120% 140% at 100% 0%, rgba(255, 255, 255, 0.22), transparent 55%),
+    radial-gradient(80% 120% at 0% 100%, rgba(242, 183, 5, 0.22), transparent 60%),
+    linear-gradient(135deg, var(--tg-1) 0%, var(--tg-2) 100%);
+}
+.contact-avatar {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+  font-style: italic;
+  color: #f2b705;
+  background: radial-gradient(circle at 35% 30%, #2a2416, #0f0d08);
+  box-shadow:
+    0 0 0 2px rgba(255, 255, 255, 0.85),
+    0 8px 18px -8px rgba(0, 0, 0, 0.6);
+}
+.contact-online {
+  position: absolute;
+  right: 0;
+  bottom: 1px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #34d399;
+  box-shadow: 0 0 0 2px var(--tg-2);
+}
+.contact-name {
+  display: block;
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+.contact-status {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.82);
+}
+.contact-close {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  margin-left: auto;
+  align-self: flex-start;
+  border: 0;
+  border-radius: 50%;
+  color: #fff;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.16);
+  transition: background 150ms var(--ease);
+}
+.contact-close:hover {
+  background: rgba(255, 255, 255, 0.28);
+}
+.contact-close:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px #fff;
+}
+.contact-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px 18px 18px;
+}
+.contact-title {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.15;
+  color: var(--text);
+}
+.contact-sub {
+  margin-top: -6px;
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+.contact-handle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 6px 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--contact-bg-2);
+  color: var(--tg-2);
+}
+.contact-handle-text {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14.5px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  color: var(--text);
+}
+.contact-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-2);
+  cursor: pointer;
+  background: var(--contact-bg);
+  transition:
+    color 150ms var(--ease),
+    border-color 150ms var(--ease);
+}
+.contact-copy:hover {
+  color: var(--tg-2);
+  border-color: color-mix(in srgb, var(--tg-2) 45%, transparent);
+}
+.contact-copy:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--tg-1) 45%, transparent);
+}
+.contact-write {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  height: 48px;
+  border-radius: 14px;
+  font-size: 15px;
+  font-weight: 800;
+  color: #fff;
+  text-decoration: none;
+  background: linear-gradient(135deg, var(--tg-1) 0%, var(--tg-2) 100%);
+  box-shadow: 0 12px 24px -12px rgba(29, 147, 210, 0.8);
+  transition:
+    transform 180ms var(--ease),
+    box-shadow 180ms var(--ease);
+}
+.contact-write:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 16px 28px -12px rgba(29, 147, 210, 0.95);
+}
+.contact-write:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 3px var(--contact-bg),
+    0 0 0 6px var(--tg-1);
+}
+.contact-write-arrow {
+  opacity: 0.8;
+}
+.dark .contact {
+  --contact-bg: #12110d;
+  --contact-bg-2: #1d1a12;
+}
+.dark .contact-handle {
+  color: var(--tg-1);
+}
+.dark .contact-card {
+  box-shadow: 0 30px 60px -24px rgba(0, 0, 0, 0.8);
+}
+@media (max-width: 640px) {
+  .contact {
+    right: 16px;
+    bottom: calc(16px + env(safe-area-inset-bottom));
+  }
+  .contact-fab {
+    width: 52px;
+    height: 52px;
+  }
+  .contact-card {
+    transform-origin: calc(100% - 26px) 100%;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .contact-fab,
+  .contact-fab-icon,
+  .contact-write {
+    transition: none;
+  }
+  .contact-fab::before,
+  .contact-card {
+    animation: none;
+  }
+}
+@media print {
+  .contact {
+    display: none;
+  }
+}

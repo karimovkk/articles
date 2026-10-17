@@ -1286,4 +1286,13 @@ export const uz = {
   "tg.handoff.loading": "Saytga kirilmoqda…",
   "tg.handoff.expired": "Havola eskirgan yoki ishlatilgan. Telegram'dagi Mini App'dan «Saytda ochish» ni qayta bosing yoki odatdagidek kiring.",
   "tg.handoff.missing": "Kirish havolasi to'liq emas.",
+  // 113: bog'lanish (Telegram)
+  "contact.fab": "Biz bilan bog'lanish",
+  "contact.admin": "Articles365 administratori",
+  "contact.status": "Telegram'da · odatda tez javob beradi",
+  "contact.title": "Savolingiz bormi?",
+  "contact.sub": "Buyurtma, to'lov yoki maqolalar bo'yicha — Telegram'da yozing, yordam beramiz.",
+  "contact.copy": "Nusxa",
+  "contact.copied": "Nusxalandi",
+  "contact.write": "Telegram'da yozish",
 } satisfies Record<string, string>;
