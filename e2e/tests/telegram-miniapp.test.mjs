@@ -21,8 +21,11 @@ async function miniApp(initData) {
     window.Telegram = {
       WebApp: {
         initData, platform: "android", version: "8.0",
-        ready: () => calls.ready++, expand: () => calls.expand++, close: () => calls.close++,
-        openLink: (u) => calls.links.push(u), openTelegramLink: (u) => calls.tgLinks.push(u),
+        ready: () => calls.ready++, expand: () => calls.expand++,
+        // 116: real Telegram chat ochilgach Mini App'ni fonga o'tkazadi — close() havola bilan bir vazifada bo'lishi kerak
+        close: () => { calls.close++; calls.closeSync = !!calls.linkTask; },
+        openLink: (u) => calls.links.push(u),
+        openTelegramLink: (u) => { calls.tgLinks.push(u); calls.linkTask = true; setTimeout(() => (calls.linkTask = false), 0); },
         MainButton: {
           setText: (t) => (calls.main.text = t), show: () => (calls.main.visible = true), hide: () => (calls.main.visible = false),
           onClick: (h) => calls.main.handlers.push(h), offClick: (h) => (calls.main.handlers = calls.main.handlers.filter((x) => x !== h)),
@@ -89,7 +92,8 @@ check("Buyurtma → openTelegramLink(t.me/…start=…), yangi oyna ochilmadi", 
 await page.screenshot({ path: OUT + "106b-tg-order.png" });
 // 109: Mini App yopiladi — bot chati (to'lov) ko'rinadi
 await page.waitForFunction(() => window.__tg.close > 0, null, { timeout: 5000 }).catch(() => undefined);
-check("109: havoladan keyin Mini App yopildi (close()) — to'lov bot chatida ko'rinadi", (await page.evaluate(() => window.__tg.close)) === 1);
+const closed = await page.evaluate(() => ({ close: window.__tg.close, sync: window.__tg.closeSync }));
+check("109/116: havoladan keyin Mini App darhol yopildi (close(), taymersiz) — to'lov bot chatida ko'rinadi", closed.close === 1 && closed.sync === true, JSON.stringify(closed));
 
 // ---- 6) Sayt (oddiy brauzer): handoff → kirgan holda, token manzildan olib tashlandi
 const site = await browser.newContext({ viewport: { width: 1280, height: 800 } });

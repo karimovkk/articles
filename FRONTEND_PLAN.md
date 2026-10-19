@@ -1655,6 +1655,16 @@ Talab: Mini App'dagi "Saytda ochish" sayt sifatida `articles365.uz` ni ochsin (a
       (`/auth/handoff?token=…`) saqlanadi, domen shunga almashtiriladi; bo'sh qiymat — backend havolasi o'zgarmaydi
 - [x] 115.2 README (env jadvali), e2e `telegram-miniapp`; dev + prod
 
+## 116. Mini App: "Telegram orqali to'lash" — Mini App yopilmayotgan edi (2026-10-19)
+
+Muammo (real Telegram): to'lov tugmasi bosilganda Mini App yopilmaydi, botda "Start" bosilmaydi. Sabab: bot chati
+ochilganda (`openTelegramLink`) Telegram Mini App'ni fonga o'tkazadi — `setTimeout(close, 300)` ishlamay qoladi.
+
+- [x] 116.1 `openTelegramLink` dan keyin `close()` darhol (shu bosishda, taymersiz) — to'lov va bog'lanish (`contact`)
+- [x] 116.2 e2e `telegram-miniapp`, `contact`: `close()` havola bilan bir vazifada chaqiriladi; dev + prod
+- [x] 116.3 Backend taklifi: Mini App'da bot to'lov xabarini o'zi yuborsin (foydalanuvchi "Start" bosmasin) —
+      `~/Desktop/Articles365_BACKEND_MiniApp_Tolov_v1.0.md`
+
 ## 31. Keyingi vazifalar
 
 - [ ] 31.1 Safari (WebKit): varaqlash rejimida oldingi sahifaga qaytilganda (3-sahifa) belgilash qatlami

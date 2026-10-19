@@ -67,7 +67,7 @@ export function ContactWidget() {
     if (!tg) return; // oddiy brauzer — havola o'zi (yangi oyna)
     e.preventDefault();
     tg.openTelegramLink(CONTACT_URL);
-    window.setTimeout(() => tg.close(), 300);
+    tg.close(); // 116: taymersiz — chat ochilgach Mini App fonda, `setTimeout` ishlamay qoladi
   };
 
   return (

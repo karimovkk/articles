@@ -81,7 +81,9 @@ const watch = (page) => page.on("pageerror", (e) => !ignorablePageError(e.messag
     window.Telegram = {
       WebApp: {
         initData: "query_id=x&user=%7B%22id%22%3A778%7D&auth_date=1760000000&hash=good",
-        ready() {}, expand() {}, close: () => calls.close++, openLink() {}, openTelegramLink: (u) => calls.tgLinks.push(u),
+        ready() {}, expand() {}, openLink() {},
+        close: () => { calls.close++; calls.closeSync = !!calls.linkTask; },
+        openTelegramLink: (u) => { calls.tgLinks.push(u); calls.linkTask = true; setTimeout(() => (calls.linkTask = false), 0); },
         MainButton: { setText() {}, show() {}, hide() {}, onClick() {}, offClick() {} },
       },
     };
@@ -94,7 +96,7 @@ const watch = (page) => page.on("pageerror", (e) => !ignorablePageError(e.messag
   await page.tap('[data-testid="contact-write"]');
   await page.waitForFunction(() => window.__tg.close > 0, null, { timeout: 5000 }).catch(() => undefined);
   const tg = await page.evaluate(() => window.__tg);
-  check("Mini App: openTelegramLink(t.me/I365_admin) + close(), yangi oyna yo'q", tg.tgLinks[0] === "https://t.me/I365_admin" && tg.close === 1 && ctx.pages().length === 1, JSON.stringify(tg));
+  check("Mini App: openTelegramLink(t.me/I365_admin) + darhol close() (116), yangi oyna yo'q", tg.tgLinks[0] === "https://t.me/I365_admin" && tg.close === 1 && tg.closeSync === true && ctx.pages().length === 1, JSON.stringify(tg));
   await ctx.close();
 }
 
