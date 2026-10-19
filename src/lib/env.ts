@@ -26,6 +26,8 @@ export const env = {
   purchaseUrl: process.env.NEXT_PUBLIC_PURCHASE_URL ?? "",
   /** Buyurtma yaratilgach ko'rsatiladigan to'lov ko'rsatmasi (karta raqami, Telegram va h.k.). `\n` — yangi qator. */
   paymentInstructions: (process.env.NEXT_PUBLIC_PAYMENT_INSTRUCTIONS ?? "").replace(/\\n/g, "\n"),
+  /** 115: saytning asosiy domeni — Mini App'dagi "Saytda ochish" shu domenda ochiladi. Bo'sh — backend bergan havola. */
+  siteUrl: (process.env.NEXT_PUBLIC_SITE_URL ?? "https://articles365.uz").trim().replace(/\/+$/, ""),
 } as const;
 
 /** Sotib olish havolasini kitob uchun quradi; sozlanmagan bo'lsa null. */

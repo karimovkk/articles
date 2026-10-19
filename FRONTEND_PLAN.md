@@ -1647,6 +1647,14 @@ o'chardi (bepul `ru`/`en` ham).
       bo'lsa — darhol ruscha zaxira (izoh bilan). `TRANSLATE_UNAVAILABLE` / `404` — avvalgidek hammasi o'chadi
 - [x] 114.2 Mock `/__translate?quota=uz`; e2e `translate`: uz limit → ru, keyingi so'zlarda faqat ru; dev + prod
 
+## 115. Mini App "Saytda ochish" — `articles365.uz` (2026-10-19)
+
+Talab: Mini App'dagi "Saytda ochish" sayt sifatida `articles365.uz` ni ochsin (avval backend bergan havola — vercel.app).
+
+- [x] 115.1 `env.siteUrl` (`NEXT_PUBLIC_SITE_URL`, standart `https://articles365.uz`): handoff havolasining manzili
+      (`/auth/handoff?token=…`) saqlanadi, domen shunga almashtiriladi; bo'sh qiymat — backend havolasi o'zgarmaydi
+- [x] 115.2 README (env jadvali), e2e `telegram-miniapp`; dev + prod
+
 ## 31. Keyingi vazifalar
 
 - [ ] 31.1 Safari (WebKit): varaqlash rejimida oldingi sahifaga qaytilganda (3-sahifa) belgilash qatlami

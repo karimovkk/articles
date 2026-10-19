@@ -56,7 +56,7 @@ check("MainButton: 'Saytda ochish' ko'rinadi", (await page.evaluate(() => window
 await page.evaluate(() => window.__tg.main.handlers.at(-1)());
 await page.waitForFunction(() => window.__tg.links.length > 0, null, { timeout: 10000 });
 const handoffUrl = await page.evaluate(() => window.__tg.links[0]);
-check("Bosildi → POST /auth/telegram/handoff, openLink(/auth/handoff?token=…)", /\/auth\/handoff\?token=ho-/.test(handoffUrl) && (await tgLog()).includes("POST /auth/telegram/handoff"), handoffUrl);
+check("Bosildi → POST /auth/telegram/handoff, openLink(https://articles365.uz/auth/handoff?token=…) — 115", /^https:\/\/articles365\.uz\/auth\/handoff\?token=ho-/.test(handoffUrl) && (await tgLog()).includes("POST /auth/telegram/handoff"), handoffUrl);
 
 // ---- 4) Boshqa sahifa (hash'siz) — Telegram ichida deb taniladi, qayta kirish so'ralmaydi
 const n0 = (await tgLog()).filter((l) => l === "POST /auth/telegram/webapp").length;

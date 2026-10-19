@@ -5,7 +5,7 @@
  *  - SDK yuklanadi, `ready()` / `expand()`;
  *  - parolsiz kirish: `initData` (o'zgartirilmasdan) → `POST /auth/telegram/webapp` — Mini App sessiyasida bir marta;
  *  - Telegram'ning pastki tugmasi (MainButton) "Saytda ochish": `POST /auth/telegram/handoff` → `openLink(url)` —
- *    sayt tashqi brauzerda shu akkaunt bilan kirgan holda ochiladi.
+ *    sayt tashqi brauzerda shu akkaunt bilan kirgan holda ochiladi; 115: domen — `env.siteUrl` (articles365.uz).
  *  - 111: Mini App'da faqat sotib olish va kirish/ro'yxat sahifalari — boshqa manzil → `/catalog`.
  * Oddiy brauzerda hech narsa qilmaydi (SDK ham yuklanmaydi).
  */
@@ -14,6 +14,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui";
 import * as I from "@/components/ui/icons";
 import { authApi, errorMessage, isApiError, tokenStore } from "@/lib/api";
+import { env } from "@/lib/env";
 import { loadTelegram, miniAppAllowed, type TelegramWebApp } from "@/lib/telegram";
 import { useInTelegram } from "@/lib/use-in-telegram";
 import { useAuth } from "@/providers/auth-provider";
@@ -39,6 +40,17 @@ function sSet(store: () => Storage, k: string, v: string) {
     store().setItem(k, v);
   } catch {
     /* private rejim */
+  }
+}
+
+/** 115: backend havolasining manzili (`/auth/handoff?token=…`) saqlanadi, domen — `env.siteUrl` */
+function onSite(url: string): string {
+  if (!env.siteUrl) return url;
+  try {
+    const u = new URL(url);
+    return `${env.siteUrl}${u.pathname}${u.search}${u.hash}`;
+  } catch {
+    return url;
   }
 }
 
@@ -89,7 +101,7 @@ export function TelegramMiniApp() {
     tg.MainButton?.showProgress?.(false);
     try {
       const h = await authApi.telegramHandoff();
-      tg.openLink(h.url);
+      tg.openLink(onSite(h.url));
     } catch (e) {
       setError(errorMessage(e));
     } finally {
