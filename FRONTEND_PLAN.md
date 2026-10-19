@@ -1678,6 +1678,19 @@ orada sahifa yo'naltiriladi (`/tg` → `/catalog`, ruxsat etilmagan sahifa → `
 - [x] 117.2 e2e `telegram-miniapp`: haqiqiy SDK'dek soxta skript (hash'ni yuklanganda o'qiydi), 2,5 s kechikish, Mini App
       `/daily#tgWebAppData=…` da ochiladi → `/catalog`: `initData` bor, kirildi, "Saytda ochish" ko'rinadi; dev + prod
 
+## 118. iPhone: SDK'siz ham bot havolasi — Telegram ko'prigi va diagnostika (2026-10-19)
+
+Muammo (117 deploy'dan keyin ham): iPhone Mini App'da "Saytda ochish" yo'q, to'lov tugmasi hech narsa qilmaydi —
+SDK `initData` siz (yoki yuklanmagan); sabab qurilmada ko'rinmaydi.
+
+- [x] 118.1 `telegramLinker()`: SDK (`initData` bo'lmasa ham uning metodlari) → bo'lmasa Telegram ko'prigi
+      (`TelegramWebviewProxy.postEvent` — iOS/Android; Telegram Web — `parent.postMessage`): `web_app_open_tg_link`,
+      `web_app_close`. To'lov (cart, maqola, buyurtma) va bog'lanish shundan foydalanadi
+- [x] 118.2 Mini App rejimida ko'prik ham bo'lmasa — jim emas: xato + qisqa diagnostika (SDK holati, hash, ko'prik,
+      platforma/versiya). SDK `initData` siz qolsa — Mini App pastida diagnostika kartasi (skrinshot uchun)
+- [x] 118.3 e2e `telegram-miniapp`: SDK yuklanmaydi, faqat `TelegramWebviewProxy` → to'lov havolasi va `close` ko'prik
+      orqali; ko'prik yo'q → diagnostika; dev + prod
+
 ## 31. Keyingi vazifalar
 
 - [ ] 31.1 Safari (WebKit): varaqlash rejimida oldingi sahifaga qaytilganda (3-sahifa) belgilash qatlami

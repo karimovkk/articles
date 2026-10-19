@@ -11,13 +11,15 @@
  * 101: "Buyurtma berish" ham botni darhol ochadi (`openTelegram`) — ikkinchi tugma bosilmaydi.
  * 109: Telegram Mini App ichida — bot havolasi ochilgach Mini App yopiladi (bot chati ko'rinsin).
  * 116: `close()` darhol — chat ochilganda Telegram Mini App'ni fonga o'tkazadi va taymer ishlamay qoladi.
+ * 118: Mini App'da SDK `initData` siz qolsa (iPhone) ham — `telegramLinker()` (SDK yoki Telegram ko'prigi); ko'prik ham
+ * bo'lmasa — oddiy telefon yo'liga (`tg://`, webview'da bloklanadi) tushmaydi: xato + diagnostika.
  */
 import { useState, type ReactNode } from "react";
 import { Alert, Button } from "@/components/ui";
 import * as I from "@/components/ui/icons";
 import { errorMessage, isApiError, ordersApi, type Order } from "@/lib/api";
-import { telegramWebApp } from "@/lib/telegram";
-import { useT } from "@/i18n";
+import { launchedInTelegram, telegramDiag, telegramLinker } from "@/lib/telegram";
+import { t as tr, useT } from "@/i18n";
 
 /** Telefon / planshet (sensorli, mobil OS) */
 const isMobile = () => typeof window !== "undefined" && (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent)));
@@ -70,7 +72,8 @@ function openOnPhone(deepLink: string, bot?: string | null, token?: string | nul
  */
 export async function openTelegram(getOrderId: () => Promise<string | null>): Promise<"opened" | "none" | "unavailable"> {
   // 106: Telegram Mini App ichida — bot havolasi Telegram'ning o'zida (`openTelegramLink`), yangi oyna ochilmaydi
-  const tg = telegramWebApp();
+  const tg = telegramLinker();
+  if (!tg && launchedInTelegram()) throw new Error(`${tr("tg.noBridge")} [${telegramDiag()}]`);
   const mobile = isMobile();
   const win = mobile || tg ? null : window.open("", "_blank");
   try {

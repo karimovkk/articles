@@ -63,7 +63,7 @@ export function launchedInTelegram(): boolean {
  * `initData` bo'sh qoladi (iPhone). Shuning uchun parametrlar SDK'ning o'z formatida (`__telegram__initParams`, xuddi
  * SDK'dagi `urlParseHashParams` kabi) oldindan saqlanadi — SDK yuklanganda ular bilan birlashtiradi.
  */
-export const TELEGRAM_CAPTURE_SCRIPT = `(function(){try{var h=location.hash.replace(/^#/,'');if(h.indexOf('tgWebAppData=')<0)return;var d=function(s){try{return decodeURIComponent(s.replace(/\\+/g,'%20'))}catch(e){return s}};var p={},i=h.indexOf('?');if(i>=0){p._path=d(h.substr(0,i));h=h.substr(i+1)}h.split('&').forEach(function(x){var a=x.split('=');p[d(a[0])]=a[1]==null?null:d(a[1])});var k='__telegram__initParams',o=null;try{o=JSON.parse(sessionStorage.getItem(k))}catch(e){}if(o)for(var n in o)if(typeof p[n]==='undefined')p[n]=o[n];sessionStorage.setItem(k,JSON.stringify(p));sessionStorage.setItem('${FLAG}','1')}catch(e){}})()`;
+export const TELEGRAM_CAPTURE_SCRIPT = `(function(){try{var h=location.hash.replace(/^#/,'');if(h.indexOf('tgWebAppData=')<0){if(sessionStorage.getItem('${FLAG}')&&!sessionStorage.getItem('a365.tg.boot'))sessionStorage.setItem('a365.tg.boot','nohash:'+location.pathname);return}sessionStorage.setItem('a365.tg.boot','hash:'+location.pathname);var d=function(s){try{return decodeURIComponent(s.replace(/\\+/g,'%20'))}catch(e){return s}};var p={},i=h.indexOf('?');if(i>=0){p._path=d(h.substr(0,i));h=h.substr(i+1)}h.split('&').forEach(function(x){var a=x.split('=');p[d(a[0])]=a[1]==null?null:d(a[1])});var k='__telegram__initParams',o=null;try{o=JSON.parse(sessionStorage.getItem(k))}catch(e){}if(o)for(var n in o)if(typeof p[n]==='undefined')p[n]=o[n];sessionStorage.setItem(k,JSON.stringify(p));sessionStorage.setItem('${FLAG}','1')}catch(e){}})()`;
 
 let sdkPromise: Promise<TelegramWebApp | null> | null = null;
 
@@ -75,16 +75,106 @@ export function loadTelegram(): Promise<TelegramWebApp | null> {
   } catch {
     /* private rejim */
   }
-  if (window.Telegram?.WebApp) return Promise.resolve(telegramWebApp());
+  if (window.Telegram?.WebApp) {
+    sdkState = "loaded";
+    return Promise.resolve(telegramWebApp());
+  }
   sdkPromise ??= new Promise((resolve) => {
     const s = document.createElement("script");
     s.src = SDK_URL;
     s.async = true;
-    s.onload = () => resolve(telegramWebApp());
-    s.onerror = () => resolve(null);
+    sdkState = "pending";
+    s.onload = () => {
+      sdkState = "loaded";
+      resolve(telegramWebApp());
+    };
+    s.onerror = () => {
+      sdkState = "error";
+      resolve(null);
+    };
     document.head.appendChild(s);
   });
   return sdkPromise;
+}
+
+/** 118: SDK holati — diagnostika uchun */
+let sdkState: "idle" | "pending" | "loaded" | "error" = "idle";
+
+interface TelegramProxyWindow {
+  TelegramWebviewProxy?: { postEvent(type: string, data: string): void };
+}
+
+/** 118: Telegram ilovasiga buyruq — SDK'ning o'z transporti (iOS/Android: `TelegramWebviewProxy`, Telegram Web: iframe) */
+function postTelegramEvent(type: string, data: Record<string, unknown>): boolean {
+  const proxy = (window as unknown as TelegramProxyWindow).TelegramWebviewProxy;
+  if (proxy) {
+    proxy.postEvent(type, JSON.stringify(data));
+    return true;
+  }
+  if (window.parent !== window) {
+    window.parent.postMessage(JSON.stringify({ eventType: type, eventData: data }), "https://web.telegram.org");
+    return true;
+  }
+  return false;
+}
+
+function telegramBridge(): boolean {
+  return !!(window as unknown as TelegramProxyWindow).TelegramWebviewProxy || window.parent !== window;
+}
+
+/** Bot / chat havolasini Telegram'ning o'zida ochish va Mini App'ni yopish */
+export interface TelegramLinker {
+  openTelegramLink(url: string): void;
+  close(): void;
+}
+
+/**
+ * 118: Mini App ichida havola ochuvchi. SDK `initData` siz qolsa ham (iPhone) uning metodlari ishlaydi; SDK umuman
+ * bo'lmasa — to'g'ridan Telegram ko'prigi orqali. Oddiy brauzerda (yoki ko'prik yo'q) — `null`.
+ */
+export function telegramLinker(): TelegramLinker | null {
+  if (typeof window === "undefined") return null;
+  const tg = window.Telegram?.WebApp;
+  if (tg?.initData) return tg;
+  if (!launchedInTelegram()) return null;
+  if (tg) return tg;
+  if (!telegramBridge()) return null;
+  return {
+    openTelegramLink(url: string) {
+      const u = new URL(url);
+      if (u.protocol !== "https:" || !/^(www\.)?(t|telegram)\.me$/.test(u.hostname)) throw new Error("WebAppTgUrlInvalid");
+      postTelegramEvent("web_app_open_tg_link", { path_full: u.pathname + u.search });
+    },
+    close() {
+      postTelegramEvent("web_app_close", {});
+    },
+  };
+}
+
+/** 118: qisqa diagnostika (qurilmada skrinshot uchun) — maxfiy ma'lumot yo'q (initData'ning faqat uzunligi) */
+export function telegramDiag(): string {
+  if (typeof window === "undefined") return "";
+  const tg = window.Telegram?.WebApp;
+  let boot = "-";
+  let stored = "-";
+  try {
+    boot = window.sessionStorage.getItem("a365.tg.boot") ?? "-";
+    const p = JSON.parse(window.sessionStorage.getItem("__telegram__initParams") ?? "null") as Record<string, unknown> | null;
+    stored = p ? Object.keys(p).filter((k) => k.startsWith("tgWebApp")).map((k) => k.replace("tgWebApp", "")).join(",") || "0" : "-";
+  } catch {
+    /* private rejim */
+  }
+  return [
+    `sdk=${sdkState}${tg ? "+obj" : ""}`,
+    `init=${tg?.initData?.length ?? 0}`,
+    `v=${tg?.version ?? "-"}`,
+    `p=${tg?.platform ?? "-"}`,
+    `proxy=${(window as unknown as TelegramProxyWindow).TelegramWebviewProxy ? 1 : 0}`,
+    `frame=${window.parent !== window ? 1 : 0}`,
+    `hash=${/tgWebAppData=/.test(window.location.hash) ? 1 : 0}`,
+    `boot=${boot}`,
+    `ss=${stored}`,
+  ].join(" ");
 }
 
 /**

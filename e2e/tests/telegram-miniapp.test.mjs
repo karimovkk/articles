@@ -153,6 +153,44 @@ check("TELEGRAM_AUTH_FAILED → 'Telegram orqali kirib bo'lmadi…'", ((await ba
   await ctx3.close();
 }
 
+// ---- 8c) 118: SDK yuklanmadi (iPhone) — faqat Telegram ko'prigi (`TelegramWebviewProxy`): to'lov havolasi va close()
+// ko'prik orqali; pastda diagnostika kartasi. Ko'prik ham yo'q → jim emas: xato + diagnostika
+for (const withProxy of [true, false]) {
+  const ctx4 = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+  await ctx4.route("https://telegram.org/**", (r) => r.abort());
+  await ctx4.addCookies([{ name: "a365_auth", value: "1", url: BASE }]);
+  await ctx4.addInitScript((withProxy) => {
+    localStorage.setItem("a365.access", "access-token-1c");
+    localStorage.setItem("a365.refresh", "refresh-1c");
+    window.__events = [];
+    if (withProxy) window.TelegramWebviewProxy = { postEvent: (t, d) => window.__events.push([t, JSON.parse(d)]) };
+  }, withProxy);
+  const p4 = await ctx4.newPage();
+  p4.on("pageerror", (e) => !ignorablePageError(e.message) && errors.push(e.message));
+  await p4.goto(`${BASE}/catalog/${BOOK2}#tgWebAppData=${encodeURIComponent(INIT)}&tgWebAppVersion=8.0&tgWebAppPlatform=ios`);
+  await p4.waitForSelector('[data-testid="tg-diag"]', { timeout: 20000 });
+  const diag = (await p4.textContent('[data-testid="tg-diag"] code')) ?? "";
+  if (withProxy) check("118: SDK yo'q — pastda diagnostika (sdk=error, proxy=1, boot=hash)", /sdk=error/.test(diag) && /proxy=1/.test(diag) && /boot=hash:/.test(diag), diag);
+  // 1-aylanishda buyurtma yaratiladi — 2-sida o'sha buyurtmaning "Telegram orqali to'lash" tugmasi
+  const buy = p4.locator('[data-testid="tg-pay-btn"], button:has-text("Buyurtma berish")').first();
+  await buy.waitFor({ timeout: 20000 });
+  const pages4 = ctx4.pages().length;
+  await buy.click();
+  if (withProxy) {
+    await p4.waitForFunction(() => window.__events.some((e) => e[0] === "web_app_close"), null, { timeout: 10000 }).catch(() => undefined);
+    const ev = await p4.evaluate(() => window.__events);
+    const link = ev.find((e) => e[0] === "web_app_open_tg_link");
+    check("118: ko'prik orqali web_app_open_tg_link(/articles365_test_bot?start=…) va darhol web_app_close; yangi oyna yo'q",
+      /^\/articles365_test_bot\?start=/.test(link?.[1]?.path_full ?? "") && ev.findIndex((e) => e[0] === "web_app_close") === ev.indexOf(link) + 1 && ctx4.pages().length === pages4, JSON.stringify(ev));
+    await p4.screenshot({ path: OUT + "118-tg-bridge-diag.png" });
+  } else {
+    await p4.waitForSelector("text=Telegram bilan aloqa yo'q", { timeout: 10000 }).catch(() => undefined);
+    const txt = (await p4.locator("text=Telegram bilan aloqa yo'q").first().textContent().catch(() => "")) ?? "";
+    check("118: ko'prik ham yo'q — jim emas: 'Telegram bilan aloqa yo'q…' + diagnostika, tg:// ga o'tilmadi", txt.includes("proxy=0") && p4.url().startsWith(BASE), txt + " " + p4.url());
+  }
+  await ctx4.close();
+}
+
 // ---- 9) Telegram Web iframe'da ocha oladi (frame-ancestors), admin — yo'q
 const h1 = await fetch(`${BASE}/catalog`).then((r) => r.headers);
 const h2 = await fetch(`${BASE}/admin`, { redirect: "manual" }).then((r) => r.headers);
