@@ -176,6 +176,24 @@ await page.waitForSelector('[data-testid="vocab-dialog"]', { state: "detached", 
 check("Saqlandi — foydalanuvchining o'zbekcha tarjimasi bilan", (await mockGet("/__vocab")).some((v) => v.word === "lazy" && v.translation === "dangasa"));
 await page.context().close();
 
+// ---- 3b) 114: Google (uz) oylik limiti tugadi — butun tarjima emas, faqat uz o'chadi; ruscha (LibreTranslate) ishlaydi
+await fetch(`${API_HOST}/__translate?on=1&quota=uz`);
+page = await openReader(undefined, null, "uz");
+const q0 = (await trLog()).length;
+await openDialog("fox");
+await waitTr("лиса");
+const q1 = (await trLog()).slice(q0).map((x) => x.target_lang).join(",");
+check("114: uz → TRANSLATE_QUOTA_EXCEEDED → darhol ruscha (fox → лиса), so'rovlar: uz, ru", q1 === "uz,ru", q1);
+check("114: izoh 'Avtomatik tarjima ruscha'", ((await page.textContent('[data-testid="vocab-auto-badge"]')) ?? "").includes("ruscha"));
+await closeDialog();
+const q2 = (await trLog()).length;
+await openDialog("dog");
+await waitTr("собака");
+const q3 = (await trLog()).slice(q2).map((x) => x.target_lang).join(",");
+check("114: limitdan keyin uz so'ralmaydi — faqat ru", q3 === "ru", q3);
+await closeDialog();
+await page.context().close();
+
 // ---- 4) Telefon (360px): til tugmalari va oyna sig'adi
 await fetch(`${API_HOST}/__translate?on=1`);
 page = await openReader({ width: 360, height: 760 }, null, "ru");

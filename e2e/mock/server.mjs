@@ -94,6 +94,8 @@ const passwords = new Map(); // ro'yxatdan o'tganlar: user.id → parol (44.1)
 let translateOn = false;
 let translateDelay = 0;
 let translateNoUz = false;
+// 114: `quota=uz` — shu tilga `TRANSLATE_QUOTA_EXCEEDED` (Google oylik limiti tugagan)
+let translateQuota = "";
 // 57: integratsiya sozlamalari — server (env) qiymatlari + admin o'zgartirishlari (db); maxfiylar niqoblanadi
 const INTEG_ENV = { "telegram.bot_token": "123456:ENVTOKENabcd", "telegram.bot_username": "articles365_test_bot", "telegram.webhook_secret": "", "telegram.admin_chat_id": "111222333", "telegram.order_group_id": "", "payment.card_number": "8600123412345678", "payment.recipient": "Test Admin", "payment.instructions": "Izohga buyurtma raqamini yozing" };
 const INTEG_SECRET = new Set(["telegram.bot_token", "telegram.webhook_secret"]);
@@ -206,6 +208,7 @@ function reset(opts = {}) {
   translateOn = false;
   translateDelay = 0;
   translateNoUz = false;
+  translateQuota = "";
   receiptDelay = 0;
   tgLinkOff = false;
   integ = {}; integLog = []; webhookCalls = 0;
@@ -364,7 +367,7 @@ const server = createServer(async (req, res) => {
   if (path === "/__devicelimit") { deviceLimitOn = q.get("on") === "1"; return json(res, 200, { deviceLimitOn }); }
   if (path === "/__device-removed") { deviceRemovedOnRefresh = q.get("on") === "1"; return json(res, 200, { deviceRemovedOnRefresh }); }
   if (path === "/__vocab") return json(res, 200, vocab);
-  if (path === "/__translate") { translateOn = q.get("on") === "1"; translateDelay = Number(q.get("ms") ?? 0); translateNoUz = q.get("nouz") === "1"; return json(res, 200, { translateOn, translateDelay, translateNoUz }); }
+  if (path === "/__translate") { translateOn = q.get("on") === "1"; translateDelay = Number(q.get("ms") ?? 0); translateNoUz = q.get("nouz") === "1"; translateQuota = q.get("quota") ?? ""; return json(res, 200, { translateOn, translateDelay, translateNoUz, translateQuota }); }
   if (path === "/__translate-log") return json(res, 200, translateLog);
   if (path === "/__annotations") return json(res, 200, annotations);
   if (path === "/__progress") return json(res, 200, progress);
@@ -637,6 +640,7 @@ const server = createServer(async (req, res) => {
     if (!text || text.length > 200 || !["uz", "ru", "en"].includes(target)) return err(res, 422, "VALIDATION_ERROR", "Validation failed", [{ loc: ["body", "text"], msg: "Invalid" }]);
     if (translateDelay) await new Promise((r) => setTimeout(r, translateDelay));
     if (translateNoUz && target === "uz") return err(res, 502, "TRANSLATE_FAILED", "Translation provider failed");
+    if (translateQuota === target) return err(res, 429, "TRANSLATE_QUOTA_EXCEEDED", "Monthly translation limit reached");
     const same = /^(salom|kitob)$/i.test(text) && target === "uz";
     const tr = same ? null : (TR[target][normWord(text)] ?? `${text} (${target})`);
     return json(res, 200, { text, translation: tr, detected_source_lang: same ? "uz" : "en", target_lang: target, same_language: same, provider: "google", cached: false });

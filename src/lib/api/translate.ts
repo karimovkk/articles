@@ -1,9 +1,11 @@
 /**
  * 41: avtomatik tarjima — `POST /translate` (backend Google Cloud Translation orqali; kalit faqat serverda).
  * Yordamchi funksiya: har qanday xatoda `null` qaytadi — so'zni lug'atga qo'shish baribir ishlaydi.
- * `503 TRANSLATE_UNAVAILABLE` / `TRANSLATE_QUOTA_EXCEEDED` → shu sessiyada qayta so'ralmaydi.
- * Provayder biror tilni qo'llamasa (hozirgi self-hosted LibreTranslate — `uz` yo'q, faqat ru/en): shu til uchun ketma-ket
- * `502 TRANSLATE_FAILED` → o'sha til shu sessiyada o'chiriladi (bir martalik uzilish uchun 2 ta urinish qoldiriladi).
+ * `503 TRANSLATE_UNAVAILABLE` (yoki `404`) → shu sessiyada qayta so'ralmaydi.
+ * Provayder biror tilni qo'llamasa: shu til uchun ketma-ket `502 TRANSLATE_FAILED` → o'sha til shu sessiyada o'chiriladi
+ * (bir martalik uzilish uchun 2 ta urinish qoldiriladi).
+ * 114: backend gibrid — `uz` Google (pulli, oylik limit), `ru`/`en` self-hosted LibreTranslate. `TRANSLATE_QUOTA_EXCEEDED`
+ * → faqat o'sha til o'chadi (uz limiti tugasa ruscha zaxira ishlayveradi).
  * Tarjima tilini o'quvchi o'zi tanlaydi (47 — sayt tili emas). O'zbekcha tanlanib, o'zbekcha tarjima bo'lmasa —
  * **ruscha** beriladi (mahsulot qarori: ko'radi va xohlasa o'zi o'zbekchasini yozadi). Backend uz'ni qo'llasa
  * (Google kaliti) — o'zbekcha o'z-o'zidan qaytadi.
@@ -73,7 +75,8 @@ async function attempt(q: string, target: TranslateLang): Promise<Attempt> {
     return r.same_language ? null : r.translation?.trim() || undefined;
   } catch (e) {
     if (isApiError(e) && e.code === "TRANSLATE_FAILED") langFails.set(target, (langFails.get(target) ?? 0) + 1);
-    if (isApiError(e) && (e.code === "TRANSLATE_UNAVAILABLE" || e.code === "TRANSLATE_QUOTA_EXCEEDED" || e.status === 404)) disabled = true;
+    if (isApiError(e) && e.code === "TRANSLATE_QUOTA_EXCEEDED") langFails.set(target, LANG_FAIL_LIMIT);
+    if (isApiError(e) && (e.code === "TRANSLATE_UNAVAILABLE" || e.status === 404)) disabled = true;
     return undefined;
   }
 }

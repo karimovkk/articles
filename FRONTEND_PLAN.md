@@ -1637,6 +1637,16 @@ Talab: saytda bog'lanish komponenti, chiroyli dizayn; Telegram: `@I365_admin`.
       Mini App'da — `openTelegramLink` (chat Telegram'ning o'zida) va Mini App yopiladi (chat ko'rinsin)
 - [x] 113.4 uz/ru/en; e2e `contact` dev + prod
 
+## 114. Tarjima: Google limiti tugasa — faqat o'zbekcha o'chadi, ruscha zaxira qoladi (2026-10-19)
+
+Backend: `uz` endi Google Cloud Translation orqali (kalit qo'yildi), `ru`/`en` — self-hosted LibreTranslate. Google'ning
+oylik limiti (`TRANSLATE_MONTHLY_CHAR_LIMIT`) tugasa `TRANSLATE_QUOTA_EXCEEDED` keladi — avval butun tarjima sessiyada
+o'chardi (bepul `ru`/`en` ham).
+
+- [x] 114.1 `lib/api/translate.ts`: `TRANSLATE_QUOTA_EXCEEDED` → faqat so'ralgan til shu sessiyada o'chadi; `uz` tanlangan
+      bo'lsa — darhol ruscha zaxira (izoh bilan). `TRANSLATE_UNAVAILABLE` / `404` — avvalgidek hammasi o'chadi
+- [x] 114.2 Mock `/__translate?quota=uz`; e2e `translate`: uz limit → ru, keyingi so'zlarda faqat ru; dev + prod
+
 ## 31. Keyingi vazifalar
 
 - [ ] 31.1 Safari (WebKit): varaqlash rejimida oldingi sahifaga qaytilganda (3-sahifa) belgilash qatlami
