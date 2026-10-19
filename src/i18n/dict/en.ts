@@ -618,6 +618,7 @@ export const en: Dict = {
   "admin.orders.openBreakdown": "Receipt awaiting review: {awaiting} · awaiting payment: {pending}.",
   "admin.orders.openAction": "Go to orders",
   "admin.orders.receipt": "Receipt / note",
+  "admin.orders.awaitingReceipt": "Awaiting receipt",
   "admin.orders.approve": "Approve",
   "admin.orders.reject": "Reject",
   "admin.orders.rejectTitle": "Reject order",

@@ -121,8 +121,13 @@ export default function AdminOrdersPage() {
       key: "actions",
       header: "",
       className: "text-right",
+      // 120: tasdiqlash / rad etish — faqat chek yuborilgandan keyin (AWAITING_REVIEW); PENDING — chek hali yo'q
       render: (o) =>
-        o.status === "PENDING" || o.status === "AWAITING_REVIEW" ? (
+        o.status === "PENDING" ? (
+          <span className="text-xs text-muted" data-testid="awaiting-receipt">
+            {t("admin.orders.awaitingReceipt")}
+          </span>
+        ) : o.status === "AWAITING_REVIEW" ? (
           <div className="flex justify-end gap-1">
             <Button size="sm" loading={busy === o.id} onClick={() => act(o, () => adminApi.approveOrder(o.id))} icon={<I.Check size={14} />}>
               {t("admin.orders.approve")}

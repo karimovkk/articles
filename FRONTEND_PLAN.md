@@ -1704,6 +1704,14 @@ buyruqlar (`web_app_open_tg_link`, `web_app_close`) Telegram'ga yetib bormaydi. 
 - [x] 119.3 e2e `telegram-miniapp`: faqat `webkit.messageHandlers.performAction` → buyruqlar yetadi; SDK buyruqlari
       hech qayerga ketmaydi → 1,5 s dan keyin karta + havola; dev + prod
 
+## 120. Admin buyurtmalar: "Tasdiqlash / Rad etish" — faqat chek yuborilgandan keyin (2026-10-20)
+
+Talab: "To'lov kutilmoqda" (PENDING) holatida tasdiqlash/rad etish chiqmasin — faqat chek tashlangandan keyin
+(AWAITING_REVIEW, "Tekshirilmoqda").
+
+- [x] 120.1 `/admin/orders`: amal tugmalari faqat AWAITING_REVIEW; PENDING qatorida — "Chek kutilmoqda" izohi
+- [x] 120.2 e2e `admin`: PENDING'da tugma yo'q; chek yuborilgach (AWAITING_REVIEW) — rad etish / tasdiqlash; dev + prod
+
 ## 31. Keyingi vazifalar
 
 - [ ] 31.1 Safari (WebKit): varaqlash rejimida oldingi sahifaga qaytilganda (3-sahifa) belgilash qatlami

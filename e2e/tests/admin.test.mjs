@@ -10,6 +10,12 @@ let failures = 0;
 const check = (name, ok, extra = "") => { console.log(`${ok ? "✅" : "❌"} ${name}${extra ? " — " + extra : ""}`); if (!ok) failures++; };
 await reset("");
 const uh = { Authorization: "Bearer access-token-1", "Content-Type": "application/json" };
+/** 120: foydalanuvchi chek yuboradi (izoh bilan) → AWAITING_REVIEW */
+const sendReceipt = (id, note) => {
+  const fd = new FormData();
+  fd.append("receipt_note", note);
+  return fetch(`${API}/orders/${id}/receipt`, { method: "POST", headers: { Authorization: uh.Authorization }, body: fd });
+};
 const o = await (await fetch(`${API}/orders`, { method: "POST", headers: uh, body: JSON.stringify({ book_id: BOOK2 }) })).json();
 // Chek — multipart/form-data (buyurtma oqimi v1.0)
 const receiptForm = new FormData();
@@ -93,7 +99,14 @@ await page.reload();
 await page.waitForSelector('[data-testid="nav-orders-badge"]', { timeout: 8000 });
 check("Yangi PENDING buyurtma → sidebar'da yana 1", ((await page.textContent('[data-testid="nav-orders-badge"]')) ?? "").trim() === "1");
 await selectPick(page, '[data-testid="filter-status"]', "PENDING");
+await page.waitForSelector('[data-testid="awaiting-receipt"]', { timeout: 8000 });
+check("120: PENDING (chek yo'q) — 'Tasdiqlash' / 'Rad etish' yo'q, 'Chek kutilmoqda'", (await page.locator("tbody button:has-text('Tasdiqlash'), tbody button:has-text('Rad etish')").count()) === 0 && ((await page.textContent('[data-testid="awaiting-receipt"]')) ?? "").includes("Chek kutilmoqda"));
+await page.screenshot({ path: OUT + "120-admin-pending-no-actions.png" });
+// Foydalanuvchi chek yubordi → AWAITING_REVIEW — endi amallar bor
+await sendReceipt(o2.id, "Chek o2");
+await selectPick(page, '[data-testid="filter-status"]', "AWAITING_REVIEW");
 await page.waitForSelector("text=Rad etish", { timeout: 8000 });
+check("120: chek yuborilgach (Tekshirilmoqda) — 'Tasdiqlash' va 'Rad etish' bor", (await page.locator("tbody button:has-text('Tasdiqlash')").count()) === 1);
 await page.click("text=Rad etish");
 await page.waitForSelector('[data-testid="reject-reason-input"]');
 check("Rad etish: sabab bo'sh — tugma o'chiq (sabab majburiy, userga ko'rinadi)", await page.locator('div[role="dialog"] button[type="submit"]:has-text("Rad etish")').isDisabled());
@@ -109,7 +122,8 @@ check("Mock: bo'sh sabab → 422 (backend bilan bir xil)", emptyReason.status ==
 const o3 = await (await fetch(`${API}/orders`, { method: "POST", headers: uh, body: JSON.stringify({ book_id: "22222222-2222-4222-8222-000000000001" }) })).json();
 await selectPick(page, '[data-testid="filter-status"]', "CANCELLED");
 await page.waitForFunction(() => document.body.innerText.includes("Ma'lumot yo'q"), null, { timeout: 8000 });
-await selectPick(page, '[data-testid="filter-status"]', "PENDING");
+await sendReceipt(o3.id, "Chek o3");
+await selectPick(page, '[data-testid="filter-status"]', "AWAITING_REVIEW");
 await page.waitForSelector("button:has-text('Tasdiqlash')", { timeout: 8000 });
 await fetch(`${API}/orders/${o3.id}/cancel`, { method: "POST", headers: uh });
 await page.click("button:has-text('Tasdiqlash')");
