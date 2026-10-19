@@ -1281,6 +1281,8 @@ export const uz = {
   "tg.authFailed": "Telegram orqali kirib bo'lmadi. Mini App'ni yopib, qayta oching.",
   "tg.noBridge": "Telegram bilan aloqa yo'q. Mini App'ni yopib, bot menyusidan qayta oching.",
   "tg.diag": "Telegram SDK ulanmadi — bu matnni administratorga yuboring",
+  "tg.stuck": "Telegram javob bermadi — botni shu tugma orqali oching.",
+  "tg.openBot": "Botni ochish",
   "tg.openSite": "Saytda ochish",
   "tg.notTelegram.title": "Bu sahifa Telegram uchun",
   "tg.notTelegram.body": "Uni Telegram'dagi botimiz menyusidan oching. Brauzerda katalogdan davom etishingiz mumkin.",

@@ -1262,6 +1262,8 @@ export const ru: Dict = {
   "tg.authFailed": "Не удалось войти через Telegram. Закройте Mini App и откройте снова.",
   "tg.noBridge": "Нет связи с Telegram. Закройте Mini App и откройте снова из меню бота.",
   "tg.diag": "Telegram SDK не подключился — отправьте этот текст администратору",
+  "tg.stuck": "Telegram не ответил — откройте бота этой кнопкой.",
+  "tg.openBot": "Открыть бота",
   "tg.openSite": "Открыть на сайте",
   "tg.notTelegram.title": "Эта страница для Telegram",
   "tg.notTelegram.body": "Откройте её из меню нашего бота в Telegram. В браузере можно продолжить в каталоге.",

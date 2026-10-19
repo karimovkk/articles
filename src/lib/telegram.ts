@@ -62,8 +62,10 @@ export function launchedInTelegram(): boolean {
  * yuklangan paytda o'qiydi; SDK keyin yuklanadi va shu orada sahifa yo'naltirilsa (`/tg` → `/catalog`) hash yo'qoladi —
  * `initData` bo'sh qoladi (iPhone). Shuning uchun parametrlar SDK'ning o'z formatida (`__telegram__initParams`, xuddi
  * SDK'dagi `urlParseHashParams` kabi) oldindan saqlanadi — SDK yuklanganda ular bilan birlashtiradi.
+ * 119: iOS'da `TelegramWebviewProxy` — `webkit.messageHandlers.performAction` ustidagi qobiq; u bo'lmasa (handler esa
+ * bor) SDK buyruqlarni jim tashlaydi — qobiq shu yerda (iOS'dagi bilan bir xil shaklda) yaratiladi.
  */
-export const TELEGRAM_CAPTURE_SCRIPT = `(function(){try{var h=location.hash.replace(/^#/,'');if(h.indexOf('tgWebAppData=')<0){if(sessionStorage.getItem('${FLAG}')&&!sessionStorage.getItem('a365.tg.boot'))sessionStorage.setItem('a365.tg.boot','nohash:'+location.pathname);return}sessionStorage.setItem('a365.tg.boot','hash:'+location.pathname);var d=function(s){try{return decodeURIComponent(s.replace(/\\+/g,'%20'))}catch(e){return s}};var p={},i=h.indexOf('?');if(i>=0){p._path=d(h.substr(0,i));h=h.substr(i+1)}h.split('&').forEach(function(x){var a=x.split('=');p[d(a[0])]=a[1]==null?null:d(a[1])});var k='__telegram__initParams',o=null;try{o=JSON.parse(sessionStorage.getItem(k))}catch(e){}if(o)for(var n in o)if(typeof p[n]==='undefined')p[n]=o[n];sessionStorage.setItem(k,JSON.stringify(p));sessionStorage.setItem('${FLAG}','1')}catch(e){}})()`;
+export const TELEGRAM_CAPTURE_SCRIPT = `(function(){try{var w=window.webkit&&window.webkit.messageHandlers&&window.webkit.messageHandlers.performAction;if(!window.TelegramWebviewProxy&&w)window.TelegramWebviewProxy={postEvent:function(n,d){w.postMessage({eventName:n,eventData:d})}}}catch(e){}try{var h=location.hash.replace(/^#/,'');if(h.indexOf('tgWebAppData=')<0){if(sessionStorage.getItem('${FLAG}')&&!sessionStorage.getItem('a365.tg.boot'))sessionStorage.setItem('a365.tg.boot','nohash:'+location.pathname);return}sessionStorage.setItem('a365.tg.boot','hash:'+location.pathname);var d=function(s){try{return decodeURIComponent(s.replace(/\\+/g,'%20'))}catch(e){return s}};var p={},i=h.indexOf('?');if(i>=0){p._path=d(h.substr(0,i));h=h.substr(i+1)}h.split('&').forEach(function(x){var a=x.split('=');p[d(a[0])]=a[1]==null?null:d(a[1])});var k='__telegram__initParams',o=null;try{o=JSON.parse(sessionStorage.getItem(k))}catch(e){}if(o)for(var n in o)if(typeof p[n]==='undefined')p[n]=o[n];sessionStorage.setItem(k,JSON.stringify(p));sessionStorage.setItem('${FLAG}','1')}catch(e){}})()`;
 
 let sdkPromise: Promise<TelegramWebApp | null> | null = null;
 
@@ -151,6 +153,26 @@ export function telegramLinker(): TelegramLinker | null {
   };
 }
 
+/** 119: Mini App yopilmadi (buyruq Telegram'ga yetmadi) — `TelegramMiniApp` "Botni ochish" havolasini ko'rsatadi */
+export const TG_STUCK_EVENT = "a365:tg-stuck";
+export interface TelegramStuck {
+  url: string;
+  diag: string;
+}
+
+/**
+ * Havolani Telegram'da ochish va Mini App'ni darhol yopish (116). 119: 1,5 s dan keyin sahifa hali ko'rinsa — buyruqlar
+ * yetmagan: `TG_STUCK_EVENT` (foydalanuvchi o'zi bosadigan havola + diagnostika).
+ */
+export function openInTelegram(linker: TelegramLinker, url: string) {
+  linker.openTelegramLink(url);
+  linker.close();
+  window.setTimeout(() => {
+    if (document.visibilityState !== "visible") return;
+    window.dispatchEvent(new CustomEvent<TelegramStuck>(TG_STUCK_EVENT, { detail: { url, diag: telegramDiag() } }));
+  }, 1500);
+}
+
 /** 118: qisqa diagnostika (qurilmada skrinshot uchun) — maxfiy ma'lumot yo'q (initData'ning faqat uzunligi) */
 export function telegramDiag(): string {
   if (typeof window === "undefined") return "";
@@ -170,6 +192,7 @@ export function telegramDiag(): string {
     `v=${tg?.version ?? "-"}`,
     `p=${tg?.platform ?? "-"}`,
     `proxy=${(window as unknown as TelegramProxyWindow).TelegramWebviewProxy ? 1 : 0}`,
+    `wk=${(window as unknown as { webkit?: { messageHandlers?: { performAction?: unknown } } }).webkit?.messageHandlers?.performAction ? 1 : 0}`,
     `frame=${window.parent !== window ? 1 : 0}`,
     `hash=${/tgWebAppData=/.test(window.location.hash) ? 1 : 0}`,
     `boot=${boot}`,

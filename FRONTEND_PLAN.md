@@ -1691,6 +1691,19 @@ SDK `initData` siz (yoki yuklanmagan); sabab qurilmada ko'rinmaydi.
 - [x] 118.3 e2e `telegram-miniapp`: SDK yuklanmaydi, faqat `TelegramWebviewProxy` → to'lov havolasi va `close` ko'prik
       orqali; ko'prik yo'q → diagnostika; dev + prod
 
+## 119. iPhone: "Telegram ochildi" — lekin hech narsa bo'lmaydi (2026-10-19)
+
+Muammo (118 deploy'dan keyin): to'lov bosilsa "Telegram ochildi…" chiqadi, lekin bot ochilmaydi, Mini App yopilmaydi —
+buyruqlar (`web_app_open_tg_link`, `web_app_close`) Telegram'ga yetib bormaydi. iOS'da `TelegramWebviewProxy` —
+`webkit.messageHandlers.performAction` ustidagi qobiq; u yo'q bo'lsa SDK buyruqlarni jim tashlab yuboradi.
+
+- [x] 119.1 `<head>` skripti: `TelegramWebviewProxy` yo'q, `webkit.messageHandlers.performAction` bor → qobiq yaratiladi
+      (iOS'dagi bilan bir xil: `{eventName, eventData}`)
+- [x] 119.2 Havola yuborilgach 1,5 s ichida Mini App yopilmasa (sahifa hali ko'rinadi) — pastda karta: "Telegram javob
+      bermadi" + "Botni ochish" havolasi (`deep_link`, foydalanuvchi bosadi) + diagnostika (`wk=` qo'shildi)
+- [x] 119.3 e2e `telegram-miniapp`: faqat `webkit.messageHandlers.performAction` → buyruqlar yetadi; SDK buyruqlari
+      hech qayerga ketmaydi → 1,5 s dan keyin karta + havola; dev + prod
+
 ## 31. Keyingi vazifalar
 
 - [ ] 31.1 Safari (WebKit): varaqlash rejimida oldingi sahifaga qaytilganda (3-sahifa) belgilash qatlami

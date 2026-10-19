@@ -9,7 +9,7 @@
 import { useEffect, useId, useRef, useState, type MouseEvent } from "react";
 import * as I from "@/components/ui/icons";
 import { cn } from "@/components/ui";
-import { telegramLinker } from "@/lib/telegram";
+import { openInTelegram, telegramLinker } from "@/lib/telegram";
 import { useT } from "@/i18n";
 
 export const CONTACT_TELEGRAM = "I365_admin";
@@ -66,8 +66,7 @@ export function ContactWidget() {
     const tg = telegramLinker(); // 118: SDK `initData` siz bo'lsa ham
     if (!tg) return; // oddiy brauzer — havola o'zi (yangi oyna)
     e.preventDefault();
-    tg.openTelegramLink(CONTACT_URL);
-    tg.close(); // 116: taymersiz — chat ochilgach Mini App fonda, `setTimeout` ishlamay qoladi
+    openInTelegram(tg, CONTACT_URL); // 116: close() taymersiz; 119: yopilmasa — "Botni ochish"
   };
 
   return (

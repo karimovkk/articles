@@ -18,7 +18,7 @@ import { useState, type ReactNode } from "react";
 import { Alert, Button } from "@/components/ui";
 import * as I from "@/components/ui/icons";
 import { errorMessage, isApiError, ordersApi, type Order } from "@/lib/api";
-import { launchedInTelegram, telegramDiag, telegramLinker } from "@/lib/telegram";
+import { launchedInTelegram, openInTelegram, telegramDiag, telegramLinker } from "@/lib/telegram";
 import { t as tr, useT } from "@/i18n";
 
 /** Telefon / planshet (sensorli, mobil OS) */
@@ -88,10 +88,9 @@ export async function openTelegram(getOrderId: () => Promise<string | null>): Pr
       return "unavailable";
     }
     if (tg) {
-      tg.openTelegramLink(deep_link);
       // 109: Bot API 7.0+ da Mini App o'zi yopilmaydi va bot chati uning ortida qoladi — yopiladi, to'lov chatda ko'rinadi
-      // 116: taymersiz — chat ochilgach Mini App fonda, `setTimeout` ishlamay qoladi
-      tg.close();
+      // 116: taymersiz — chat ochilgach Mini App fonda, `setTimeout` ishlamay qoladi; 119: yopilmasa — "Botni ochish"
+      openInTelegram(tg, deep_link);
     } else if (mobile) openOnPhone(deep_link, bot_username, token);
     else if (win) {
       win.opener = null;

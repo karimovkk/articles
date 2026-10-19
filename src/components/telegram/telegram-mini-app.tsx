@@ -8,15 +8,16 @@
  *    sayt tashqi brauzerda shu akkaunt bilan kirgan holda ochiladi; 115: domen — `env.siteUrl` (articles365.uz).
  *  - 111: Mini App'da faqat sotib olish va kirish/ro'yxat sahifalari — boshqa manzil → `/catalog`.
  *  - 118: Mini App rejimida SDK `initData` siz qolsa — pastda diagnostika kartasi (qurilmada sababni ko'rish uchun).
+ *  - 119: bot havolasi yuborilgach Mini App yopilmasa — "Telegram javob bermadi" + "Botni ochish" havolasi.
  * Oddiy brauzerda hech narsa qilmaydi (SDK ham yuklanmaydi).
  */
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Button } from "@/components/ui";
+import { Button, buttonClass } from "@/components/ui";
 import * as I from "@/components/ui/icons";
 import { authApi, errorMessage, isApiError, tokenStore } from "@/lib/api";
 import { env } from "@/lib/env";
-import { launchedInTelegram, loadTelegram, miniAppAllowed, telegramDiag, type TelegramWebApp } from "@/lib/telegram";
+import { launchedInTelegram, loadTelegram, miniAppAllowed, telegramDiag, TG_STUCK_EVENT, type TelegramStuck, type TelegramWebApp } from "@/lib/telegram";
 import { useInTelegram } from "@/lib/use-in-telegram";
 import { useAuth } from "@/providers/auth-provider";
 import { useT } from "@/i18n";
@@ -62,6 +63,13 @@ export function TelegramMiniApp() {
   const [error, setError] = useState<string | null>(null);
   const [opening, setOpening] = useState(false);
   const [diag, setDiag] = useState<string | null>(null);
+  const [stuck, setStuck] = useState<TelegramStuck | null>(null);
+
+  useEffect(() => {
+    const onStuck = (e: Event) => setStuck((e as CustomEvent<TelegramStuck>).detail);
+    window.addEventListener(TG_STUCK_EVENT, onStuck);
+    return () => window.removeEventListener(TG_STUCK_EVENT, onStuck);
+  }, []);
   const inTelegram = useInTelegram();
   const pathname = usePathname();
   const router = useRouter();
@@ -128,10 +136,28 @@ export function TelegramMiniApp() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- openSite har render'da yangi; tugma bir marta ulanadi
   }, [mainButton, user, t]);
 
-  if (!tg) {
-    if (!diag) return null;
-    return (
-      <div className="tg-dock" data-testid="tg-dock">
+  const showFallback = !!tg && !!user && !mainButton;
+  const showDiag = !tg && !!diag;
+  if (!error && !showFallback && !showDiag && !stuck) return null;
+  return (
+    <div className="tg-dock" data-testid="tg-dock">
+      {stuck && (
+        <div className="tg-card danger" role="alert" data-testid="tg-stuck">
+          <I.AlertTriangle size={18} />
+          <div className="min-w-0 flex-1 space-y-2 text-sm">
+            <p>{t("tg.stuck")}</p>
+            <a href={stuck.url} className={buttonClass("primary", "sm")} data-testid="tg-stuck-link">
+              <I.Send size={14} />
+              {t("tg.openBot")}
+            </a>
+            <code className="block break-all text-xs opacity-80">{stuck.diag}</code>
+          </div>
+          <button type="button" className="icon-btn plain sm" onClick={() => setStuck(null)} aria-label={t("common.close")}>
+            <I.X size={16} />
+          </button>
+        </div>
+      )}
+      {showDiag && (
         <div className="tg-card danger" role="alert" data-testid="tg-diag">
           <I.AlertTriangle size={18} />
           <p className="min-w-0 flex-1 text-sm">
@@ -142,13 +168,7 @@ export function TelegramMiniApp() {
             <I.X size={16} />
           </button>
         </div>
-      </div>
-    );
-  }
-  const showFallback = !!user && !mainButton;
-  if (!error && !showFallback) return null;
-  return (
-    <div className="tg-dock" data-testid="tg-dock">
+      )}
       {error && (
         <div className="tg-card danger" role="alert" data-testid="tg-error">
           <I.AlertTriangle size={18} />

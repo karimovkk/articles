@@ -191,6 +191,36 @@ for (const withProxy of [true, false]) {
   await ctx4.close();
 }
 
+// ---- 8d) 119: iOS — `TelegramWebviewProxy` yo'q, faqat `webkit.messageHandlers.performAction` → qobiq yaratiladi va
+// buyruqlar yetadi; Mini App yopilmasa (1,5 s) — "Telegram javob bermadi" + "Botni ochish" havolasi + diagnostika
+{
+  const ctx5 = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+  await ctx5.route("https://telegram.org/**", (r) => r.abort());
+  await ctx5.addCookies([{ name: "a365_auth", value: "1", url: BASE }]);
+  await ctx5.addInitScript(() => {
+    localStorage.setItem("a365.access", "access-token-1b");
+    localStorage.setItem("a365.refresh", "refresh-1b");
+    window.__wk = [];
+    window.webkit = { messageHandlers: { performAction: { postMessage: (m) => window.__wk.push(m) } } };
+  });
+  const p5 = await ctx5.newPage();
+  p5.on("pageerror", (e) => !ignorablePageError(e.message) && errors.push(e.message));
+  await p5.goto(`${BASE}/catalog/${BOOK2}#tgWebAppData=${encodeURIComponent(INIT)}&tgWebAppVersion=8.0&tgWebAppPlatform=ios`);
+  const buy = p5.locator('[data-testid="tg-pay-btn"], button:has-text("Buyurtma berish")').first();
+  await buy.waitFor({ timeout: 20000 });
+  check("119: iOS qobig'i — TelegramWebviewProxy yaratildi", await p5.evaluate(() => typeof window.TelegramWebviewProxy?.postEvent === "function"));
+  await buy.click();
+  await p5.waitForSelector('[data-testid="tg-stuck"]', { timeout: 10000 }).catch(() => undefined);
+  const wk = await p5.evaluate(() => window.__wk.map((m) => [m.eventName, m.eventData]));
+  check("119: webkit.performAction: web_app_open_tg_link({path_full:/articles365_test_bot?start=…}), keyin web_app_close",
+    wk.length === 2 && wk[0][0] === "web_app_open_tg_link" && /"path_full":"\/articles365_test_bot\?start=/.test(wk[0][1]) && wk[1][0] === "web_app_close", JSON.stringify(wk));
+  const href = (await p5.getAttribute('[data-testid="tg-stuck-link"]', "href").catch(() => null)) ?? "";
+  const sd = (await p5.textContent('[data-testid="tg-stuck"] code').catch(() => "")) ?? "";
+  check("119: yopilmadi → 'Telegram javob bermadi' + 'Botni ochish' (t.me/…?start=) + diagnostika (wk=1)", href.startsWith("https://t.me/articles365_test_bot?start=") && /wk=1/.test(sd) && /proxy=1/.test(sd), `${href} | ${sd}`);
+  await p5.screenshot({ path: OUT + "119-tg-stuck.png" });
+  await ctx5.close();
+}
+
 // ---- 9) Telegram Web iframe'da ocha oladi (frame-ancestors), admin — yo'q
 const h1 = await fetch(`${BASE}/catalog`).then((r) => r.headers);
 const h2 = await fetch(`${BASE}/admin`, { redirect: "manual" }).then((r) => r.headers);

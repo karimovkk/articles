@@ -1262,6 +1262,8 @@ export const en: Dict = {
   "tg.authFailed": "Could not sign in with Telegram. Close the Mini App and open it again.",
   "tg.noBridge": "No connection to Telegram. Close the Mini App and reopen it from the bot menu.",
   "tg.diag": "Telegram SDK did not connect — send this text to the administrator",
+  "tg.stuck": "Telegram did not respond — open the bot with this button.",
+  "tg.openBot": "Open the bot",
   "tg.openSite": "Open on the website",
   "tg.notTelegram.title": "This page is for Telegram",
   "tg.notTelegram.body": "Open it from our bot's menu in Telegram. In the browser you can continue in the catalog.",
