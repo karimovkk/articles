@@ -1665,6 +1665,19 @@ ochilganda (`openTelegramLink`) Telegram Mini App'ni fonga o'tkazadi — `setTim
 - [x] 116.3 Backend taklifi: Mini App'da bot to'lov xabarini o'zi yuborsin (foydalanuvchi "Start" bosmasin) —
       `~/Desktop/Articles365_BACKEND_MiniApp_Tolov_v1.0.md`
 
+## 117. iPhone: Mini App'da SDK `initData` bo'sh — to'lov tugmasi ishlamaydi (2026-10-19)
+
+Muammo (iPhone, bot menyu tugmasi, oxirgi deploy): "Telegram orqali to'lash" — hech narsa bo'lmaydi; "Saytda ochish"
+tugmasi yo'q (kompyuterda ishlaydi). Menyu Mini App rejimida (2 ta bo'lim) — `a365.tg` bayrog'i bor, lekin SDK'da
+`initData` bo'sh → `telegramWebApp()` = `null` → to'lov oddiy telefon yo'liga tushadi (`tg://` — Telegram webview'ida
+bloklanadi). Sabab: SDK `#tgWebAppData` ni faqat o'zi yuklangan paytda o'qiydi, SDK esa keyin (async) yuklanadi; shu
+orada sahifa yo'naltiriladi (`/tg` → `/catalog`, ruxsat etilmagan sahifa → `/catalog`, `/` → `/daily`) va hash yo'qoladi.
+
+- [x] 117.1 `<head>` dagi inline skript (hydration va har qanday yo'naltirishdan oldin): `#tgWebAppData…` → sessionStorage
+      `__telegram__initParams` (SDK'ning o'z formati, SDK u bilan birlashtiradi) va `a365.tg`
+- [x] 117.2 e2e `telegram-miniapp`: haqiqiy SDK'dek soxta skript (hash'ni yuklanganda o'qiydi), 2,5 s kechikish, Mini App
+      `/daily#tgWebAppData=…` da ochiladi → `/catalog`: `initData` bor, kirildi, "Saytda ochish" ko'rinadi; dev + prod
+
 ## 31. Keyingi vazifalar
 
 - [ ] 31.1 Safari (WebKit): varaqlash rejimida oldingi sahifaga qaytilganda (3-sahifa) belgilash qatlami

@@ -125,6 +125,34 @@ await bad.page.goto(`${BASE}/catalog#tgWebAppData=x`);
 await bad.page.waitForSelector('[data-testid="tg-error"]', { timeout: 15000 });
 check("TELEGRAM_AUTH_FAILED → 'Telegram orqali kirib bo'lmadi…'", ((await bad.page.textContent('[data-testid="tg-error"]')) ?? "").includes("Telegram orqali kirib bo'lmadi"));
 
+// ---- 8b) 117: haqiqiy SDK'dek — `#tgWebAppData` ni faqat yuklangan paytda o'qiydi (sekin tarmoq, iPhone). Mini App
+// ruxsat etilmagan sahifada ochiladi → darhol `/catalog` (hash yo'qoladi) — SDK baribir initData'ni oladi
+{
+  const INIT3 = INIT.replace("%22id%22%3A777", "%22id%22%3A779");
+  const ctx3 = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+  const SDK = `(function(){var d=function(s){try{return decodeURIComponent(s.replace(/\\+/g,'%20'))}catch(e){return s}};
+    var q=location.hash.replace(/^#/,''),p={};if(q.length)q.split('&').forEach(function(x){var a=x.split('=');p[d(a[0])]=a[1]==null?null:d(a[1])});
+    var st=null;try{st=JSON.parse(sessionStorage.getItem('__telegram__initParams'))}catch(e){}
+    if(st)for(var k in st)if(typeof p[k]==='undefined')p[k]=st[k];sessionStorage.setItem('__telegram__initParams',JSON.stringify(p));
+    var c=window.__tg={hashAtLoad:location.hash,main:{visible:false,text:''}};
+    window.Telegram={WebApp:{initData:p.tgWebAppData||'',platform:p.tgWebAppPlatform,version:p.tgWebAppVersion,ready:function(){},expand:function(){},close:function(){},
+      openLink:function(){},openTelegramLink:function(){},MainButton:{setText:function(t){c.main.text=t},show:function(){c.main.visible=true},hide:function(){c.main.visible=false},
+      onClick:function(){},offClick:function(){},showProgress:function(){},hideProgress:function(){}}}};})();`;
+  await ctx3.route("https://telegram.org/**", async (r) => {
+    await new Promise((res) => setTimeout(res, 2500));
+    await r.fulfill({ status: 200, contentType: "application/javascript", body: SDK }).catch(() => undefined);
+  });
+  const p3 = await ctx3.newPage();
+  p3.on("pageerror", (e) => !ignorablePageError(e.message) && errors.push(e.message));
+  await p3.goto(`${BASE}/daily#tgWebAppData=${encodeURIComponent(INIT3)}&tgWebAppVersion=8.0&tgWebAppPlatform=ios`);
+  await p3.waitForURL(`${BASE}/catalog`, { timeout: 15000 });
+  await p3.waitForFunction(() => window.__tg?.main?.visible, null, { timeout: 15000 }).catch(() => undefined);
+  const r3 = await p3.evaluate(() => ({ hash: window.__tg?.hashAtLoad ?? null, init: window.Telegram?.WebApp?.initData ?? "", main: window.__tg?.main ?? null, access: localStorage.getItem("a365.access") }));
+  check("117: SDK hash'siz yuklandi (sahifa allaqachon /catalog'da) — initData baribir bor", r3.hash === "" && r3.init === INIT3, JSON.stringify({ hash: r3.hash, init: r3.init.slice(0, 40) }));
+  check("117: parolsiz kirildi va 'Saytda ochish' ko'rinadi (to'lov Mini App yo'lidan ketadi)", r3.access === "access-token-tg-779" && r3.main?.visible === true && r3.main?.text === "Saytda ochish", JSON.stringify(r3.main) + " " + r3.access);
+  await ctx3.close();
+}
+
 // ---- 9) Telegram Web iframe'da ocha oladi (frame-ancestors), admin — yo'q
 const h1 = await fetch(`${BASE}/catalog`).then((r) => r.headers);
 const h2 = await fetch(`${BASE}/admin`, { redirect: "manual" }).then((r) => r.headers);

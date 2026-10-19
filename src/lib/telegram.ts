@@ -57,6 +57,14 @@ export function launchedInTelegram(): boolean {
   }
 }
 
+/**
+ * 117: `<head>` da (hydration va har qanday yo'naltirishdan oldin) bajariladi. SDK `#tgWebAppData` ni faqat o'zi
+ * yuklangan paytda o'qiydi; SDK keyin yuklanadi va shu orada sahifa yo'naltirilsa (`/tg` → `/catalog`) hash yo'qoladi —
+ * `initData` bo'sh qoladi (iPhone). Shuning uchun parametrlar SDK'ning o'z formatida (`__telegram__initParams`, xuddi
+ * SDK'dagi `urlParseHashParams` kabi) oldindan saqlanadi — SDK yuklanganda ular bilan birlashtiradi.
+ */
+export const TELEGRAM_CAPTURE_SCRIPT = `(function(){try{var h=location.hash.replace(/^#/,'');if(h.indexOf('tgWebAppData=')<0)return;var d=function(s){try{return decodeURIComponent(s.replace(/\\+/g,'%20'))}catch(e){return s}};var p={},i=h.indexOf('?');if(i>=0){p._path=d(h.substr(0,i));h=h.substr(i+1)}h.split('&').forEach(function(x){var a=x.split('=');p[d(a[0])]=a[1]==null?null:d(a[1])});var k='__telegram__initParams',o=null;try{o=JSON.parse(sessionStorage.getItem(k))}catch(e){}if(o)for(var n in o)if(typeof p[n]==='undefined')p[n]=o[n];sessionStorage.setItem(k,JSON.stringify(p));sessionStorage.setItem('${FLAG}','1')}catch(e){}})()`;
+
 let sdkPromise: Promise<TelegramWebApp | null> | null = null;
 
 /** SDK'ni yuklash (faqat Telegram ichida); `initData` bo'lmasa — null */

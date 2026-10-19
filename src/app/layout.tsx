@@ -9,6 +9,7 @@ import { APPEARANCE_SCRIPT } from "@/lib/appearance";
 import { LocaleEffect } from "@/i18n/locale-effect";
 import { ConfirmProvider } from "@/components/ui/confirm";
 import { TelegramMiniApp } from "@/components/telegram/telegram-mini-app";
+import { TELEGRAM_CAPTURE_SCRIPT } from "@/lib/telegram";
 import { env } from "@/lib/env";
 
 // 43: minimalistik tipografiya — ikki shrift: matn, tugma, raqam — Manrope; sarlavhalar — Playfair Display (serif).
@@ -36,6 +37,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
         {/* 44.8: admin tanlagan global ko'rinish (keshdan) — birinchi chizishdan oldin, rang "sakramasin" */}
         <script dangerouslySetInnerHTML={{ __html: APPEARANCE_SCRIPT }} />
+        {/* 117: Telegram Mini App — `#tgWebAppData` yo'naltirishdan oldin saqlanadi (SDK keyin yuklanadi) */}
+        <script dangerouslySetInnerHTML={{ __html: TELEGRAM_CAPTURE_SCRIPT }} />
       </head>
       <body className="min-h-dvh antialiased">
         <ThemeProvider>
