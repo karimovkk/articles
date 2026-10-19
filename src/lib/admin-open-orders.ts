@@ -5,6 +5,7 @@
  * `AWAITING_REVIEW` (chek yuborilgan, tekshirish kerak). Admin sidebar'i, dashboard va ilova sidebar'idagi "Admin"
  * havolasi shu bitta manbadan o'qiydi: obunachi bor ekan har daqiqada, oynaga qaytilganda va buyurtma
  * tasdiqlangan/rad etilganda (`refreshOpenOrders()`) yangilanadi.
+ * 121: sidebar'lardagi son va dashboard eslatmasi — faqat `awaiting` (chek yuborilgan; PENDING'da admin qiladigan ish yo'q).
  */
 import { useSyncExternalStore } from "react";
 import { adminApi } from "@/lib/api";

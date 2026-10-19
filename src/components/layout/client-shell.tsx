@@ -218,9 +218,10 @@ function ClientSidebar({ open, onNavigate }: { open: boolean; onNavigate: () => 
           <Link href="/admin" prefetch={false} onClick={onNavigate} className="side-link">
             <I.Settings size={19} />
             <span>{t("nav.admin")}</span>
-            {openOrders?.total ? (
-              <span className="side-badge" data-testid="nav-admin-orders" title={t("admin.orders.openCount", { n: openOrders.total })}>
-                {openOrders.total > 99 ? "99+" : openOrders.total}
+            {/* 121: faqat chek yuborilganlar (AWAITING_REVIEW) */}
+            {openOrders?.awaiting ? (
+              <span className="side-badge" data-testid="nav-admin-orders" title={t("admin.orders.openCount", { n: openOrders.awaiting })}>
+                {openOrders.awaiting > 99 ? "99+" : openOrders.awaiting}
               </span>
             ) : (
               <I.ArrowUpRight size={14} className="ml-auto opacity-60" />

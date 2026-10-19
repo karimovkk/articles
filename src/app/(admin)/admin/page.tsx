@@ -89,12 +89,13 @@ export default function AdminHome() {
   return (
     <div>
       <PageHeader title={t("admin.title")} description={t("admin.description")} icon={<I.Sparkles size={26} />} />
-      {!!open?.total && (
+      {/* 121: eslatma — faqat chek yuborilganlar (PENDING'da qiladigan ish yo'q) */}
+      {!!open?.awaiting && (
         <div className="mb-4" data-testid="open-orders-alert">
           <Alert tone="warning">
             <span className="flex flex-wrap items-center justify-between gap-3">
               <span>
-                <b>{t("admin.orders.openBanner", { n: open.total })}</b>{" "}
+                <b>{t("admin.orders.openBanner", { n: open.awaiting })}</b>{" "}
                 {t("admin.orders.openBreakdown", { awaiting: open.awaiting, pending: open.pending })}
               </span>
               <Link href="/admin/orders" className={buttonClass("primary", "sm")}>

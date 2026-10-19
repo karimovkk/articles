@@ -96,14 +96,18 @@ check("Approve → ruxsat yaratildi (book-access)", accessAfter.items.some((a) =
 // reject flow
 const o2 = await (await fetch(`${API}/orders`, { method: "POST", headers: uh, body: JSON.stringify({ book_id: "22222222-2222-4222-8222-000000000001" }) })).json();
 await page.reload();
-await page.waitForSelector('[data-testid="nav-orders-badge"]', { timeout: 8000 });
-check("Yangi PENDING buyurtma → sidebar'da yana 1", ((await page.textContent('[data-testid="nav-orders-badge"]')) ?? "").trim() === "1");
+await page.waitForSelector('[data-testid="filter-status"]', { timeout: 8000 });
+await page.waitForLoadState("networkidle"); // sidebar soni (GET /admin/orders?status=…) yuklanib bo'ldi
+check("121: yangi PENDING (chek yo'q) → sidebar'da son yo'q", (await page.locator('[data-testid="nav-orders-badge"]').count()) === 0);
 await selectPick(page, '[data-testid="filter-status"]', "PENDING");
 await page.waitForSelector('[data-testid="awaiting-receipt"]', { timeout: 8000 });
 check("120: PENDING (chek yo'q) — 'Tasdiqlash' / 'Rad etish' yo'q, 'Chek kutilmoqda'", (await page.locator("tbody button:has-text('Tasdiqlash'), tbody button:has-text('Rad etish')").count()) === 0 && ((await page.textContent('[data-testid="awaiting-receipt"]')) ?? "").includes("Chek kutilmoqda"));
 await page.screenshot({ path: OUT + "120-admin-pending-no-actions.png" });
 // Foydalanuvchi chek yubordi → AWAITING_REVIEW — endi amallar bor
 await sendReceipt(o2.id, "Chek o2");
+await page.reload();
+await page.waitForSelector('[data-testid="nav-orders-badge"]', { timeout: 8000 });
+check("121: chek yuborilgach → sidebar'da 1", ((await page.textContent('[data-testid="nav-orders-badge"]')) ?? "").trim() === "1");
 await selectPick(page, '[data-testid="filter-status"]', "AWAITING_REVIEW");
 await page.waitForSelector("text=Rad etish", { timeout: 8000 });
 check("120: chek yuborilgach (Tekshirilmoqda) — 'Tasdiqlash' va 'Rad etish' bor", (await page.locator("tbody button:has-text('Tasdiqlash')").count()) === 1);

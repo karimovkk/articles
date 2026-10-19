@@ -173,7 +173,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
                 </div>
                 {s.items.map((it) => {
                   const active = isNavActive(pathname, it.href);
-                  const badge = it.href === "/admin/orders" ? (openOrders?.total ?? 0) : 0;
+                  const badge = it.href === "/admin/orders" ? (openOrders?.awaiting ?? 0) : 0; // 121: faqat chek yuborilganlar
                   const label = badge ? `${t(it.label)} — ${t("admin.orders.openCount", { n: badge })}` : t(it.label);
                   return (
                     <Link key={it.href} href={it.href} className={cn("nav-item", active && "active")} aria-current={active ? "page" : undefined} title={collapsed ? label : badge ? label : undefined}>

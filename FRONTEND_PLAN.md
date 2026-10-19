@@ -1712,6 +1712,14 @@ Talab: "To'lov kutilmoqda" (PENDING) holatida tasdiqlash/rad etish chiqmasin —
 - [x] 120.1 `/admin/orders`: amal tugmalari faqat AWAITING_REVIEW; PENDING qatorida — "Chek kutilmoqda" izohi
 - [x] 120.2 e2e `admin`: PENDING'da tugma yo'q; chek yuborilgach (AWAITING_REVIEW) — rad etish / tasdiqlash; dev + prod
 
+## 121. Sidebar'dagi buyurtmalar soni — faqat chek yuborilganlar (2026-10-20)
+
+Talab: chek yuborilmaguncha (PENDING) chap menyudagi son ko'rsatilmasin — faqat chek yuborilganlar (AWAITING_REVIEW).
+
+- [x] 121.1 Admin sidebar ("Buyurtmalar") va ilova sidebar'idagi "Admin" yonidagi son, dashboard eslatmasi — faqat
+      AWAITING_REVIEW (dashboard plitkasida umumiy son va taqsimot qoladi)
+- [x] 121.2 e2e `admin`: yangi PENDING → son yo'q; chek yuborilgach → 1; dev + prod
+
 ## 31. Keyingi vazifalar
 
 - [ ] 31.1 Safari (WebKit): varaqlash rejimida oldingi sahifaga qaytilganda (3-sahifa) belgilash qatlami
