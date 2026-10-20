@@ -61,11 +61,28 @@ export default function AdminOrdersPage() {
     {
       key: "user",
       header: t("common.user"),
-      render: (o) => (
-        <Link href={`/admin/users/${o.user_id}`} className="name hover:text-accent-ink">
-          {o.user_full_name || o.user_email || names.users[o.user_id] || o.user_id.slice(0, 8)}
-        </Link>
-      ),
+      // 122: Telegram orqali to'lagan mijoz — `@username` (t.me havolasi, chatni ochadi) yoki Telegram ID
+      render: (o) => {
+        const tg = o.user_telegram_username?.replace(/^@/, "");
+        return (
+          <div className="min-w-0">
+            <Link href={`/admin/users/${o.user_id}`} className="name hover:text-accent-ink">
+              {o.user_full_name || o.user_email || (tg ? `@${tg}` : "") || names.users[o.user_id] || o.user_id.slice(0, 8)}
+            </Link>
+            {tg ? (
+              <a href={`https://t.me/${encodeURIComponent(tg)}`} target="_blank" rel="noopener noreferrer" className="block truncate text-xs text-muted hover:text-accent-ink" data-testid="order-user-tg">
+                @{tg}
+              </a>
+            ) : (
+              o.user_telegram_id && (
+                <span className="block text-xs text-muted" data-testid="order-user-tg-id">
+                  {t("admin.orders.telegramId", { id: o.user_telegram_id })}
+                </span>
+              )
+            )}
+          </div>
+        );
+      },
     },
     {
       key: "book",

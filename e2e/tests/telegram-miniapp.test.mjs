@@ -8,7 +8,7 @@ const { check, done } = makeCheck();
 await reset("");
 const browser = await launch();
 const errors = [];
-const INIT = `query_id=AAH1&user=${encodeURIComponent(JSON.stringify({ id: 777, first_name: "Ali", last_name: "Valiyev" }))}&auth_date=1760000000&hash=good`;
+const INIT = `query_id=AAH1&user=${encodeURIComponent(JSON.stringify({ id: 777, first_name: "Ali", last_name: "Valiyev", username: "ali_v" }))}&auth_date=1760000000&hash=good`;
 const tgLog = async () => (await mockGet("/__log")).filter((l) => l.startsWith("POST /auth/telegram/"));
 
 /** Telegram WebApp soxta obyekti (SDK o'rniga) */
@@ -94,6 +94,27 @@ await page.screenshot({ path: OUT + "106b-tg-order.png" });
 await page.waitForFunction(() => window.__tg.close > 0, null, { timeout: 5000 }).catch(() => undefined);
 const closed = await page.evaluate(() => ({ close: window.__tg.close, sync: window.__tg.closeSync }));
 check("109/116: havoladan keyin Mini App darhol yopildi (close(), taymersiz) — to'lov bot chatida ko'rinadi", closed.close === 1 && closed.sync === true, JSON.stringify(closed));
+
+// ---- 5b) 122: admin buyurtmalar ro'yxatida mijozning Telegram username'i (t.me havolasi)
+{
+  const adm = await browser.newContext({ viewport: { width: 1366, height: 860 } });
+  await adm.addCookies([{ name: "a365_auth", value: "1", url: BASE }]);
+  await adm.addInitScript(() => {
+    localStorage.setItem("a365.access", "access-token-admin");
+    localStorage.setItem("a365.refresh", "refresh-admin");
+  });
+  const ap = await adm.newPage();
+  await ap.goto(`${BASE}/admin/orders`);
+  await ap.waitForSelector('[data-testid="order-user-tg"]', { timeout: 20000 });
+  const tgCell = await ap.evaluate(() => {
+    const a = document.querySelector('[data-testid="order-user-tg"]');
+    return { text: a?.textContent?.trim(), href: a?.getAttribute("href"), target: a?.getAttribute("target"), name: a?.closest("td")?.querySelector(".name")?.textContent?.trim() };
+  });
+  check("122: admin buyurtmalar — ism ostida '@ali_v' → https://t.me/ali_v (yangi oyna)", tgCell.text === "@ali_v" && tgCell.href === "https://t.me/ali_v" && tgCell.target === "_blank" && tgCell.name === "Ali Valiyev", JSON.stringify(tgCell));
+  await ap.locator('[data-testid="order-user-tg"]').first().scrollIntoViewIfNeeded();
+  await ap.screenshot({ path: OUT + "122-admin-order-tg-username.png" });
+  await adm.close();
+}
 
 // ---- 6) Sayt (oddiy brauzer): handoff → kirgan holda, token manzildan olib tashlandi
 const site = await browser.newContext({ viewport: { width: 1280, height: 800 } });

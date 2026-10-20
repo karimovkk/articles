@@ -321,6 +321,9 @@ export interface Order {
   /** Admin ro'yxatlari uchun (B5) — foydalanuvchi so'rovida bo'lmasligi mumkin */
   user_email?: string | null;
   user_full_name?: string | null;
+  /** 122: to'lov Telegram orqali boshlangan bo'lsa (`/start` yoki Mini App) — aks holda `null` */
+  user_telegram_id?: string | null;
+  user_telegram_username?: string | null;
   book_title?: string | null;
   /** Chek fayli (rasm/PDF) yuklanganmi — admin `GET /admin/orders/{id}/receipt` bilan ko'radi */
   has_receipt_file?: boolean;

@@ -618,6 +618,7 @@ export const ru: Dict = {
   "admin.orders.openBreakdown": "Чек на проверке: {awaiting} · ожидают оплаты: {pending}.",
   "admin.orders.openAction": "К заказам",
   "admin.orders.receipt": "Чек / комментарий",
+  "admin.orders.telegramId": "Telegram ID: {id}",
   "admin.orders.awaitingReceipt": "Ожидается чек",
   "admin.orders.approve": "Подтвердить",
   "admin.orders.reject": "Отклонить",

@@ -631,6 +631,7 @@ export const uz = {
   "admin.orders.openBreakdown": "Chek bilan tekshiruvni kutmoqda: {awaiting} · to'lov kutilmoqda: {pending}.",
   "admin.orders.openAction": "Buyurtmalarga o'tish",
   "admin.orders.receipt": "Chek / izoh",
+  "admin.orders.telegramId": "Telegram ID: {id}",
   "admin.orders.awaitingReceipt": "Chek kutilmoqda",
   "admin.orders.approve": "Tasdiqlash",
   "admin.orders.reject": "Rad etish",

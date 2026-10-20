@@ -279,7 +279,7 @@ function parseMultipart(buf, contentType) {
 const isPdfBytes = (b) => b.slice(0, 5).toString() === "%PDF-";
 const isImageBytes = (b) => (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) || (b[0] === 0x89 && b.slice(1, 4).toString() === "PNG") || (b.slice(0, 4).toString() === "RIFF" && b.slice(8, 12).toString() === "WEBP");
 const isOpen = (o) => o.status === "PENDING" || o.status === "AWAITING_REVIEW";
-const withNames = (x) => { const u = users.find((y) => y.id === x.user_id); const b = books.find((y) => y.id === x.book_id); return { ...x, user_email: u?.email ?? null, user_full_name: u?.full_name ?? null, book_title: b?.title ?? x.book_title ?? null, ...(x.items ? { items: x.items.map((i) => ({ ...i, book_title: books.find((y) => y.id === i.book_id)?.title ?? i.book_title ?? null })) } : {}) }; };
+const withNames = (x) => { const u = users.find((y) => y.id === x.user_id); const b = books.find((y) => y.id === x.book_id); return { ...x, user_email: u?.email ?? null, user_full_name: u?.full_name ?? null, user_telegram_id: u?.telegram_id ?? null, user_telegram_username: u?.telegram_username ?? null, book_title: b?.title ?? x.book_title ?? null, ...(x.items ? { items: x.items.map((i) => ({ ...i, book_title: books.find((y) => y.id === i.book_id)?.title ?? i.book_title ?? null })) } : {}) }; };
 const isFreeId = (bookId) => !!books.find((b) => b.id === bookId && b.is_free && b.status === "ACTIVE");
 const GUEST = { id: "guest-000", email: null, phone: null, full_name: null, role: "GUEST" };
 /** 37: o'qish ruxsati — tekin kitob hamma uchun */
@@ -439,6 +439,8 @@ const server = createServer(async (req, res) => {
     const tgId = String(tu.id ?? "0");
     let u = tgUsers.get(tgId); const created = !u;
     if (!u) { u = { ...USER, id: randomUUID(), email: null, phone: null, full_name: [tu.first_name, tu.last_name].filter(Boolean).join(" ") || null, created_at: now(), updated_at: now() }; tgUsers.set(tgId, u); users.push(u); }
+    // 122: backend Telegram id va username'ni saqlaydi — admin buyurtmalar ro'yxatida `user_telegram_*`
+    u.telegram_id = tgId; u.telegram_username = tu.username ?? null;
     const tok = `access-token-tg-${tgId}`; TOKENS[tok] = u;
     return json(res, 200, { access_token: tok, refresh_token: `refresh-tg-${tgId}`, token_type: "bearer", expires_in: 900, user: u, device_secret: created ? `secret-tg-${tgId}` : null, created, phone_required: !u.phone });
   }

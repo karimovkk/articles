@@ -1720,6 +1720,16 @@ Talab: chek yuborilmaguncha (PENDING) chap menyudagi son ko'rsatilmasin — faqa
       AWAITING_REVIEW (dashboard plitkasida umumiy son va taqsimot qoladi)
 - [x] 121.2 e2e `admin`: yangi PENDING → son yo'q; chek yuborilgach → 1; dev + prod
 
+## 122. Admin buyurtmalar: mijozning Telegram username'i (2026-10-20)
+
+Backend (hisobot 6-band, prod'da): `OrderResponse.user_telegram_id`, `user_telegram_username` (to'lov oqimida —
+`/start` yoki Mini App — saqlanadi; bo'lmasa `null`).
+
+- [x] 122.1 `/admin/orders` "Foydalanuvchi" ustuni: ism ostida `@username` → `https://t.me/<username>` (yangi oyna);
+      username yo'q, id bor — "Telegram ID: …"; ism ham, email ham bo'lmasa — `@username` ism o'rnida
+- [x] 122.2 Mock: Telegram foydalanuvchisi `username`i saqlanadi, admin ro'yxatida maydonlar; e2e `telegram-miniapp`;
+      dev + prod
+
 ## 31. Keyingi vazifalar
 
 - [ ] 31.1 Safari (WebKit): varaqlash rejimida oldingi sahifaga qaytilganda (3-sahifa) belgilash qatlami
