@@ -47,10 +47,10 @@ export function ReceiptViewer({ order, onClose }: { order: Order | null; onClose
           <Spinner />
         </div>
       ) : file.pdf ? (
-        <iframe src={file.url} title={t("orders.receiptPdf")} className="h-[65vh] w-full rounded-[12px] border border-border bg-white" data-testid="receipt-viewer-pdf" />
+        <iframe src={file.url} title={t("orders.receiptPdf")} className="h-[65vh] w-full rounded-[var(--r-md)] border border-border bg-white" data-testid="receipt-viewer-pdf" />
       ) : (
         // eslint-disable-next-line @next/next/no-img-element -- himoyalangan blob, next/image optimallashtira olmaydi
-        <img src={file.url} alt={t("admin.orders.receiptTitle")} className="mx-auto max-h-[65vh] w-auto rounded-[12px] border border-border" data-testid="receipt-viewer-img" />
+        <img src={file.url} alt={t("admin.orders.receiptTitle")} className="mx-auto max-h-[65vh] w-auto rounded-[var(--r-md)] border border-border" data-testid="receipt-viewer-img" />
       )}
       {file && (
         <div className="mt-3 flex justify-end">

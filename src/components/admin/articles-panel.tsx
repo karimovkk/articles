@@ -13,6 +13,7 @@ import { formatMb, validatePdf } from "@/lib/uploads";
 import Link from "next/link";
 import { env } from "@/lib/env";
 import { useT } from "@/i18n";
+import { codeLabel } from "@/lib/status-label";
 
 interface TocRow {
   level: number;
@@ -165,7 +166,7 @@ export function ArticlesPanel({
       />
 
       {/* Yangi maqola */}
-      <form onSubmit={create} className="flex flex-wrap items-end gap-2 rounded-[16px] bg-surface-2 p-3">
+      <form onSubmit={create} className="flex flex-wrap items-end gap-2 rounded-[var(--r-lg)] bg-surface-2 p-3">
         <Field label={t("admin.articles.newTitle")} className="min-w-[260px] flex-1">
           <Input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder={t("admin.articles.newPlaceholder")} data-testid="new-article-title" />
         </Field>
@@ -223,7 +224,7 @@ export function ArticlesPanel({
                     </td>
                     <td>
                       <Badge tone={statusTone(a.processing_status)} dot>
-                        {a.processing_status}
+                        {codeLabel(a.processing_status)}
                       </Badge>
                     </td>
                     <td className="num text-right">{a.page_count ?? "—"}</td>

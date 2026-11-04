@@ -11,6 +11,7 @@ import { PasswordCard, TwoFactorCard } from "@/components/profile/security";
 import { MyDevicesCard } from "@/components/profile/devices";
 import { MyOrders } from "@/components/orders/my-orders";
 import { useT } from "@/i18n";
+import { codeLabel } from "@/lib/status-label";
 
 export default function ProfilePage() {
   const { t } = useT();
@@ -67,9 +68,9 @@ export default function ProfilePage() {
           </div>
         </div>
         <div className="page-actions">
-          <Badge tone={user.role === "ADMIN" ? "accent" : "neutral"}>{user.role}</Badge>
+          <Badge tone={user.role === "ADMIN" ? "accent" : "neutral"}>{codeLabel(user.role)}</Badge>
           <Badge tone={statusTone(user.status)} dot>
-            {user.status}
+            {codeLabel(user.status)}
           </Badge>
         </div>
       </div>
@@ -88,12 +89,12 @@ export default function ProfilePage() {
               <dd className="text-text">{user.phone ?? "—"}</dd>
               <dt className="text-muted">{t("common.role")}</dt>
               <dd>
-                <Badge tone={user.role === "ADMIN" ? "accent" : "neutral"}>{user.role}</Badge>
+                <Badge tone={user.role === "ADMIN" ? "accent" : "neutral"}>{codeLabel(user.role)}</Badge>
               </dd>
               <dt className="text-muted">{t("common.status")}</dt>
               <dd>
                 <Badge tone={statusTone(user.status)} dot>
-                  {user.status}
+                  {codeLabel(user.status)}
                 </Badge>
               </dd>
             </dl>

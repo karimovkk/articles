@@ -9,10 +9,13 @@ import { useEffect, useSyncExternalStore } from "react";
 import { appApi } from "@/lib/api";
 import { applyAppearanceCss, appearanceCss, netTier, parseAppearance, APPEARANCE_STYLE_ID, BG_FULL_CACHED_KEY, type Appearance } from "@/lib/appearance";
 import { DEFAULT_SHOP_URL, parseShopUrl } from "@/lib/shop";
+import { DEFAULT_DECOR, parseDecor, type Decor } from "@/lib/decor";
 
 let settings: Appearance | null = null;
 /** 78: Uzum Market do'kon havolasi (admin bergan; yo'q — null) */
 let shopUrl: string | null = null;
+/** 125: mavsumiy effekt va bestseller muqovasi */
+let decor: Decor = DEFAULT_DECOR;
 let loaded = false;
 let inFlight: Promise<void> | null = null;
 const listeners = new Set<() => void>();
@@ -71,6 +74,7 @@ export function loadAppearance(): Promise<void> {
     .then((r) => {
       settings = parseAppearance(r.settings, r.images);
       shopUrl = parseShopUrl(r.settings);
+      decor = parseDecor(r.settings);
       applyAppearance(appearanceCss(settings));
       upgradeBackground(settings);
     })
@@ -87,13 +91,13 @@ function subscribe(cb: () => void) {
   listeners.add(cb);
   return () => listeners.delete(cb);
 }
-type Snapshot = { settings: Appearance | null; shopUrl: string | null; loaded: boolean };
-let snapshot: Snapshot = { settings, shopUrl, loaded };
+type Snapshot = { settings: Appearance | null; shopUrl: string | null; decor: Decor; loaded: boolean };
+let snapshot: Snapshot = { settings, shopUrl, decor, loaded };
 const getSnapshot = () => {
-  if (snapshot.settings !== settings || snapshot.shopUrl !== shopUrl || snapshot.loaded !== loaded) snapshot = { settings, shopUrl, loaded };
+  if (snapshot.settings !== settings || snapshot.shopUrl !== shopUrl || snapshot.decor !== decor || snapshot.loaded !== loaded) snapshot = { settings, shopUrl, decor, loaded };
   return snapshot;
 };
-const serverSnapshot: Snapshot = { settings: null, shopUrl: null, loaded: false };
+const serverSnapshot: Snapshot = { settings: null, shopUrl: null, decor: DEFAULT_DECOR, loaded: false };
 
 /** Admin "Ko'rinish" sahifasi uchun: serverdagi sozlamalar va qayta yuklash */
 export function useAppearanceSettings() {
@@ -105,6 +109,12 @@ export function useAppearanceSettings() {
 export function useShopUrl() {
   const s = useSyncExternalStore(subscribe, getSnapshot, () => serverSnapshot);
   return { url: s.shopUrl ?? DEFAULT_SHOP_URL, custom: s.shopUrl, reload: loadAppearance };
+}
+
+/** 125: sayt bezaklari (mavsumiy effekt, bestseller muqovasi) */
+export function useDecor() {
+  const s = useSyncExternalStore(subscribe, getSnapshot, () => serverSnapshot);
+  return { decor: s.decor, loaded: s.loaded, reload: loadAppearance };
 }
 
 /** Root layout'da bir marta: sozlamalarni yuklab qo'llaydi (hech narsa chizmaydi) */

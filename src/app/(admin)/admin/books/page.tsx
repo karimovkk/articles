@@ -14,6 +14,7 @@ import { useDebounced } from "@/lib/use-debounce";
 import { KEPT_PARAMS, deletedUrl, useDeleteBook } from "@/components/admin/use-delete-book";
 import { EmojiInput } from "@/components/ui/emoji-input";
 import { useT } from "@/i18n";
+import { codeLabel } from "@/lib/status-label";
 
 /**
  * 97 → 99: kitob o'chirilgach — ro'yxatda natija (`?deleted=<nom>&a=<maqolalar>` + saqlanganlar: `o` buyurtma,
@@ -74,7 +75,7 @@ export default function AdminBooksPage() {
       header: t("admin.book"),
       render: (b) => (
         <div className="row-name">
-          <span className="grid size-9 shrink-0 place-items-center rounded-[10px] bg-surface-2 text-muted">
+          <span className="grid size-9 shrink-0 place-items-center rounded-[var(--r-md)] bg-surface-2 text-muted">
             <I.Book size={16} />
           </span>
           <span className="min-w-0">
@@ -92,7 +93,7 @@ export default function AdminBooksPage() {
       header: t("common.status"),
       render: (b) => (
         <Badge tone={statusTone(b.status)} dot>
-          {b.status ?? "—"}
+          {codeLabel(b.status)}
         </Badge>
       ),
     },

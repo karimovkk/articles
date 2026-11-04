@@ -150,7 +150,7 @@ html {
   top: 14px;
   z-index: 30;
   padding: 5px 12px;
-  border-radius: 999px;
+  border-radius: var(--r-sm);
   background: rgba(17, 17, 17, 0.78);
   color: #fff;
   font-size: 13px;
@@ -447,7 +447,7 @@ html {
   gap: 10px 14px;
   width: min(560px, calc(100% - 24px));
   padding: 12px 40px 12px 14px;
-  border-radius: 16px;
+  border-radius: var(--r-lg);
   border: 1px solid var(--gold-line, var(--border));
   background: var(--surface);
   box-shadow: var(--shadow-lg);

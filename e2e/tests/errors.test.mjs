@@ -104,7 +104,7 @@ const poll = setInterval(async () => {
   if (v !== null) progressSeen.push(Number(v));
 }, 20);
 await pickPdf(BIG);
-await page.waitForFunction(() => [...document.querySelectorAll("tr")].some((r) => r.innerText.includes("Birinchi maqola") && r.innerText.includes("PROCESSING")), null, { timeout: 30000 });
+await page.waitForFunction(() => [...document.querySelectorAll("tr")].some((r) => r.innerText.includes("Birinchi maqola") && r.innerText.includes("Tayyorlanmoqda")), null, { timeout: 30000 });
 clearInterval(poll);
 if (cdp) await cdp.send("Network.emulateNetworkConditions", { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
 ups = await mockGet("/__uploads");

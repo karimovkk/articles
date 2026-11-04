@@ -40,6 +40,36 @@ export async function validateCover(file: File): Promise<string | null> {
   return null;
 }
 
+/** 124: MP3 (ID3 yoki kadr sinxroni) / OGG (OggS) / M4A (….ftyp) — magic baytlar bo'yicha */
+export async function validateAudio(file: File): Promise<string | null> {
+  if (file.size === 0) return t("upload.empty");
+  if (file.size > env.maxMusicMb * MB) return t("upload.audioTooBig", { max: env.maxMusicMb, size: formatMb(file.size) });
+  const b = await head(file, 12);
+  const mp3 = startsWith(b, [0x49, 0x44, 0x33]) || (b[0] === 0xff && (b[1] & 0xe0) === 0xe0);
+  const ogg = startsWith(b, [0x4f, 0x67, 0x67, 0x53]);
+  const m4a = b[4] === 0x66 && b[5] === 0x74 && b[6] === 0x79 && b[7] === 0x70;
+  if (!mp3 && !ogg && !m4a) return t("upload.notAudio");
+  return null;
+}
+
+/** Brauzer aniqlagan davomiylik (soniya); aniqlanmasa — null (backend o'zi aniqlaydi) */
+export function audioDuration(file: File, timeoutMs = 4000): Promise<number | null> {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const a = new Audio();
+    const done = (v: number | null) => {
+      window.clearTimeout(timer);
+      URL.revokeObjectURL(url);
+      resolve(v);
+    };
+    const timer = window.setTimeout(() => done(null), timeoutMs);
+    a.preload = "metadata";
+    a.onloadedmetadata = () => done(Number.isFinite(a.duration) ? a.duration : null);
+    a.onerror = () => done(null);
+    a.src = url;
+  });
+}
+
 export function formatMb(bytes: number): string {
   return `${(bytes / MB).toFixed(bytes < 10 * MB ? 2 : 0)} MB`;
 }

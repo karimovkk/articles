@@ -78,6 +78,7 @@ export function ShareMenu({
   text,
   compact = false,
   className,
+  buttonClassName,
   testid = "share",
 }: {
   url: string;
@@ -87,6 +88,8 @@ export function ShareMenu({
   /** Faqat belgi (kartalar, o'quvchi paneli) */
   compact?: boolean;
   className?: string;
+  /** Tugmaning o'ziga qo'shimcha klass (masalan, toolbar'da "plain") */
+  buttonClassName?: string;
   testid?: string;
 }) {
   const { t } = useT();
@@ -113,7 +116,7 @@ export function ShareMenu({
           <button
             {...p}
             type="button"
-            className={cn(compact ? "icon-btn share-btn" : "btn secondary sm share-btn", copied && "is-copied")}
+            className={cn(compact ? "icon-btn share-btn" : "btn secondary sm share-btn", copied && "is-copied", buttonClassName)}
             title={label}
             aria-label={compact ? label : undefined}
             data-testid={testid}

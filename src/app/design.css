@@ -10,9 +10,9 @@
 :root {
   color-scheme: light;
 
-  --font-sans: var(--font-manrope), -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-  /* 43: sarlavhalar — serif (Playfair, faqat 700); qolgan hammasi --font-sans */
-  --font-display: var(--font-playfair), Georgia, "Times New Roman", serif;
+  --font-sans: var(--font-ui), -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  /* 124: sarlavhalar va o'qish matnlari — Literata (serif); qolgan hammasi --font-sans (Onest) */
+  --font-display: var(--font-serif-src), Georgia, "Times New Roman", serif;
 
   --ink: #0f1412;
   --chalk: #f4f2ec;
@@ -63,9 +63,20 @@
 
   --overlay: rgba(9, 12, 10, 0.58);
 
-  --radius-lg: 24px;
-  --radius: 18px;
-  --radius-sm: 12px;
+  /* 124: BITTA radius shkalasi — boshqa qiymat yozilmaydi (2–4px mayda belgilar bundan mustasno).
+     sm: chip/badge/teg · md: tugma, input, menyu bandi · lg: karta, panel, dialog · xl: katta varaq/hero ·
+     full: faqat doira/kapsula ma'nosi bor joyda (avatar, switch, progress, raqamli hisoblagich). */
+  --r-xs: 4px;
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 14px;
+  --r-xl: 20px;
+  --r-full: 999px;
+  --radius-lg: var(--r-xl);
+  --radius: var(--r-lg);
+  --radius-sm: var(--r-md);
+  /* 123 → 124: barcha tugmalar uchun bitta radius */
+  --radius-btn: var(--r-md);
   --shadow-sm: 0 1px 2px rgba(18, 22, 20, 0.05);
   --shadow-md: 0 1px 2px rgba(18, 22, 20, 0.04), 0 12px 28px -14px rgba(18, 22, 20, 0.18);
   --shadow-lg: 0 28px 64px -24px rgba(9, 12, 10, 0.35), 0 2px 6px rgba(9, 12, 10, 0.06);
@@ -197,7 +208,7 @@ h3 {
   gap: 8px;
   padding: 0 18px;
   height: var(--control-h);
-  border-radius: 999px;
+  border-radius: var(--radius-btn);
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--text);
@@ -207,11 +218,11 @@ h3 {
   white-space: nowrap;
   text-decoration: none;
   transition:
-    background 120ms var(--ease),
-    border-color 120ms var(--ease),
-    box-shadow 120ms var(--ease),
-    transform 90ms var(--ease),
-    color 120ms var(--ease);
+    background 180ms var(--ease),
+    border-color 180ms var(--ease),
+    box-shadow 180ms var(--ease),
+    transform 120ms var(--ease),
+    color 180ms var(--ease);
 }
 .btn svg {
   flex-shrink: 0;
@@ -221,7 +232,7 @@ h3 {
   border-color: var(--border-strong);
 }
 .btn:active:not(:disabled) {
-  transform: translateY(1px);
+  transform: scale(0.97); /* 123: bosilganda yengil siqilish */
 }
 .btn:focus-visible {
   outline: none;
@@ -309,7 +320,7 @@ h3 {
 .icon-btn {
   width: var(--control-h);
   height: var(--control-h);
-  border-radius: 999px;
+  border-radius: var(--radius-btn);
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--text-2);
@@ -320,9 +331,13 @@ h3 {
   flex-shrink: 0;
   padding: 0;
   transition:
-    background 120ms var(--ease),
-    color 120ms var(--ease),
-    border-color 120ms var(--ease);
+    background 180ms var(--ease),
+    color 180ms var(--ease),
+    border-color 180ms var(--ease),
+    transform 120ms var(--ease);
+}
+.icon-btn:active:not(:disabled) {
+  transform: scale(0.92); /* 123 */
 }
 .icon-btn:hover {
   background: var(--hover);
@@ -360,7 +375,7 @@ h3 {
   min-width: 16px;
   height: 16px;
   padding: 0 4.5px;
-  border-radius: 999px;
+  border-radius: var(--r-full);
   background: linear-gradient(145deg, color-mix(in srgb, var(--accent) 55%, #fff5cc), var(--accent));
   color: var(--accent-contrast);
   font-size: 11px;
@@ -434,7 +449,7 @@ h3 {
   align-items: center;
   max-width: 100%;
   background: var(--surface-2);
-  border-radius: 999px;
+  border-radius: var(--r-md);
   padding: 4px;
   gap: 2px;
   overflow-x: auto;
@@ -446,7 +461,7 @@ h3 {
 }
 .tabs.wrap {
   flex-wrap: wrap;
-  border-radius: 16px;
+  border-radius: var(--r-lg);
 }
 .seg button,
 .tab {
@@ -454,7 +469,7 @@ h3 {
   height: 32px;
   padding: 0 14px;
   border: none;
-  border-radius: 999px;
+  border-radius: var(--radius-btn);
   background: transparent;
   color: var(--text-2);
   font-size: 13px;
@@ -487,7 +502,7 @@ h3 {
 .pill {
   height: 32px;
   padding: 0 14px;
-  border-radius: 999px;
+  border-radius: var(--r-sm);
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--text-2);
@@ -523,7 +538,7 @@ h3 {
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0;
-  border-radius: 8px;
+  border-radius: var(--r-sm);
   background: var(--surface-2);
   color: var(--text-2);
   white-space: nowrap;
@@ -642,7 +657,7 @@ h3 {
 .page-icon {
   width: 58px;
   height: 58px;
-  border-radius: 19px;
+  border-radius: var(--r-xl);
   display: grid;
   place-items: center;
   flex-shrink: 0;
@@ -721,7 +736,7 @@ a.stat:hover {
 .stat-icon {
   width: 34px;
   height: 34px;
-  border-radius: 11px;
+  border-radius: var(--r-md);
   display: grid;
   place-items: center;
   background: var(--accent-soft);
@@ -751,7 +766,7 @@ a.stat:hover {
   position: relative;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 18px;
+  border-radius: var(--r-lg);
   overflow: hidden;
 }
 .card .table-wrap {
@@ -775,7 +790,7 @@ a.stat:hover {
   flex-wrap: wrap;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 20px;
+  border-radius: var(--r-xl);
 }
 .toolbar-meta {
   margin-left: auto;
@@ -1010,7 +1025,7 @@ a.stat:hover {
   width: 30px;
   height: 30px;
   border: 0;
-  border-radius: 9px;
+  border-radius: var(--r-sm);
   background: transparent;
   color: var(--muted);
   display: inline-flex;
@@ -1030,7 +1045,7 @@ a.stat:hover {
 .pw-bar {
   flex: 1;
   height: 4px;
-  border-radius: 999px;
+  border-radius: var(--r-full);
   background: var(--surface-3);
   transition: background 200ms var(--ease);
 }
@@ -1108,7 +1123,7 @@ a.stat:hover {
   align-items: center;
   gap: 8px;
   background: var(--surface-2);
-  border-radius: 10px;
+  border-radius: var(--r-md);
   padding: 0 10px;
   height: 34px;
 }
@@ -1128,7 +1143,7 @@ a.stat:hover {
   position: relative;
   width: 40px;
   height: 24px;
-  border-radius: 999px;
+  border-radius: var(--r-full);
   border: 0;
   background: var(--surface-3);
   padding: 0;
@@ -1165,7 +1180,7 @@ a.stat:hover {
   height: 30px;
   flex-shrink: 0;
   padding: 0;
-  border-radius: 999px;
+  border-radius: var(--r-full);
   border: 1px solid var(--border);
   background: var(--surface-2);
   overflow: hidden;
@@ -1276,7 +1291,7 @@ html[data-theme-wave]::view-transition-new(root) {
 .menu {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: var(--r-lg);
   box-shadow: var(--shadow-lg);
   padding: 6px;
   min-width: 180px;
@@ -1290,7 +1305,7 @@ html[data-theme-wave]::view-transition-new(root) {
   min-height: 38px;
   padding: 0 12px;
   border: none;
-  border-radius: 11px;
+  border-radius: var(--r-md);
   background: transparent;
   color: var(--text);
   font-size: 13px;
@@ -1357,7 +1372,7 @@ html[data-theme-wave]::view-transition-new(root) {
   z-index: 5500;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 18px;
+  border-radius: var(--r-lg);
   box-shadow: var(--shadow-lg);
   padding: 12px;
   animation: pop-in 140ms var(--ease);
@@ -1373,7 +1388,7 @@ html[data-theme-wave]::view-transition-new(root) {
   width: 32px;
   height: 32px;
   border: none;
-  border-radius: 10px;
+  border-radius: var(--radius-btn);
   background: transparent;
   color: var(--text-2);
   display: inline-flex;
@@ -1388,7 +1403,7 @@ html[data-theme-wave]::view-transition-new(root) {
   flex: 1;
   height: 32px;
   border: none;
-  border-radius: 10px;
+  border-radius: var(--r-md);
   background: transparent;
   font-size: 14px;
   font-weight: 700;
@@ -1414,7 +1429,7 @@ html[data-theme-wave]::view-transition-new(root) {
 .cal-cell {
   height: 34px;
   border: none;
-  border-radius: 10px;
+  border-radius: var(--r-md);
   background: transparent;
   font-size: 13px;
   font-weight: 600;
@@ -1449,7 +1464,7 @@ html[data-theme-wave]::view-transition-new(root) {
 .cal-mcell {
   height: 40px;
   border: none;
-  border-radius: 10px;
+  border-radius: var(--r-md);
   background: transparent;
   font-size: 13px;
   font-weight: 700;
@@ -1569,7 +1584,7 @@ html[data-theme-wave]::view-transition-new(root) {
 .empty-icon {
   width: 52px;
   height: 52px;
-  border-radius: 16px;
+  border-radius: var(--r-lg);
   display: grid;
   place-items: center;
   background: var(--surface-2);
@@ -1590,7 +1605,7 @@ html[data-theme-wave]::view-transition-new(root) {
   background: linear-gradient(90deg, var(--surface-2) 25%, var(--surface-3) 37%, var(--surface-2) 63%);
   background-size: 400% 100%;
   animation: shimmer 1.4s ease infinite;
-  border-radius: 8px;
+  border-radius: var(--r-sm);
 }
 @keyframes shimmer {
   0% {
@@ -1603,14 +1618,14 @@ html[data-theme-wave]::view-transition-new(root) {
 .progress {
   height: 6px;
   width: 100%;
-  border-radius: 999px;
+  border-radius: var(--r-full);
   background: var(--surface-3);
   overflow: hidden;
 }
 .progress > i {
   display: block;
   height: 100%;
-  border-radius: 999px;
+  border-radius: var(--r-full);
   background: var(--accent);
   transition: width 240ms var(--ease);
 }
@@ -1680,7 +1695,7 @@ html[data-theme-wave]::view-transition-new(root) {
   width: 34px;
   height: 34px;
   border: 0;
-  border-radius: 10px;
+  border-radius: var(--radius-btn);
   background: transparent;
   color: var(--frame-muted);
   display: inline-flex;
@@ -1741,7 +1756,7 @@ html[data-theme-wave]::view-transition-new(root) {
 .brand-mark {
   width: 38px;
   height: 38px;
-  border-radius: 12px;
+  border-radius: var(--r-md);
   display: grid;
   place-items: center;
   flex-shrink: 0;
@@ -1804,7 +1819,7 @@ html[data-theme-wave]::view-transition-new(root) {
   min-height: 42px;
   padding: 0 12px;
   border: 0;
-  border-radius: 13px;
+  border-radius: var(--r-md);
   background: transparent;
   color: var(--frame-text-2);
   font-size: 14px;
@@ -1814,8 +1829,12 @@ html[data-theme-wave]::view-transition-new(root) {
   user-select: none;
   text-decoration: none;
   transition:
-    background 140ms var(--ease),
-    color 140ms var(--ease);
+    background 220ms var(--ease),
+    color 220ms var(--ease),
+    transform 120ms var(--ease);
+}
+.nav-item:active {
+  transform: scale(0.98); /* 123 */
 }
 .nav-item svg {
   flex-shrink: 0;
@@ -1848,7 +1867,7 @@ html[data-theme-wave]::view-transition-new(root) {
   font-size: 11px;
   font-weight: 700;
   padding: 1px 8px;
-  border-radius: 999px;
+  border-radius: var(--r-full);
 }
 .nav-item.active .nav-badge {
   background: rgba(0, 0, 0, 0.14);
@@ -1860,7 +1879,7 @@ html[data-theme-wave]::view-transition-new(root) {
   display: flex;
   align-items: center;
   gap: 10px;
-  border-radius: 16px;
+  border-radius: var(--r-lg);
   background: var(--frame-2);
   box-shadow: inset 0 0 0 1px var(--frame-line);
   min-width: 0;
@@ -1975,7 +1994,7 @@ html[data-theme-wave]::view-transition-new(root) {
   align-items: center;
   gap: 10px;
   padding: 3px 10px 3px 3px;
-  border-radius: 999px;
+  border-radius: var(--r-md);
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--text);
@@ -2025,7 +2044,7 @@ html[data-theme-wave]::view-transition-new(root) {
   aspect-ratio: 3 / 4;
   width: 100%;
   overflow: hidden;
-  border-radius: 14px;
+  border-radius: var(--r-lg);
   background:
     radial-gradient(circle at 30% 20%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 55%),
     linear-gradient(160deg, var(--surface-2), var(--surface-3));
@@ -2142,7 +2161,7 @@ a.track:hover {
 .track-num {
   width: 36px;
   height: 36px;
-  border-radius: 11px;
+  border-radius: var(--r-md);
   display: grid;
   place-items: center;
   background: var(--surface-2);
@@ -2326,7 +2345,7 @@ a.track:hover {
 .auth-slide .ic {
   width: 42px;
   height: 42px;
-  border-radius: 13px;
+  border-radius: var(--r-md);
   flex-shrink: 0;
   display: grid;
   place-items: center;
@@ -2392,13 +2411,13 @@ a.track:hover {
   grid-template-columns: 1fr 1fr;
   gap: 4px;
   padding: 4px;
-  border-radius: 999px;
+  border-radius: var(--r-md);
   background: var(--surface-2);
   margin-bottom: 24px;
 }
 .auth-tabs a {
   height: 38px;
-  border-radius: 999px;
+  border-radius: var(--r-sm);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -2808,7 +2827,7 @@ a.track:hover {
   position: absolute;
   top: 0;
   outline: none;
-  border-radius: 10px;
+  border-radius: var(--r-md);
 }
 .rev-hit:focus-visible {
   box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--rev-line) 55%, transparent);
@@ -2819,7 +2838,7 @@ a.track:hover {
   display: grid;
   gap: 2px;
   padding: 8px 11px;
-  border-radius: 10px;
+  border-radius: var(--r-md);
   border: 1px solid var(--border);
   background: var(--surface);
   box-shadow: var(--shadow-lg);
@@ -2996,7 +3015,7 @@ circle.donut-slice {
   gap: 10px;
   width: 100%;
   padding: 9px 12px;
-  border-radius: 10px;
+  border-radius: var(--r-md);
   text-align: left;
   font-size: 14px;
   color: var(--text-2);
@@ -3040,7 +3059,7 @@ circle.donut-slice {
 .appearance-swatch {
   width: 32px;
   height: 32px;
-  border-radius: 999px;
+  border-radius: var(--r-full);
   border: 2px solid var(--surface);
   box-shadow: 0 0 0 1px var(--border);
 }
@@ -3071,7 +3090,7 @@ circle.donut-slice {
   align-items: center;
   gap: 14px;
   padding: 12px;
-  border-radius: 14px;
+  border-radius: var(--r-lg);
   border: 1.5px dashed var(--border-strong, var(--border));
   background: var(--surface-2);
   cursor: pointer;
@@ -3096,7 +3115,7 @@ circle.donut-slice {
   width: 112px;
   height: 64px;
   flex-shrink: 0;
-  border-radius: 10px;
+  border-radius: var(--r-md);
   object-fit: cover;
   box-shadow: 0 0 0 1px var(--border);
 }
@@ -3106,7 +3125,7 @@ circle.donut-slice {
   width: 64px;
   height: 64px;
   flex-shrink: 0;
-  border-radius: 12px;
+  border-radius: var(--r-md);
   background: var(--surface);
   color: var(--muted);
 }
@@ -3128,7 +3147,7 @@ circle.donut-slice {
   align-items: center;
   height: 36px;
   padding: 0 12px;
-  border-radius: 10px;
+  border-radius: var(--r-md);
   background: var(--surface-2);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 13px;
@@ -3146,7 +3165,7 @@ circle.donut-slice {
   align-items: center;
   gap: 12px;
   padding: 12px 16px;
-  border-radius: 16px;
+  border-radius: var(--r-lg);
   border: 1px solid var(--border);
   background: color-mix(in srgb, var(--surface) 92%, transparent);
   backdrop-filter: blur(8px);
@@ -3164,7 +3183,7 @@ circle.donut-slice {
   align-items: center;
   height: 26px;
   padding: 0 10px;
-  border-radius: 999px;
+  border-radius: var(--r-full);
   border: 1px dashed var(--border-strong, var(--border));
   font-size: 12px;
   font-weight: 600;
@@ -3219,7 +3238,7 @@ circle.donut-slice {
   gap: 4px;
   width: 100%;
   padding: 18px;
-  border-radius: 14px;
+  border-radius: var(--r-lg);
   border: 1.5px dashed var(--border-strong, var(--border));
   background: var(--surface-2);
   color: var(--muted);
@@ -3238,7 +3257,7 @@ circle.donut-slice {
   align-items: center;
   gap: 12px;
   padding: 10px;
-  border-radius: 14px;
+  border-radius: var(--r-lg);
   border: 1px solid var(--border);
   background: var(--surface-2);
 }
@@ -3246,14 +3265,14 @@ circle.donut-slice {
   width: 72px;
   height: 72px;
   flex-shrink: 0;
-  border-radius: 10px;
+  border-radius: var(--r-md);
   object-fit: cover;
 }
 .bc-phone {
   display: grid;
   min-height: 240px;
   padding: 16px;
-  border-radius: 18px;
+  border-radius: var(--r-lg);
   background: linear-gradient(160deg, #cfe3d1, #b7d3c5);
   align-content: end;
 }
@@ -3298,7 +3317,7 @@ circle.donut-slice {
 }
 .bc-progress {
   padding: 14px 16px;
-  border-radius: 16px;
+  border-radius: var(--r-lg);
   border: 1px solid var(--border);
   background: var(--surface);
 }
@@ -3359,14 +3378,14 @@ circle.donut-slice {
 .pay-share-bar {
   width: 96px;
   height: 6px;
-  border-radius: 999px;
+  border-radius: var(--r-full);
   background: color-mix(in srgb, var(--pay-share, #8a6400) 14%, transparent);
   overflow: hidden;
 }
 .pay-share-bar i {
   display: block;
   height: 100%;
-  border-radius: 999px;
+  border-radius: var(--r-full);
   background: var(--pay-share, #8a6400);
   transform-origin: left center;
   animation: pay-grow 700ms cubic-bezier(0.22, 1, 0.36, 1) both;
@@ -3420,7 +3439,7 @@ circle.donut-slice {
 .price-tag .pt-badge {
   align-self: center;
   padding: 2px 7px;
-  border-radius: 999px;
+  border-radius: var(--r-sm);
   font-size: 11.5px;
   font-weight: 800;
   line-height: 1.3;
@@ -3472,7 +3491,7 @@ circle.donut-slice {
 }
 .tier-row {
   padding: 8px;
-  border-radius: 14px;
+  border-radius: var(--r-lg);
   border: 1px solid var(--border);
   background: var(--surface-2);
 }
@@ -3518,7 +3537,7 @@ circle.donut-slice {
   gap: 2px;
   min-width: 120px;
   padding: 10px 14px;
-  border-radius: 14px;
+  border-radius: var(--r-lg);
   border: 1px solid var(--border);
   background: var(--surface-2);
 }
@@ -3560,7 +3579,7 @@ circle.donut-slice {
   align-items: flex-start;
   gap: 12px;
   padding: 12px;
-  border-radius: 14px;
+  border-radius: var(--r-lg);
   border: 1px solid var(--border);
   background: var(--surface);
 }
@@ -3571,7 +3590,7 @@ circle.donut-slice {
   flex-shrink: 0;
   min-width: 34px;
   padding: 3px 8px;
-  border-radius: 999px;
+  border-radius: var(--r-full);
   background: var(--surface-2);
   text-align: center;
   font-size: 12px;
@@ -3655,7 +3674,7 @@ circle.donut-slice {
 .qf-type {
   height: 32px;
   padding: 0 12px;
-  border-radius: 999px;
+  border-radius: var(--r-sm);
   border: 1px solid var(--border);
   background: var(--surface);
   font-size: 12.5px;
@@ -3687,7 +3706,7 @@ circle.donut-slice {
   flex-shrink: 0;
   height: 36px;
   padding: 0 8px;
-  border-radius: 10px;
+  border-radius: var(--r-md);
   border: 1px solid var(--border);
   font-weight: 800;
   cursor: pointer;
@@ -3757,7 +3776,7 @@ circle.donut-slice {
   gap: 4px;
   height: 32px;
   padding: 0 10px;
-  border-radius: 999px;
+  border-radius: var(--r-md);
   border: 1px dashed var(--border-strong, var(--border));
   font-size: 12px;
   font-weight: 700;
@@ -3770,7 +3789,7 @@ circle.donut-slice {
 }
 .qf-preview-box {
   padding: 12px;
-  border-radius: 16px;
+  border-radius: var(--r-lg);
   border: 1px solid var(--border);
   background: var(--surface-2);
 }
@@ -3802,20 +3821,20 @@ circle.donut-slice {
   display: grid;
   gap: 8px;
   padding: 10px;
-  border-radius: 12px;
+  border-radius: var(--r-md);
   border: 1px dashed var(--border);
 }
 .qf-labels-stage {
   text-align: center;
   background: #fff;
-  border-radius: 10px;
+  border-radius: var(--r-md);
   padding: 6px;
 }
 .qf-label-chip {
   min-width: 26px;
   height: 26px;
   padding: 0 7px;
-  border-radius: 999px;
+  border-radius: var(--r-sm);
   border: 1px solid var(--border);
   font-size: 12px;
   font-weight: 700;
@@ -3845,7 +3864,7 @@ circle.donut-slice {
 .qf-upload-bar {
   display: block;
   height: 6px;
-  border-radius: 999px;
+  border-radius: var(--r-full);
   background: var(--surface-2);
   overflow: hidden;
 }
@@ -3864,7 +3883,7 @@ circle.donut-slice {
   width: fit-content; /* rasmning o'zi o'lchamida — ramka foizlari rasmga to'g'ri keladi */
   max-width: 100%;
   margin-inline: auto;
-  border-radius: 12px;
+  border-radius: var(--r-md);
   overflow: hidden;
   cursor: crosshair;
   touch-action: none;
@@ -3882,7 +3901,7 @@ circle.donut-slice {
 .bg-focus-frame {
   position: absolute;
   border: 2px solid #fff;
-  border-radius: 6px;
+  border-radius: var(--r-sm);
   box-shadow: 0 0 0 9999px rgb(0 0 0 / 0.45), 0 0 0 1px rgb(0 0 0 / 0.4);
   cursor: grab;
 }
@@ -3895,7 +3914,7 @@ circle.donut-slice {
 .bg-focus-device {
   position: relative;
   border: 2px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--r-md);
   background-size: cover;
   background-repeat: no-repeat;
   overflow: hidden;
@@ -3921,7 +3940,7 @@ circle.donut-slice {
   left: 4px;
   bottom: 4px;
   padding: 1px 6px;
-  border-radius: 999px;
+  border-radius: var(--r-full);
   background: rgb(0 0 0 / 0.55);
   color: #fff;
   font-size: 10.5px;
@@ -3936,7 +3955,7 @@ circle.donut-slice {
   justify-content: space-between;
   gap: 12px;
   padding: 16px 18px;
-  border-radius: 16px;
+  border-radius: var(--r-lg);
   border: 1px solid color-mix(in srgb, var(--danger) 40%, transparent);
   background: color-mix(in srgb, var(--danger) 6%, var(--surface));
 }
@@ -3952,7 +3971,7 @@ circle.donut-slice {
   width: 30px;
   height: 30px;
   border: 0;
-  border-radius: 9px;
+  border-radius: var(--radius-btn);
   background: transparent;
   color: var(--muted);
   display: inline-flex;
@@ -3977,7 +3996,7 @@ circle.donut-slice {
   flex-direction: column;
   overflow: hidden !important;
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: var(--r-lg);
   background: var(--surface);
   box-shadow: 0 18px 48px -12px rgba(0, 0, 0, 0.28);
 }
@@ -3988,7 +4007,7 @@ circle.donut-slice {
   margin: 10px 10px 6px;
   padding: 0 10px;
   height: 36px;
-  border-radius: 10px;
+  border-radius: var(--r-md);
   background: var(--surface-2);
   color: var(--muted);
 }
@@ -4014,7 +4033,7 @@ circle.donut-slice {
   width: 32px;
   height: 32px;
   border: 0;
-  border-radius: 9px;
+  border-radius: var(--radius-btn);
   background: transparent;
   color: var(--muted);
   font-size: 18px;
@@ -4060,7 +4079,7 @@ circle.donut-slice {
 .emoji-cell {
   height: 38px;
   border: 0;
-  border-radius: 10px;
+  border-radius: var(--r-md);
   background: transparent;
   font-size: 24px;
   line-height: 1;
@@ -4105,7 +4124,7 @@ circle.donut-slice {
   gap: 10px;
   padding: 12px 14px;
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: var(--r-lg);
   background: var(--surface);
   color: var(--text-2);
   box-shadow: 0 12px 32px -12px rgba(0, 0, 0, 0.3);
@@ -4122,4 +4141,543 @@ circle.donut-slice {
 }
 .tg-card.danger > svg {
   color: var(--danger);
+}
+
+/* ---------- 123: sahifa almashishi — kontent silliq paydo bo'ladi (route group `template.tsx`) ---------- */
+.page-enter {
+  animation: page-enter 280ms var(--ease) both;
+}
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .page-enter {
+    animation: none;
+  }
+  .btn:active:not(:disabled),
+  .icon-btn:active:not(:disabled),
+  .nav-item:active,
+  .side-link:active {
+    transform: none;
+  }
+}
+
+/* ============================================================
+   124: "qo'lda yasalgan" qatlam (2026-11-02) — FRONTEND_PLAN.md §124 tamoyillari.
+   Bitta radius shkalasi (--r-*), bitta tugma tizimi, tinch soyalar, serif sarlavhalar, kamroq oltin.
+   ============================================================ */
+:root {
+  --shadow-sm: 0 1px 0 rgba(18, 22, 20, 0.04);
+  --shadow-md: 0 1px 2px rgba(18, 22, 20, 0.05), 0 8px 20px -12px rgba(18, 22, 20, 0.16);
+  --paper: #fbf8f1;
+  --paper-edge: #e9e2d0;
+}
+.dark {
+  --paper: #171511;
+  --paper-edge: #2c2820;
+}
+/* Tipografiya: sarlavhalar — Literata, yarim qalin (700 emas), oddiy harf oralig'i */
+.page-title,
+.card-title,
+.font-display,
+h1.page-title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.005em;
+}
+.card-title {
+  font-size: 17px;
+}
+/* Tugmalar: bitta shakl (--radius-btn), 600 qalinlik; asosiy tugmada "bosiladigan" pastki chiziq */
+.btn {
+  font-weight: 600;
+  letter-spacing: 0;
+}
+.btn.primary {
+  box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.16);
+}
+.btn.primary:focus-visible {
+  box-shadow: var(--ring);
+}
+/* Tablar: qora kapsula o'rniga — "varaq" ustida ko'tarilgan tab (bitta aksent tugmalarga qoladi) */
+.seg button,
+.tab {
+  border-radius: var(--r-sm);
+  font-weight: 600;
+}
+.seg button.active,
+.tab.active {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow:
+    0 1px 2px rgba(18, 22, 20, 0.1),
+    inset 0 0 0 1px var(--border);
+}
+.dark .seg button.active,
+.dark .tab.active {
+  background: var(--surface-3);
+  color: var(--text);
+}
+/* Admin menyusi: to'liq sariq blok o'rniga — yengil fon + chapda ingichka aksent chiziq */
+.nav-item {
+  border-radius: var(--r-md);
+}
+.nav-item.active {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--frame-text);
+  font-weight: 600;
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+.nav-item.active svg {
+  color: var(--accent);
+}
+.nav-item.active .nav-badge {
+  background: var(--frame-hover);
+}
+.brand-mark {
+  border-radius: var(--r-md);
+}
+/* Karta va jadval: soya o'rniga chegara */
+.card {
+  box-shadow: var(--shadow-sm);
+}
+
+/* ---------- 124: o'qish musiqasi (reader toolbar + panel) ---------- */
+.music-ctl {
+  display: inline-flex;
+  align-items: stretch;
+  height: var(--control-h);
+  border-radius: var(--radius-btn);
+  color: var(--text-2);
+  transition: background 180ms var(--ease);
+}
+.music-ctl > button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  display: inline-grid;
+  place-items: center;
+  border-radius: var(--radius-btn);
+  transition:
+    background 150ms var(--ease),
+    color 150ms var(--ease);
+}
+.music-ctl > button:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+.music-ctl > button:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+.music-main {
+  width: var(--control-h);
+}
+.music-caret {
+  width: 20px;
+  margin-left: -4px;
+  color: var(--muted) !important;
+}
+.music-ctl.on {
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+.dark .music-ctl.on {
+  color: var(--accent);
+}
+@media (max-width: 380px) {
+  .music-ctl {
+    height: 32px;
+  }
+  .music-main {
+    width: 32px;
+  }
+}
+/* ijro etilmoqda — uchta ustun */
+.eq {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  width: 14px;
+  height: 14px;
+}
+.eq i {
+  flex: 1;
+  height: 40%;
+  border-radius: 1px;
+  background: currentColor;
+  animation: eq 900ms ease-in-out infinite;
+}
+.eq i:nth-child(2) {
+  animation-delay: -300ms;
+}
+.eq i:nth-child(3) {
+  animation-delay: -600ms;
+}
+.eq.busy i {
+  animation-duration: 1800ms;
+  opacity: 0.6;
+}
+@keyframes eq {
+  0%,
+  100% {
+    height: 30%;
+  }
+  50% {
+    height: 100%;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .eq i {
+    animation: none;
+    height: 70%;
+  }
+}
+.music-panel {
+  width: min(330px, calc(100vw - 16px));
+  padding: 14px;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-lg);
+  animation: pop-in 140ms var(--ease);
+}
+.music-body {
+  display: flex;
+  flex-direction: column;
+}
+.music-now {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.music-now-title {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+.music-now-sub {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.music-big {
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border: 0;
+  border-radius: var(--radius-btn);
+  background: var(--accent);
+  color: var(--accent-contrast);
+  box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.16);
+}
+.music-big.sm {
+  width: 32px;
+  height: 32px;
+  background: var(--surface-2);
+  color: var(--text);
+  box-shadow: none;
+}
+.music-big.sm.on {
+  background: var(--accent);
+  color: var(--accent-contrast);
+}
+.music-big:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+.music-section {
+  margin: 14px 0 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+}
+.music-moods,
+.music-sleep {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.music-moods {
+  margin-top: 12px;
+}
+.music-mood {
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--text-2);
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.music-mood:hover {
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+.music-mood.active {
+  border-color: var(--text);
+  background: var(--text);
+  color: var(--bg);
+}
+.music-mood:focus-visible,
+.music-item:focus-visible,
+.tone-opt:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+.music-list {
+  margin-top: 8px;
+  max-height: 188px;
+  overflow-y: auto;
+}
+.music-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 38px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--r-md);
+  background: transparent;
+  color: var(--text);
+  font-size: 13.5px;
+  font-weight: 600;
+  text-align: left;
+}
+.music-item:hover {
+  background: var(--hover);
+}
+.music-item.active {
+  background: var(--accent-softer);
+}
+.music-item-ic {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  color: var(--muted);
+}
+.music-item.active .music-item-ic {
+  color: var(--accent-ink);
+}
+.dark .music-item.active .music-item-ic {
+  color: var(--accent);
+}
+.music-item-meta {
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.music-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+}
+/* qo'lbola slider */
+.slider {
+  position: relative;
+  flex: 1;
+  height: 28px;
+  cursor: pointer;
+  touch-action: none;
+  border-radius: var(--r-sm);
+}
+.slider:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+.slider-track {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 4px;
+  margin-top: -2px;
+  border-radius: var(--r-full);
+  background: var(--surface-3);
+  overflow: hidden;
+}
+.slider-fill {
+  display: block;
+  height: 100%;
+  background: var(--text-2);
+}
+.slider-thumb {
+  position: absolute;
+  top: 50%;
+  width: 16px;
+  height: 16px;
+  margin: -8px 0 0 -8px;
+  border-radius: 50%;
+  background: var(--surface);
+  box-shadow:
+    0 0 0 1px var(--border-strong),
+    0 1px 3px rgba(0, 0, 0, 0.2);
+}
+/* O'qish qulayligi (Aa) */
+.comfort-btn {
+  position: relative;
+}
+.tone-pick {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+.tone-opt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: transparent;
+  color: var(--text-2);
+  font-size: 12px;
+  font-weight: 600;
+}
+.tone-opt.active {
+  border-color: var(--text);
+  color: var(--text);
+}
+.tone-swatch {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 30px;
+  border-radius: var(--r-sm);
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 600;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12);
+}
+.tone-paper .tone-swatch {
+  background: #ffffff;
+  color: #1a1a1a;
+}
+.tone-sepia .tone-swatch {
+  background: #f1e5cc;
+  color: #4a3a22;
+}
+.tone-night .tone-swatch {
+  background: #15171c;
+  color: #d8d4c8;
+}
+.kbd {
+  margin-left: auto;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: var(--r-xs);
+  border: 1px solid var(--border-strong);
+  font: 600 11px/18px var(--font-sans);
+  color: var(--muted);
+}
+/* Diqqat rejimidan chiqish — burchakda, sahifani to'smaydi */
+.focus-exit {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  z-index: 45;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-btn);
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  color: var(--text-2);
+  font-size: 12.5px;
+  font-weight: 600;
+  opacity: 0.55;
+  transition: opacity 160ms var(--ease);
+}
+.focus-exit:hover,
+.focus-exit:focus-visible {
+  opacity: 1;
+  outline: none;
+}
+/* Sepiya sahifa: iliq qog'oz (PDF kanvasi ustida yengil filtr; tanlov/belgilar o'z rangida qoladi) */
+.tone-sepia [data-pdf-root] {
+  background: #e4d8c0 !important; /* Tailwind utilitasi (bg-[#e9ebef]) components qatlamidan ustun */
+}
+/* oq sahifa ustida iliq "multiply" qatlam: qog'oz — krem, matn — qora qoladi; bosish/tanlash o'tib ketadi */
+.tone-sepia .reader-page::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: #f4e6cb;
+  mix-blend-mode: multiply;
+  pointer-events: none;
+}
+/* Admin: musiqa ro'yxati */
+.music-admin-list > li + li {
+  border-top: 1px solid var(--border);
+}
+.music-admin-row {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) 150px auto auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+}
+.music-admin-row.off .music-admin-title,
+.music-admin-row.off .music-admin-meta {
+  opacity: 0.55;
+}
+.music-admin-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+}
+.music-admin-title:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.music-admin-meta {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 640px) {
+  .music-admin-row {
+    grid-template-columns: 32px minmax(0, 1fr) auto auto;
+    gap: 8px 10px;
+    padding: 10px 12px;
+  }
+  .music-admin-mood {
+    grid-column: 2 / -1;
+    grid-row: 2;
+  }
+}
+/* Sahifa sarlavhasi (admin): diagonal chiziqlar yo'q; porlovchi ikonka asl ko'rinishida qoladi */
+.page-head::after {
+  display: none;
 }

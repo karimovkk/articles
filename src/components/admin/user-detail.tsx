@@ -11,6 +11,7 @@ import { useAsync } from "@/lib/use-async";
 import { useAdminCrumb } from "./admin-shell";
 import { UserDevicesCard } from "./user-devices";
 import { useT } from "@/i18n";
+import { codeLabel } from "@/lib/status-label";
 
 export function AdminUserDetail({ userId }: { userId: string }) {
   const { t } = useT();
@@ -75,9 +76,9 @@ export function AdminUserDetail({ userId }: { userId: string }) {
           <Avatar name={displayName} size="lg" tone={user.role === "ADMIN" ? "accent" : undefined} />
           <div className="min-w-0">
             <div className="mb-1 flex flex-wrap items-center gap-2">
-              <Badge tone={user.role === "ADMIN" ? "accent" : "neutral"}>{user.role}</Badge>
+              <Badge tone={user.role === "ADMIN" ? "accent" : "neutral"}>{codeLabel(user.role)}</Badge>
               <Badge tone={statusTone(user.status)} dot>
-                {user.status}
+                {codeLabel(user.status)}
               </Badge>
             </div>
             <h1 className="page-title">{displayName}</h1>
@@ -105,12 +106,12 @@ export function AdminUserDetail({ userId }: { userId: string }) {
             <dd className="font-mono text-xs text-text">{user.id}</dd>
             <dt className="text-muted">{t("common.role")}</dt>
             <dd>
-              <Badge tone={user.role === "ADMIN" ? "accent" : "neutral"}>{user.role}</Badge>
+              <Badge tone={user.role === "ADMIN" ? "accent" : "neutral"}>{codeLabel(user.role)}</Badge>
             </dd>
             <dt className="text-muted">{t("common.status")}</dt>
             <dd>
               <Badge tone={statusTone(user.status)} dot>
-                {user.status}
+                {codeLabel(user.status)}
               </Badge>
             </dd>
             <dt className="text-muted">{t("common.created")}</dt>
@@ -210,7 +211,7 @@ export function AdminUserDetail({ userId }: { userId: string }) {
                       </td>
                       <td>
                         <Badge tone={statusTone(a.status)} dot>
-                          {a.status}
+                          {codeLabel(a.status)}
                         </Badge>
                       </td>
                       <td className="muted">{formatDate(a.granted_at)}</td>

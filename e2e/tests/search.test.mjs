@@ -115,7 +115,7 @@ check("Admin kitoblar: yozilgach filtrlandi", true);
 await page.goto(`${BASE}/admin/audit-logs`);
 await page.waitForSelector("text=Maqolaga ruxsat berildi", { timeout: 10000 });
 check("Audit: 'Filtrlash' tugmasi yo'q", (await page.locator('form[role="search"] button[type="submit"]').count()) === 0);
-check("Audit: amallar tarjima qilingan (kod ostida)", (await bodyHas("Shubhali faollik")) && (await bodyHas("SUSPICIOUS_ACTIVITY")) && (await bodyHas("Maqolaga ruxsat")));
+check("Audit: amallar tarjima qilingan, xom kod ko'rinmaydi (124)", (await bodyHas("Shubhali faollik")) && !(await page.locator("main").innerText()).includes("SUSPICIOUS_ACTIVITY") && (await bodyHas("Maqolaga ruxsat")));
 await selectPick(page, '[data-testid="filter-entity"]', "user");
 await page.waitForFunction(() => document.body.innerText.includes("Shubhali faollik") && !document.body.innerText.includes("Maqolaga ruxsat berildi"), null, { timeout: 8000 });
 check("Audit: obyekt filtri (qo'lbola Select, tarjima) ishladi", true);

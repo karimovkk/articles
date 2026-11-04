@@ -11,6 +11,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import { Alert, Badge, Button, Card, Field, PageHeader, Spinner, cn } from "@/components/ui";
 import { BgFocusEditor } from "@/components/admin/bg-focus-editor";
+import { DecorSettings } from "@/components/admin/decor-settings";
 import * as I from "@/components/ui/icons";
 import { adminApi, errorMessage, type AppImageTheme } from "@/lib/api";
 import {
@@ -407,6 +408,8 @@ export default function AdminAppearancePage() {
           </Card>
         </div>
       )}
+      {/* 125: mavsumiy effekt va bestseller kitob */}
+      {loaded && <DecorSettings />}
     </div>
   );
 }

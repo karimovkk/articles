@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { Manrope, Playfair_Display } from "next/font/google";
+import { Literata, Onest } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/providers/auth-provider";
 import { ThemeProvider } from "@/providers/theme-provider";
@@ -12,11 +12,11 @@ import { TelegramMiniApp } from "@/components/telegram/telegram-mini-app";
 import { TELEGRAM_CAPTURE_SCRIPT } from "@/lib/telegram";
 import { env } from "@/lib/env";
 
-// 43: minimalistik tipografiya — ikki shrift: matn, tugma, raqam — Manrope; sarlavhalar — Playfair Display (serif).
-// Self-hosted (next/font). Playfair endi admin sarlavhalarida ham — oldindan yuklanadi.
-const manrope = Manrope({ subsets: ["latin", "cyrillic"], variable: "--font-manrope", display: "swap" });
-// 26.2: faqat ishlatiladigan qalinlik (700 + kursiv) — har ortiqcha qalinlik alohida fayl (≈30–50 KB)
-const playfair = Playfair_Display({ subsets: ["latin", "cyrillic"], weight: ["700"], style: ["normal", "italic"], variable: "--font-playfair", display: "swap" });
+// 124: tipografiya — kitob o'qish ilovasi ruhida ikki shrift (ikkalasi OFL, next/font orqali self-hosted):
+//  - Literata — sarlavhalar va "o'qish" matnlari (Google Play Books uchun yaratilgan serif; optik o'lcham o'qi bor)
+//  - Onest — interfeys (tugma, forma, raqam); lotin + kirill, tinch va aniq grotesk
+const onest = Onest({ subsets: ["latin", "latin-ext", "cyrillic"], variable: "--font-ui", display: "swap" });
+const literata = Literata({ subsets: ["latin", "latin-ext", "cyrillic"], style: ["normal", "italic"], axes: ["opsz"], variable: "--font-serif-src", display: "swap" });
 
 /**
  * Mavzuni birinchi paint'dan OLDIN qo'llash (hydration'gacha oq "flash" bo'lmasin):
@@ -32,7 +32,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="uz" suppressHydrationWarning className={`${manrope.variable} ${playfair.variable}`}>
+    <html lang="uz" suppressHydrationWarning className={`${onest.variable} ${literata.variable}`}>
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
         {/* 44.8: admin tanlagan global ko'rinish (keshdan) — birinchi chizishdan oldin, rang "sakramasin" */}

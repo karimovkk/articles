@@ -1730,6 +1730,83 @@ Backend (hisobot 6-band, prod'da): `OrderResponse.user_telegram_id`, `user_teleg
 - [x] 122.2 Mock: Telegram foydalanuvchisi `username`i saqlanadi, admin ro'yxatida maydonlar; e2e `telegram-miniapp`;
       dev + prod
 
+## 123. Tugmalar radiusi bir xil, silliq o'tishlar, brauzer belgisi (2026-10-22)
+
+Talab: barcha tugmalarning burchak radiusi bir xil; menyu havolalari (sahifa almashishi) va tugmalarda silliq
+animatsiya; brauzer belgisi — "365 · Consistency is the key · Articles 365" rasmi.
+
+- [x] 123.1 `--radius-btn` (999px, `.btn` bilan bir xil; 124 da 10px — yagona shkalaga o'tdi) — `.btn`, `.icon-btn` va alohida radiusli tugmalar (kartadagi
+      "Savatga"/ulashish, bog'lanish kartasi, kalendar va sidebar tugmalari, emoji, rasm kattalashtirish) shu tokenda
+- [x] 123.2 Sahifa almashishi: route group'larda `template.tsx` — kontent silliq paydo bo'ladi (menyu/sidebar joyida);
+      menyu havolalari va tugmalar: rang/fon o'tishlari, bosilganda yengil siqilish; `prefers-reduced-motion` — yo'q
+- [x] 123.3 Belgi: `src/app/icon.png` (halqa "365" — kichik o'lchamda o'qiladi), `apple-icon.png` (to'liq rasm)
+- [x] 123.4 e2e: radiuslar bir xil, sahifa animatsiyasi, `<link rel=icon>`; dev + prod; skrinshotlar
+
+  (2026-11-02: `favicon.ico` qayta yaratildi — eski fayl ichidagi PNG RGBA emas edi, dev'da har sahifa "Build Error"
+  berardi; `motion` testi tuzatildi: bir route group ichida o'tish, @layer ichidagi qoidalar, atributlar tartibi)
+
+## 124. Dizayn yangilanishi, o'qish musiqasi, o'qish qulayligi (2026-11-02)
+
+Talab (egasi, ovozli xabar): "dizaynni to'liq emas, o'zgartiring — tugma va komponentlar har xil shaklda, AI yasagandek
+ko'rinadi; insoniyroq va qiziqroq bo'lsin. Admin musiqa yuklasin — o'quvchi o'qiyotganda yoqib, qulay o'qisin. O'quvchi
+uchun yana nima foydali — o'ylang. Amallar ko'p bosishni talab qilmasin." Skrinshotlar: `/tmp/articles-redesign/`.
+
+### Tamoyillar ("qo'lda yasalgan" ko'rinish uchun)
+
+1. **Bitta radius shkalasi** — `--r-xs 4 · --r-sm 6 · --r-md 10 · --r-lg 14 · --r-xl 20 · --r-full`. Tugma, input, menyu
+   bandi — `md`; chip/teg — `sm`; karta/panel/dialog — `lg`. `full` faqat doira ma'nosi bor joyda (avatar, switch,
+   progress, raqamli hisoblagich). Boshqa qiymat yozilmaydi.
+2. **Bitta tugma tizimi** — `.btn` (+ `primary` / standart / `ghost` / `danger` / `soft`, `sm` / `md` / `lg`), hammasi
+   `--radius-btn`. Ekranda bitta asosiy (sariq) amal; takrorlanadigan kartalardagi tugmalar — yumshoq (`soft`).
+3. **Oltin — faqat ma'no uchun**: asosiy amal, faol joy, fokus. Faol menyu — to'liq sariq blok emas, ingichka chiziq.
+4. **Haqiqiy tipografik ierarxiya** — sarlavhalar va "o'qish" matnlari Literata (serif, Google Play Books uchun
+   chizilgan), interfeys — Onest. Sarlavhalar 600 (700 emas), katta harfli "eyebrow" yozuvlar o'rniga — kursiv serif.
+5. **Shisha va porlash yo'q** — kontent tinch "qog'oz" varaqlarda (blur yo'q), porlovchi soya/`text-shadow` olib
+   tashlandi; soyalar past, chegara bilan ajratiladi.
+6. **Bir xil kartalar bir xil ko'rinmasin** — muqovasiz kitob: id'dan barqaror "mato muqova" rangi (6 ta tinch rang),
+   serif nom va bosma ramka.
+7. **Xom kodlar ko'rinmaydi** — `ACTIVE/READY/ADMIN/USER…` → `codeLabel()` (`src/lib/status-label.ts`), 3 tilda.
+8. **Kam bosish** — musiqa 1 bosishda; sahifa rangi, diqqat rejimi, kunlik maqsad — bitta "Aa" panelida; yorliqlar
+   `M` (musiqa), `F` (diqqat), `Esc`.
+9. **Har qurilmada** — 320/360/390/768/1440, yorug'/qorong'i, Telegram Mini App; telefonda toolbar ikki qator (musiqa va
+   "Aa" sarlavha qatorida), gorizontal toshish yo'q.
+
+### Bajarilgan ishlar
+
+- [x] 124.1 Tokenlar: radius shkalasi (`design.css`), 136 ta qattiq radius → token; komponentlardagi `rounded-*` → token
+- [x] 124.2 Shriftlar: Manrope + Playfair → Onest + Literata (`next/font`, self-hosted, OFL); admin "Ko'rinish"dagi
+      "Manrope" varianti endi "Onest (standart)" deb ataladi (saqlangan qiymat `manrope` o'zgarmadi)
+- [x] 124.3 "Qog'oz" qatlami (`design.css`/`client.css` oxiri, §124): shisha/porlash yo'q, kartada ko'tarilish yo'q,
+      tablar va bo'lim almashtirgich — ko'tarilgan tab (qora kapsula emas), admin va mijoz menyusi — ingichka aksent
+- [x] 124.4 Muqovasiz kitob — mato muqova (`BookCover` `data-tone`)
+- [x] 124.5 Xom kodlar: profil, admin (kitob, maqolalar, foydalanuvchilar, ruxsatlar, dashboard, menyu "Rol: ADMIN")
+- [~] 124.6 **O'qish musiqasi — backend kutilmoqda** (`BACKEND_TASKS.md` 5-qism). Frontend tayyor va mock'da testlangan:
+      admin `/admin/music` (drag-drop, bir nechta fayl, progress, MP3/OGG/M4A magic-bayt + hajm tekshiruvi, tinglab ko'rish,
+      nom, kayfiyat, yoqish/o'chirish, tasdiq bilan o'chirish); reader toolbar'ida musiqa (1 bosish, `M`), panel — trek /
+      kayfiyat (faqat admin yuklagan treklar — o'rnatilgan/standart tovushlar olib tashlangan, 2026-11-04),
+      ovoz (qo'lbola slider; ←/→ betni varaqlamaydi), bitta trekni takrorlash, uyqu taymeri (15/30/60). Bet va maqola
+      almashganda davom etadi (pleyer `(reader)/layout` da), reader'dan chiqilganda to'xtaydi, o'zi boshlanmaydi, oxirgi
+      trek/ovoz eslab qolinadi, silliq kuchayadi/so'nadi. Faol trek yo'q / API yo'q (404) bo'lsa — musiqa tugmasi ko'rinmaydi, adminda xabar
+- [x] 124.7 O'qish qulayligi ("Aa"): sahifa rangi — oq / **sepiya** / tun (eslab qolinadi); **diqqat rejimi** (toolbar
+      yashirin, `F`/`Esc`); **kunlik o'qish maqsadi** (10/15/30/60 daq., faqat faol o'qish vaqti, bajarilganda xabar,
+      tugmada ingichka halqa); **maqolada taxminan qancha qoldi** (o'quvchining o'z tezligi bo'yicha)
+- [x] 124.8 e2e: `music` (admin + reader + API yo'q + telefon + sepiya/diqqat), `motion` yangilandi; dev + prod
+
+## 125. Bestseller muqovasi va mavsumiy effektlar (2026-11-03)
+
+Backend o'zgarishsiz: `PUT /admin/app-settings` kaliti `decor` → `{ season, bestseller, bestseller_title }` (`src/lib/decor.ts`).
+
+- [x] 125.1 Sidebar: faol band yonida bestseller kitob muqovasi (`BestsellerPeek`). Admin kitob tanlaydi; standart — "365"
+      jurnal (`/covers/mag-1-peek@{2x,3x}.webp` — srcSet, oldindan kichraytirilgan); 28×40, faqat 2D burish (3D xiralashtirardi), qirra/yaltirash `::after`; muqova — oddiy `<img>` `/catalog/{id}/cover?size=thumb` (brauzer keshi), xato — standart; "Ko'rsatilmasin".
+- [x] 125.2 Mavsumiy effekt: o'chiq / avtomatik (oy bo'yicha) / qish — ❄ qor parchalari (olti nurli, vektor bilan chiziladi, sekin aylanadi) / bahor — gulbarg / yoz — uchqun / kuz — barg.
+      Faqat `ClientShell` (reader, admin, auth'da yo'q). Tezlik: o'chiq — 0 bayt (oddiy `import()`), yoqilgan — idle'da yuklanadi;
+      bitta canvas, ≤ 36 zarracha (kuchsiz qurilmada yarmi), 30 kadr/s, DPR ≤ 1.5, sprite'lar, yashirin vkladkada to'xtaydi;
+      reduced-motion / Save-Data — o'chiq.
+- [x] 125.3 Admin "Ko'rinish" → "Bezaklar" kartasi (`decor-settings.tsx`); e2e: `decor.test.mjs`.
+- [x] 125.4 Bo'lim almashganda muqova eski banddan yangisiga uchib o'tadi (FLIP, Web Animations: egilib, kattalashib, "qo'nib" sakraydi; ~0.5–0.75 s, faqat transform). Sahifa qayta yuklanganda — oddiy kirish animatsiyasi; reduced-motion'da — yo'q. `<img decoding="sync">` — uchish boshida bo'sh muqova ko'rinmaydi. e2e: `decor.test.mjs` (uchish yo'nalishi).
+- [x] 125.5 Uchish yangilandi — "otilgan kitob": joyida cho'kib tayyorlanadi, menyu yorliqlari ustidan yoy bo'ylab ko'tarilib (kattalashib, soyasi chuqurlashib) Y o'qi atrofida bir marta aylanadi, yassilanib qo'nadi va prujinadek joyiga qaytadi; yangi band bir marta oltin halqa bilan "nafas oladi". Kadrlar JS'da hisoblanadi (`flyBook`), ~0.7–1 s, faqat transform/box-shadow; tugagach 3D yo'q.
+- [x] 125.6 Uchish sokin qilindi (egasi: 125.5 "qo'pol"): aylanish, cho'kish va prujina olib tashlandi — muqova yumshoq yoy bo'ylab silliq sirpanadi (sinus easing, ~0.55–0.85 s), yo'lda atigi 2–4% ko'tariladi, qiyaligi o'zgarmay joyiga tushadi; oltin halqa xiraroq va sekinroq.
+
 ## 31. Keyingi vazifalar
 
 - [ ] 31.1 Safari (WebKit): varaqlash rejimida oldingi sahifaga qaytilganda (3-sahifa) belgilash qatlami

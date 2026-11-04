@@ -13,6 +13,7 @@ import { auditActionLabel, auditEntityLabel } from "@/lib/admin-names";
 import { useT } from "@/i18n";
 import { useOpenOrders } from "@/lib/admin-open-orders";
 import { formatNumber as fmt } from "@/i18n";
+import { codeLabel } from "@/lib/status-label";
 
 interface Loaded {
   stats: AdminStats;
@@ -122,7 +123,7 @@ export default function AdminHome() {
               tile.breakdown && Object.keys(tile.breakdown).length > 0
                 ? Object.entries(tile.breakdown).map(([k, v]) => (
                     <Badge key={k} tone={statusTone(k)} dot>
-                      {k}: {v}
+                      {codeLabel(k)}: {v}
                     </Badge>
                   ))
                 : undefined
@@ -134,7 +135,7 @@ export default function AdminHome() {
         <p className="mt-3 text-xs font-semibold text-muted">
           {t("common.role")}:{" "}
           {Object.entries(s.users.by_role)
-            .map(([k, v]) => `${k} ${v}`)
+            .map(([k, v]) => `${codeLabel(k)} ${v}`)
             .join(" · ")}
         </p>
       )}
@@ -164,8 +165,7 @@ export default function AdminHome() {
                 <span className="min-w-0">
                   <span className="track-title">{auditActionLabel(l.action)}</span>
                   <span className="track-sub">
-                    <span className="font-mono">{l.action}</span>
-                    {l.entity_type && <> · {auditEntityLabel(l.entity_type)}</>}
+                    {l.entity_type ? auditEntityLabel(l.entity_type) : "—"}
                   </span>
                 </span>
                 <span className="shrink-0 text-xs font-semibold text-muted">{formatDate(l.created_at)}</span>

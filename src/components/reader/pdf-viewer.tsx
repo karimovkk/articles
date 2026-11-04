@@ -819,6 +819,7 @@ export const PdfViewer = forwardRef<PdfViewerHandle, PdfViewerProps>(function Pd
 
   return (
     <div
+      data-pdf-root
       className={`relative h-full w-full overflow-hidden ${night ? "reader-night bg-[#0b0d12]" : "bg-[#e9ebef]"}`}
       onContextMenu={block}
       onCopy={block}
@@ -1248,7 +1249,7 @@ function PageNavButton({ side, disabled, onClick, label }: { side: "left" | "rig
       disabled={disabled}
       aria-label={label}
       title={label}
-      className={`absolute top-1/2 z-20 hidden size-10 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-surface/90 text-lg text-text shadow-md backdrop-blur hover:bg-surface disabled:opacity-30 sm:flex ${
+      className={`absolute top-1/2 z-20 hidden size-10 -translate-y-1/2 items-center justify-center rounded-[var(--r-md)] border border-border bg-surface/90 text-lg text-text shadow-md backdrop-blur hover:bg-surface disabled:opacity-30 sm:flex ${
         side === "left" ? "left-3" : "right-3"
       }`}
     >

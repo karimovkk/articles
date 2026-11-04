@@ -53,7 +53,7 @@ export function Modal({ open, title, onClose, children, size = "md", icon, foote
     <div className="modal-overlay" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div ref={boxRef} role="dialog" aria-modal aria-labelledby={id} tabIndex={-1} className={cn("modal", size !== "md" && size)} data-testid={testId}>
         <div className="modal-head">
-          {icon && <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-surface-2 text-text-2">{icon}</span>}
+          {icon && <span className="grid size-9 shrink-0 place-items-center rounded-[var(--r-md)] bg-surface-2 text-text-2">{icon}</span>}
           <h2 id={id} className="modal-title">
             {title}
           </h2>

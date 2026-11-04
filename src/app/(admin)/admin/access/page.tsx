@@ -9,6 +9,7 @@ import * as I from "@/components/ui/icons";
 import { adminApi, errorMessage, type BookAccess } from "@/lib/api";
 import { useEntityNames } from "@/lib/admin-names";
 import { useT } from "@/i18n";
+import { codeLabel } from "@/lib/status-label";
 
 export default function AdminAccessPage() {
   const { t } = useT();
@@ -58,7 +59,7 @@ export default function AdminAccessPage() {
       header: t("common.status"),
       render: (a) => (
         <Badge tone={statusTone(a.status)} dot>
-          {a.status}
+          {codeLabel(a.status)}
         </Badge>
       ),
     },

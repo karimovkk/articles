@@ -44,7 +44,7 @@ for (const who of ["guest", "user"]) {
         const bar = chip.querySelector(".yc-bar").getBoundingClientRect().width / chip.getBoundingClientRect().width;
         return { font: getComputedStyle(main).fontFamily, italic: getComputedStyle(main).fontStyle, text: `${main.textContent}${num.textContent}`, clip: cs.backgroundClip || cs.webkitBackgroundClip, shine: document.getAnimations().some((a) => a.animationName === "brand-shine"), dot: !!chip.querySelector(".yc-dot"), bar, year: Number(getComputedStyle(chip).getPropertyValue("--year")) };
       });
-      check("Logo: 'Articles' — sarlavha shrifti (kursiv), '365' — oltin gradient + yaltirash animatsiyasi", /playfair/i.test(st.font) && st.italic === "italic" && st.text === "Articles365" && st.clip === "text" && st.shine, JSON.stringify(st));
+      check("Logo: 'Articles' — sarlavha shrifti (kursiv), '365' — oltin gradient + yaltirash animatsiyasi", /literata/i.test(st.font) && st.italic === "italic" && st.text === "Articles365" && st.clip === "text" && st.shine, JSON.stringify(st));
       check("Kun nishoni: tirik nuqta va yil progressi (chiziq = kun / jami)", st.dot && Math.abs(st.bar - st.year) < 0.03, `${st.bar.toFixed(3)} ~ ${st.year}`);
       await page.screenshot({ path: OUT + "99-brand-1440.png", clip: { x: 0, y: 0, width: 1440, height: 80 } });
       // 84: hover — logo kattalashmaydi/aylanmaydi (joyida), halqa nuri kuchayadi, yoy bir marta aylanadi, ostida chiziq

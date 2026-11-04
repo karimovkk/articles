@@ -5,7 +5,7 @@ import { DataTable, Toolbar, usePaged, type Column } from "@/components/admin/da
 import { Alert, Button, PageHeader, Select, formatDate } from "@/components/ui";
 import * as I from "@/components/ui/icons";
 import { AUDIT_ACTIONS, adminApi, errorMessage, type AuditAction, type AuditLog } from "@/lib/api";
-import { auditActionLabel, auditEntityLabel, downloadBlob } from "@/lib/admin-names";
+import { auditActionLabel, auditEntityLabel, downloadBlob, useEntityNames } from "@/lib/admin-names";
 import { useT } from "@/i18n";
 
 /** Backend audit `entity_type` qiymatlari (OpenAPI'da enum yo'q — kuzatilganlar) */
@@ -37,6 +37,8 @@ export default function AdminAuditLogsPage() {
     [filters],
   );
 
+  // 124: UUID bo'laklari o'rniga — administrator ismi
+  const names = useEntityNames([...new Set((data?.items ?? []).map((l) => l.admin_id).filter((x): x is string => !!x))]);
   const columns: Column<AuditLog>[] = [
     { key: "time", header: t("admin.audit.time"), render: (l) => <span className="muted whitespace-nowrap">{formatDate(l.created_at)}</span> },
     {
@@ -45,7 +47,6 @@ export default function AdminAuditLogsPage() {
       render: (l) => (
         <span className="flex flex-col gap-0.5">
           <span className="font-bold text-text">{auditActionLabel(l.action)}</span>
-          <span className="font-mono text-xs text-muted">{l.action}</span>
         </span>
       ),
     },
@@ -55,11 +56,10 @@ export default function AdminAuditLogsPage() {
       render: (l) => (
         <span className="text-muted">
           {auditEntityLabel(l.entity_type)}
-          {l.entity_id && <span className="ml-1 font-mono text-[11px]">{l.entity_id.slice(0, 8)}</span>}
         </span>
       ),
     },
-    { key: "admin", header: t("admin.audit.admin"), render: (l) => <span className="font-mono text-[11px] text-muted">{l.admin_id?.slice(0, 8) ?? "—"}</span> },
+    { key: "admin", header: t("admin.audit.admin"), render: (l) => <span className="text-muted">{l.admin_id ? (names.users[l.admin_id] ?? "…") : "—"}</span> },
     { key: "ip", header: "IP", render: (l) => <span className="text-muted">{l.ip_address ?? "—"}</span> },
     {
       key: "meta",

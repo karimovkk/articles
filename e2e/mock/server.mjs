@@ -189,7 +189,29 @@ const qReader = ({ id, type, prompt, data, order_index, answer_page, answer_text
 const qAdmin = (q) => ({ ...q, points: qPoints(q) });
 
 
+// 124: o'qish musiqasi (BACKEND_TASKS.md 5-qism) — id → { meta, data }; `/__music?off=1` — backend'da endpoint yo'q (404);
+// `/__music?fail=1` — public ro'yxat 500 qaytaradi (server xatosi; reader xom kod ko'rsatmasligi kerak)
+const MUSIC_SEED = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), "music-calm.mp3"));
+let music = [];
+let musicOff = false;
+let musicFail = false;
+const MOODS = ["CALM", "FOCUS", "NATURE", "CLASSICAL", "LOFI"];
+const musicOut = (x) => ({ id: x.id, title: x.title, mood: x.mood, duration_seconds: x.duration_seconds, mime_type: x.mime_type, file_size: x.data.length, file_version: x.file_version, is_active: x.is_active, order_index: x.order_index, created_at: x.created_at, updated_at: x.updated_at });
+const musicPublic = ({ is_active, order_index, created_at, ...rest }) => rest;
+const audioMime = (b) => (b.slice(0, 3).toString() === "ID3" || (b[0] === 0xff && (b[1] & 0xe0) === 0xe0) ? "audio/mpeg" : b.slice(0, 4).toString() === "OggS" ? "audio/ogg" : b.slice(4, 8).toString() === "ftyp" ? "audio/mp4" : null);
+function freshMusic(seed) {
+  if (!seed) return [];
+  return [
+    { id: "9a9a9a9a-0000-4000-8000-000000000001", title: "Tonggi sokinlik", mood: "CALM", duration_seconds: 30, mime_type: "audio/mpeg", data: MUSIC_SEED, file_version: 1, is_active: true, order_index: 0, created_at: now(), updated_at: now() },
+    { id: "9a9a9a9a-0000-4000-8000-000000000002", title: "Chuqur diqqat", mood: "FOCUS", duration_seconds: 30, mime_type: "audio/mpeg", data: MUSIC_SEED, file_version: 1, is_active: true, order_index: 1, created_at: now(), updated_at: now() },
+    { id: "9a9a9a9a-0000-4000-8000-000000000003", title: "Arxiv: eski trek", mood: "LOFI", duration_seconds: 30, mime_type: "audio/mpeg", data: MUSIC_SEED, file_version: 1, is_active: false, order_index: 2, created_at: now(), updated_at: now() },
+  ];
+}
+
 function reset(opts = {}) {
+  music = freshMusic(!opts.noMusic);
+  musicOff = false;
+  musicFail = false;
   pricing = freshPricing();
   devices = [];
   deviceLimitOn = false;
@@ -303,7 +325,7 @@ const server = createServer(async (req, res) => {
   if (!path.startsWith("/__")) headersSeen.push({ path, secret: req.headers["x-device-secret"] ?? null, ngrok: req.headers["ngrok-skip-browser-warning"], device: req.headers["x-device-id"], auth: !!req.headers.authorization });
 
   // ---- test yordamchilari
-  if (path === "/__reset") { reset({ legacy: q.get("legacy") === "1" }); return json(res, 200, { ok: true }); }
+  if (path === "/__reset") { reset({ legacy: q.get("legacy") === "1", noMusic: q.get("music") === "0" }); return json(res, 200, { ok: true }); }
   if (path === "/__log") return json(res, 200, log);
   if (path === "/__headers") return json(res, 200, headersSeen);
   if (path === "/__devices") return json(res, 200, devices);
@@ -429,6 +451,28 @@ const server = createServer(async (req, res) => {
     res.writeHead(200, { "Content-Type": img.type, "Content-Length": img.data.length, "Cache-Control": "public, max-age=300" });
     return res.end(img.data);
   }
+  // ---- 124: o'qish musiqasi — public (tokensiz ham)
+  if (path === "/__music") {
+    if (q.get("off") !== null) musicOff = q.get("off") === "1";
+    if (q.get("fail") !== null) musicFail = q.get("fail") === "1";
+    return json(res, 200, { off: musicOff, fail: musicFail, tracks: music.map(musicOut) });
+  }
+  if (musicOff && (path.startsWith("/music") || path.startsWith("/admin/music"))) return err(res, 404, "NOT_FOUND", "Not Found");
+  if (path === "/music/tracks" && m === "GET" && musicFail) return err(res, 500, "INTERNAL_ERROR", "Internal Server Error");
+  if (path === "/music/tracks" && m === "GET") return json(res, 200, music.filter((x) => x.is_active).sort((a, b) => a.order_index - b.order_index).map(musicOut).map(musicPublic));
+  const msm = /^\/music\/tracks\/([^/]+)\/stream$/.exec(path);
+  if (msm && m === "GET") {
+    const tr = music.find((x) => x.id === msm[1] && x.is_active);
+    if (!tr) return err(res, 404, "TRACK_NOT_FOUND", "Track not found");
+    const total = tr.data.length; const rg = /bytes=(\d*)-(\d*)/.exec(req.headers.range ?? "");
+    if (rg) {
+      const start = rg[1] ? Number(rg[1]) : 0; const end = rg[2] ? Math.min(Number(rg[2]), total - 1) : total - 1;
+      res.writeHead(206, { "Content-Type": tr.mime_type, "Content-Length": end - start + 1, "Content-Range": `bytes ${start}-${end}/${total}`, "Accept-Ranges": "bytes", "Cache-Control": "public, max-age=86400" });
+      return res.end(tr.data.subarray(start, end + 1));
+    }
+    res.writeHead(200, { "Content-Type": tr.mime_type, "Content-Length": total, "Accept-Ranges": "bytes", "Cache-Control": "public, max-age=86400" });
+    return res.end(tr.data);
+  }
   // ---- 106: Telegram Mini App — parolsiz kirish (imzo: mock'da `hash=bad` → xato), handoff almashtirish
   if (m === "POST" && path === "/auth/telegram/webapp") {
     const b = await readBody(req);
@@ -516,6 +560,39 @@ const server = createServer(async (req, res) => {
     if (bid && isFreeId(bid)) me = GUEST;
   }
   if (!me) return err(res, 401, "AUTHENTICATION_REQUIRED", "Authentication required");
+
+  // ---- 124: admin — musiqa
+  if (path.startsWith("/admin/music")) {
+    if (me.role !== "ADMIN") return err(res, 403, "PERMISSION_DENIED", "Admin only");
+    if (path === "/admin/music/tracks" && m === "GET") return json(res, 200, [...music].sort((a, b) => a.order_index - b.order_index).map(musicOut));
+    if (path === "/admin/music/tracks" && m === "POST") {
+      const ct = req.headers["content-type"] ?? "";
+      if (!ct.startsWith("multipart/form-data")) return err(res, 422, "VALIDATION_ERROR", "Expected multipart/form-data");
+      const form = parseMultipart(await readRaw(req), ct);
+      const f = form?.files.file;
+      if (!f || !f.data.length) return err(res, 422, "EMPTY_FILE", "Empty file");
+      if (f.data.length > 20 * 1024 * 1024) return err(res, 413, "FILE_TOO_LARGE", "File too large", { max_mb: 20 });
+      const mime = audioMime(f.data);
+      if (!mime) return err(res, 415, "UNSUPPORTED_MEDIA_TYPE", "Only MP3, OGG, M4A");
+      const mood = form.fields.mood ?? "CALM";
+      if (!MOODS.includes(mood)) return err(res, 422, "VALIDATION_ERROR", "Bad mood");
+      const tr = { id: randomUUID(), title: (form.fields.title || f.filename.replace(/\.[^.]+$/, "")).slice(0, 160), mood, duration_seconds: form.fields.duration_seconds ? Math.round(Number(form.fields.duration_seconds)) : null, mime_type: mime, data: f.data, file_version: 1, is_active: true, order_index: music.length, created_at: now(), updated_at: now() };
+      music.push(tr);
+      return json(res, 201, musicOut(tr));
+    }
+    const mt = /^\/admin\/music\/tracks\/([^/]+)$/.exec(path);
+    const tr = mt && music.find((x) => x.id === mt[1]);
+    if (mt && !tr) return err(res, 404, "TRACK_NOT_FOUND", "Track not found");
+    if (tr && m === "PATCH") {
+      const b = await readBody(req);
+      if (b.mood !== undefined && !MOODS.includes(b.mood)) return err(res, 422, "VALIDATION_ERROR", "Bad mood");
+      if (b.title !== undefined && !String(b.title).trim()) return err(res, 422, "VALIDATION_ERROR", "Title required");
+      Object.assign(tr, Object.fromEntries(Object.entries({ title: b.title?.trim(), mood: b.mood, is_active: b.is_active, order_index: b.order_index }).filter(([, v]) => v !== undefined)), { updated_at: now() });
+      return json(res, 200, musicOut(tr));
+    }
+    if (tr && m === "DELETE") { music = music.filter((x) => x !== tr); return json(res, 200, { message: "deleted" }); }
+    return err(res, 405, "METHOD_NOT_ALLOWED", "Method not allowed");
+  }
 
   if (path === "/auth/me" || (m === "GET" && path === "/me")) return json(res, 200, me);
   if (m === "POST" && path === "/auth/telegram/handoff") {

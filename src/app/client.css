@@ -212,7 +212,7 @@
   gap: 3px;
   height: 26px;
   padding: 0 10px;
-  border-radius: 999px;
+  border-radius: var(--r-sm);
   border: 1px solid var(--gold-line);
   background: color-mix(in srgb, var(--accent) 10%, transparent);
   font-size: 12px;
@@ -318,14 +318,18 @@
   display: flex;
   align-items: center;
   gap: 14px;
-  border-radius: 12px;
+  border-radius: var(--r-md);
   border: 1px solid transparent;
   color: var(--text-2);
   text-decoration: none;
   transition:
-    background 140ms var(--ease),
-    color 140ms var(--ease),
-    border-color 140ms var(--ease);
+    background 220ms var(--ease),
+    color 220ms var(--ease),
+    border-color 220ms var(--ease),
+    transform 120ms var(--ease);
+}
+.side-link:active {
+  transform: scale(0.98); /* 123 */
 }
 .side-link {
   height: 48px;
@@ -359,6 +363,17 @@
   width: 3px;
   border-radius: 3px;
   background: var(--accent);
+  animation: side-indicator 260ms var(--ease) both; /* 123: faol belgi o'sib chiqadi */
+}
+@keyframes side-indicator {
+  from {
+    transform: scaleY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .side-link.active::before {
+    animation: none;
+  }
 }
 .side-link:focus-visible {
   outline: none;
@@ -369,7 +384,7 @@
   min-width: 22px;
   height: 22px;
   padding: 0 7px;
-  border-radius: 999px;
+  border-radius: var(--r-full);
   display: grid;
   place-items: center;
   font-size: 12px;
@@ -557,7 +572,7 @@
   height: 56px;
   margin-top: 26px;
   padding: 0 8px 0 20px;
-  border-radius: 999px;
+  border-radius: var(--r-md);
   border: 1.5px solid color-mix(in srgb, var(--accent) 70%, transparent);
   background: var(--hero-pill-bg);
   -webkit-backdrop-filter: blur(8px);
@@ -680,7 +695,7 @@
   gap: 9px;
   height: 44px;
   padding: 0 18px;
-  border-radius: 12px;
+  border-radius: var(--r-md);
   border: 1px solid var(--border-strong);
   background: var(--surface);
   color: var(--text-2);
@@ -730,7 +745,7 @@
   grid-template-columns: 112px minmax(0, 1fr);
   gap: 16px;
   padding: 16px;
-  border-radius: 16px;
+  border-radius: var(--r-lg);
   border: 1px solid var(--border);
   background: var(--surface);
   box-shadow: var(--shadow-sm);
@@ -749,7 +764,7 @@
 }
 .bcard .book-cover {
   align-self: start;
-  border-radius: 8px;
+  border-radius: var(--r-sm);
   box-shadow:
     0 12px 22px -12px rgba(0, 0, 0, 0.7),
     inset 0 0 0 1px var(--border);
@@ -776,7 +791,7 @@
   max-width: 100%;
   height: 22px;
   padding: 0 9px;
-  border-radius: 999px;
+  border-radius: var(--r-sm);
   border: 1px solid var(--gold-line);
   font-size: 11px;
   font-weight: 700;
@@ -874,7 +889,7 @@
 }
 .bcard-cta .btn {
   width: 100%;
-  border-radius: 10px;
+  border-radius: var(--radius-btn);
 }
 /* 35: "Sotib olish" + "Savatga" yonma-yon; joy yetmasa — "Savatga" keyingi qatorga (tugmalar siqilmaydi) */
 .bcard-cta:has(.cart-btn) {
@@ -902,7 +917,7 @@
   min-width: 38px;
   height: 38px;
   padding: 0 6px;
-  border-radius: 999px;
+  border-radius: var(--radius-btn);
   display: grid;
   place-items: center;
   font-size: 14px;
@@ -1266,7 +1281,7 @@
   gap: 10px;
   min-width: 0;
   padding: 18px 18px 14px;
-  border-radius: 18px;
+  border-radius: var(--r-lg);
   border: 1px solid var(--border);
   background: var(--surface);
   box-shadow: var(--shadow-sm);
@@ -1326,7 +1341,7 @@
   gap: 6px;
   height: 30px;
   padding: 0 12px;
-  border-radius: 999px;
+  border-radius: var(--r-md);
   border: 1.5px dashed var(--gold-line);
   background: transparent;
   font-size: 13px;
@@ -1379,7 +1394,7 @@
 }
 .vocab-pageno {
   padding: 1px 8px;
-  border-radius: 999px;
+  border-radius: var(--r-full);
   border: 1px solid var(--gold-line);
   color: var(--accent-ink);
   white-space: nowrap;
@@ -1456,7 +1471,7 @@
   justify-content: center;
   gap: 12px;
   padding: 28px;
-  border-radius: 24px;
+  border-radius: var(--r-xl);
   border: 1px solid var(--gold-line);
   background:
     radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 60%),
@@ -1644,7 +1659,7 @@
   flex-direction: column;
   gap: 2px;
   padding: 10px 12px;
-  border-radius: 12px;
+  border-radius: var(--r-md);
   border: 1px solid var(--border);
   background: var(--surface);
   transition:
@@ -1706,7 +1721,7 @@
   gap: 16px;
   margin-bottom: 22px;
   padding: 14px 16px;
-  border-radius: 18px;
+  border-radius: var(--r-lg);
   border: 1px solid var(--gold-line);
   background: color-mix(in srgb, var(--surface) 88%, transparent);
   box-shadow: var(--shadow-sm);
@@ -1744,7 +1759,7 @@
   min-width: 20px;
   height: 20px;
   padding: 0 6px;
-  border-radius: 999px;
+  border-radius: var(--r-full);
   background: rgba(0, 0, 0, 0.18);
   font-size: 12px;
   font-weight: 700;
@@ -1779,7 +1794,7 @@
 }
 .cart-card {
   padding: 18px;
-  border-radius: 18px;
+  border-radius: var(--r-lg);
   border: 1px solid var(--border);
   background: var(--surface);
   box-shadow: var(--shadow-sm);
@@ -1819,14 +1834,14 @@
   align-items: center;
   gap: 14px;
   padding: 12px;
-  border-radius: 16px;
+  border-radius: var(--r-lg);
   border: 1px solid var(--border);
   background: var(--surface);
   box-shadow: var(--shadow-sm);
 }
 .cart-item-cover .book-cover,
 .cart-suggest-cover .book-cover {
-  border-radius: 8px;
+  border-radius: var(--r-sm);
 }
 /* Kichik muqovada nom sig'maydi — faqat oltin chiziq (nom yonida yozilgan) */
 .cart-item-cover .book-cover .ph > span,
@@ -1917,7 +1932,7 @@
   align-items: center;
   gap: 8px;
   padding: 10px 12px;
-  border-radius: 12px;
+  border-radius: var(--r-md);
   background: color-mix(in srgb, var(--success) 12%, transparent);
   font-size: 14px;
   font-weight: 700;
@@ -1955,7 +1970,7 @@
   gap: 12px;
   align-items: start;
   padding: 12px;
-  border-radius: 14px;
+  border-radius: var(--r-lg);
   border: 1px dashed var(--gold-line);
   background: color-mix(in srgb, var(--surface) 85%, transparent);
 }
@@ -2100,7 +2115,7 @@
   gap: 10px;
   min-width: 0;
   padding: 7px 8px;
-  border-radius: 10px;
+  border-radius: var(--r-md);
   font-size: 14px;
   font-weight: 600;
   color: var(--text);
@@ -2122,7 +2137,7 @@
   flex-shrink: 0;
   width: 24px;
   height: 24px;
-  border-radius: 999px;
+  border-radius: var(--r-full);
   background: color-mix(in srgb, var(--success) 12%, transparent);
   color: var(--success);
   font-size: 12px;
@@ -2147,7 +2162,7 @@
   gap: 8px;
   margin-top: 10px;
   padding: 10px 12px;
-  border-radius: 12px;
+  border-radius: var(--r-md);
   background: color-mix(in srgb, var(--warning) 10%, transparent);
   font-size: 13px;
   line-height: 1.45;
@@ -2205,7 +2220,7 @@
   display: grid;
   gap: 2px;
   padding: 12px 14px;
-  border-radius: 12px;
+  border-radius: var(--r-md);
   border: 1px solid var(--border);
 }
 .quiz-score strong {
@@ -2243,7 +2258,7 @@
   flex-shrink: 0;
   width: 22px;
   height: 22px;
-  border-radius: 999px;
+  border-radius: var(--r-full);
   background: var(--surface-2);
   font-size: 12px;
   font-weight: 700;
@@ -2261,7 +2276,7 @@
   gap: 8px;
   min-height: 36px;
   padding: 6px 10px;
-  border-radius: 10px;
+  border-radius: var(--r-md);
   border: 1px solid var(--border);
   font-size: 13px;
   cursor: pointer;
@@ -2310,7 +2325,7 @@
 /* 53: natija — savol darajasida yashil/qizil, to'g'ri javob alohida */
 .quiz-q {
   padding: 10px;
-  border-radius: 14px;
+  border-radius: var(--r-lg);
   border: 1px solid transparent;
   transition:
     background 200ms var(--ease),
@@ -2362,7 +2377,7 @@
 .quiz-opt > .quiz-opt-tag {
   flex: 0 0 auto;
   padding: 2px 8px;
-  border-radius: 999px;
+  border-radius: var(--r-sm);
   font-size: 11px;
   font-weight: 700;
   white-space: nowrap;
@@ -2402,7 +2417,7 @@
 .quiz-score-sum i {
   width: 8px;
   height: 8px;
-  border-radius: 999px;
+  border-radius: var(--r-full);
 }
 .quiz-score-sum i.ok {
   background: var(--success);
@@ -2443,7 +2458,7 @@
   gap: 8px;
   height: 40px;
   padding: 0 18px;
-  border-radius: 999px;
+  border-radius: var(--radius-btn);
   background: var(--accent);
   color: var(--accent-contrast);
   font-size: 14px;
@@ -2459,7 +2474,7 @@
   gap: 4px;
   height: 34px;
   padding: 0 10px;
-  border-radius: 999px;
+  border-radius: var(--r-sm);
   border: 1px solid var(--border);
   color: var(--muted);
   font-size: 14px;
@@ -2509,12 +2524,17 @@
   .client-actions {
     gap: 2px;
   }
+  /* 124: Onest raqamlari Manrope'dan sal kengroq — seriya chipi 2 px ixchamroq (logo bilan oraliq ≥ 6 px qolsin) */
+  .streak-chip {
+    padding: 0 4px;
+    gap: 3px;
+  }
 }
 .streak-card {
   display: grid;
   gap: 6px;
   padding: 16px 18px;
-  border-radius: 16px;
+  border-radius: var(--r-lg);
   border: 1px solid var(--border);
   background: var(--surface);
 }
@@ -2577,7 +2597,7 @@
   place-items: center;
   width: 28px;
   height: 28px;
-  border-radius: 999px;
+  border-radius: var(--r-full);
   background: var(--surface-2);
   font-size: 12px;
   font-weight: 700;
@@ -2637,7 +2657,7 @@
   gap: 6px;
   height: 34px;
   padding: 0 16px;
-  border-radius: 999px;
+  border-radius: var(--r-sm);
   color: var(--text-2);
   font-size: 14px;
   font-weight: 600;
@@ -2673,7 +2693,7 @@
 .vocab-langs button {
   height: 30px;
   padding: 0 12px;
-  border-radius: 999px;
+  border-radius: var(--radius-btn);
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--text-2);
@@ -2704,7 +2724,7 @@
   gap: 5px;
   height: 28px;
   padding: 0 10px;
-  border-radius: 999px;
+  border-radius: var(--r-sm);
   border: 1px solid var(--border);
   background: var(--surface-2);
   color: var(--text-2);
@@ -2788,7 +2808,7 @@ html:not(.dark) .hero-eyebrow {
 .bcard-cta .share-btn {
   width: 36px;
   height: 32px;
-  border-radius: 10px;
+  border-radius: var(--radius-btn);
   border: 1px solid var(--border);
   background: var(--surface);
 }
@@ -3007,7 +3027,7 @@ html:not(.dark) .hero-eyebrow {
   flex-direction: column;
   gap: 4px;
   padding: 0 16px 16px;
-  border-radius: 18px;
+  border-radius: var(--r-lg);
   overflow: hidden;
   color: #fff;
   text-decoration: none;
@@ -3117,7 +3137,7 @@ html:not(.dark) .hero-eyebrow {
   margin-top: 8px;
   height: 30px;
   padding: 0 12px;
-  border-radius: 999px;
+  border-radius: var(--r-md);
   background: #7000ff;
   color: #fff;
   font-size: 12.5px;
@@ -3265,7 +3285,7 @@ html:not(.dark) .hero-eyebrow {
 }
 .podium-you {
   padding: 1px 8px;
-  border-radius: 999px;
+  border-radius: var(--r-sm);
   background: var(--accent);
   color: var(--accent-contrast);
   font-size: 11px;
@@ -3495,7 +3515,7 @@ html:not(.dark) .hero-eyebrow {
   gap: 8px;
   min-width: 0;
   padding: 16px 18px;
-  border-radius: 18px;
+  border-radius: var(--r-lg);
   border: 1px solid var(--border);
   background:
     radial-gradient(120% 80% at 0% 0%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 60%),
@@ -3539,14 +3559,14 @@ html:not(.dark) .hero-eyebrow {
 }
 .lb-side-progress {
   height: 6px;
-  border-radius: 999px;
+  border-radius: var(--r-full);
   background: color-mix(in srgb, var(--text) 10%, transparent);
   overflow: hidden;
 }
 .lb-side-progress i {
   display: block;
   height: 100%;
-  border-radius: 999px;
+  border-radius: var(--r-full);
   background: linear-gradient(90deg, #f59f00, #e8590c);
 }
 .lb-side-hint {
@@ -3604,7 +3624,7 @@ html:not(.dark) .hero-eyebrow {
   display: grid;
   gap: 4px;
   padding: 10px 12px;
-  border-radius: 12px;
+  border-radius: var(--r-md);
   border-left: 3px solid var(--accent);
   background: color-mix(in srgb, var(--accent) 7%, var(--surface-2));
 }
@@ -3626,7 +3646,7 @@ html:not(.dark) .hero-eyebrow {
   display: grid;
   gap: 8px;
   padding: 10px;
-  border-radius: 14px;
+  border-radius: var(--r-lg);
   border: 1px solid transparent;
   min-width: 0;
 }
@@ -3657,7 +3677,7 @@ html:not(.dark) .hero-eyebrow {
   min-width: 24px;
   height: 22px;
   padding: 0 6px;
-  border-radius: 999px;
+  border-radius: var(--r-full);
   background: var(--surface-2);
   border: 1px solid var(--border);
   font-size: 11.5px;
@@ -3726,7 +3746,7 @@ html:not(.dark) .hero-eyebrow {
   gap: 8px;
   min-height: 38px;
   padding: 6px 10px;
-  border-radius: 10px;
+  border-radius: var(--r-md);
   border: 1px solid var(--border);
   background: var(--surface);
   font-size: 13px;
@@ -3783,7 +3803,7 @@ html:not(.dark) .hero-eyebrow {
   gap: 4px;
   height: 34px;
   padding: 0 12px;
-  border-radius: 999px;
+  border-radius: var(--radius-btn);
   border: 1px solid var(--border);
   background: var(--surface);
   font-size: 12.5px;
@@ -3828,7 +3848,7 @@ html:not(.dark) .hero-eyebrow {
 }
 .qv-match-list {
   padding: 10px 12px;
-  border-radius: 12px;
+  border-radius: var(--r-md);
   border: 1px dashed var(--border-strong, var(--border));
   background: var(--surface-2);
 }
@@ -3865,7 +3885,7 @@ html:not(.dark) .hero-eyebrow {
   align-items: center;
   gap: 8px;
   padding: 6px 8px;
-  border-radius: 10px;
+  border-radius: var(--r-md);
   border: 1px solid var(--border);
   background: var(--surface);
   font-size: 13px;
@@ -3985,7 +4005,7 @@ html:not(.dark) .hero-eyebrow {
 }
 .qv-table-wrap {
   overflow-x: auto;
-  border-radius: 10px;
+  border-radius: var(--r-md);
   border: 1px solid var(--border);
 }
 .qv-table {
@@ -4026,7 +4046,7 @@ html:not(.dark) .hero-eyebrow {
 .qv-flow-box {
   width: 100%;
   padding: 8px 12px;
-  border-radius: 10px;
+  border-radius: var(--r-md);
   border: 1px solid var(--border);
   background: var(--surface);
   font-size: 13px;
@@ -4040,7 +4060,7 @@ html:not(.dark) .hero-eyebrow {
   display: grid;
   gap: 4px;
   padding: 8px 10px;
-  border-radius: 10px;
+  border-radius: var(--r-md);
   background: color-mix(in srgb, var(--success) 8%, var(--surface));
   font-size: 12.5px;
 }
@@ -4086,7 +4106,7 @@ html:not(.dark) .hero-eyebrow {
   flex-wrap: nowrap;
   align-items: flex-start;
   padding: 8px 10px;
-  border-radius: 10px;
+  border-radius: var(--r-md);
   background: var(--surface-2);
   line-height: 1.4;
 }
@@ -4135,7 +4155,7 @@ html:not(.dark) .hero-eyebrow {
   font-style: normal;
   font-size: 11px;
   padding: 0 6px;
-  border-radius: 999px;
+  border-radius: var(--r-sm);
   background: var(--surface-2);
 }
 .quiz-timer-start {
@@ -4144,7 +4164,7 @@ html:not(.dark) .hero-eyebrow {
   gap: 6px;
   justify-self: start;
   padding: 6px 12px;
-  border-radius: 999px;
+  border-radius: var(--r-md);
   border: 1px dashed var(--border);
   font-size: 12.5px;
   font-weight: 700;
@@ -4163,7 +4183,7 @@ html:not(.dark) .hero-eyebrow {
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
-  border-radius: 12px;
+  border-radius: var(--r-md);
   border: 1px solid var(--accent-border);
   background: color-mix(in srgb, var(--accent) 16%, var(--surface));
   font-size: 13px;
@@ -4192,7 +4212,7 @@ html:not(.dark) .hero-eyebrow {
   justify-self: start;
   margin-left: 30px;
   padding: 3px 10px;
-  border-radius: 999px;
+  border-radius: var(--r-md);
   background: var(--accent-softer);
   font-size: 12px;
   font-weight: 700;
@@ -4208,7 +4228,7 @@ html:not(.dark) .hero-eyebrow {
   display: block;
   width: 100%;
   padding: 6px;
-  border-radius: 12px;
+  border-radius: var(--r-md);
   border: 1px solid var(--border);
   background: #fff;
   cursor: zoom-in;
@@ -4241,7 +4261,7 @@ html:not(.dark) .hero-eyebrow {
   min-width: 22px;
   height: 22px;
   padding: 0 5px;
-  border-radius: 999px;
+  border-radius: var(--r-sm);
   border: 2px solid #fff;
   background: var(--accent);
   color: #1a1a1a;
@@ -4268,7 +4288,7 @@ html:not(.dark) .hero-eyebrow {
 }
 .qv-figure-loading {
   height: 120px;
-  border-radius: 12px;
+  border-radius: var(--r-md);
   background: var(--surface-2);
   animation: qv-loading 1.4s ease-in-out infinite;
 }
@@ -4296,7 +4316,7 @@ html:not(.dark) .hero-eyebrow {
   max-width: calc(100vw - 32px);
   max-height: calc(100dvh - 32px);
   object-fit: contain;
-  border-radius: 8px;
+  border-radius: var(--r-sm);
   background: #fff;
 }
 .qv-figure-zoom .qv-pin {
@@ -4309,7 +4329,7 @@ html:not(.dark) .hero-eyebrow {
   align-items: center;
   gap: 6px;
   padding: 10px;
-  border-radius: 10px;
+  border-radius: var(--r-md);
   border: 1px dashed var(--border);
   font-size: 12px;
   color: var(--text-2);
@@ -4344,7 +4364,7 @@ html:not(.dark) .hero-eyebrow {
   width: 58px;
   height: 58px;
   border: 0;
-  border-radius: 50%;
+  border-radius: var(--radius-btn);
   color: #fff;
   cursor: pointer;
   background: linear-gradient(140deg, var(--tg-1) 0%, var(--tg-2) 100%);
@@ -4403,7 +4423,7 @@ html:not(.dark) .hero-eyebrow {
 .contact-card {
   width: min(344px, calc(100vw - 32px));
   border: 1px solid var(--border);
-  border-radius: 22px;
+  border-radius: var(--r-xl);
   overflow: hidden;
   background: var(--contact-bg);
   box-shadow:
@@ -4482,7 +4502,7 @@ html:not(.dark) .hero-eyebrow {
   margin-left: auto;
   align-self: flex-start;
   border: 0;
-  border-radius: 50%;
+  border-radius: var(--radius-btn);
   color: #fff;
   cursor: pointer;
   background: rgba(255, 255, 255, 0.16);
@@ -4520,7 +4540,7 @@ html:not(.dark) .hero-eyebrow {
   gap: 8px;
   padding: 6px 6px 6px 12px;
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: var(--r-lg);
   background: var(--contact-bg-2);
   color: var(--tg-2);
 }
@@ -4543,7 +4563,7 @@ html:not(.dark) .hero-eyebrow {
   height: 30px;
   padding: 0 10px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-btn);
   font-size: 12px;
   font-weight: 700;
   color: var(--text-2);
@@ -4567,7 +4587,7 @@ html:not(.dark) .hero-eyebrow {
   justify-content: center;
   gap: 9px;
   height: 48px;
-  border-radius: 14px;
+  border-radius: var(--radius-btn);
   font-size: 15px;
   font-weight: 800;
   color: #fff;
@@ -4627,6 +4647,201 @@ html:not(.dark) .hero-eyebrow {
 }
 @media print {
   .contact {
+    display: none;
+  }
+}
+
+/* ============================================================
+   124: mijoz qobig'i — "qog'oz" (2026-11-02). Fon rasmi qoladi (admin tanlaydi), lekin kontent shishada emas,
+   tinch qog'oz varaqlarda: blur yo'q, soya past, oltin faqat asosiy amal va faol joyda.
+   ============================================================ */
+/* 125: "biroz shisha" — qog'oz va asl shisha o'rtasi: yarim shaffof iliq fon + yengil blur (2026-11-02) */
+html:not(.dark) .client {
+  --surface: rgba(252, 250, 245, 0.78);
+  --surface-2: rgba(246, 242, 232, 0.66);
+  --surface-3: rgba(255, 253, 248, 0.86);
+  --border: rgba(70, 58, 24, 0.14);
+}
+html:not(.dark) .client :is(.bcard, .card, .cat-chip, .pricing-promo, .cart-card, .cart-item, .cart-suggest-card, .vocab-card, .streak-card, .tier-step) {
+  -webkit-backdrop-filter: blur(4px) saturate(1.15);
+  backdrop-filter: blur(4px) saturate(1.15);
+}
+@media (max-width: 640px) {
+  html:not(.dark) .client :is(.bcard, .card, .cat-chip, .pricing-promo, .cart-card, .cart-item, .cart-suggest-card, .vocab-card, .streak-card, .tier-step) {
+    -webkit-backdrop-filter: blur(3px) saturate(1.1);
+    backdrop-filter: blur(3px) saturate(1.1);
+  }
+}
+.dark .client {
+  --surface: rgba(18, 16, 13, 0.88);
+  --surface-2: rgba(32, 29, 23, 0.8);
+}
+/* Kitob kartasi: ko'tarilish/qora soya yo'q — faqat chegara rangi; nom — serif */
+.bcard {
+  box-shadow: none;
+}
+.bcard:hover {
+  transform: none;
+  box-shadow: none;
+  border-color: var(--border-strong);
+}
+.bcard-title {
+  font-family: var(--font-serif);
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+}
+.bcard:hover .bcard-title,
+.dark .bcard:hover .bcard-title {
+  color: var(--text);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+.bcard .book-cover {
+  border-radius: var(--r-xs);
+}
+.bcard-tag {
+  height: 20px;
+  padding: 0 7px;
+  font-weight: 600;
+  border-color: var(--border-strong);
+  color: var(--text-2);
+}
+.dark .bcard-tag {
+  color: var(--text-2);
+}
+/* Hero: shisha/porlash o'rniga — tinch matn ("365" emblemasi asl porlashi bilan qoladi) */
+.hero-eyebrow {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.hero-title {
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+.hero-title em {
+  font-weight: 500;
+  text-shadow: none;
+}
+.hero-brand-name {
+  font-size: 13px;
+  letter-spacing: 0.18em;
+}
+.hero-search {
+  border: 1px solid var(--border-strong);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+@media (max-width: 640px) {
+  .hero-search {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+.hero-search:focus-within {
+  border-color: var(--accent-ink);
+  box-shadow: var(--ring);
+}
+/* Bo'lim almashtirgich: qora kapsula o'rniga — ko'tarilgan tab */
+.catalog-switch a.active {
+  background: var(--surface-3);
+  color: var(--text);
+  box-shadow:
+    0 1px 2px rgba(18, 22, 20, 0.1),
+    inset 0 0 0 1px var(--border);
+}
+.dark .catalog-switch a.active {
+  background: rgba(255, 255, 255, 0.1);
+}
+/* Sidebar: faol band — sariq to'ldirma o'rniga ingichka chiziq + qalin matn */
+.side-link.active {
+  background: color-mix(in srgb, var(--surface-3) 70%, transparent);
+  color: var(--text);
+  border-color: transparent;
+  font-weight: 650;
+}
+.side-link.active svg {
+  color: var(--accent-ink);
+}
+.dark .side-link.active svg {
+  color: var(--accent);
+}
+.client .page-title,
+.client .book-hero-title {
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+
+/* 125: faol band yonida — bestseller kitob muqovasi (biroz qiyshaygan, "chiqib turgan" kitob).
+   Sifat: faqat 2D burish (3D rotateY qatlamni rastrlab xiralashtirardi), 28×40 o'lcham, kitob qirrasi/yaltirashi —
+   ::after'da (img'dagi inset soya rasm ostida qolib ko'rinmaydi). */
+.side-bestseller {
+  position: relative;
+  margin-left: auto;
+  margin-block: -6px;
+  display: inline-flex;
+  flex-shrink: 0;
+  width: 28px;
+  height: 40px;
+  border-radius: 2px 4px 4px 2px;
+  transform: rotate(-6deg);
+  box-shadow:
+    0 1px 2px rgba(18, 22, 20, 0.25),
+    0 4px 10px rgba(18, 22, 20, 0.22);
+  animation: side-bestseller-in 420ms var(--ease) both;
+}
+.side-bestseller img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+  background: #e9e4da;
+}
+.side-bestseller::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(0, 0, 0, 0.22) 0, rgba(0, 0, 0, 0.06) 2px, rgba(255, 255, 255, 0.18) 3px, transparent 5px),
+    linear-gradient(115deg, rgba(255, 255, 255, 0.16) 0%, transparent 38%);
+  box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.18);
+}
+.side-bestseller + .side-badge {
+  margin-left: 8px;
+}
+@keyframes side-bestseller-in {
+  from {
+    opacity: 0;
+    transform: translateX(8px) rotate(4deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .side-bestseller {
+    animation: none;
+  }
+}
+
+/* 125: mavsumiy effekt — butun ekran, bosishlarga xalaqit bermaydi, header/drawer/oynalar ostida */
+.season-canvas {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 35;
+  contain: strict;
+}
+@media print {
+  .season-canvas {
     display: none;
   }
 }

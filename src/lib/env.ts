@@ -19,6 +19,8 @@ export const env = {
   /** Klient tomonidagi yuklash limitlari (MB) — backend `MAX_BOOK_UPLOAD_SIZE` / `MAX_COVER_UPLOAD_SIZE` ga mos qo'yiladi. */
   maxPdfMb: Number(process.env.NEXT_PUBLIC_MAX_PDF_MB) || 500,
   maxCoverMb: Number(process.env.NEXT_PUBLIC_MAX_COVER_MB) || 5,
+  /** 124: o'qish musiqasi (MP3/OGG/M4A) — BACKEND_TASKS.md 5-qism */
+  maxMusicMb: Number(process.env.NEXT_PUBLIC_MAX_MUSIC_MB) || 20,
   /**
    * "Sotib olish" havolasi (FE-2.3): Telegram bot va h.k.; `{book_id}` o'rniga kitob id qo'yiladi.
    * Bo'sh bo'lsa "administrator bilan bog'laning" ko'rsatiladi. Aniq oqim — PM Q2.

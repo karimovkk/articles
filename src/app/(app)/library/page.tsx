@@ -55,7 +55,7 @@ export default function LibraryPage() {
       <PageHeader
         title={t("library.title")}
         description={t("library.description")}
-        icon={<I.Library size={26} />}
+        icon={<I.BookOpen size={26} />}
         actions={
           data && (
             <div className="flex flex-wrap gap-2" data-testid="library-stats">
@@ -75,7 +75,7 @@ export default function LibraryPage() {
 
       {continueItem && (
         <Link href={`/books/${continueItem.book_id}`} onClick={() => libraryCache.put(continueItem)} className="card mb-5 flex items-center gap-4 p-4 transition-shadow hover:shadow-md" data-testid="continue-card">
-          <BookCover bookId={continueItem.book_id} title={continueItem.title} hasCover={continueItem.has_cover} className="w-16 shrink-0 rounded-[10px]" />
+          <BookCover bookId={continueItem.book_id} title={continueItem.title} hasCover={continueItem.has_cover} className="w-16 shrink-0 rounded-[var(--r-md)]" />
           <div className="min-w-0 flex-1">
             <span className="section-label mb-1">{t("book.continue")}</span>
             <p className="truncate text-[15px] font-bold text-text">{continueItem.title}</p>

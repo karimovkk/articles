@@ -10,6 +10,7 @@ import { adminApi, errorMessage, type User, type UserStatus } from "@/lib/api";
 import { downloadBlob } from "@/lib/admin-names";
 import { useDebounced } from "@/lib/use-debounce";
 import { useT } from "@/i18n";
+import { codeLabel } from "@/lib/status-label";
 
 export default function AdminUsersPage() {
   const { t } = useT();
@@ -58,13 +59,13 @@ export default function AdminUsersPage() {
         );
       },
     },
-    { key: "role", header: t("common.role"), render: (u) => <Badge tone={u.role === "ADMIN" ? "accent" : "neutral"}>{u.role}</Badge> },
+    { key: "role", header: t("common.role"), render: (u) => <Badge tone={u.role === "ADMIN" ? "accent" : "neutral"}>{codeLabel(u.role)}</Badge> },
     {
       key: "status",
       header: t("common.status"),
       render: (u) => (
         <Badge tone={statusTone(u.status)} dot>
-          {u.status}
+          {codeLabel(u.status)}
         </Badge>
       ),
     },

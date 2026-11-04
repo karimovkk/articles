@@ -49,6 +49,9 @@ import { loadPdfJs } from "@/lib/reader/range-transport";
 import { ReaderSidebar, type SidebarTab } from "./reader-sidebar";
 import { ShareMenu } from "@/components/share/share-menu";
 import { isFreeBook } from "@/lib/free-books";
+import { MusicControl } from "./music-control";
+import { ComfortControl, type PageTone } from "./comfort-panel";
+import { useReadingSession } from "@/lib/reader/reading-session";
 
 const ZOOMS = [0.6, 0.75, 0.9, 1, 1.15, 1.3, 1.5, 1.75, 2, 2.5, 3];
 const ZOOM_MIN = ZOOMS[0];
@@ -57,6 +60,8 @@ const ZOOM_MAX = ZOOMS[ZOOMS.length - 1];
 const zoomStep = (z: number, dir: 1 | -1) => (dir > 0 ? (ZOOMS.find((x) => x > z + 0.001) ?? ZOOM_MAX) : ([...ZOOMS].reverse().find((x) => x < z - 0.001) ?? ZOOM_MIN));
 const EMPTY_VOCAB: VocabFormValues = { word: "", translation: "", context: "" };
 const NIGHT_KEY = "a365.reader.night";
+/** 124: sepiya (iliq qog'oz) sahifa rangi — tun rejimidan alohida saqlanadi */
+const SEPIA_KEY = "a365.reader.sepia";
 // 53: o'qish rejimi saqlanmaydi — kitob har doim scroll'da ochiladi (o'qish davomida almashtirish mumkin)
 const COLOR_KEY = "a365.reader.hlcolor";
 /** Faol o'qish vaqti (T1-21): har 30 s, faqat sahifa ko'rinayotganda (B10 — backend limiti aniqlanmagan) */
@@ -151,6 +156,9 @@ export function ReaderView({ articleId }: { articleId: string }) {
   const [pageCount, setPageCount] = useState(0);
   const [zoom, setZoom] = useState(1);
   const [night, setNight] = useState(() => readPref(NIGHT_KEY) === "1");
+  const [sepia, setSepia] = useState(() => readPref(SEPIA_KEY) === "1");
+  /** 124: diqqat rejimi — toolbar yashiriladi, faqat matn qoladi (F / Esc) */
+  const [focusMode, setFocusMode] = useState(false);
   const [mode, setMode] = useState<ViewMode>("scroll");
   // 32B: kitob rejimi (ikki sahifa) joriy o'lchamda sig'adimi — viewer aytadi; sig'masa bitta varaq ko'rsatiladi
   const [spreadOk, setSpreadOk] = useState(false);
@@ -447,6 +455,9 @@ export function ReaderView({ articleId }: { articleId: string }) {
     toastTimer.current = window.setTimeout(() => setToast(null), 2500);
   }, []);
 
+  // 124: maqolada qolgan vaqt (faqat shu qurilmada)
+  const session = useReadingSession({ page, pageCount, enabled: !!meta });
+
   // ---- "O'qib bo'lindi" (FE-5.8) — faqat avtomatik: oxirgi bet o'qilganda (101: ochiq turgan; shunchaki oxiriga surib
   // o'tish yetmaydi). 104: qo'lda belgilash tugmasi olib tashlandi
   const autoMarked = useRef(false);
@@ -570,6 +581,13 @@ export function ReaderView({ articleId }: { articleId: string }) {
         showToast(t("reader.noCopy"));
         return;
       }
+      // 124: diqqat rejimi — F (yoqish/o'chirish), Esc (chiqish)
+      if (!e.ctrlKey && !e.metaKey && !e.altKey && k === "f") {
+        e.preventDefault();
+        setFocusMode((v) => !v);
+        return;
+      }
+      if (e.key === "Escape") setFocusMode(false);
       // 32B: rejimga mos qadam (kitob rejimida — bir juft)
       if (e.key === "ArrowRight" || e.key === "PageDown") viewerRef.current?.step(1);
       if (e.key === "ArrowLeft" || e.key === "PageUp") viewerRef.current?.step(-1);
@@ -589,6 +607,13 @@ export function ReaderView({ articleId }: { articleId: string }) {
       writePref(NIGHT_KEY, n ? "0" : "1");
       return !n;
     });
+  };
+  const tone: PageTone = night ? "night" : sepia ? "sepia" : "paper";
+  const setTone = (x: PageTone) => {
+    setNight(x === "night");
+    setSepia(x === "sepia");
+    writePref(NIGHT_KEY, x === "night" ? "1" : "0");
+    writePref(SEPIA_KEY, x === "sepia" ? "1" : "0");
   };
   /** Scroll → Varaq → Kitob (sig'sa) → Scroll */
   const nextModeOf = (m: ViewMode): ViewMode => (m === "scroll" ? "page" : m === "page" && spreadOk ? "spread" : "scroll");
@@ -838,21 +863,27 @@ export function ReaderView({ articleId }: { articleId: string }) {
       {/* Faqat chop etishda ko'rinadi (globals.css @media print) */}
       <div className="print-notice hidden p-8 text-center text-lg">{t("reader.printNotice")}</div>
 
-      <div className={cn("print-protected flex h-dvh flex-col", night && "dark")}>
+      <div className={cn("print-protected relative flex h-dvh flex-col", night && "dark")} data-focus={focusMode ? "1" : undefined}>
+        {/* 124: diqqat rejimi — toolbar yashirin; chiqish tugmasi burchakda (yoki Esc / F) */}
+        {focusMode && (
+          <button type="button" className="focus-exit" onClick={() => setFocusMode(false)} aria-label={t("comfort.focusExit")} title={`${t("comfort.focusExit")} (Esc)`} data-testid="focus-exit">
+            <I.X size={16} />
+            <span>{t("comfort.focusExit")}</span>
+          </button>
+        )}
         {/* Toolbar */}
         {/* 23.6: ≤420px — sarlavha ikkinchi qatorga tushadi (toolbar tor bo'lib qolmasin) */}
-        <header className="z-30 flex shrink-0 flex-wrap items-center gap-1 border-b border-border bg-surface px-1.5 py-1.5 text-text sm:h-14 sm:flex-nowrap sm:gap-1.5 sm:py-0 sm:px-3">
+        <header className={cn("reader-toolbar z-30 flex shrink-0 flex-wrap items-center gap-1 border-b border-border bg-surface px-1.5 py-1.5 text-text sm:h-14 sm:flex-nowrap sm:gap-1.5 sm:py-0 sm:px-3", focusMode && "hidden")}>
           <Link href={guest ? `/catalog/${meta.book_id}` : `/books/${meta.book_id}`} className="icon-btn plain max-[380px]:!size-8" title={t("reader.backToBook")} aria-label={t("reader.backToBook")}>
             <I.ArrowLeft size={18} />
           </Link>
           <button type="button" onClick={() => setSidebarOpen((s) => !s)} className={cn("icon-btn plain max-[380px]:!size-8", sidebarOpen && "bg-surface-2 text-text")} title={t("reader.panel")} aria-label={t("reader.panel")} aria-pressed={sidebarOpen}>
             <I.PanelLeft size={18} />
           </button>
-          <div className="min-w-0 flex-1 pl-1 max-[420px]:order-last max-[420px]:w-full max-[420px]:basis-full max-[420px]:pb-0.5">
-            <div className="flex min-w-0 items-center gap-1">
-              <p className="truncate text-sm font-bold">{meta.title}</p>
-              {freeBook === meta.book_id && <ShareMenu compact url={`/reader/${articleId}`} title={meta.title} text={t("share.articleText", { title: meta.title })} testid="reader-share" className="shrink-0" />}
-            </div>
+          {/* 124: telefonda sarlavha ikkinchi qatorda — musiqa va "Aa" uning yonida (birinchi qator to'lib qolmasin) */}
+          <div className="hidden basis-full max-[420px]:order-1 max-[420px]:block" aria-hidden />
+          <div className="min-w-0 flex-1 pl-1 max-[420px]:order-2 max-[420px]:pb-0.5">
+            <p className="truncate text-sm font-bold">{meta.title}</p>
             {(prev || next) && (
               <p className="flex gap-2 text-xs font-semibold text-muted max-[420px]:hidden">
                 {prev && (
@@ -920,6 +951,13 @@ export function ReaderView({ articleId }: { articleId: string }) {
           </button>
           {/* O'qish paytida ham til almashtiriladi (interfeys va avtomatik tarjima tili) */}
           <LocaleSwitcher variant="menu" compact className="max-sm:!px-1.5 max-[380px]:!px-1" />
+          <div className="flex shrink-0 items-center gap-1 max-[420px]:order-3">
+            {freeBook === meta.book_id && (
+              <ShareMenu compact url={`/reader/${articleId}`} title={meta.title} text={t("share.articleText", { title: meta.title })} testid="reader-share" className="shrink-0" buttonClassName="plain max-[380px]:!size-8" />
+            )}
+            <MusicControl />
+            <ComfortControl tone={tone} onTone={setTone} onFocus={() => setFocusMode(true)} session={session} />
+          </div>
           <button type="button" onClick={toggleNight} className="icon-btn plain max-[380px]:!size-8" title={night ? t("theme.light") : t("theme.dark")} aria-label={night ? t("theme.light") : t("theme.dark")}>
             {night ? <I.Sun size={18} /> : <I.Moon size={18} />}
           </button>
@@ -975,7 +1013,7 @@ export function ReaderView({ articleId }: { articleId: string }) {
             </div>
           )}
 
-          <div ref={stageRef} className="reader-stage relative min-w-0 flex-1" data-testid="reader-stage">
+          <div ref={stageRef} className={cn("reader-stage relative min-w-0 flex-1", tone === "sepia" && "tone-sepia")} data-testid="reader-stage" data-tone={tone}>
             <PdfViewer
               ref={viewerRef}
               articleId={articleId}
@@ -1047,9 +1085,9 @@ export function ReaderView({ articleId }: { articleId: string }) {
 
             {/* 37: mehmon — belgilash/lug'at o'rniga ro'yxatdan o'tish taklifi */}
             {selection && guest && (
-              <div className="absolute left-1/2 top-2 z-40 flex w-max max-w-[calc(100%-16px)] -translate-x-1/2 flex-wrap items-center justify-center gap-2 rounded-[22px] border border-border bg-surface p-1.5 pl-3 shadow-lg" data-testid="guest-selection">
+              <div className="absolute left-1/2 top-2 z-40 flex w-max max-w-[calc(100%-16px)] -translate-x-1/2 flex-wrap items-center justify-center gap-2 rounded-[var(--r-xl)] border border-border bg-surface p-1.5 pl-3 shadow-lg" data-testid="guest-selection">
                 <span className="text-xs font-semibold text-text-2">{t("reader.guest.selection")}</span>
-                <Link href={`/register?next=${encodeURIComponent(`/reader/${articleId}`)}`} className="btn primary sm !h-7 !rounded-full">
+                <Link href={`/register?next=${encodeURIComponent(`/reader/${articleId}`)}`} className="btn primary sm !h-7">
                   {t("reader.guest.register")}
                 </Link>
                 <IconButton size="sm" variant="plain" onClick={() => setSelection(null)} label={t("common.close")}>
@@ -1058,9 +1096,9 @@ export function ReaderView({ articleId }: { articleId: string }) {
               </div>
             )}
             {selection && !guest && (
-              <div className="absolute left-1/2 top-2 z-40 flex w-max max-w-[calc(100%-16px)] -translate-x-1/2 flex-wrap items-center justify-center gap-1 rounded-[22px] border border-border bg-surface p-1.5 pl-2 shadow-lg">
+              <div className="absolute left-1/2 top-2 z-40 flex w-max max-w-[calc(100%-16px)] -translate-x-1/2 flex-wrap items-center justify-center gap-1 rounded-[var(--r-xl)] border border-border bg-surface p-1.5 pl-2 shadow-lg">
                 {/* 33.2: lug'atga qo'shish */}
-                <button type="button" onClick={openVocabFromSelection} className="btn soft sm !h-7 !rounded-full !px-2.5" data-testid="selection-vocab" title={t("vocab.addTitle")} aria-label={t("vocab.addTitle")}>
+                <button type="button" onClick={openVocabFromSelection} className="btn soft sm !h-7 !px-2.5" data-testid="selection-vocab" title={t("vocab.addTitle")} aria-label={t("vocab.addTitle")}>
                   <I.Languages size={15} />
                   <span className="max-sm:hidden">{t("vocab.add")}</span>
                 </button>
@@ -1165,7 +1203,7 @@ export function ReaderView({ articleId }: { articleId: string }) {
             )}
 
             {toast && (
-              <div className="pointer-events-none absolute bottom-4 left-1/2 z-40 -translate-x-1/2 rounded-full bg-[var(--ink)] px-4 py-2 text-[13px] font-bold text-[var(--chalk)] shadow-lg">
+              <div className="pointer-events-none absolute bottom-4 left-1/2 z-40 -translate-x-1/2 rounded-[var(--r-md)] bg-[var(--ink)] px-4 py-2 text-[13px] font-bold text-[var(--chalk)] shadow-lg">
                 {toast}
               </div>
             )}
@@ -1201,7 +1239,7 @@ function HighlightMenu({
 
   return (
     <div
-      className="absolute z-40 flex -translate-x-1/2 items-center gap-1 rounded-full border border-border bg-surface p-1.5 pl-3 shadow-lg"
+      className="absolute z-40 flex -translate-x-1/2 items-center gap-1 rounded-[var(--r-lg)] border border-border bg-surface p-1.5 pl-3 shadow-lg"
       style={{ left: x, top: y }}
       data-testid="highlight-menu"
     >
@@ -1261,7 +1299,7 @@ function VocabPopover({
   return (
     <div
       ref={ref}
-      className="absolute z-40 w-[min(300px,calc(100vw-24px))] -translate-x-1/2 rounded-2xl border border-border bg-surface p-3.5 shadow-lg"
+      className="absolute z-40 w-[min(300px,calc(100vw-24px))] -translate-x-1/2 rounded-[var(--r-lg)] border border-border bg-surface p-3.5 shadow-lg"
       style={{ left: x, top: y }}
       data-testid="vocab-popover"
       role="dialog"

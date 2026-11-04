@@ -45,6 +45,7 @@ export const ADMIN_NAV: NavSection[] = [
     items: [
       { href: "/admin/books", label: "nav.admin.books", icon: I.Book },
       { href: "/admin/categories", label: "nav.admin.categories", icon: I.Tag },
+      { href: "/admin/music", label: "nav.admin.music", icon: I.Music },
     ],
   },
   {
@@ -197,7 +198,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
                 <span className="name" title={displayName}>
                   {displayName}
                 </span>
-                <span className="role">{t("common.role")}: ADMIN</span>
+                <span className="role">{t("code.ADMIN")}</span>
               </div>
             )}
             <Menu

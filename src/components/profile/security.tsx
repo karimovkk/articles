@@ -139,7 +139,7 @@ export function TwoFactorCard() {
               <div className="space-y-2 text-sm text-text">
                 <p>{t("profile.twofa.scan")}</p>
                 <p className="text-xs text-muted">{t("profile.twofa.secretHint")}</p>
-                <code className="block break-all rounded-[10px] bg-surface-2 px-2.5 py-1.5 font-mono text-xs">{setup.secret}</code>
+                <code className="block break-all rounded-[var(--r-md)] bg-surface-2 px-2.5 py-1.5 font-mono text-xs">{setup.secret}</code>
               </div>
             </div>
           )}

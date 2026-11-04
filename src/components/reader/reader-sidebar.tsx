@@ -168,7 +168,7 @@ function SearchPanel({ searchAvailable, searchHits, searching, onSearch, onSearc
       </form>
       {searchHits && searchHits.length === 0 && <p className="text-muted">{t("reader.noResults")}</p>}
       {searchHits?.map((h, i) => (
-        <button key={i} onClick={() => onSearchHit({ page: h.page, query: q.trim() })} className="block w-full rounded-lg border border-border p-2 text-left hover:bg-bg" data-testid="search-hit">
+        <button key={i} onClick={() => onSearchHit({ page: h.page, query: q.trim() })} className="block w-full rounded-[var(--r-md)] border border-border p-2 text-left hover:bg-bg" data-testid="search-hit">
           <p className="mb-1 text-xs text-muted">{t("common.pageN", { n: h.page })}</p>
           <p className="line-clamp-3 text-text [&_b]:bg-yellow-300/60 [&_mark]:bg-yellow-300/60" dangerouslySetInnerHTML={{ __html: sanitizeSnippet(h.snippet) }} />
         </button>
@@ -216,7 +216,7 @@ function AnnotationList({
               const hasRects = getHighlightRects(a).length > 0;
               const pageNo = a.page ?? 1;
               return (
-                <li key={a.id} className="rounded-lg border border-border p-2">
+                <li key={a.id} className="rounded-[var(--r-md)] border border-border p-2">
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
                       {onChangeColor && (
@@ -314,7 +314,7 @@ function NotesPanel({ annotations, currentPage, goToPage, onAddNote, onUpdateNot
       {notes.length === 0 && <p className="text-muted">{t("reader.noNotes")}</p>}
       <ul className="space-y-2">
         {notes.map((a) => (
-          <li key={a.id} className="rounded-lg border border-border p-2">
+          <li key={a.id} className="rounded-[var(--r-md)] border border-border p-2">
             <div className="flex items-center justify-between">
               <button onClick={() => goToPage(a.page ?? 1)} className="text-xs font-medium font-bold text-accent-ink hover:underline">
                 {t("common.pageN", { n: a.page ?? 1 })}
@@ -376,7 +376,7 @@ function VocabPanel({ vocab, onVocabGo, onVocabEdit, onVocabDelete }: Props) {
       ) : (
         <ul className="space-y-2">
           {list.map((v) => (
-            <li key={v.id} className="rounded-lg border border-border p-2" data-testid="reader-vocab-item">
+            <li key={v.id} className="rounded-[var(--r-md)] border border-border p-2" data-testid="reader-vocab-item">
               <div className="flex items-start gap-2">
                 <button type="button" onClick={() => onVocabGo(v)} className="user-text min-w-0 flex-1 text-left">
                   <span className="block font-bold text-text">{v.word}</span>

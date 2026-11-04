@@ -66,16 +66,16 @@ await page.screenshot({ path: OUT + "40-prod-profile.png" });
 // ---- Admin dashboard (/admin/stats)
 await page.goto(`${BASE}/admin`);
 await page.waitForSelector("text=Faol sessiyalar", { timeout: 15000 });
-check("Admin: stats plitkalari (Maqolalar, READY)", (await bodyHas("Maqolalar")) && (await bodyHas("READY:")));
+check("Admin: stats plitkalari (Maqolalar, Tayyor)", (await bodyHas("Maqolalar")) && (await bodyHas("Tayyor:")));
 check("Admin: fallback ogohlantirishi yo'q", !(await bodyHas("mavjud emas")));
 
 // ---- Admin books (price, status, category)
 await page.goto(`${BASE}/admin/books`);
 await page.waitForSelector("text=Psychology", { timeout: 15000 });
-check("Admin kitoblar: narx va ACTIVE", (await bodyHas("30 000 so'm")) && (await bodyHas("ACTIVE")));
+check("Admin kitoblar: narx va Faol", (await bodyHas("30 000 so'm")) && (await bodyHas("Faol")));
 await page.click("text=Psychology");
 await page.waitForSelector("text=Maqolalar (1)", { timeout: 15000 });
-check("Admin kitob: maqolalar ro'yxati (READY, 2 sahifa, PDF)", (await bodyHas("Why we should all be more selfish")) && (await bodyHas("READY")) && (await bodyHas("PDF ✓")));
+check("Admin kitob: maqolalar ro'yxati (Tayyor, 2 sahifa, PDF)", (await bodyHas("Why we should all be more selfish")) && (await bodyHas("Tayyor")) && (await bodyHas("PDF ✓")));
 check("Admin kitob: narx formada", (await page.inputValue('input[type="number"]')) === "30000");
 await page.screenshot({ path: OUT + "41-prod-admin-book.png" });
 

@@ -26,6 +26,7 @@ import { useAdminCrumb } from "./admin-shell";
 import { useEntityNames } from "@/lib/admin-names";
 import { EmojiInput } from "@/components/ui/emoji-input";
 import { useT } from "@/i18n";
+import { codeLabel } from "@/lib/status-label";
 
 type Tab = "info" | "articles" | "access";
 
@@ -222,7 +223,7 @@ export function AdminBookDetail({ bookId }: { bookId: string }) {
         <div className="flex min-w-0 flex-col gap-3">
           <div className="flex flex-wrap items-center gap-2">
             <Badge tone={statusTone(status)} dot>
-              {status}
+              {codeLabel(status)}
             </Badge>
             {book.category?.name && <Badge>{book.category.name}</Badge>}
             <span className="text-xs font-semibold text-muted">
@@ -241,7 +242,7 @@ export function AdminBookDetail({ bookId }: { bookId: string }) {
             </span>
             <span className="flex items-center gap-2 font-semibold text-text-2">
               <I.Layers size={16} className="text-muted" />
-              {t("admin.articles.title")}: {readyArticles}/{articles.length} READY
+              {t("admin.articles.title")}: {readyArticles}/{articles.length} {codeLabel("READY").toLowerCase()}
             </span>
             <span className="flex items-center gap-2 font-semibold text-text-2">
               <I.Users size={16} className="text-muted" />
@@ -382,7 +383,7 @@ export function AdminBookDetail({ bookId }: { bookId: string }) {
                         </td>
                         <td>
                           <Badge tone={statusTone(a.status)} dot>
-                            {a.status}
+                            {codeLabel(a.status)}
                           </Badge>
                         </td>
                         <td className="muted">{formatDate(a.granted_at)}</td>

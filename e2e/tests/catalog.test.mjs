@@ -38,7 +38,7 @@ check("Chap menyu: 'Daily Articles' va '365 Magazine'", (await page.textContent(
 const dailyCards = await page.locator('[data-testid="book-card"]').count();
 check("Kunlik: faqat tekin kitoblar (har kartada 'Tekin'), savatcha aksiyasi yo'q", dailyCards > 0 && (await page.locator('[data-testid="book-card"] [data-testid="free-tag"]').count()) === dailyCards && (await page.locator('[data-testid="pricing-promo"]').count()) === 0);
 check("Kunlik: so'rov ?is_free=true", (await mockGet("/__log")).some((l) => l === "GET /catalog"));
-// 74: yorug' mavzu — shisha panellar (yarim shaffof + blur); matn kontrasti — ekrandagi haqiqiy fon bo'yicha
+// 74 → 124 → 125: yorug' mavzu — kartalar "biroz shisha" (yarim shaffof 0.7–0.9 + yengil blur), sidebar engil shaffof; matn kontrasti — ekrandagi haqiqiy fon bo'yicha
 const glass = await page.evaluate(() => {
   const rgba = (c) => (c.match(/[\d.]+/g) ?? []).map(Number);
   const card = document.querySelector('[data-testid="book-card"]');
@@ -46,7 +46,7 @@ const glass = await page.evaluate(() => {
   const side = rgba(getComputedStyle(document.querySelector(".client-sidebar")).backgroundColor)[3] ?? 1;
   return { alpha: rgba(cs.backgroundColor)[3] ?? 1, blur: cs.backdropFilter, side };
 });
-check("Yorug' mavzu: kartalar yarim shaffof + blur, sidebar shisha", glass.alpha > 0.5 && glass.alpha < 0.85 && /blur/.test(glass.blur) && glass.side < 0.8, JSON.stringify(glass));
+check("Yorug' mavzu (125): kartalar biroz shisha — 0.7–0.9 shaffoflik + yengil blur; sidebar engil shaffof", glass.alpha >= 0.7 && glass.alpha < 0.9 && /blur/.test(glass.blur) && glass.side < 0.8, JSON.stringify(glass));
 // Kartaning skrinshotidan — matn/muqova/tugmadan tashqari piksellar (fon + shisha) ning eng to'q 5% i
 const cardEl = page.locator('[data-testid="book-card"]').first();
 const info = await cardEl.evaluate((card) => {
@@ -216,8 +216,8 @@ await page.waitForURL(`${BASE}/library`);
 await page.goto(`${BASE}/admin`);
 await page.waitForSelector("text=Faol sessiyalar", { timeout: 8000 });
 check("Dashboard: /admin/stats — maqolalar, faol sessiyalar, belgilar plitkalari", (await has("Maqolalar")) && (await has("Belgilar va izohlar")));
-check("Dashboard: holat taqsimoti (ACTIVE: 31, READY: 5, PROCESSING: 1)", (await has("ACTIVE: 31")) && (await has("READY: 5")) && (await has("PROCESSING: 1")));
-check("Dashboard: rollar (USER 2 · ADMIN 1)", await has("USER 2 · ADMIN 1"));
+check("Dashboard: holat taqsimoti (Faol: 31, Tayyor: 5, Tayyorlanmoqda: 1) — xom kodlarsiz", (await has("Faol: 31")) && (await has("Tayyor: 5")) && (await has("Tayyorlanmoqda: 1")));
+check("Dashboard: rollar so'z bilan (O'quvchi 2 · Administrator 1)", await has("O'quvchi 2 · Administrator 1"));
 check("Dashboard: fallback ogohlantirishi yo'q", !(await page.evaluate(() => document.body.innerText.includes("mavjud emas"))));
 await page.screenshot({ path: OUT + "32-admin-stats.png" });
 
