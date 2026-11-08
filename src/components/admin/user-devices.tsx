@@ -4,6 +4,7 @@
  * 38: foydalanuvchining bog'langan qurilmalari (akkaunt ko'pi bilan 2 ta qurilmada). Foydalanuvchi o'zi qurilmani
  * bo'shata olmaydi (chiqish ham bo'shatmaydi) — faqat admin, sabab bilan: sessiyalari yopiladi, bo'shagan joyni
  * yangi qurilma oladi. Olib tashlanganlar tarix uchun xira ko'rinadi. Backend endpointi bo'lmasa — karta yo'q.
+ * Migratsiya taxmin qilmagan qurilmalar (`needs_review`) shu yerda ham hal qilinadi (keep / remove).
  */
 import { useState } from "react";
 import { Alert, Badge, Button, Card, Field, Modal, Textarea, cn, formatDate } from "@/components/ui";
@@ -12,6 +13,7 @@ import { adminApi, errorMessage, type AdminDevice } from "@/lib/api";
 import { shortAgent } from "@/lib/agent";
 import { useAsync } from "@/lib/use-async";
 import { useT } from "@/i18n";
+import { DeviceBadges, DeviceReviewModal, ReviewButtons, useReviewReasonText, type ReviewAction } from "./device-review";
 
 export function UserDevicesCard({ userId }: { userId: string }) {
   const { t } = useT();
@@ -21,6 +23,8 @@ export function UserDevicesCard({ userId }: { userId: string }) {
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [review, setReview] = useState<{ device: AdminDevice; action: ReviewAction } | null>(null);
+  const reviewReason = useReviewReasonText();
 
   if (loadError && !data) return null;
   const active = data?.filter((d) => !d.removed_at) ?? [];
@@ -79,14 +83,18 @@ export function UserDevicesCard({ userId }: { userId: string }) {
                         {t("admin.devices.removed")}
                       </Badge>
                     )}
+                    <DeviceBadges device={d} />
                   </span>
                   <span className="track-sub">
                     {d.removed_at
                       ? `${t("admin.devices.removedAt", { date: formatDate(d.removed_at) })}${d.remove_reason ? ` · ${d.remove_reason}` : ""}`
-                      : `${t("devices.bound", { date: formatDate(d.bound_at) })} · ${t("devices.lastSeen", { date: formatDate(d.last_seen_at) })}`}
+                      : `${t("devices.bound", { date: formatDate(d.bound_at) })} · ${t("devices.lastSeen", { date: formatDate(d.last_seen_at) })}${d.last_ip ? ` · ${d.last_ip}` : ""}`}
                   </span>
+                  {d.needs_review && <span className="track-sub text-danger">{reviewReason(d.review_reason)}</span>}
                 </span>
-                {!d.removed_at && (
+                {d.needs_review ? (
+                  <ReviewButtons onPick={(action) => setReview({ device: d, action })} />
+                ) : !d.removed_at && (
                   <Button size="sm" variant="secondary" onClick={() => setTarget(d)} data-testid="device-remove">
                     {t("admin.devices.remove")}
                   </Button>
@@ -96,6 +104,17 @@ export function UserDevicesCard({ userId }: { userId: string }) {
           </ul>
         )}
       </div>
+
+      <DeviceReviewModal
+        userId={userId}
+        device={review?.device ?? null}
+        action={review?.action ?? "keep"}
+        onClose={() => setReview(null)}
+        onDone={() => {
+          setReview(null);
+          reload();
+        }}
+      />
 
       <Modal open={!!target} onClose={close} title={target === "all" ? t("admin.devices.removeAll") : t("admin.devices.remove")} size="sm" icon={<I.Monitor size={18} />} data-testid="device-remove-modal">
         <form

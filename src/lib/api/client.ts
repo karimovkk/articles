@@ -3,7 +3,8 @@
  *  - Authorization: Bearer <access_token>
  *  - 401 → POST /auth/refresh (rotatsiya) → so'rovni bir marta qayta yuborish
  *  - Xatolik konverti: { error: { code, message, details } } → ApiError
- *  - X-Device-Id sarlavhasi sessiyani qurilmaga bog'laydi
+ *  - X-Device-Id sarlavhasi sessiyani qurilmaga bog'laydi (o'tish davri; asosiy qurilma kaliti — HttpOnly cookie)
+ *  - /auth/* doim same-origin (next.config rewrite): qurilma cookie'si faqat shunda brauzerda saqlanadi va qaytadi
  *  - ngrok-skip-browser-warning: 1 — dev'da ngrok orqali ulanganda ogohlantirish sahifasi o'rniga API
  */
 import { API_PREFIX, env } from "@/lib/env";
@@ -59,8 +60,17 @@ export interface RequestOptions {
   keepalive?: boolean;
 }
 
+/**
+ * Qurilma identifikatori server bergan HttpOnly cookie'da (`Path=/api/v1/auth`). Cookie boshqa saytdagi API'da
+ * ishlamaydi (SameSite), shuning uchun auth so'rovlari `NEXT_PUBLIC_API_URL` berilgan bo'lsa ham same-origin
+ * yuboriladi va Next rewrite (`BACKEND_URL`) orqali backendga o'tadi. Qolgan API (yuklash, o'qish) — to'g'ridan-to'g'ri.
+ */
+export function isAuthPath(path: string): boolean {
+  return /^\/?auth\//.test(path);
+}
+
 export function apiUrl(path: string, query?: Query): string {
-  const base = `${env.apiBaseUrl}${API_PREFIX}`;
+  const base = `${isAuthPath(path) ? "" : env.apiBaseUrl}${API_PREFIX}`;
   const url = path.startsWith("http") ? path : `${base}${path.startsWith("/") ? path : `/${path}`}`;
   if (!query) return url;
   const qs = new URLSearchParams();
@@ -89,10 +99,12 @@ async function parseError(res: Response): Promise<ApiError> {
 }
 
 /**
- * 38: sessiya nima sababdan tugadi — login sahifasida mos xabar (`?reason=`). `device_removed` — admin shu qurilmani
- * akkauntdan olib tashlagan (refresh → 401 DEVICE_REMOVED); qurilma siri ham eskirgan, o'chiriladi.
+ * 38: sessiya nima sababdan tugadi — login sahifasida mos xabar (`?reason=`).
+ *  - `device_removed` — admin shu qurilmani olib tashlagan (DEVICE_REMOVED); qurilma siri ham eskirgan, o'chiriladi;
+ *  - `device_mismatch` — refresh token boshqa qurilma kaliti bilan ishlatilgan (DEVICE_MISMATCH), sessiya yopilgan;
+ *  - `cookies_required` — qurilma cookie'si yo'q (DEVICE_IDENTITY_REQUIRED): cookie'lar o'chirilgan yoki tozalangan.
  */
-export type SessionEndReason = "expired" | "device_removed";
+export type SessionEndReason = "expired" | "device_removed" | "device_mismatch" | "cookies_required";
 let endReason: SessionEndReason = "expired";
 export function sessionEndReason(): SessionEndReason {
   return endReason;
@@ -100,10 +112,16 @@ export function sessionEndReason(): SessionEndReason {
 export function resetSessionEndReason() {
   endReason = "expired";
 }
-function markDeviceRemoved(code: string | undefined) {
-  if (code !== "DEVICE_REMOVED") return;
-  endReason = "device_removed";
-  tokenStore.setDeviceSecret(null);
+const END_REASONS: Record<string, SessionEndReason> = {
+  DEVICE_REMOVED: "device_removed",
+  DEVICE_MISMATCH: "device_mismatch",
+  DEVICE_IDENTITY_REQUIRED: "cookies_required",
+};
+function markSessionEnd(code: string | undefined) {
+  const reason = code ? END_REASONS[code] : undefined;
+  if (!reason) return;
+  endReason = reason;
+  if (reason === "device_removed") tokenStore.setDeviceSecret(null);
 }
 async function errorCodeOf(res: Response): Promise<string | undefined> {
   try {
@@ -129,7 +147,7 @@ export async function refreshTokens(): Promise<boolean> {
         cache: "no-store",
       });
       if (!res.ok) {
-        markDeviceRemoved(await errorCodeOf(res));
+        markSessionEnd(await errorCodeOf(res));
         return false;
       }
       const data = (await res.json()) as AuthTokens;
@@ -174,7 +192,7 @@ export async function apiRaw(path: string, opts: RequestOptions = {}): Promise<R
   const hadSession = !!(tokenStore.getAccess() || tokenStore.getRefresh());
   let res = await doFetch();
   if (res.status === 401 && auth && !noRefresh && hadSession) {
-    markDeviceRemoved(await errorCodeOf(res));
+    markSessionEnd(await errorCodeOf(res));
     // So'rov ketgandan keyin boshqa so'rov tokenni allaqachon yangilagan bo'lsa (parallel so'rovlar) — qayta
     // refresh qilinmaydi, yangi token bilan takrorlanadi. Aks holda ikkinchi rotatsiya birinchisini bekor qiladi.
     const ok = tokenStore.getAccess() !== sentWith && !!tokenStore.getAccess() ? true : await refreshTokens();

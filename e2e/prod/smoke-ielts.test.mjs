@@ -4,6 +4,7 @@
 // server natijasiga mos, yashirin javoblar, "Matnda ko'rsatish", tuzatib qayta tekshirish (100%) → TOZALASH (yaratilgan
 // savollar o'chiriladi, mark-read=false). Maqolada oldindan savol bo'lsa — to'xtaydi (haqiqiy kontentga tegmaydi).
 import { launch, selectPick, confirmDialog } from "../lib.mjs";
+import { apiLogin } from "./api-login.mjs";
 import { mkdirSync } from "node:fs";
 
 const BASE = process.env.E2E_BASE ?? "http://localhost:3200";
@@ -16,7 +17,7 @@ mkdirSync(OUT, { recursive: true });
 let failures = 0;
 const check = (name, ok, extra = "") => { console.log(`${ok ? "✅" : "❌"} ${name}${extra ? " — " + extra : ""}`); if (!ok) failures++; };
 
-const login = await (await fetch(`${API}/auth/login`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ identifier: EMAIL, password: PASS, device_name: "smoke-ielts" }) })).json();
+const login = await apiLogin(API, EMAIL, PASS, "smoke-ielts");
 const H = { Authorization: `Bearer ${login.access_token}`, "Content-Type": "application/json" };
 const arts = await (await fetch(`${API}/admin/books/${BOOK}/articles`, { headers: H })).json();
 const ART = [...(Array.isArray(arts) ? arts : arts.items)].sort((a, b) => a.order_index - b.order_index)[0].id;

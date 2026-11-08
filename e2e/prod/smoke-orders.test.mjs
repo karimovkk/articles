@@ -2,10 +2,11 @@
 // 409 ORDER_ALREADY_PENDING → mavjud buyurtma, bekor qilish (CANCELLED), eskirgan tabda 409 INVALID_ORDER_STATE,
 // GET /orders/{id}, reject sababi 422, admin chek fayli (RECEIPT_NOT_FOUND / mavjud chekni ko'rish — faqat o'qish).
 // Prod'da 1 ta buyurtma yaratadi va uni BEKOR QILADI (CANCELLED yozuv qoladi). Chek YUBORILMAYDI —
-// Telegram'ga xabar ketmaydi. Boshqa qurilmalar sessiyalariga tegmaydi (qurilma limiti 2 — bitta joy bo'sh bo'lishi
-// kerak); oxirida chiqadi va joy bo'shaydi.
+// Telegram'ga xabar ketmaydi. Boshqa qurilmalar sessiyalariga tegmaydi. Qurilma limiti 2 va chiqish joy bo'shatmaydi:
+// brauzer holati (qurilma cookie'si + localStorage) `e2e/out/smoke-orders-state.json` da saqlanadi — keyingi
+// ishga tushirish o'sha qurilma bo'lib kiradi, yangi slot band qilmaydi.
 import { launch, confirmDialog, selectPick } from "../lib.mjs";
-import { mkdirSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
 const BASE = process.env.E2E_BASE ?? "http://localhost:3200";
 const API = process.env.A365_API ?? "https://articles.api.cognilabs.org/api/v1";
 const EMAIL = process.env.A365_EMAIL, PASS = process.env.A365_PASS;
@@ -19,7 +20,8 @@ const j = async (r) => { try { return await r.json(); } catch { return null; } }
 for (const pth of ["/login", "/library", "/catalog", "/profile", "/admin/orders"]) await fetch(`${BASE}${pth}`).catch(() => undefined);
 
 const browser = await launch();
-const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+const STATE = new URL("../out/smoke-orders-state.json", import.meta.url).pathname;
+const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 }, ...(existsSync(STATE) ? { storageState: STATE } : {}) });
 await ctx.addInitScript((d) => localStorage.setItem("a365.device", d), DEVICE);
 const page = await ctx.newPage();
 const pageErrors = [], apiCalls = [];
@@ -46,6 +48,7 @@ async function fail(e) {
     console.log(`   tab ${i}: ${pg.url()} | panel=${await pg.getAttribute('[data-testid="order-panel"]', "data-status", { timeout: 1000 }).catch(() => "—")} | ${(await pg.textContent("main", { timeout: 1000 }).catch(() => ""))?.replace(/\s+/g, " ").slice(0, 220)}`);
   }
   await cleanup().catch(() => {});
+  await ctx.storageState({ path: STATE }).catch(() => undefined);
   await browser.close();
   process.exit(1);
 }
@@ -59,6 +62,7 @@ await page.click('button[type="submit"]');
 await Promise.race([page.waitForURL(`${BASE}/library`, { timeout: 45000 }), page.waitForSelector("text=Qurilmalar limiti", { timeout: 45000 })]);
 if (!page.url().endsWith("/library")) {
   console.log("❌ Login bo'lmadi (qurilma limiti?) — bitta qurilmadan chiqing:", (await page.textContent("main").catch(() => ""))?.slice(0, 200));
+  await ctx.storageState({ path: STATE }).catch(() => undefined);
   await browser.close();
   process.exit(1);
 }
@@ -78,7 +82,8 @@ const owned = new Set((lib?.items ?? lib ?? []).map((b) => b.book_id));
 const mine = (await j(await api("/orders"))) ?? [];
 const openBooks = new Set(mine.filter((o) => o.status === "PENDING" || o.status === "AWAITING_REVIEW").map((o) => o.book_id));
 const book = (cat?.items ?? []).map((b) => ({ ...b, id: b.book_id })).find((b) => !owned.has(b.id) && !openBooks.has(b.id));
-if (!book) { console.log("❌ Mos kitob topilmadi (hammasi kutubxonada yoki ochiq buyurtmada)"); await cleanup(); await browser.close(); process.exit(1); }
+if (!book) { console.log("❌ Mos kitob topilmadi (hammasi kutubxonada yoki ochiq buyurtmada)"); await cleanup(); await ctx.storageState({ path: STATE }).catch(() => undefined);
+  await browser.close(); process.exit(1); }
 console.log(`(prod) kitob: ${book.title} (${book.id})`);
 
 // ---- Ikki tab bir kitobda (ochiq buyurtma yo'q): A — buyurtma beradi, B — eskirgan holatda qoladi
@@ -195,6 +200,7 @@ check("Sahifa xatolari yo'q", pageErrors.length === 0, pageErrors.join(" | ").sl
   await fail(e);
 }
 await cleanup();
-await browser.close();
+await ctx.storageState({ path: STATE }).catch(() => undefined);
+  await browser.close();
 console.log(failures ? `\n${failures} ta tekshiruv muvaffaqiyatsiz` : "\nBarcha tekshiruvlar o'tdi");
 process.exit(failures ? 1 : 0);

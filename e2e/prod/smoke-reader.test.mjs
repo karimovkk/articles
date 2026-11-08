@@ -1,6 +1,7 @@
 // Task 7.8 — PROD smoke (admin akkaunt): vaqtinchalik ruxsat → kutubxona → kitob → reader (Range, watermark,
 // highlight, progress, mark-read) → admin sahifalar → TOZALASH (annotatsiya o'chiriladi, ruxsat bekor qilinadi)
 import { launch } from "../lib.mjs";
+import { apiLogin } from "./api-login.mjs";
 import { mkdirSync } from "node:fs";
 
 const BASE = process.env.E2E_BASE ?? "http://localhost:3200";
@@ -13,11 +14,10 @@ let failures = 0;
 const check = (name, ok, extra = "") => { console.log(`${ok ? "✅" : "❌"} ${name}${extra ? " — " + extra : ""}`); if (!ok) failures++; };
 
 // ---- API yordamchisi (tozalash uchun)
-const login = await (await fetch(`${API}/auth/login`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ identifier: EMAIL, password: PASS, device_name: "smoke-cleanup" }) })).json();
+const login = await apiLogin(API, EMAIL, PASS, "smoke-cleanup");
 const H = { Authorization: `Bearer ${login.access_token}`, "Content-Type": "application/json" };
 const me = login.user.id;
-// Eskirgan sessiyalarni tozalash (device limit 2) — o'z sessiyamizdan tashqari
-for (const sess of await (await fetch(`${API}/sessions`, { headers: H })).json()) if (!sess.is_current && !sess.revoked_at) await fetch(`${API}/sessions/${sess.id}`, { method: "DELETE", headers: H });
+// Qurilma limiti: sessiyalarni o'chirish joy bo'shatmaydi (faqat admin reset) — apiLogin doimiy qurilma kalitini ishlatadi
 // dev server'ni isitish (Turbopack birinchi kompilyatsiya)
 for (const pth of ["/login", "/library", "/catalog"]) await fetch(`${BASE}${pth}`).catch(() => undefined);
 const books = (await (await fetch(`${API}/admin/books?page_size=1`, { headers: H })).json()).items;

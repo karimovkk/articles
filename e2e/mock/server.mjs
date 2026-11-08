@@ -70,6 +70,16 @@ let __lastTiersBody = null;
 let devices = []; // { id, user, key, secret, name, user_agent, bound_at, last_seen_at, removed_at, removed_by_admin_id, remove_reason }
 let deviceLimitOn = false;
 let deviceRemovedOnRefresh = false; // /__device-removed?on=1 — refresh → 401 DEVICE_REMOVED
+// Qurilma kaliti (backend `DEVICE_IDENTITY_MODE=cookie`): /__devicemode?cookie=1 — server HttpOnly cookie beradi,
+// cookie'siz yangi qurilma → 428 + probe cookie (slot band qilinmaydi); /__device-mismatch?on=1 — refresh → 401 DEVICE_MISMATCH
+let deviceCookieMode = false;
+let deviceMismatchOnRefresh = false;
+const DEVICE_COOKIE = "a365_dev_mock";
+const PROBE_COOKIE = "a365_probe";
+const COOKIE_ATTRS = "Path=/api/v1/auth; HttpOnly; SameSite=Lax";
+// Haqiqiy backend "joriy qurilma"ni sessiya orqali biladi (cookie faqat /auth/* ga yuboriladi) — mock ham shunday
+const sessionDevice = new Map(); // access token → device id
+const cookiesOf = (req) => Object.fromEntries((req.headers.cookie ?? "").split(";").map((c) => c.trim().split("=")).filter(([k]) => k).map(([k, ...v]) => [k, v.join("=")]));
 // 38: lug'at (`/me/vocabulary`, BACKEND_TASKS.md 1-qism)
 let vocab = [];
 let questions = [];
@@ -216,6 +226,9 @@ function reset(opts = {}) {
   devices = [];
   deviceLimitOn = false;
   deviceRemovedOnRefresh = false;
+  deviceCookieMode = false;
+  deviceMismatchOnRefresh = false;
+  sessionDevice.clear();
   vocab = [];
   tgUsers = new Map(); handoffs = new Map(); __lastTgBody = null;
   passwords.clear();
@@ -387,6 +400,9 @@ const server = createServer(async (req, res) => {
   if (path === "/__set-order") { const o = orders.find((x) => x.id === q.get("id")); if (!o) return err(res, 404, "ORDER_NOT_FOUND", "Not found"); Object.assign(o, { status: q.get("status"), has_receipt_file: q.get("status") !== "PENDING", updated_at: now() }); return json(res, 200, o); }
   if (path === "/__slow-receipt") { receiptDelay = Number(q.get("ms") ?? 0); return json(res, 200, { receiptDelay }); }
   if (path === "/__devicelimit") { deviceLimitOn = q.get("on") === "1"; return json(res, 200, { deviceLimitOn }); }
+  if (path === "/__devicemode") { deviceCookieMode = q.get("cookie") === "1"; return json(res, 200, { deviceCookieMode }); }
+  if (path === "/__device-mismatch") { deviceMismatchOnRefresh = q.get("on") === "1"; return json(res, 200, { deviceMismatchOnRefresh }); }
+  if (path === "/__device-review") { const d = devices.find((x) => x.user === USER.id && !x.removed_at); if (d) Object.assign(d, { needs_review: true, review_reason: q.get("reason") ?? "ua_identity" }); return json(res, 200, d ?? {}); }
   if (path === "/__device-removed") { deviceRemovedOnRefresh = q.get("on") === "1"; return json(res, 200, { deviceRemovedOnRefresh }); }
   if (path === "/__vocab") return json(res, 200, vocab);
   if (path === "/__translate") { translateOn = q.get("on") === "1"; translateDelay = Number(q.get("ms") ?? 0); translateNoUz = q.get("nouz") === "1"; translateQuota = q.get("quota") ?? ""; return json(res, 200, { translateOn, translateDelay, translateNoUz, translateQuota }); }
@@ -507,6 +523,30 @@ const server = createServer(async (req, res) => {
     }
     if (b.identifier === ADMIN.email && b.password === "Admin12345!") { sessions.push({ id: randomUUID(), user: ADMIN.id, device: b.device_name }); return json(res, 200, { access_token: "access-token-admin", refresh_token: "refresh-a", token_type: "bearer", expires_in: 900, user: ADMIN }); }
     if (b.identifier === USER.email && b.password === "User12345!") {
+      // Qurilma kaliti: cookie (server bergan) birinchi; cookie rejimida cookie'siz yangi qurilma — 428 + probe
+      const jar = cookiesOf(req);
+      const byToken = jar[DEVICE_COOKIE] && activeDevices(USER.id).find((d) => d.token === jar[DEVICE_COOKIE]);
+      if (byToken) {
+        byToken.last_seen_at = now(); byToken.user_agent = req.headers["user-agent"] ?? byToken.user_agent;
+        sessions.push({ id: randomUUID(), user: USER.id, device: b.device_name });
+        sessionDevice.set("access-token-1", byToken.id);
+        res.setHeader("Set-Cookie", `${DEVICE_COOKIE}=${byToken.token}; Max-Age=34560000; ${COOKIE_ATTRS}`);
+        return json(res, 200, { access_token: "access-token-1", refresh_token: "refresh-1", token_type: "bearer", expires_in: 900, user: USER, device_secret: null });
+      }
+      if (deviceCookieMode) {
+        if (deviceLimitOn && activeDevices(USER.id).length >= DEVICE_LIMIT) return err(res, 403, "DEVICE_NOT_ALLOWED", "This account is already linked to 2 devices", { limit: DEVICE_LIMIT, devices: activeDevices(USER.id).map(({ name, bound_at, last_seen_at }) => ({ name, bound_at, last_seen_at })) });
+        if (!jar[PROBE_COOKIE]) {
+          res.setHeader("Set-Cookie", `${PROBE_COOKIE}=p-${randomUUID()}; Max-Age=600; ${COOKIE_ATTRS}`);
+          return err(res, 428, "DEVICE_IDENTITY_REQUIRED", "Device identity could not be established. Enable cookies and retry.");
+        }
+        const token = "tok-" + randomUUID();
+        const dev = { id: randomUUID(), user: USER.id, key: req.headers["x-device-id"] ?? null, token, secret: null, name: b.device_name ?? null, user_agent: req.headers["user-agent"] ?? null, bound_at: now(), last_seen_at: now(), removed_at: null, removed_by_admin_id: null, remove_reason: null };
+        devices.push(dev);
+        sessionDevice.set("access-token-1", dev.id);
+        sessions.push({ id: randomUUID(), user: USER.id, device: b.device_name });
+        res.setHeader("Set-Cookie", [`${DEVICE_COOKIE}=${token}; Max-Age=34560000; ${COOKIE_ATTRS}`, `${PROBE_COOKIE}=; Max-Age=0; ${COOKIE_ATTRS}`]);
+        return json(res, 200, { access_token: "access-token-1", refresh_token: "refresh-1", token_type: "bearer", expires_in: 900, user: USER, device_secret: null });
+      }
       // 38: qurilmani bog'lash — X-Device-Id bo'yicha; nusxalangan id + noto'g'ri sir → DEVICE_NOT_ALLOWED
       const key = req.headers["x-device-id"] ?? "no-device"; const secret = req.headers["x-device-secret"] ?? null;
       let dev = activeDevices(USER.id).find((d) => d.key === key); let newSecret = null;
@@ -540,6 +580,7 @@ const server = createServer(async (req, res) => {
   if (m === "POST" && path === "/auth/refresh") {
     const b = await readBody(req);
     if (deviceRemovedOnRefresh) return err(res, 401, "DEVICE_REMOVED", "This device was removed from the account");
+    if (deviceMismatchOnRefresh) return err(res, 401, "DEVICE_MISMATCH", "This session belongs to another device.");
     if (refreshBroken || !b.refresh_token || usedRefresh.has(b.refresh_token)) return err(res, 401, "INVALID_TOKEN", "Invalid refresh token");
     usedRefresh.add(b.refresh_token);
     // rotatsiya: refresh-1 → access-token-1b/refresh-1b → access-token-1c/refresh-1c
@@ -741,8 +782,8 @@ const server = createServer(async (req, res) => {
 
   // ---- 38: bog'langan qurilmalar
   if (path === "/me/devices" && m === "GET") {
-    const key = req.headers["x-device-id"];
-    return json(res, 200, { limit: DEVICE_LIMIT, items: activeDevices(me.id).map((d) => ({ id: d.id, name: d.name, bound_at: d.bound_at, last_seen_at: d.last_seen_at, is_current: d.key === key })) });
+    const key = req.headers["x-device-id"]; const current = sessionDevice.get(rawTok);
+    return json(res, 200, { limit: DEVICE_LIMIT, items: activeDevices(me.id).map((d) => ({ id: d.id, name: d.name, bound_at: d.bound_at, last_seen_at: d.last_seen_at, is_current: d.token ? d.id === current : d.key === key })) });
   }
 
   // ---- 38: lug'at
@@ -983,10 +1024,21 @@ const server = createServer(async (req, res) => {
     if (path === "/admin/users" && m === "GET") { const s = (q.get("search") ?? "").toLowerCase(); return json(res, 200, paged(users.filter((u) => !s || (u.email ?? "").includes(s) || (u.full_name ?? "").toLowerCase().includes(s)).filter((u) => !q.get("status") || u.status === q.get("status")), Number(q.get("page") ?? 1), Number(q.get("page_size") ?? 20))); }
     if (path === "/admin/users" && m === "POST") { const b = await readBody(req); if (!b.password) return err(res, 422, "VALIDATION_ERROR", "Validation failed", [{ loc: ["body", "password"], msg: "Field required" }]); const u = { id: randomUUID(), email: b.email ?? null, phone: b.phone ?? null, full_name: b.full_name ?? null, role: "USER", status: "ACTIVE", created_at: now(), updated_at: now() }; users.push(u); return json(res, 201, u); }
     // 38: admin — foydalanuvchi qurilmalari (sabab majburiy)
+    const devOut = ({ user, key, secret, token, ...d }) => ({ kind: "web", slot_no: null, last_ip: null, needs_review: false, review_reason: null, ...d, identity_confirmed: !!token, has_active_session: !d.removed_at });
+    if (path === "/admin/users/device-reviews/pending" && m === "GET") return json(res, 200, devices.filter((d) => d.needs_review).map((d) => ({ user_id: d.user, ...devOut(d) })));
+    const rv = /^\/admin\/users\/([^/]+)\/devices\/([^/]+)\/review$/.exec(path);
+    if (rv && m === "POST") {
+      const b = await readBody(req);
+      const d = devices.find((x) => x.user === rv[1] && x.id === rv[2] && x.needs_review);
+      if (!d) return err(res, 404, "DEVICE_NOT_FOUND", "Device not found");
+      if (!["keep", "remove"].includes(b.action) || !b.reason || !String(b.reason).trim()) return err(res, 422, "VALIDATION_ERROR", "Validation failed", [{ loc: ["body", "reason"], msg: "Field required" }]);
+      if (b.action === "remove" && !d.removed_at) Object.assign(d, { removed_at: now(), removed_by_admin_id: me.id, remove_reason: String(b.reason).trim() });
+      Object.assign(d, { needs_review: false, review_reason: null, review_resolution: b.action });
+      return json(res, 200, { message: "Device review resolved" });
+    }
     const dm = /^\/admin\/users\/([^/]+)\/devices(?:\/([^/]+))?$/.exec(path);
     if (dm) {
       const [, uid, did] = dm;
-      const devOut = ({ user, key, secret, ...d }) => d;
       if (m === "GET" && !did) return json(res, 200, devices.filter((d) => d.user === uid).map(devOut));
       if (m === "DELETE") {
         const b = await readBody(req);

@@ -27,7 +27,7 @@ export interface IntegrationSettings {
   settings: Record<string, IntegrationSetting>;
 }
 import type {
-  AdminDevice,
+  AdminDevice, DeviceReview,
   AdminPricingTier,
   AdminStats,
   PaymentStats,
@@ -185,6 +185,14 @@ export const adminApi = {
   },
   removeAllDevices(userId: string, reason: string) {
     return api<MessageResponse>(`/admin/users/${userId}/devices`, { method: "DELETE", body: { reason } });
+  },
+  /** Migratsiya aniqlay olmagan qurilmalar (taxmin qilinmagan) — admin qarori kutilmoqda */
+  deviceReviews(): Promise<DeviceReview[]> {
+    return api<DeviceReview[]>("/admin/users/device-reviews/pending");
+  },
+  /** keep — qurilma bog'langan qoladi (bo'sh slot bo'lsa); remove — olib tashlanadi. Sabab majburiy, audit yoziladi */
+  resolveDeviceReview(userId: string, deviceId: string, action: "keep" | "remove", reason: string) {
+    return api<MessageResponse>(`/admin/users/${userId}/devices/${deviceId}/review`, { method: "POST", body: { action, reason } });
   },
 
   // ---- Books
