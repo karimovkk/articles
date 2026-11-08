@@ -36,8 +36,8 @@ Dev login: `admin@articles365.local` / `Admin12345!`, `user@articles365.local` /
 
 | Nomi | Default | Izoh |
 |---|---|---|
-| `BACKEND_URL` | `http://localhost:8001` | Server tomonda: `/api/v1/*` → shu manzilga rewrite (CORS shart emas) |
-| `NEXT_PUBLIC_API_URL` | *(bo'sh)* | To'ldirilsa brauzer backendga **to'g'ridan-to'g'ri** murojaat qiladi (ngrok/staging). Backend CORS allowlist'ida frontend origin bo'lishi va `Authorization`, `X-Device-Id`, `Range`, `ngrok-skip-browser-warning` header'lariga ruxsat berilishi kerak |
+| `BACKEND_URL` | `http://localhost:8001` | Server tomonda: `/api/v1/*` → shu manzilga rewrite. **Production'da (Vercel) majburiy:** `/api/v1/auth/*` har doim shu rewrite orqali ketadi — qurilma kaliti (HttpOnly cookie) faqat same-origin'da ishlaydi. Masalan `https://articles.api.cognilabs.org` |
+| `NEXT_PUBLIC_API_URL` | *(bo'sh)* | To'ldirilsa brauzer backendga **to'g'ridan-to'g'ri** murojaat qiladi (ngrok/staging). Backend CORS allowlist'ida frontend origin bo'lishi va `Authorization`, `X-Device-Id`, `Range`, `ngrok-skip-browser-warning` header'lariga ruxsat berilishi kerak. `/auth/*` bundan mustasno — doim same-origin |
 | `NEXT_PUBLIC_APP_NAME` | `Articles365` | Sarlavha |
 | `NEXT_PUBLIC_MAX_PDF_MB` | `500` | Klient tomonidagi PDF hajm tekshiruvi (backend `MAX_BOOK_UPLOAD_SIZE` ga moslang) |
 | `NEXT_PUBLIC_MAX_COVER_MB` | `5` | Muqova hajmi (backend `MAX_COVER_UPLOAD_SIZE`) |
@@ -133,3 +133,16 @@ e2e yordamchilari (`e2e/lib.mjs`): `selectPick`, `selectOptionCount`, `confirmDi
 - Reader (model A): PDF `GET /reader/{id}/content` dan `Range` bilan, bo'lak-bo'lak; fayl hech qachon to'liq yuklab olinmaydi.
 - Highlight koordinatalari: `annotations.location_data = { page, rects: [[x, y, w, h], …] }` — sahifa o'lchamiga nisbatan 0–1 ulushlar (backend tasdiqlagan; ≤ 32 KB). O'qishda eski `location` ham qabul qilinadi.
 - Progress `PUT /books/{id}/progress` — debounce 1.5 s + `pagehide` da `keepalive` bilan.
+
+## Qurilma identifikatori (device identity)
+
+Qurilma = brauzer profili; uni backend bergan **HttpOnly cookie** (`Path=/api/v1/auth`) taniydi — User-Agent, versiya yoki
+OS emas, shuning uchun browser/OS yangilanishi qurilmani o'zgartirmaydi. Shu sababli:
+
+- `/api/v1/auth/*` so'rovlari `NEXT_PUBLIC_API_URL` berilgan bo'lsa ham **same-origin** yuboriladi (`src/lib/api/client.ts`, `isAuthPath`);
+  Vercel'da `BACKEND_URL` to'g'ri bo'lishi shart;
+- login / Mini App / handoff `428 DEVICE_IDENTITY_REQUIRED` olsa — so'rov bir marta takrorlanadi (`src/lib/api/auth.ts`);
+- `www` va apex domenlardan biri kanonik bo'lsin (redirect), aks holda bitta brauzer ikki qurilma bo'lib qoladi;
+- `X-Device-Id` / `X-Device-Secret` o'tish davri uchun hali yuboriladi.
+
+Backend shartnomasi: `Articles365_Device_Identity_v1.0.md` (backend repo, `docs/`).

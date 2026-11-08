@@ -45,6 +45,8 @@ function LoginForm() {
   const [needTotp, setNeedTotp] = useState(false);
   const expired = params.get("reason") === "expired";
   const deviceRemoved = params.get("reason") === "device_removed";
+  const deviceMismatch = params.get("reason") === "device_mismatch";
+  const cookiesRequired = params.get("reason") === "cookies_required";
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -78,6 +80,16 @@ function LoginForm() {
       {deviceRemoved && !error && (
         <div data-testid="device-removed">
           <Alert tone="warning">{t("auth.deviceRemoved")}</Alert>
+        </div>
+      )}
+      {deviceMismatch && !error && (
+        <div data-testid="device-mismatch">
+          <Alert tone="warning">{t("auth.deviceMismatch")}</Alert>
+        </div>
+      )}
+      {cookiesRequired && !error && (
+        <div data-testid="cookies-required">
+          <Alert tone="warning">{t("auth.cookiesRequired")}</Alert>
         </div>
       )}
       {error && error.code === "DEVICE_NOT_ALLOWED" ? (

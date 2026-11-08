@@ -33,7 +33,12 @@ export type AuditAction =
   | "PASSWORD_RESET"
   | "ORDER_APPROVED"
   | "ORDER_REJECTED"
-  | "SUSPICIOUS_ACTIVITY";
+  | "SUSPICIOUS_ACTIVITY"
+  | "DEVICE_REMOVED"
+  | "DEVICE_RESTORED"
+  | "DEVICE_REVIEW_FLAGGED"
+  | "DEVICE_REVIEW_RESOLVED"
+  | "DEVICE_TOKEN_MISMATCH";
 
 export const AUDIT_ACTIONS: readonly AuditAction[] = [
   "BOOK_CREATED",
@@ -55,6 +60,11 @@ export const AUDIT_ACTIONS: readonly AuditAction[] = [
   "ORDER_APPROVED",
   "ORDER_REJECTED",
   "SUSPICIOUS_ACTIVITY",
+  "DEVICE_REMOVED",
+  "DEVICE_RESTORED",
+  "DEVICE_REVIEW_FLAGGED",
+  "DEVICE_REVIEW_RESOLVED",
+  "DEVICE_TOKEN_MISMATCH",
 ];
 
 export interface Paginated<T> {
@@ -137,6 +147,24 @@ export interface AdminDevice {
   removed_at: string | null;
   removed_by_admin_id: string | null;
   remove_reason: string | null;
+  /** "web" — brauzer profili (cookie kaliti); "telegram" — Mini App (imzolangan initData) */
+  kind?: "web" | "telegram";
+  /** 1 yoki 2; limitdan ozod rol va review qatorlarida null */
+  slot_no?: number | null;
+  /** Qurilma server kaliti (cookie) bilan tasdiqlangan; false — hali eski X-Device-Id bilan */
+  identity_confirmed?: boolean;
+  has_active_session?: boolean;
+  last_ip?: string | null;
+  /** Migratsiya taxmin qilmagan — admin qarori kerak */
+  needs_review?: boolean;
+  review_reason?: DeviceReviewReason | string | null;
+}
+
+export type DeviceReviewReason = "ua_identity" | "released_ambiguous" | "prior_migration_guess" | "over_limit";
+
+/** GET /admin/users/device-reviews/pending */
+export interface DeviceReview extends AdminDevice {
+  user_id: string;
 }
 
 export interface TwoFactorSetup {

@@ -4,7 +4,7 @@
  * POST /auth/logout {refresh_token}; GET /auth/me; PATCH /me; POST /me/password; /me/2fa/*; GET /me/devices (38).
  * 106: Telegram Mini App — POST /auth/telegram/webapp, /auth/telegram/handoff, /auth/telegram/handoff/exchange.
  */
-import { api, emitAuthChanged, resetSessionEndReason } from "./client";
+import { api, emitAuthChanged, isApiError, resetSessionEndReason } from "./client";
 import { tokenStore } from "./token-store";
 import { shortAgent } from "@/lib/agent";
 import type { LoginResponse, MessageResponse, MyDevicesResponse, TelegramHandoff, TelegramLoginResponse, TwoFactorSetup, User } from "./types";
@@ -50,7 +50,16 @@ export interface RegisterInput {
  */
 async function signIn<T extends LoginResponse>(path: string, body: Record<string, unknown>): Promise<T> {
   const secret = tokenStore.getDeviceSecret();
-  const data = await api<T>(path, { method: "POST", auth: false, headers: secret ? { "X-Device-Secret": secret } : undefined, body });
+  const send = () => api<T>(path, { method: "POST", auth: false, headers: secret ? { "X-Device-Secret": secret } : undefined, body });
+  let data: T;
+  try {
+    data = await send();
+  } catch (e) {
+    // 428 DEVICE_IDENTITY_REQUIRED: qurilma hali aniqlanmagan, slot band qilinmagan. Javob probe cookie qo'ydi —
+    // so'rov AYNAN bir marta takrorlanadi; yana 428 bo'lsa cookie'lar o'chirilgan (xabar foydalanuvchiga chiqadi).
+    if (!isApiError(e) || e.status !== 428) throw e;
+    data = await send();
+  }
   if (!data.access_token) throw new Error("Backend access_token qaytarmadi");
   if (data.device_secret) tokenStore.setDeviceSecret(data.device_secret);
   tokenStore.set(data.access_token, data.refresh_token);
