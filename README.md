@@ -36,7 +36,7 @@ Dev login: `admin@articles365.local` / `Admin12345!`, `user@articles365.local` /
 
 | Nomi | Default | Izoh |
 |---|---|---|
-| `BACKEND_URL` | `http://localhost:8001` | Server tomonda: `/api/v1/*` → shu manzilga rewrite. **Production'da (Vercel) majburiy:** `/api/v1/auth/*` har doim shu rewrite orqali ketadi — qurilma kaliti (HttpOnly cookie) faqat same-origin'da ishlaydi. Masalan `https://articles.api.cognilabs.org` |
+| `BACKEND_URL` | `http://localhost:8001` | Server tomonda: `/api/v1/*` → shu manzilga rewrite. Bo'sh bo'lsa `NEXT_PUBLIC_API_URL` olinadi. **Production'da (Vercel) ulardan biri majburiy:** `/api/v1/auth/*` har doim shu rewrite orqali ketadi — qurilma kaliti (HttpOnly cookie) faqat same-origin'da ishlaydi. Masalan `https://articles.api.cognilabs.org` |
 | `NEXT_PUBLIC_API_URL` | *(bo'sh)* | To'ldirilsa brauzer backendga **to'g'ridan-to'g'ri** murojaat qiladi (ngrok/staging). Backend CORS allowlist'ida frontend origin bo'lishi va `Authorization`, `X-Device-Id`, `Range`, `ngrok-skip-browser-warning` header'lariga ruxsat berilishi kerak. `/auth/*` bundan mustasno — doim same-origin |
 | `NEXT_PUBLIC_APP_NAME` | `Articles365` | Sarlavha |
 | `NEXT_PUBLIC_MAX_PDF_MB` | `500` | Klient tomonidagi PDF hajm tekshiruvi (backend `MAX_BOOK_UPLOAD_SIZE` ga moslang) |

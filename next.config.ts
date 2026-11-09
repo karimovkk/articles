@@ -6,8 +6,14 @@ import type { NextConfig } from "next";
  * dev rejimida CORS sozlash shart emas. Agar NEXT_PUBLIC_API_URL berilsa,
  * brauzer backendga to'g'ridan-to'g'ri murojaat qiladi (CORS kerak bo'ladi).
  */
-// Oxiridagi `/` va `/api/v1` olib tashlanadi — rewrite `/api/v1/:path*` ni o'zi qo'shadi
-const BACKEND_URL = (process.env.BACKEND_URL ?? "http://localhost:8001").trim().replace(/\/+$/, "").replace(/\/api\/v1$/i, "");
+// Oxiridagi `/` va `/api/v1` olib tashlanadi — rewrite `/api/v1/:path*` ni o'zi qo'shadi.
+// BACKEND_URL berilmasa — NEXT_PUBLIC_API_URL (brauzer ishlatadigan backend) olinadi: `/api/v1/auth/*` doim shu rewrite
+// orqali ketadi, Vercel'da BACKEND_URL unutilsa `localhost` ga rewrite 404 (DNS_HOSTNAME_RESOLVED_PRIVATE) berib,
+// login/refresh butunlay ishlamay qolardi (2026-11-09 hodisasi).
+const BACKEND_URL = (process.env.BACKEND_URL?.trim() || process.env.NEXT_PUBLIC_API_URL?.trim() || "http://localhost:8001")
+  .replace(/\/+$/, "")
+  .replace(/\/api\/v1$/i, "")
+  .replace(/\/+$/, "");
 
 const nextConfig: NextConfig = {
   async rewrites() {
