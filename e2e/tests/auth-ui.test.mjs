@@ -12,62 +12,66 @@ process.on("unhandledRejection", async (e) => {
   process.exit(1);
 });
 
-// ---- Chap panel: yer shari + orbitadagi kitoblar
+// ---- Fon: 3D muqovalar devori — ustunlar to'xtovsiz suzadi, "bugungi son" oltin hoshiyada
 await page.goto(`${BASE}/login`);
 await page.waitForSelector('[data-testid="login-form"]');
-await page.waitForFunction(() => { const b = [...document.querySelectorAll(".orbit-book")]; return b.length === 7 && b.every((x) => x.complete && x.naturalWidth > 0 && x.style.visibility === "visible"); }, null, { timeout: 15000 });
-// 83: "365" jurnallarimiz — 7 ta, shaffof fonli (burchak piksellari shaffof), bir xil o'lchamdagi WebP
-const mags = await page.evaluate(() =>
-  [...document.querySelectorAll(".orbit-book")].map((im) => {
-    const c = document.createElement("canvas");
-    c.width = im.naturalWidth;
-    c.height = im.naturalHeight;
-    const x = c.getContext("2d");
-    x.drawImage(im, 0, 0);
-    const a = (px, py) => x.getImageData(px, py, 1, 1).data[3];
-    return { src: im.getAttribute("src"), w: im.naturalWidth, corners: [a(1, 1), a(c.width - 2, 1), a(1, c.height - 2), a(c.width - 2, c.height - 2)], center: a(c.width >> 1, c.height >> 1) };
-  }),
-);
-check("Globus: 7 ta '365' jurnali — mag-1…7.webp, fonsiz (burchaklar shaffof), markaz to'liq", mags.length === 7 && mags.every((m, i) => m.src === `/auth/mag-${i + 1}.webp` && m.w === 520 && m.center === 255 && m.corners.filter((v) => v === 0).length >= 2), JSON.stringify(mags.map((m) => [m.src, m.corners, m.center])));
-// Canvas quruqlik maskasi yuklangach chiziladi — kutamiz (aks holda test beqaror)
-const globeDrawn = await page
-  .waitForFunction(() => {
-    const c = document.querySelector(".globe-canvas");
-    if (!c || !c.width) return false;
-    const d = c.getContext("2d").getImageData(Math.floor(c.width / 2), Math.floor(c.height / 2), 1, 1).data;
-    return d[3] > 200;
-  }, null, { timeout: 15000 })
-  .then(() => true)
-  .catch(() => false);
-check("Globus: canvas chizilgan (markazda shaffof emas)", globeDrawn);
-// Orbita yo'nalishi: kitob globus oldiga o'tishi (z 1→3) — yuqori-o'ngda, orqaga kirishi (3→1) — pastki-chapda
-const samples = await page.evaluate(async () => {
-  const wrap = document.querySelector(".globe-orbit").getBoundingClientRect();
-  const cx = wrap.left + wrap.width / 2, cy = wrap.top + wrap.height / 2;
-  const books = [...document.querySelectorAll(".orbit-book")];
-  const prev = books.map((b) => b.style.zIndex);
-  const events = [];
-  const t0 = performance.now();
-  while (performance.now() - t0 < 7000) {
-    await new Promise((r) => requestAnimationFrame(r));
-    books.forEach((b, i) => {
-      const z = b.style.zIndex;
-      if (z !== prev[i]) {
-        const r = b.getBoundingClientRect();
-        events.push({ kind: z === "3" ? "enter" : "exit", dx: Math.round(r.left + r.width / 2 - cx), dy: Math.round(r.top + r.height / 2 - cy) });
-        prev[i] = z;
-      }
-    });
-  }
-  return events;
+await page.waitForFunction(() => { const c = [...document.querySelectorAll(".cw-cover")]; return c.length > 0 && c.every((x) => x.complete && x.naturalWidth > 0); }, null, { timeout: 15000 });
+const wall = await page.evaluate(() => {
+  const cols = [...document.querySelectorAll(".cw-col")];
+  const srcs = new Set([...document.querySelectorAll(".cw-cover")].map((c) => c.getAttribute("src")));
+  const plane = getComputedStyle(document.querySelector(".cw-plane")).transform;
+  return { cols: cols.length, perCol: cols.map((c) => c.querySelectorAll(".cw-cover").length), srcs: [...srcs].sort(), hot: document.querySelectorAll(".cw-cover.hot").length, plane3d: plane.startsWith("matrix3d") };
 });
-const enters = samples.filter((e) => e.kind === "enter"), exits = samples.filter((e) => e.kind === "exit");
-check("Orbita: kitoblar yuqori-o'ngdan (globus orqasidan) chiqadi", enters.length > 0 && enters.every((e) => e.dx > 0 && e.dy < 0), JSON.stringify(enters));
-check("Orbita: pastki-chapda globus orqasiga kiradi", exits.length > 0 && exits.every((e) => e.dx < 0 && e.dy > 0), JSON.stringify(exits));
+check("Devor: 9 ustun, har birida 2×5 muqova (choksiz aylanish uchun)", wall.cols === 9 && wall.perCol.every((n) => n === 10), JSON.stringify(wall.perCol));
+check("Devor: 7 ta haqiqiy '365' muqovasi ishlatilgan", wall.srcs.length === 7 && wall.srcs.every((s, i) => s === `/covers/mag-${i + 1}.webp`), JSON.stringify(wall.srcs));
+check("Devor: 3D qiyshaytirilgan, 'bugungi son' oltin hoshiyada", wall.plane3d && wall.hot === 2, JSON.stringify(wall));
+const trackY = () => page.evaluate(() => [...document.querySelectorAll(".cw-track")].map((t) => new DOMMatrix(getComputedStyle(t).transform).m42));
+const y1 = await trackY();
+await page.waitForTimeout(700);
+const y2 = await trackY();
+const moved = y1.map((y, i) => y2[i] - y);
+check("Devor: ustunlar to'xtovsiz suzadi — juftlari yuqoriga, toqlari pastga", moved.every((d, i) => (i % 2 ? d > 0.5 : d < -0.5)), JSON.stringify(moved.map((d) => d.toFixed(1))));
+// Karta devor ustida: shisha (backdrop-filter) va o'ng tomonda
+const card = await page.evaluate(() => { const c = document.querySelector(".auth-card"); const r = c.getBoundingClientRect(); const cs = getComputedStyle(c); return { glass: (cs.backdropFilter || cs.webkitBackdropFilter || "").includes("blur"), right: r.left > innerWidth / 2 }; });
+check("Karta: shisha effekt, o'ng tomonda", card.glass && card.right, JSON.stringify(card));
+check("Katta '365' va shior ko'rinadi", (await page.locator(".auth-big").isVisible()) && (await page.locator(".auth-hero h2").isVisible()));
+// "365": bitta nur 3 → 6 → 5 ustidan uzluksiz o'tadi, raqam o'lchami nurga yaqinligiga qarab silliq o'zgaradi —
+// animatsiyani aniq paytga qo'yib o'lchaymiz
+const digits = await page.evaluate(() => {
+  const ds = [...document.querySelectorAll(".auth-big .auth-digit")];
+  const at = (el, ms) => {
+    const anims = el.getAnimations();
+    anims.forEach((a) => { a.pause(); a.currentTime = ms; });
+    const cs = getComputedStyle(el);
+    const r = { scale: new DOMMatrix(cs.transform).a, bg: parseFloat(cs.backgroundPositionX) };
+    anims.forEach((a) => a.play());
+    return r;
+  };
+  // har raqam oynasi: delay 1.2s + i·0.6s; nur 300ms da kiradi, 600ms da o'rtada, 900ms da chiqadi
+  const start = (i) => 1200 + i * 600;
+  return ds.map((el, i) => ({
+    text: el.textContent,
+    anims: el.getAnimations().length,
+    // nur o'rtada: shu raqam eng katta, qolganlar undan kichik
+    peak: at(el, start(i) + 600),
+    peakOthers: ds.filter((_, j) => j !== i).map((o) => at(o, start(i) + 600)),
+    // o'lcham silliq: kattalashish (450ms) va kichrayish (750ms) paytida oraliq qiymat
+    rising: at(el, start(i) + 450),
+    falling: at(el, start(i) + 750),
+    // keyingi raqamga o'tish (nur shu raqamdan chiqib, keyingisiga kirayotgan payt): ikkalasi ham oraliq o'lchamda
+    handoff: i < ds.length - 1 ? [at(el, start(i) + 900), at(ds[i + 1], start(i) + 900)] : null,
+    rest: at(el, start(i) + 3500),
+  }));
+});
+const mid = (bg) => bg > 1 && bg < 99;
+const between = (s) => s.scale > 1.02 && s.scale < 1.155;
+check("'365': 3 raqam, tinch paytda asl o'lchamda", digits.map((d) => d.text).join("") === "365" && digits.every((d) => d.anims === 2 && Math.abs(d.rest.scale - 1) < 0.001), JSON.stringify(digits.map((d) => d.rest)));
+check("'365': nur o'rtasida raqam eng katta va yaltiraydi", digits.every((d) => d.peak.scale > 1.15 && mid(d.peak.bg) && d.peakOthers.every((o) => o.scale < d.peak.scale - 0.1)), JSON.stringify(digits.map((d) => [d.peak, d.peakOthers])));
+check("'365': o'lcham silliq o'zgaradi (sakramaydi)", digits.every((d) => between(d.rising) && between(d.falling) && d.rising.scale < d.peak.scale && d.falling.scale < d.peak.scale), JSON.stringify(digits.map((d) => [d.rising, d.falling])));
+check("'365': nur o'tganda oldingi raqam kichrayib, keyingisi kattalashadi", digits.slice(0, 2).every((d) => d.handoff.every((s) => s.scale > 1.04 && s.scale < 1.12)), JSON.stringify(digits.map((d) => d.handoff)));
 
 // ---- Login: ko'z tugmasi
 check("Login: Kirish/Ro'yxat tablar, Kirish faol", (await page.locator('[data-testid="tab-login"][aria-current="page"]').count()) === 1);
-check("Login: karusel (3 slayd, 1 ta faol)", (await page.locator(".auth-slide").count()) === 3 && (await page.locator(".auth-slide.active").count()) === 1);
 const pw = page.locator('input[autocomplete="current-password"]');
 await pw.fill("Secret123!");
 check("Parol boshida yashirin (type=password)", (await pw.getAttribute("type")) === "password");
@@ -106,10 +110,6 @@ check("Ikkala parol maydonida ko'z tugmasi", (await page.locator('[data-testid="
 await page.locator('[data-testid="pw-eye"]').nth(1).click();
 check("Tasdiqlash maydoni ko'z bilan ochildi (mustaqil)", (await pws.nth(1).getAttribute("type")) === "text" && (await pws.nth(0).getAttribute("type")) === "password");
 
-// Karusel nuqtasi bosilsa slayd almashadi
-await page.locator(".auth-dots button").nth(2).click();
-check("Karusel: 3-nuqta → 3-slayd faol", await page.evaluate(() => document.querySelectorAll(".auth-slide")[2].classList.contains("active")));
-
 // Ko'rsatilgan parol bilan login ham ishlaydi
 await page.goto(`${BASE}/login`);
 await page.waitForSelector('[data-testid="login-form"]');
@@ -125,20 +125,22 @@ await page.goto(`${BASE}/profile`);
 await page.waitForSelector("text=Parolni o'zgartirish", { timeout: 10000 });
 check("Profil: 3 ta parol maydonida ko'z", (await page.locator('[data-testid="pw-eye"]').count()) === 3);
 
-// prefers-reduced-motion: statik kadr (kitoblar joyida turadi)
+// prefers-reduced-motion: devor harakatsiz
 const rm = await (await browser.newContext({ viewport: { width: 1280, height: 800 }, reducedMotion: "reduce" })).newPage();
 await rm.goto(`${BASE}/login`);
-await rm.waitForFunction(() => [...document.querySelectorAll(".orbit-book")].every((x) => x.style.visibility === "visible"), null, { timeout: 15000 });
-await rm.waitForTimeout(600); // statik kadr joylashib bo'lsin
-const pos1 = await rm.evaluate(() => [...document.querySelectorAll(".orbit-book")].map((b) => b.style.transform).join("|"));
+await rm.waitForSelector(".cw-track");
+const rmPos = () => rm.evaluate(() => [...document.querySelectorAll(".cw-track, .cw-plane")].map((t) => getComputedStyle(t).transform).join("|"));
+const pos1 = await rmPos();
 await rm.waitForTimeout(800);
-const pos2 = await rm.evaluate(() => [...document.querySelectorAll(".orbit-book")].map((b) => b.style.transform).join("|"));
-check("Reduced motion: kitoblar harakatsiz (statik kadr)", pos1 === pos2 && pos1.length > 0);
-// Mobil: chap panel yashirin — globus ko'rinmaydi
+check("Reduced motion: devor harakatsiz", pos1 === (await rmPos()) && pos1.length > 0);
+check("Reduced motion: '365' raqamlari harakatsiz", await rm.evaluate(() => [...document.querySelectorAll(".auth-digit")].every((d) => d.getAnimations().length === 0)));
+// Mobil: devor tepada ko'rinadi, karta to'liq ekranga sig'adi, shior/365 yashirin
 const mob = await (await browser.newContext({ viewport: { width: 390, height: 844 } })).newPage();
 await mob.goto(`${BASE}/login`);
 await mob.waitForSelector('[data-testid="login-form"]');
-check("Mobil: globus paneli yashirin, forma ko'rinadi", !(await mob.locator(".globe-orbit").isVisible()));
+const m = await mob.evaluate(() => { const r = document.querySelector(".auth-card").getBoundingClientRect(); return { inside: r.left >= 0 && r.right <= innerWidth, sw: document.documentElement.scrollWidth - innerWidth }; });
+check("Mobil: devor bor, karta ekranga sig'adi, gorizontal skroll yo'q", (await mob.locator(".cover-wall").count()) === 1 && m.inside && m.sw <= 0, JSON.stringify(m));
+check("Mobil: shior va katta '365' yashirin", !(await mob.locator(".auth-hero").isVisible()) && !(await mob.locator(".auth-big").isVisible()));
 
 check("Sahifa xatolari yo'q", pageErrors.length === 0, pageErrors.join(" | ").slice(0, 300));
 await done(browser);

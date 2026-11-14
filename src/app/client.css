@@ -4779,8 +4779,10 @@ html:not(.dark) .client :is(.bcard, .card, .cat-chip, .pricing-promo, .cart-card
 }
 
 /* 125: faol band yonida — bestseller kitob muqovasi (biroz qiyshaygan, "chiqib turgan" kitob).
-   Sifat: faqat 2D burish (3D rotateY qatlamni rastrlab xiralashtirardi), 28×40 o'lcham, kitob qirrasi/yaltirashi —
-   ::after'da (img'dagi inset soya rasm ostida qolib ko'rinmaydi). */
+   Sifat: tinch holatda faqat 2D burish (3D qatlamni rastrlab xiralashtirardi), 28×40 o'lcham, kitob qirrasi/yaltirashi —
+   `.sb-cover::after`da (img'dagi inset soya rasm ostida qolib ko'rinmaydi).
+   127: uchish paytida ([data-fly], JS: flyBook) — haqiqiy 3D kitob: orqa muqova, umurtqa, varaq qirralari, ochiladigan
+   muqova va hilpiraydigan varaqlar. Bu qismlar faqat uchishda ko'rinadi. */
 .side-bestseller {
   position: relative;
   margin-left: auto;
@@ -4791,12 +4793,22 @@ html:not(.dark) .client :is(.bcard, .card, .cat-chip, .pricing-promo, .cart-card
   height: 40px;
   border-radius: 2px 4px 4px 2px;
   transform: rotate(-6deg);
+  animation: side-bestseller-in 420ms var(--ease) both;
+}
+.sb-book,
+.sb-cover {
+  position: absolute;
+  inset: 0;
+  display: block;
+  border-radius: inherit;
+}
+.sb-cover {
+  transform-origin: 0 50%;
   box-shadow:
     0 1px 2px rgba(18, 22, 20, 0.25),
     0 4px 10px rgba(18, 22, 20, 0.22);
-  animation: side-bestseller-in 420ms var(--ease) both;
 }
-.side-bestseller img {
+.sb-cover img {
   display: block;
   width: 100%;
   height: 100%;
@@ -4804,7 +4816,7 @@ html:not(.dark) .client :is(.bcard, .card, .cat-chip, .pricing-promo, .cart-card
   border-radius: inherit;
   background: #e9e4da;
 }
-.side-bestseller::after {
+.sb-cover::after {
   content: "";
   position: absolute;
   inset: 0;
@@ -4814,6 +4826,100 @@ html:not(.dark) .client :is(.bcard, .card, .cat-chip, .pricing-promo, .cart-card
     linear-gradient(90deg, rgba(0, 0, 0, 0.22) 0, rgba(0, 0, 0, 0.06) 2px, rgba(255, 255, 255, 0.18) 3px, transparent 5px),
     linear-gradient(115deg, rgba(255, 255, 255, 0.16) 0%, transparent 38%);
   box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.18);
+}
+.sb-3d {
+  position: absolute;
+  display: block;
+  visibility: hidden;
+  pointer-events: none;
+}
+.side-bestseller[data-fly] .sb-3d {
+  visibility: visible;
+}
+.side-bestseller[data-fly] :is(.sb-book, .sb-cover) {
+  transform-style: preserve-3d;
+}
+.side-bestseller[data-fly] .sb-cover {
+  box-shadow: none; /* soya — o'ram filtrida (drop-shadow), aylanayotgan tekislikda emas */
+}
+.side-bestseller[data-fly] .sb-cover img,
+.side-bestseller[data-fly] .sb-inside {
+  backface-visibility: hidden;
+}
+.side-bestseller[data-fly] .sb-cover::after {
+  transform: translateZ(0.3px);
+  backface-visibility: hidden;
+}
+/* Muqovaning ichki tomoni (ochilganda ko'rinadi) */
+.sb-inside {
+  inset: 0;
+  border-radius: 4px 2px 2px 4px;
+  transform: translateZ(-0.3px) rotateY(180deg);
+  background: linear-gradient(90deg, #e6dcc6, #f3ecdc 70%, #d9ccb0);
+}
+.sb-back {
+  inset: 0;
+  border-radius: 4px 2px 2px 4px;
+  transform: translateZ(-6px) rotateY(180deg);
+  background:
+    linear-gradient(90deg, transparent 0 calc(100% - 4px), rgba(0, 0, 0, 0.25) calc(100% - 4px)),
+    linear-gradient(160deg, #3b3125, #1f1a14);
+  box-shadow: inset 0 0 0 1px rgba(200, 162, 74, 0.45);
+}
+.sb-spine {
+  left: 0;
+  top: 0;
+  width: 6px;
+  height: 100%;
+  transform-origin: 0 50%;
+  transform: rotateY(90deg);
+  background: linear-gradient(90deg, #2a221a, #4a3c2c 50%, #2a221a);
+  box-shadow: inset 0 3px 0 -2px #c8a24a, inset 0 -3px 0 -2px #c8a24a;
+}
+.sb-edge {
+  background: repeating-linear-gradient(90deg, #f7f1e3 0 1px, #ddd3bd 1px 1.6px);
+}
+.sb-edge-r {
+  left: calc(100% - 1px);
+  top: 1px;
+  width: 6px;
+  height: calc(100% - 2px);
+  transform-origin: 0 50%;
+  transform: rotateY(90deg);
+}
+.sb-edge-t,
+.sb-edge-b {
+  left: 0;
+  width: calc(100% - 1px);
+  height: 6px;
+  transform-origin: 50% 0;
+  transform: rotateX(-90deg);
+  background: repeating-linear-gradient(0deg, #f7f1e3 0 1px, #ddd3bd 1px 1.6px);
+}
+.sb-edge-t {
+  top: 1px;
+}
+.sb-edge-b {
+  top: calc(100% - 1px);
+}
+/* Varaqlar: oxirgisi qimirlamaydi, uchtasi muqova ortidan yelpig'ichdek ochiladi */
+.sb-page,
+.sb-leaf {
+  top: 1px;
+  bottom: 1px;
+  left: 0;
+  right: 1px;
+  border-radius: 0 2px 2px 0;
+  transform-origin: 0 50%;
+  background:
+    repeating-linear-gradient(180deg, transparent 0 5px, rgba(60, 50, 35, 0.16) 5px 6px) 4px 7px / calc(100% - 8px) calc(100% - 12px) no-repeat,
+    linear-gradient(90deg, #e2d8c2, #fbf7ee 30%);
+}
+.sb-page {
+  transform: translateZ(-5px);
+}
+.sb-leaf {
+  transform: translateZ(-1.2px);
 }
 .side-bestseller + .side-badge {
   margin-left: 8px;
@@ -4829,6 +4935,43 @@ html:not(.dark) .client :is(.bcard, .card, .cat-chip, .pricing-promo, .cart-card
     animation: none;
   }
 }
+/* 127: qo'nish zarbasi — fixed overlay (sidebar overflow'i kesmasin), JS o'zi yaratadi va o'chiradi */
+.sb-fx {
+  position: fixed;
+  width: 0;
+  height: 0;
+  z-index: 70;
+  pointer-events: none;
+  perspective: 300px;
+}
+.sb-fx > span {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: block;
+  opacity: 0; /* kechikish (uchish) davomida ko'rinmaydi — kadrlar opacity'ni o'zi beradi */
+}
+.sb-fx-ring {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  border: 2px solid var(--fx-accent);
+}
+.sb-fx-line {
+  margin: -5px 0 0 -1px;
+  width: 2px;
+  height: 10px;
+  border-radius: 2px;
+  background: var(--fx-accent);
+}
+.sb-fx-scrap {
+  margin: -3px 0 0 -2.5px;
+  width: 5px;
+  height: 6px;
+  border-radius: 1px;
+  background: #fbf7ee;
+  box-shadow: 0 0 0 0.5px rgba(40, 32, 20, 0.35);
+}
 
 /* 125: mavsumiy effekt — butun ekran, bosishlarga xalaqit bermaydi, header/drawer/oynalar ostida */
 .season-canvas {
@@ -4843,5 +4986,81 @@ html:not(.dark) .client :is(.bcard, .card, .cat-chip, .pricing-promo, .cart-card
 @media print {
   .season-canvas {
     display: none;
+  }
+}
+
+/* 126: sirpanuvchi faol band — fon va oltin chiziq bitta `.side-glide` elementida, bandlar orasida oqib o'tadi
+   (JS: useNavGlide). Faol bandning o'z foni/chizig'i o'chiriladi — ikki marta chizilmasin. */
+.client-side-nav[data-glide] {
+  position: relative;
+  isolation: isolate;
+}
+.side-glide {
+  position: absolute;
+  z-index: -1;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 0;
+  opacity: 0;
+  pointer-events: none;
+  border-radius: var(--r-md);
+  background: color-mix(in srgb, var(--surface-3) 70%, transparent);
+  transition: opacity 200ms var(--ease);
+  will-change: transform, height;
+}
+.side-glide::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 9px;
+  bottom: 9px;
+  width: 3px;
+  border-radius: 3px;
+  background: var(--accent);
+}
+.client-side-nav[data-glide] .side-link.active,
+.client-side-nav[data-glide] .side-link.active:hover {
+  background: transparent;
+}
+.client-side-nav[data-glide] .side-link.active::before {
+  content: none;
+}
+/* Ikonka: hover'da sal suriladi, faol bo'lganda bir marta "silkinib" oladi */
+.side-link svg {
+  transition:
+    transform 260ms var(--ease),
+    opacity 220ms var(--ease);
+}
+.side-link:hover svg {
+  transform: translateX(2px);
+}
+.side-link.active svg {
+  opacity: 1;
+  animation: side-icon-pop 760ms 160ms var(--ease) both;
+}
+/* 127: faol bo'lganda ikonka tanga kabi 3D aylanadi */
+@keyframes side-icon-pop {
+  0% {
+    transform: perspective(160px) rotateY(0deg) scale(1);
+  }
+  45% {
+    transform: perspective(160px) rotateY(200deg) scale(1.22);
+  }
+  75% {
+    transform: perspective(160px) rotateY(350deg) scale(0.96);
+  }
+  100% {
+    transform: perspective(160px) rotateY(360deg) scale(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .side-link svg,
+  .side-link.active svg {
+    transition: none;
+    animation: none;
+  }
+  .side-link:hover svg {
+    transform: none;
   }
 }

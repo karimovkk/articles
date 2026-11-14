@@ -6,7 +6,7 @@
  *  - Topbar: crumbs (bo'lim + sahifa nomi — `useAdminCrumb`), bildirishnoma, til, mavzu, ilovaga qaytish.
  * Auth/rol tekshiruvi — `AppShell chromeless` + `AdminGuard` (layout'da).
  */
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, useSyncExternalStore, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/providers/auth-provider";
@@ -109,6 +109,16 @@ function setCollapsed(v: boolean) {
   navListeners.forEach((l) => l());
 }
 
+/** 125: kursor ostidagi stat/karta yorug'ligi — `--mx/--my` (admin.css), bitta delegatsiyalangan tinglovchi. */
+function followSpotlight(e: ReactPointerEvent<HTMLElement>) {
+  if (e.pointerType !== "mouse") return;
+  const el = (e.target as HTMLElement).closest<HTMLElement>(".stat, .card");
+  if (!el) return;
+  const r = el.getBoundingClientRect();
+  el.style.setProperty("--mx", `${Math.round(e.clientX - r.left)}px`);
+  el.style.setProperty("--my", `${Math.round(e.clientY - r.top)}px`);
+}
+
 export function AdminShell({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth();
   const { t } = useT();
@@ -138,7 +148,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
 
   return (
     <CrumbCtx.Provider value={crumbValue}>
-      <div className="app-frame" data-nav={collapsed ? "collapsed" : "open"} data-testid="admin-shell">
+      <div className="app-frame admin-skin" data-nav={collapsed ? "collapsed" : "open"} data-testid="admin-shell">
         {mobileOpen && <button type="button" className="mobile-nav-backdrop" aria-label={t("ui.nav.closeMenu")} onClick={() => setMobileOpen(false)} />}
         <aside className={cn("sidebar", mobileOpen && "mobile-open")} aria-label={t("nav.admin")}>
           <div className="sidebar-header">
@@ -264,7 +274,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
               </Link>
             </div>
           </header>
-          <main className="sheet-content" id="admin-main">
+          <main className="sheet-content" id="admin-main" onPointerMove={followSpotlight}>
             {children}
           </main>
         </div>

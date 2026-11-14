@@ -2199,225 +2199,249 @@ a.track:hover {
 
 /* ---------- Auth ---------- */
 
+/* Butun ekran sahna: orqada 3D muqovalar devori (CoverWall), ustida parda; chapda shior + katta "365",
+   o'ngda shisha karta. Sahna har ikki mavzuda qorong'i (--frame), karta esa mavzuga mos shisha. */
 .auth {
+  position: relative;
   min-height: 100dvh;
-  display: grid;
-  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  overflow: hidden;
+  isolation: isolate;
   background: var(--frame);
-  padding: 10px;
-  gap: 10px;
-}
-/* Chap panel: "aurora" fon (sekin suzuvchi dog'lar) + nuqtali to'r + kitob illyustratsiyasi + karusel */
-.auth-art {
-  position: relative;
-  overflow: hidden;
-  isolation: isolate;
-  border-radius: var(--radius-lg);
-  background: var(--frame-2);
   color: var(--frame-text);
-  padding: 36px 40px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 470px);
+  grid-template-rows: auto minmax(0, 1fr);
+  column-gap: 48px;
+  padding: 28px clamp(24px, 6vw, 110px) 28px clamp(24px, 4vw, 56px);
 }
-.auth-art::before {
-  content: "";
+.cover-wall {
   position: absolute;
   inset: 0;
-  z-index: -1;
-  background-image: radial-gradient(rgba(255, 255, 255, 0.09) 1px, transparent 1.2px);
-  background-size: 22px 22px;
-  -webkit-mask-image: radial-gradient(circle at 50% 40%, #000 30%, transparent 75%);
-  mask-image: radial-gradient(circle at 50% 40%, #000 30%, transparent 75%);
-}
-.aurora {
-  position: absolute;
-  inset: 0;
-  z-index: -2;
+  z-index: -3;
   overflow: hidden;
-  pointer-events: none;
-}
-.aurora span {
-  position: absolute;
-  width: 55vmin;
-  height: 55vmin;
-  border-radius: 50%;
-  filter: blur(70px);
-  opacity: 0.55;
-  animation: aurora-drift 18s ease-in-out infinite alternate;
-}
-.aurora span:nth-child(1) {
-  left: -10%;
-  top: -10%;
-  background: var(--accent);
-}
-.aurora span:nth-child(2) {
-  right: -15%;
-  top: 20%;
-  background: #1eb5e6;
-  opacity: 0.28;
-  animation-duration: 24s;
-  animation-delay: -6s;
-}
-.aurora span:nth-child(3) {
-  left: 25%;
-  bottom: -25%;
-  background: #f26b05;
-  opacity: 0.32;
-  animation-duration: 21s;
-  animation-delay: -12s;
-}
-@keyframes aurora-drift {
-  0% {
-    transform: translate(0, 0) scale(1);
-  }
-  50% {
-    transform: translate(8%, 12%) scale(1.15);
-  }
-  100% {
-    transform: translate(-6%, -8%) scale(0.95);
-  }
-}
-.auth-art h2 {
-  font-family: var(--font-display);
-  font-size: 32px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  line-height: 1.12;
-  max-width: 520px;
-}
-.auth-art h2 em {
-  font-style: normal;
-  color: var(--accent);
-}
-/* Yer shari + orbitadagi kitoblar (GlobeOrbit) */
-.globe-orbit {
-  position: relative;
-  flex: 1 1 auto;
-  min-height: 260px;
-  margin: 8px -40px;
-  isolation: isolate;
-}
-.globe-canvas {
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  pointer-events: none;
-}
-.globe-glow {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: calc(var(--globe-r, 140px) * 2.9);
-  height: calc(var(--globe-r, 140px) * 2.9);
-  transform: translate(-50%, -50%);
-  border-radius: 50%;
-  z-index: 0;
-  background: radial-gradient(circle, color-mix(in srgb, var(--accent) 26%, transparent) 30%, transparent 68%);
-  filter: blur(8px);
-  pointer-events: none;
-}
-.orbit-book {
-  position: absolute;
-  left: 0;
-  top: 0;
-  height: auto;
-  visibility: hidden;
-  transform-origin: 50% 50%;
-  will-change: transform, opacity, filter;
+  perspective: 1600px;
   pointer-events: none;
   user-select: none;
 }
-/* Karusel */
-.auth-slides {
-  margin-top: 20px;
-  max-width: 460px;
-}
-.auth-slide {
-  display: none;
-  gap: 14px;
-  align-items: flex-start;
-  animation: fade-in 500ms var(--ease);
-}
-.auth-slide.active {
+.cw-plane {
+  position: absolute;
+  inset: -45% -25%;
   display: flex;
+  justify-content: center;
+  gap: 22px;
+  transform: rotateX(38deg) rotateZ(-14deg);
+  animation: cw-breathe 26s ease-in-out infinite alternate;
+  will-change: transform;
 }
-.auth-slide .ic {
-  width: 42px;
-  height: 42px;
-  border-radius: var(--r-md);
-  flex-shrink: 0;
-  display: grid;
-  place-items: center;
-  background: var(--accent);
-  color: var(--accent-contrast);
+.cw-col {
+  flex: none;
+  width: clamp(130px, 11vw, 200px);
 }
-.auth-slide .ttl {
-  font-weight: 700;
-  font-size: 15px;
-}
-.auth-slide .txt {
-  color: var(--frame-text-2);
-  font-size: 14px;
-  margin-top: 3px;
-}
-.auth-dots {
+.cw-track {
   display: flex;
-  gap: 6px;
-  margin-top: 16px;
+  flex-direction: column;
+  gap: 22px;
+  animation: cw-scroll var(--cw-dur, 60s) linear var(--cw-delay, 0s) infinite;
+  will-change: transform;
 }
-.auth-dots button {
-  width: 22px;
-  height: 4px;
-  border: 0;
-  padding: 0;
-  border-radius: 2px;
-  background: rgba(255, 255, 255, 0.18);
-  transition:
-    background 200ms var(--ease),
-    width 200ms var(--ease);
+.cw-col.down .cw-track {
+  animation-direction: reverse;
 }
-.auth-dots button.active {
-  width: 34px;
-  background: var(--accent);
+.cw-cover {
+  display: block;
+  width: 100%;
+  aspect-ratio: 190 / 258;
+  object-fit: cover;
+  border-radius: 10px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+  filter: saturate(0.85) brightness(0.55);
 }
-.auth-dots button:focus-visible {
-  outline: none;
-  box-shadow: var(--ring);
+/* "Bugungi son": oltin hoshiya, nur bilan "nafas oladi" */
+.cw-cover.hot {
+  filter: none;
+  outline: 3px solid var(--accent);
+  outline-offset: 4px;
+  animation: cw-hot 3.2s ease-in-out infinite;
 }
-/* O'ng panel */
-.auth-panel {
-  background: var(--bg);
-  border-radius: var(--radius-lg);
+/* Trek ikki nusxa: yarmiga (+ yarim oraliq) siljiganda boshidagi bilan bir xil — choksiz cheksiz aylanish */
+@keyframes cw-scroll {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(calc(-50% - 11px));
+  }
+}
+@keyframes cw-breathe {
+  from {
+    transform: rotateX(38deg) rotateZ(-14deg) translateX(0);
+  }
+  to {
+    transform: rotateX(34deg) rotateZ(-10deg) translateX(-3%);
+  }
+}
+@keyframes cw-hot {
+  0%,
+  100% {
+    box-shadow: 0 0 40px rgba(242, 183, 5, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 90px rgba(242, 183, 5, 0.6);
+  }
+}
+.auth-veil {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+  background:
+    radial-gradient(620px 560px at 76% 52%, color-mix(in srgb, var(--frame) 92%, transparent), color-mix(in srgb, var(--frame) 50%, transparent) 70%, color-mix(in srgb, var(--frame) 18%, transparent)),
+    linear-gradient(0deg, color-mix(in srgb, var(--frame) 90%, transparent), transparent 45%),
+    linear-gradient(180deg, color-mix(in srgb, var(--frame) 85%, transparent), transparent 22%);
+}
+.auth-big {
+  position: absolute;
+  left: clamp(24px, 4vw, 56px);
+  bottom: 24px;
+  z-index: -1;
+  font-family: var(--font-sans);
+  font-weight: 800;
+  font-size: clamp(140px, 15vw, 240px);
+  line-height: 0.8;
+  letter-spacing: -0.06em;
+  color: transparent;
+  -webkit-text-stroke: 1.5px color-mix(in srgb, var(--accent) 55%, transparent);
+  pointer-events: none;
+  user-select: none;
+}
+/* Raqamlar vaqti-vaqti bilan "jonlanadi": bitta nur 3 → 6 → 5 ustidan uzluksiz, bir xil tezlikda o'tadi,
+   raqam o'lchami esa nurning shu raqamga yaqinligiga bog'liq ("to'lqin"). Har raqamga 1.2s oyna (7s siklning
+   17.14%), qo'shni raqamlar 0.6s farq bilan: 0–4.29% kattalasha boshlaydi → 4.29% nur kiradi → 8.57% nur
+   o'rtada, raqam eng katta → 12.86% nur chiqadi → 17.14% asl o'lchamda. Nur 3 dan chiqayotganda (12.86%)
+   6 ga kirayotgan bo'ladi (4.29%): 3 kichrayayotganda 6 kattalashadi — uzilishsiz o'tish.
+   Nur — background-clip:text; konturli 3 va 5 da faqat yaltirash paytida to'ladi, 6 doim oltin. */
+.auth-digit {
+  --shine: color-mix(in srgb, #fff 85%, var(--accent));
+  display: inline-block;
+  transform-origin: 50% 85%;
+  background: linear-gradient(105deg, transparent 38%, var(--shine) 50%, transparent 62%) 100% 0 / 260% 100% no-repeat;
+  -webkit-background-clip: text;
+  background-clip: text;
+  animation:
+    auth-digit-pop 7s linear infinite,
+    auth-digit-shine 7s linear infinite;
+  animation-delay: calc(1.2s + var(--d, 0) * 0.6s);
+}
+.auth-digit.hl {
+  -webkit-text-stroke: 0;
+  background-color: var(--accent);
+  color: transparent;
+}
+@keyframes auth-digit-pop {
+  0% {
+    transform: scale(1);
+    animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1);
+  }
+  8.571% {
+    transform: scale(1.16) translateY(-3%);
+    animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1);
+  }
+  17.143%,
+  100% {
+    transform: scale(1);
+  }
+}
+@keyframes auth-digit-shine {
+  0%,
+  4.286% {
+    background-position: 100% 0;
+    filter: drop-shadow(0 0 0 transparent);
+  }
+  8.571% {
+    filter: drop-shadow(0 0 18px color-mix(in srgb, var(--accent) 55%, transparent));
+  }
+  12.857% {
+    background-position: 0% 0;
+  }
+  17.143%,
+  100% {
+    background-position: 0% 0;
+    filter: drop-shadow(0 0 0 transparent);
+  }
+}
+.auth-top {
+  grid-column: 1 / -1;
   display: flex;
   align-items: center;
-  justify-content: center;
-  padding: 32px 24px;
+  gap: 12px;
+  min-width: 0;
 }
-.auth-form {
-  width: 100%;
+.auth-top .auth-back {
+  color: var(--frame-text-2);
+}
+.auth-top .auth-back:hover:not(:disabled) {
+  background: var(--frame-hover);
+  color: var(--frame-text);
+}
+.auth-hero {
+  align-self: end;
+  max-width: 560px;
+  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.85);
+  margin-bottom: clamp(150px, 17vw, 250px);
+}
+.auth-hero h2 {
+  font-family: var(--font-display);
+  font-size: clamp(26px, 2.4vw, 34px);
+  font-style: italic;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+.auth-hero h2 em {
+  color: var(--accent);
+}
+.auth-hero p {
+  margin-top: 12px;
   max-width: 440px;
+  font-size: 15px;
+  color: var(--frame-text-2);
+}
+.auth-panel {
+  align-self: center;
+  padding: 24px 0;
 }
 .auth-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: 28px;
-  box-shadow: var(--shadow-md);
+  color: var(--text);
+  background: color-mix(in srgb, var(--surface) 76%, transparent);
+  -webkit-backdrop-filter: blur(26px) saturate(1.4);
+  backdrop-filter: blur(26px) saturate(1.4);
+  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  border-radius: 28px;
+  padding: 34px;
+  box-shadow:
+    0 50px 100px -30px rgba(0, 0, 0, 0.85),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
   animation: pop-in 320ms var(--ease);
+}
+.auth-copy {
+  margin-top: 14px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--frame-muted);
 }
 .auth-tabs {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 4px;
-  padding: 4px;
-  border-radius: var(--r-md);
-  background: var(--surface-2);
-  margin-bottom: 24px;
+  padding: 5px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--surface-2) 80%, transparent);
+  margin-bottom: 26px;
 }
 .auth-tabs a {
-  height: 38px;
-  border-radius: var(--r-sm);
+  height: 40px;
+  border-radius: 10px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -2431,14 +2455,14 @@ a.track:hover {
     box-shadow 160ms var(--ease);
 }
 .auth-tabs a.active {
-  background: var(--surface);
-  color: var(--text);
-  box-shadow: var(--shadow-sm);
+  background: var(--accent);
+  color: var(--accent-contrast);
+  box-shadow: 0 6px 18px -6px color-mix(in srgb, var(--accent) 70%, transparent);
 }
 .auth-title {
   font-family: var(--font-display);
-  font-size: 24px;
-  font-weight: 700;
+  font-size: 30px;
+  font-weight: 600;
   letter-spacing: -0.02em;
 }
 .auth-sub {
@@ -2452,6 +2476,14 @@ a.track:hover {
 .auth-card .btn.lg {
   width: 100%;
   margin-top: 4px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cw-plane,
+  .cw-track,
+  .cw-cover.hot,
+  .auth-digit {
+    animation: none;
+  }
 }
 
 /* ---------- Responsive ---------- */
@@ -2535,21 +2567,32 @@ a.track:hover {
   .table-scroll .table {
     min-width: 640px;
   }
+  /* Tor ekran: devor tepada ko'rinib turadi, karta pastda; shior va "365" yashirin */
   .auth {
     grid-template-columns: minmax(0, 1fr);
-    padding: 0;
-    gap: 0;
+    grid-template-rows: auto 1fr;
+    padding: 16px 14px 24px;
   }
-  .auth-art {
+  .auth-hero,
+  .auth-big {
     display: none;
   }
+  .cw-plane {
+    inset: -30% -70% 20% -70%;
+  }
+  .auth-veil {
+    background: linear-gradient(0deg, var(--frame) 40%, color-mix(in srgb, var(--frame) 35%, transparent));
+  }
   .auth-panel {
-    border-radius: 0;
-    align-items: flex-start;
-    padding: 20px 16px 40px;
+    align-self: end;
+    width: 100%;
+    max-width: 480px;
+    justify-self: center;
+    padding: 28vh 0 0;
   }
   .auth-card {
     padding: 22px 18px;
+    border-radius: 22px;
   }
 }
 @media (max-width: 640px) {

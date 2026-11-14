@@ -1,0 +1,1375 @@
+/* ============================================================
+   125: Admin "oltin tahririyat" qatlami (2026-11-14)
+
+   Faqat admin qobig'i ichida (`.admin-skin` — AdminShell'dagi `.app-frame`).
+   Mijoz tomoni (`.client`) va design.css tokenlariga tegmaydi — shu fayl
+   olib tashlansa, admin oldingi "Sheet" ko'rinishiga qaytadi.
+     - ramka: iliq oltin "aurora", sidebar shaffof, faol bandda nurli chiziq;
+     - varaq: yuqorida yumshoq nur + so'nib boruvchi nuqtali to'r, shisha topbar;
+     - sahifa sarlavhasi: har ikki mavzuda ham qora "siyoh" banner, aylanuvchi oltin hoshiya;
+     - stat/karta/jadval: kursor ortidan yuruvchi yorug'lik (--mx/--my — AdminShell),
+       serif raqamlar, oltin ingichka chiziqlar, ketma-ket paydo bo'lish.
+   ============================================================ */
+
+@property --adm-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+.admin-skin {
+  /* Admin "Ko'rinish"da tanlangan aksentdan hisoblanadi (oltin — standart) */
+  --gold-1: color-mix(in srgb, var(--accent) 50%, #fff6dc);
+  --gold-2: var(--accent);
+  --gold-3: color-mix(in srgb, var(--accent) 72%, #000);
+  --gold-grad: linear-gradient(
+    135deg,
+    var(--gold-1) 0%,
+    var(--gold-2) 48%,
+    var(--gold-3) 100%
+  );
+  --gold-line: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--accent) 70%, transparent),
+    transparent
+  );
+  --adm-glow: color-mix(in srgb, var(--accent) 10%, transparent);
+  --adm-rise: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ---------- Ramka + sidebar ---------- */
+
+.admin-skin.app-frame {
+  background:
+    radial-gradient(
+      520px 380px at 0% 0%,
+      color-mix(in srgb, var(--accent) 13%, transparent),
+      transparent 62%
+    ),
+    radial-gradient(
+      420px 520px at 0% 100%,
+      color-mix(in srgb, var(--accent) 6%, transparent),
+      transparent 60%
+    ),
+    var(--frame);
+}
+.admin-skin .sidebar {
+  background: transparent;
+}
+.admin-skin .brand-mark {
+  position: relative;
+  overflow: hidden;
+  background: var(--gold-grad);
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 700;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.18),
+    0 8px 22px -8px color-mix(in srgb, var(--accent) 65%, transparent);
+}
+/* Belgi ustidan vaqti-vaqti bilan nur o'tadi */
+.admin-skin .brand-mark::after {
+  content: "";
+  position: absolute;
+  inset: -40% auto -40% -60%;
+  width: 45%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.75),
+    transparent
+  );
+  transform: skewX(-20deg);
+  animation: adm-glint 7s ease-in-out 1.2s infinite;
+}
+@keyframes adm-glint {
+  0%,
+  78% {
+    left: -60%;
+  }
+  92%,
+  100% {
+    left: 130%;
+  }
+}
+.admin-skin .brand-name {
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 600;
+}
+.admin-skin .brand-sub {
+  background: var(--gold-grad);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  letter-spacing: 0.22em;
+}
+
+/* Bo'lim nomi: o'ngga so'nib boruvchi ingichka chiziq */
+.admin-skin[data-nav="open"] .nav-section {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 10.5px;
+  letter-spacing: 0.16em;
+}
+.admin-skin[data-nav="open"] .nav-section::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, var(--frame-line), transparent);
+}
+
+.admin-skin .nav-item {
+  position: relative;
+  isolation: isolate;
+}
+.admin-skin .nav-item svg {
+  transition:
+    transform 260ms var(--adm-rise),
+    color 200ms var(--ease);
+}
+.admin-skin .nav-item:hover svg {
+  transform: translateX(2px) scale(1.06);
+  color: var(--gold-1);
+}
+.admin-skin .nav-item.active {
+  color: #fff;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--accent) 17%, transparent),
+    color-mix(in srgb, var(--accent) 4%, transparent) 65%,
+    transparent
+  );
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 16%, transparent);
+}
+/* Faol band: chapda nurli oltin "tayoqcha" */
+.admin-skin .nav-item.active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 9px;
+  bottom: 9px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--gold-grad);
+  box-shadow:
+    0 0 12px 1px color-mix(in srgb, var(--accent) 70%, transparent),
+    0 0 28px 2px color-mix(in srgb, var(--accent) 30%, transparent);
+  animation: adm-bar-in 420ms var(--adm-rise) both;
+}
+@keyframes adm-bar-in {
+  from {
+    transform: scaleY(0.2);
+    opacity: 0;
+  }
+}
+.admin-skin .nav-item.active svg {
+  color: var(--accent);
+  filter: drop-shadow(
+    0 0 6px color-mix(in srgb, var(--accent) 55%, transparent)
+  );
+}
+.admin-skin .sidebar-footer {
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.05),
+    rgba(255, 255, 255, 0.02)
+  );
+  box-shadow:
+    inset 0 0 0 1px var(--frame-line),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+/* ---------- Varaq: yuqorida nur + so'nuvchi nuqtali to'r ---------- */
+
+.admin-skin .sheet::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 520px;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      60% 70% at 85% -10%,
+      color-mix(in srgb, var(--accent) 11%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(
+        color-mix(in srgb, var(--text) 9%, transparent) 1px,
+        transparent 1.4px
+      )
+      0 0 / 22px 22px;
+  -webkit-mask-image: linear-gradient(180deg, #000, transparent 85%);
+  mask-image: linear-gradient(180deg, #000, transparent 85%);
+}
+.admin-skin .sheet-content {
+  position: relative;
+}
+.admin-skin .topbar {
+  background: color-mix(in srgb, var(--bg) 70%, transparent);
+  -webkit-backdrop-filter: blur(14px) saturate(1.3);
+  backdrop-filter: blur(14px) saturate(1.3);
+  border-bottom-color: transparent;
+}
+.admin-skin .topbar::after {
+  content: "";
+  position: absolute;
+  left: 28px;
+  right: 28px;
+  bottom: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    var(--border),
+    color-mix(in srgb, var(--accent) 45%, var(--border)) 50%,
+    var(--border)
+  );
+}
+.admin-skin .crumbs .current {
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+/* ---------- Sahifa sarlavhasi: qora "siyoh" banner (ikkala mavzuda) ---------- */
+
+.admin-skin .page-head {
+  /* Banner ichidagi tugma/belgi/input'lar qora fonga moslashadi */
+  --text: #f4f0e4;
+  --text-2: #cfc8b5;
+  --muted: #a39d8b;
+  --surface: rgba(255, 255, 255, 0.05);
+  --surface-2: rgba(255, 255, 255, 0.08);
+  --surface-3: rgba(255, 255, 255, 0.12);
+  --border: rgba(255, 255, 255, 0.11);
+  --border-strong: rgba(255, 255, 255, 0.22);
+  --hover: rgba(255, 255, 255, 0.09);
+  --bg: #0d1210;
+  --accent-ink: var(--accent);
+  --accent-soft: color-mix(in srgb, var(--accent) 16%, transparent);
+  --accent-softer: color-mix(in srgb, var(--accent) 8%, transparent);
+  /* Holat belgilari — yorug' mavzuda ham qorong'i variant (banner doim qora) */
+  --success: #4ade80;
+  --success-soft: #112a1b;
+  --warning: #fbbf24;
+  --warning-soft: #2b2210;
+  --danger: #ff6b5e;
+  --danger-soft: #341916;
+  --info: #7ea6ff;
+  --info-soft: #172341;
+  color: var(--text);
+  gap: 14px 22px;
+  margin-bottom: 24px;
+  padding: 26px 28px;
+  border: 0;
+  border-radius: var(--r-xl);
+  background:
+    radial-gradient(
+      90% 160% at 100% 0%,
+      color-mix(in srgb, var(--accent) 20%, transparent),
+      transparent 48%
+    ),
+    radial-gradient(
+      60% 120% at 0% 130%,
+      color-mix(in srgb, var(--accent) 9%, transparent),
+      transparent 55%
+    ),
+    linear-gradient(180deg, #131a17, #0a0e0c);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 26px 50px -30px rgba(9, 12, 10, 0.7);
+  animation: adm-rise 560ms var(--adm-rise) both;
+}
+/* Hoshiya: bo'ylab sekin aylanib yuradigan oltin nur */
+.admin-skin .page-head::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  pointer-events: none;
+  z-index: 1;
+  background: conic-gradient(
+    from var(--adm-angle),
+    rgba(255, 255, 255, 0.07) 0deg,
+    color-mix(in srgb, var(--gold-1) 90%, transparent) 40deg,
+    color-mix(in srgb, var(--accent) 35%, transparent) 80deg,
+    rgba(255, 255, 255, 0.07) 140deg,
+    rgba(255, 255, 255, 0.07) 360deg
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box exclude,
+    linear-gradient(#000 0 0);
+  animation: adm-orbit 9s linear infinite;
+}
+@keyframes adm-orbit {
+  to {
+    --adm-angle: 360deg;
+  }
+}
+/* O'ng tomonda: konsentrik oltin halqalar (ilgarigi qiya chiziqlar o'rniga) */
+.admin-skin .page-head::after {
+  inset: -80% -6% -80% auto;
+  width: 560px;
+  background:
+    repeating-radial-gradient(
+      circle at 78% 50%,
+      transparent 0 26px,
+      color-mix(in srgb, var(--accent) 11%, transparent) 26px 27px
+    ),
+    radial-gradient(
+      circle at 78% 50%,
+      color-mix(in srgb, var(--accent) 16%, transparent),
+      transparent 40%
+    );
+  -webkit-mask-image: radial-gradient(
+    circle at 78% 50%,
+    #000 8%,
+    transparent 62%
+  );
+  mask-image: radial-gradient(circle at 78% 50%, #000 8%, transparent 62%);
+}
+.admin-skin .page-title {
+  font-size: 30px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: #fbf7ec;
+}
+.admin-skin .page-title::after {
+  content: "";
+  display: block;
+  width: 44px;
+  height: 2px;
+  margin-top: 10px;
+  border-radius: 2px;
+  background: var(--gold-grad);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 55%, transparent);
+}
+.admin-skin .page-sub {
+  color: var(--text-2);
+  margin-top: 9px;
+}
+.admin-skin .page-icon {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  color: var(--gold-1);
+  background:
+    radial-gradient(
+      circle at 30% 20%,
+      color-mix(in srgb, var(--accent) 32%, transparent),
+      transparent 62%
+    ),
+    linear-gradient(160deg, #1d2420, #0c100e);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--accent) 32%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 0 36px -8px color-mix(in srgb, var(--accent) 50%, transparent);
+}
+.admin-skin .page-icon svg {
+  filter: drop-shadow(
+    0 0 8px color-mix(in srgb, var(--accent) 60%, transparent)
+  );
+}
+/* Banner ichidagi avatar (foydalanuvchi sahifasi) — oltin tanga */
+.admin-skin .page-head .avatar:not(.accent) {
+  background: var(--gold-grad);
+  color: var(--accent-contrast);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+.admin-skin .page-actions .btn:not(.primary) {
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+.admin-skin .page-actions .btn.primary {
+  background: var(--gold-grad);
+  border-color: transparent;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    0 10px 24px -10px color-mix(in srgb, var(--accent) 75%, transparent);
+}
+.admin-skin .page-actions .btn.primary:hover {
+  filter: brightness(1.06);
+}
+
+/* ---------- Stat plitkalar: har biri o'z rangida ----------
+   128: belgisiz, oddiy shakl. Rang `--tile` orqali (dashboard'da .c-* klasslari):
+   chapda rangli chiziq, yuqori burchakdan rangli yog'du, yorliq ham shu rangda. */
+
+.admin-skin .stat {
+  --tile: var(--accent);
+  overflow: hidden;
+  gap: 12px;
+  padding: 20px 22px 18px 24px;
+  border-radius: var(--r-lg);
+  border-color: color-mix(in srgb, var(--tile) 22%, var(--border));
+  background:
+    radial-gradient(
+      260px 160px at var(--mx, 100%) var(--my, 0%),
+      color-mix(in srgb, var(--tile) 16%, transparent),
+      transparent 70%
+    ),
+    linear-gradient(
+      150deg,
+      color-mix(in srgb, var(--tile) 9%, var(--surface)),
+      var(--surface) 60%
+    );
+  box-shadow: inset 4px 0 0 var(--tile);
+  animation: adm-rise 620ms var(--adm-rise) backwards;
+  transition:
+    transform 320ms var(--adm-rise),
+    border-color 200ms var(--ease),
+    box-shadow 260ms var(--ease);
+}
+.admin-skin a.stat:hover {
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--tile) 50%, var(--border));
+  box-shadow:
+    inset 4px 0 0 var(--tile),
+    0 16px 30px -18px color-mix(in srgb, var(--tile) 70%, transparent);
+}
+.admin-skin .stat.c-gold { --tile: var(--accent); }
+.admin-skin .stat.c-blue { --tile: #4f8cff; }
+.admin-skin .stat.c-violet { --tile: #9b7bff; }
+.admin-skin .stat.c-green { --tile: #2fbf71; }
+.admin-skin .stat.c-teal { --tile: #22b8b0; }
+.admin-skin .stat.c-orange { --tile: #f08a3c; }
+.admin-skin .stat.c-rose { --tile: #ec5f87; }
+.admin-skin .stat.c-sky { --tile: #38a9e8; }
+.admin-skin .stat:nth-child(2) {
+  animation-delay: 50ms;
+}
+.admin-skin .stat:nth-child(3) {
+  animation-delay: 100ms;
+}
+.admin-skin .stat:nth-child(4) {
+  animation-delay: 150ms;
+}
+.admin-skin .stat:nth-child(n + 5) {
+  animation-delay: 200ms;
+}
+.admin-skin .stat-label {
+  letter-spacing: 0.12em;
+  font-size: 10.5px;
+  color: color-mix(in srgb, var(--tile) 70%, var(--text));
+}
+.admin-skin .stat-value {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+@media (max-width: 2199.98px) {
+  .admin-skin .stat-value {
+    font-size: 40px;
+  }
+}
+.admin-skin .stat-foot {
+  gap: 6px;
+}
+
+/* Holatlar ulushi — segmentli chiziq */
+.adm-meter {
+  display: flex;
+  flex-basis: 100%;
+  gap: 3px;
+  height: 6px;
+  margin-bottom: 4px;
+}
+.adm-meter i {
+  flex: 1 1 0;
+  min-width: 6px;
+  border-radius: 3px;
+  background: var(--muted);
+  transform-origin: left;
+  animation: adm-meter 900ms var(--adm-rise) 350ms backwards;
+}
+.adm-meter i.success {
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--success) 70%, transparent),
+    var(--success)
+  );
+}
+.adm-meter i.warning {
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--warning) 70%, transparent),
+    var(--warning)
+  );
+}
+.adm-meter i.danger {
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--danger) 70%, transparent),
+    var(--danger)
+  );
+}
+.adm-meter i.info {
+  background: var(--info);
+}
+.adm-meter i.zero {
+  background: var(--surface-3);
+}
+@keyframes adm-meter {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+/* ---------- Karta ---------- */
+
+.admin-skin .card {
+  position: relative;
+  border-radius: var(--r-lg);
+  background:
+    radial-gradient(
+      420px 220px at var(--mx, 100%) var(--my, -30%),
+      color-mix(in srgb, var(--accent) 5%, transparent),
+      transparent 70%
+    ),
+    var(--surface);
+  animation: adm-rise 620ms var(--adm-rise) 120ms backwards;
+}
+.admin-skin .card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 24px;
+  right: 24px;
+  height: 1px;
+  background: var(--gold-line);
+  opacity: 0.35;
+  pointer-events: none;
+}
+.admin-skin .card-header {
+  padding: 18px 22px;
+  border-bottom-color: transparent;
+  background: linear-gradient(var(--border), var(--border)) bottom / 100% 1px
+    no-repeat;
+}
+.admin-skin .card-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.admin-skin .card-title::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  flex-shrink: 0;
+  transform: rotate(45deg);
+  border-radius: 1px;
+  background: var(--gold-grad);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 60%, transparent);
+}
+
+/* So'nggi amallar ro'yxati (dashboard) */
+.admin-skin .track-num {
+  font-family: var(--font-display);
+  color: var(--accent-ink);
+  background: var(--accent-softer);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+/* ---------- Jadval ---------- */
+
+.admin-skin .table-wrap {
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm);
+  --row-hover: color-mix(in srgb, var(--accent) 6%, var(--surface));
+  animation: adm-rise 620ms var(--adm-rise) 80ms backwards;
+}
+.admin-skin .table-wrap::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 24px;
+  right: 24px;
+  height: 1px;
+  z-index: 1;
+  background: var(--gold-line);
+  opacity: 0.45;
+  pointer-events: none;
+}
+.admin-skin .card .table-wrap {
+  box-shadow: none;
+  animation: none;
+}
+.admin-skin .card .table-wrap::before {
+  display: none;
+}
+.admin-skin .table th {
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  padding-block: 15px;
+  background: color-mix(in srgb, var(--surface-2) 55%, transparent);
+}
+.admin-skin .table tbody tr:hover td {
+  background: var(--row-hover);
+}
+/* 128: har qatorning chapida rangli yon chiziq — qatordagi holat rangida (holat bo'lmasa — aksent).
+   Qator ustiga kelganda chiziq qalinlashadi. */
+.admin-skin .table tbody tr {
+  --side: color-mix(in srgb, var(--accent) 70%, transparent);
+}
+.admin-skin .table tbody tr:has(.chip.success) {
+  --side: var(--success);
+}
+.admin-skin .table tbody tr:has(.chip.warning) {
+  --side: var(--warning);
+}
+.admin-skin .table tbody tr:has(.chip.danger) {
+  --side: var(--danger);
+}
+.admin-skin .table tbody tr:has(.chip.info) {
+  --side: var(--info);
+}
+.admin-skin .table tbody tr td:first-child {
+  box-shadow: inset 3px 0 0 var(--side);
+  transition:
+    background 140ms var(--ease),
+    box-shadow 200ms var(--ease);
+}
+.admin-skin .table tbody tr:hover td:first-child {
+  box-shadow: inset 5px 0 0 var(--side);
+}
+.admin-skin .table tbody tr td.empty-cell {
+  box-shadow: none;
+}
+.admin-skin .table td.empty-cell {
+  padding-block: 56px;
+  font-family: var(--font-display);
+  font-size: 16px;
+}
+
+/* Filtr paneli: shisha, fokusda oltin hoshiya */
+.admin-skin .table-toolbar {
+  border-radius: var(--r-lg);
+  background: color-mix(in srgb, var(--surface) 78%, transparent);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  box-shadow: var(--shadow-sm);
+  transition:
+    border-color 200ms var(--ease),
+    box-shadow 200ms var(--ease);
+  animation: adm-rise 620ms var(--adm-rise) 40ms backwards;
+}
+.admin-skin .table-toolbar:focus-within {
+  border-color: var(--accent-border);
+  box-shadow: 0 0 0 4px var(--accent-softer);
+}
+
+/* Asosiy tugma (varaq ichida ham): oltin gradient */
+.admin-skin .sheet-content .btn.primary {
+  background: var(--gold-grad);
+  border-color: transparent;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    0 8px 20px -12px color-mix(in srgb, var(--accent) 80%, transparent);
+}
+.admin-skin .sheet-content .btn.primary:hover:not(:disabled) {
+  filter: brightness(1.06);
+}
+
+@keyframes adm-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+/* ---------- Dashboard: "yilning kuni" halqasi (sarlavha bannerida) ---------- */
+
+.adm-year {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 8px 18px 8px 8px;
+  border-radius: var(--r-full);
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+.adm-year-ring {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  flex-shrink: 0;
+}
+.adm-year-ring svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+  overflow: visible;
+}
+.adm-year-ring .track {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.09);
+  stroke-width: 5;
+}
+.adm-year-ring .fill {
+  fill: none;
+  stroke: url(#adm-year-grad);
+  stroke-width: 5;
+  stroke-linecap: round;
+  filter: drop-shadow(
+    0 0 4px color-mix(in srgb, var(--accent) 60%, transparent)
+  );
+  animation: adm-ring 1400ms var(--adm-rise) 200ms backwards;
+}
+@keyframes adm-ring {
+  from {
+    stroke-dashoffset: var(--adm-len);
+  }
+}
+.adm-year-ring b {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--gold-1);
+}
+.adm-year-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+.adm-year-text .big {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 600;
+  color: #fbf7ec;
+}
+.adm-year-text .big span {
+  color: var(--muted);
+  font-size: 15px;
+}
+.adm-year-text .sub {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* ---------- 126: Dashboard tartibi ---------- */
+
+.adm-dash-grid {
+  display: grid;
+  gap: 16px;
+  align-items: start;
+}
+@media (min-width: 1100px) {
+  .adm-dash-grid {
+    grid-template-columns: minmax(0, 1.7fr) minmax(300px, 1fr);
+  }
+}
+.adm-dash-side {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
+/* ---------- Vaqt chizig'i (so'nggi amallar) ---------- */
+
+.adm-tl {
+  position: relative;
+  margin: 0;
+  padding: 8px 22px 20px;
+  list-style: none;
+}
+/* Oltin o'q: yuqorida yorqin, pastga so'nadi */
+.adm-tl::before {
+  content: "";
+  position: absolute;
+  left: 39px;
+  top: 22px;
+  bottom: 28px;
+  width: 2px;
+  border-radius: 2px;
+  background: linear-gradient(
+    180deg,
+    var(--gold-1),
+    color-mix(in srgb, var(--accent) 45%, transparent) 45%,
+    color-mix(in srgb, var(--accent) 6%, transparent)
+  );
+}
+.adm-tl-day {
+  position: relative;
+  padding: 12px 0 4px;
+}
+.adm-tl-day span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px 4px 10px;
+  border-radius: var(--r-full);
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent-ink);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent);
+}
+.adm-tl-day span::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--gold-grad);
+  box-shadow: 0 0 8px var(--accent);
+}
+.adm-tl-item {
+  --tl: var(--accent);
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  min-height: 62px;
+  padding: 7px 16px 7px 0;
+  animation: adm-tl-in 560ms var(--adm-rise) backwards;
+}
+.adm-tl-item[data-tone="success"] {
+  --tl: var(--success);
+}
+.adm-tl-item[data-tone="danger"] {
+  --tl: var(--danger);
+}
+.adm-tl-item[data-tone="warning"] {
+  --tl: var(--warning);
+}
+/* Pufakcha: tugun tomonga qaragan uchburchak bilan */
+.adm-tl-item::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  left: 50px;
+  right: 0;
+  top: 4px;
+  bottom: 4px;
+  border-radius: 14px;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--tl) 7%, var(--surface-2)),
+    color-mix(in srgb, var(--surface-2) 55%, transparent)
+  );
+  box-shadow: inset 0 0 0 1px var(--border);
+  transition:
+    box-shadow 220ms var(--ease),
+    transform 320ms var(--adm-rise);
+}
+.adm-tl-item::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  left: 45px;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  margin-top: -5px;
+  transform: rotate(45deg);
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--tl) 7%, var(--surface-2));
+  box-shadow: inset 1px -1px 0 0 var(--border);
+  clip-path: polygon(0 0, 0 100%, 100% 100%);
+  transition: transform 320ms var(--adm-rise);
+}
+.adm-tl-item:hover::after {
+  transform: translateX(4px);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tl) 45%, var(--border));
+}
+.adm-tl-item:hover::before {
+  transform: translateX(4px) rotate(45deg);
+}
+/* Tugun: olmos shakl, ichida amal belgisi */
+.adm-tl-node {
+  justify-self: center;
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  transform: rotate(45deg);
+  color: var(--tl);
+  background: color-mix(in srgb, var(--tl) 14%, var(--surface));
+  box-shadow:
+    0 0 0 4px var(--surface),
+    inset 0 0 0 1px color-mix(in srgb, var(--tl) 55%, transparent),
+    0 0 18px -2px color-mix(in srgb, var(--tl) 45%, transparent);
+  transition: transform 420ms var(--adm-rise);
+}
+.adm-tl-node svg {
+  transform: rotate(-45deg);
+}
+.adm-tl-item:hover .adm-tl-node {
+  transform: rotate(135deg) scale(1.08);
+}
+.adm-tl-item:hover .adm-tl-node svg {
+  transform: rotate(-135deg);
+}
+/* Eng so'nggi amal — tugun atrofida to'lqin */
+.adm-tl-day:first-child + .adm-tl-item .adm-tl-node::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  box-shadow: 0 0 0 1px var(--tl);
+  animation: adm-ping 2.4s var(--ease) infinite;
+}
+@keyframes adm-ping {
+  0% {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+  70%,
+  100% {
+    transform: scale(1.9);
+    opacity: 0;
+  }
+}
+.adm-tl-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding-left: 14px;
+}
+.adm-tl-title {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.adm-tl-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: 12px;
+}
+.adm-tl-tag {
+  padding: 1px 8px;
+  border-radius: 6px;
+  font-weight: 700;
+  color: var(--text-2);
+  background: var(--surface-3);
+  white-space: nowrap;
+}
+.adm-tl-id {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  color: var(--muted);
+}
+.adm-tl-time {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+@keyframes adm-tl-in {
+  from {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+}
+
+/* ---------- Tezkor o'tish: kitob javoni ---------- */
+
+.adm-shelf {
+  padding: 22px 22px 20px;
+}
+.adm-shelf-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 5px;
+  height: 196px;
+  padding: 0 10px;
+}
+.adm-spine {
+  --ink: #2a1d07;
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 46px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 0 18px;
+  border-radius: 5px 5px 2px 2px;
+  color: var(--ink);
+  text-decoration: none;
+  background: var(--gold-grad);
+  box-shadow:
+    inset 3px 0 0 rgba(255, 255, 255, 0.28),
+    inset -4px 0 0 rgba(0, 0, 0, 0.18),
+    0 -1px 0 rgba(255, 255, 255, 0.1);
+  transform-origin: bottom center;
+  animation: adm-spine-in 700ms var(--adm-rise) backwards;
+  transition:
+    transform 380ms var(--adm-rise),
+    filter 220ms var(--ease);
+}
+.adm-spine[data-tone="1"] {
+  --ink: var(--gold-1);
+  background: linear-gradient(90deg, #1d2a24, #121a16 60%, #0c120f);
+}
+.adm-spine[data-tone="2"] {
+  --ink: #3b2b10;
+  background: linear-gradient(90deg, #f3ead2, #e6d8b4 60%, #d6c599);
+}
+.adm-spine[data-tone="3"] {
+  --ink: #f6dfa6;
+  background: linear-gradient(90deg, #6e2f2a, #55211d 60%, #3f1714);
+}
+/* Umurtqadagi oltin bezak chiziqlari (tepa va past) */
+.adm-spine::before,
+.adm-spine::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 7px;
+  border-block: 1.5px solid color-mix(in srgb, var(--ink) 60%, transparent);
+  opacity: 0.75;
+}
+.adm-spine::before {
+  top: 8px;
+}
+.adm-spine::after {
+  bottom: 8px;
+}
+.adm-spine-cap {
+  display: grid;
+  place-items: center;
+  margin-top: 6px;
+  flex-shrink: 0;
+}
+.adm-spine-title {
+  flex: 1;
+  min-height: 0;
+  writing-mode: vertical-rl;
+  font-family: var(--font-display);
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.adm-spine:hover,
+.adm-spine:focus-visible {
+  transform: translateY(-14px);
+  filter: brightness(1.08) drop-shadow(0 12px 12px rgba(0, 0, 0, 0.3));
+}
+.adm-spine:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.adm-spine-badge {
+  position: absolute;
+  top: -9px;
+  right: -7px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-full);
+  font-size: 11px;
+  font-weight: 800;
+  color: #fff;
+  background: var(--danger);
+  box-shadow: 0 0 0 3px var(--surface);
+}
+/* Kitob tirgovuch */
+.adm-bookend {
+  align-self: flex-end;
+  width: 22px;
+  height: 58px;
+  margin-left: 4px;
+  border-radius: 3px 3px 0 0;
+  background:
+    linear-gradient(var(--gold-2), var(--gold-3)) left bottom / 5px 100%
+      no-repeat,
+    linear-gradient(var(--gold-2), var(--gold-3)) left bottom / 100% 5px
+      no-repeat;
+  filter: drop-shadow(
+    0 0 6px color-mix(in srgb, var(--accent) 40%, transparent)
+  );
+}
+.adm-shelf-board {
+  display: block;
+  height: 11px;
+  border-radius: 3px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.28), transparent 35%),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--accent) 55%, #6a4a1c),
+      color-mix(in srgb, var(--accent) 25%, #2b1d0b)
+    );
+  box-shadow: 0 12px 18px -8px rgba(0, 0, 0, 0.55);
+}
+@keyframes adm-spine-in {
+  from {
+    opacity: 0;
+    transform: translateY(26px);
+  }
+}
+
+/* ---------- Rollar: yarim halqa ---------- */
+
+.adm-roles {
+  display: grid;
+  gap: 16px;
+  padding: 20px 22px 22px;
+}
+.adm-roles-arc {
+  position: relative;
+  width: 100%;
+  max-width: 260px;
+  margin: 0 auto;
+}
+.adm-roles-arc svg {
+  display: block;
+  width: 100%;
+  overflow: visible;
+}
+.adm-roles-arc path {
+  fill: none;
+}
+.adm-roles-arc .ticks {
+  stroke: color-mix(in srgb, var(--accent) 55%, transparent);
+  stroke-width: 3;
+  stroke-dasharray: 1 7;
+}
+.adm-roles-arc .track {
+  stroke: var(--surface-3);
+  stroke-width: 16;
+}
+.adm-roles-arc .seg {
+  stroke-width: 16;
+  animation: adm-arc 1200ms var(--adm-rise) backwards;
+}
+@keyframes adm-arc {
+  from {
+    stroke-dasharray: 0 999;
+  }
+}
+.adm-roles .s0 {
+  stroke: var(--gold-2);
+  background: var(--gold-2);
+}
+.adm-roles .s1 {
+  stroke: color-mix(in srgb, var(--text) 55%, transparent);
+  background: color-mix(in srgb, var(--text) 55%, transparent);
+}
+.adm-roles .s2 {
+  stroke: var(--gold-1);
+  background: var(--gold-1);
+}
+.adm-roles .s3 {
+  stroke: var(--info);
+  background: var(--info);
+}
+.adm-roles-total {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1;
+}
+.adm-roles-total b {
+  font-family: var(--font-display);
+  font-size: 34px;
+  font-weight: 600;
+  color: var(--text);
+}
+.adm-roles-total span {
+  margin-top: 4px;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.adm-roles-legend {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.adm-roles-legend li {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr) auto 44px;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 13px;
+  background: var(--surface-2);
+}
+.adm-roles-legend i {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  transform: rotate(45deg);
+}
+.adm-roles-legend span {
+  font-weight: 700;
+  color: var(--text-2);
+}
+.adm-roles-legend b {
+  font-family: var(--font-display);
+  font-size: 16px;
+}
+.adm-roles-legend em {
+  font-style: normal;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  text-align: right;
+}
+
+/* ---------- Sahifa belgisi: oltin hoshiyali olti burchak ---------- */
+
+.admin-skin .page-icon {
+  --hex: polygon(25% 3%, 75% 3%, 100% 50%, 75% 97%, 25% 97%, 0 50%);
+  isolation: isolate;
+  width: 70px;
+  height: 64px;
+  border-radius: 0;
+  background: var(--gold-grad);
+  clip-path: var(--hex);
+  box-shadow: none;
+}
+.admin-skin .page-icon::before {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  z-index: -1;
+  clip-path: var(--hex);
+  background:
+    radial-gradient(
+      circle at 30% 20%,
+      color-mix(in srgb, var(--accent) 34%, transparent),
+      transparent 62%
+    ),
+    linear-gradient(160deg, #1d2420, #0c100e);
+}
+.admin-skin .page-icon:has(.avatar) {
+  background: none;
+  clip-path: none;
+}
+.admin-skin .page-icon:has(.avatar)::before {
+  display: none;
+}
+
+/* ---------- Mayda detallar ---------- */
+
+/* Kutilayotgan holat nuqtasi — sekin "nafas oladi" */
+.admin-skin .chip.warning .chip-dot {
+  animation: adm-breathe 1.8s ease-in-out infinite;
+}
+@keyframes adm-breathe {
+  50% {
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--warning) 25%, transparent);
+  }
+}
+/* Sahifalash: sahifa raqami — oltin "yorliq" */
+.admin-skin .pager .num {
+  padding: 5px 14px;
+  border-radius: var(--r-full);
+  font-family: var(--font-display);
+  font-size: 14px;
+  color: var(--accent-ink);
+  background: var(--accent-softer);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+/* ---------- Mobil ---------- */
+
+@media (max-width: 640px) {
+  .admin-skin .page-head {
+    padding: 20px;
+  }
+  .admin-skin .page-title {
+    font-size: 24px;
+  }
+  .admin-skin .page-icon {
+    width: 58px;
+    height: 52px;
+  }
+  .adm-tl {
+    padding-inline: 14px;
+  }
+  .adm-tl::before {
+    left: 31px;
+  }
+  .adm-tl-id {
+    display: none;
+  }
+  .adm-year {
+    padding-right: 14px;
+  }
+  .adm-year-ring {
+    width: 52px;
+    height: 52px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-skin .brand-mark::after,
+  .admin-skin .page-head,
+  .admin-skin .page-head::before,
+  .admin-skin .nav-item.active::before,
+  .admin-skin .stat,
+  .admin-skin .card,
+  .admin-skin .table-wrap,
+  .admin-skin .table-toolbar,
+  .adm-year-ring .fill,
+  .adm-meter i,
+  .adm-tl-item,
+  .adm-tl-node::after,
+  .adm-spine,
+  .adm-roles-arc .seg,
+  .admin-skin .chip.warning .chip-dot {
+    animation: none;
+  }
+  .adm-spine:hover,
+  .adm-tl-item:hover::after,
+  .adm-tl-item:hover .adm-tl-node {
+    transform: rotate(45deg);
+  }
+  .adm-tl-item:hover .adm-tl-node svg {
+    transform: rotate(-45deg);
+  }
+  .admin-skin a.stat:hover,
+  .admin-skin .nav-item:hover svg {
+    transform: none;
+  }
+}

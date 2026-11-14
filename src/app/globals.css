@@ -3,6 +3,8 @@
 @import "./design.css" layer(components);
 /* Mijoz tomoni qobig'i (16): fon, header, sidebar, katalog hero, kartalar — src/app/client.css */
 @import "./client.css" layer(components);
+/* 125: admin "oltin tahririyat" qatlami — faqat `.admin-skin` ichida — src/app/admin.css */
+@import "./admin.css" layer(components);
 
 @custom-variant dark (&:where(.dark, .dark *));
 

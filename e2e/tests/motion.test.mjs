@@ -49,6 +49,10 @@ const radii = (page) =>
   await page.evaluate(() => {
     document.querySelector('[data-testid="page-enter"]').dataset.old = "1";
     document.querySelector(".client-sidebar")?.setAttribute("data-keep", "1");
+    // 126: faol band foni (`.side-glide`) eski banddan yangisiga oqib o'tadimi — animate() chaqiruvini belgilaymiz
+    const g = document.querySelector(".side-glide");
+    const orig = g.animate.bind(g);
+    g.animate = (...a) => ((g.dataset.glided = "1"), orig(...a));
   });
   await page.click('.client-side-nav a[href="/vocabulary"]');
   await page.waitForURL(`${BASE}/vocabulary`, { timeout: 15000 });
@@ -56,9 +60,17 @@ const radii = (page) =>
   const after = await page.evaluate(() => ({
     anim: getComputedStyle(document.querySelector('[data-testid="page-enter"]')).animationName,
     sidebarKept: document.querySelector(".client-sidebar")?.getAttribute("data-keep") === "1",
-    indicator: getComputedStyle(document.querySelector(".side-link.active"), "::before").animationName,
   }));
-  check("Menyu havolasi → yangi kontent animatsiya bilan, sidebar joyida (qayta yaratilmadi), faol belgi o'sadi", after.anim === "page-enter" && after.sidebarKept && after.indicator === "side-indicator", JSON.stringify(after));
+  check("Menyu havolasi → yangi kontent animatsiya bilan, sidebar joyida (qayta yaratilmadi)", after.anim === "page-enter" && after.sidebarKept, JSON.stringify(after));
+  await page.waitForTimeout(900);
+  const glide = await page.evaluate(() => {
+    const g = document.querySelector(".side-glide");
+    const a = document.querySelector(".side-link.active");
+    const gr = g.getBoundingClientRect();
+    const ar = a.getBoundingClientRect();
+    return { glided: g.dataset.glided === "1", dy: Math.round(gr.top - ar.top), dh: Math.round(gr.height - ar.height), opacity: getComputedStyle(g).opacity, ownBg: getComputedStyle(a).backgroundImage + "|" + getComputedStyle(a).backgroundColor };
+  });
+  check("Faol band foni yangi bandga oqib o'tdi va aynan uning ustida to'xtadi", glide.glided && glide.dy === 0 && glide.dh === 0 && glide.opacity === "1" && glide.ownBg === "none|rgba(0, 0, 0, 0)", JSON.stringify(glide));
   const press = await page.evaluate(() => {
     // design.css `@import … layer(components)` — qoidalar @layer ichida: rekursiv yig'iladi
     const flat = (rules) => [...rules].flatMap((r) => (r.cssRules ? [r, ...flat(r.cssRules)] : [r]));

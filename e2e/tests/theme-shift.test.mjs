@@ -33,7 +33,7 @@ for (const [W, who] of [[1440, "user"], [390, "user"], [1440, "guest"], [390, "g
         };
         for (const root of document.querySelectorAll("main, header, aside")) {
           root.querySelectorAll("*").forEach((el) => {
-            if (el.closest("svg, .bb-stage, .globe-orbit, .aurora, .rev-chart, .reader-page, .podium-person")) return;
+            if (el.closest("svg, .bb-stage, .globe-orbit, .aurora, .cover-wall, .rev-chart, .reader-page, .podium-person")) return;
             const r = el.getBoundingClientRect();
             if (r.width && r.height) out[key(el)] = [Math.round(r.top + scrollY), Math.round(r.height), Math.round(r.left), Math.round(r.width)].join();
           });
