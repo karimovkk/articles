@@ -217,7 +217,15 @@ await page.goto(`${BASE}/admin`);
 await page.waitForSelector("text=Faol sessiyalar", { timeout: 8000 });
 check("Dashboard: /admin/stats — maqolalar, faol sessiyalar, belgilar plitkalari", (await has("Maqolalar")) && (await has("Belgilar va izohlar")));
 check("Dashboard: holat taqsimoti (Faol: 31, Tayyor: 5, Tayyorlanmoqda: 1) — xom kodlarsiz", (await has("Faol: 31")) && (await has("Tayyor: 5")) && (await has("Tayyorlanmoqda: 1")));
-check("Dashboard: rollar so'z bilan (O'quvchi 2 · Administrator 1)", await has("O'quvchi 2 · Administrator 1"));
+// Rollar RoleArc vidjeti legendasida: har qatorda nom, son va foiz (xom kodlarsiz)
+const roleRows = await page.$$eval('[data-testid="admin-roles"] .adm-roles-legend li', (lis) =>
+  lis.map((li) => [li.querySelector("span")?.textContent?.trim(), li.querySelector("b")?.textContent?.trim()].join(" ")),
+);
+check(
+  "Dashboard: rollar so'z bilan (O'quvchi 2 · Administrator 1)",
+  roleRows.includes("O'quvchi 2") && roleRows.includes("Administrator 1") && !roleRows.some((r) => /USER|ADMIN/.test(r)),
+  JSON.stringify(roleRows),
+);
 check("Dashboard: fallback ogohlantirishi yo'q", !(await page.evaluate(() => document.body.innerText.includes("mavjud emas"))));
 await page.screenshot({ path: OUT + "32-admin-stats.png" });
 
