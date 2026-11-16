@@ -20,7 +20,9 @@
   /* Aksent — marigold */
   --accent: #f2b705;
   --accent-contrast: #14110a;
-  --accent-ink: #8a6400;
+  /* 125: #8a6400 → #6b4d00 — sariq yumshoq fon (chip, aktiv kategoriya) fon rasmi ustida ~3.6:1 edi, matn
+     o'qilmay qolardi; endi barcha sahifalarda ≥ 4.5:1 */
+  --accent-ink: #6b4d00;
   --accent-soft: color-mix(in srgb, var(--accent) 22%, transparent);
   --accent-softer: color-mix(in srgb, var(--accent) 11%, transparent);
   --accent-border: color-mix(in srgb, var(--accent-ink) 45%, transparent);
@@ -577,8 +579,12 @@ h3 {
   color: var(--info);
 }
 .chip.accent {
-  background: var(--accent-soft);
+  /* Shaffof emas: ilova foni (rasm/gradient) ustida ham matn o'qiladigan bo'lib qoladi */
+  background: color-mix(in srgb, var(--accent) 22%, var(--surface));
   color: var(--accent-ink);
+}
+.dark .chip.accent {
+  background: color-mix(in srgb, var(--accent) 16%, var(--surface));
 }
 .chip.solid {
   background: var(--accent);
