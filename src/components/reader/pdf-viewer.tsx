@@ -8,8 +8,6 @@
  *    `FlipStage`: 3D varaq animatsiyasi, sichqoncha bilan sudrab varaqlash, chekka zonalar, swipe);
  *    "spread" — kitob: ikki sahifa yonma-yon, 180° varaqlash (`SpreadStage`); tor ekranda "page" ga tushadi.
  *  - Sahifalar IntersectionObserver bilan faqat ko'rinish yaqinida render qilinadi.
- *  - Sahifalar keshi (`PageCache`): oldingi, joriy va keyingi sahifa xotirada tayyor turadi — varaqlanganda darhol
- *    ko'rinadi; yuklash tartibi: avval joriy, keyin yurish yo'nalishidagi qo'shni (ochilganda — oldingi, so'ng keyingi).
  *  - Har sahifada matn qatlami (tanlash, highlight) va highlight overlay qatlami.
  *  - Nusxalash cheklovi (S-41): copy/cut/drag hodisalari bloklanadi; tanlash
  *    highlight uchun ochiq qoladi.
@@ -17,12 +15,11 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { PDFDocumentProxy, PDFPageProxy, RenderTask } from "pdfjs-dist";
 import { loadPdfJs, openProtectedPdf } from "@/lib/reader/range-transport";
-import { PageCache } from "@/lib/reader/page-cache";
 import { getHighlightRects, normalizeColor, rectsFromClientRects, type HighlightRect } from "@/lib/reader/highlights";
 import { rangeContext } from "@/lib/reader/context";
 import { drawCurl, edgeTable, progressForEdge } from "@/lib/reader/page-curl";
 import { findTextRects } from "@/lib/reader/find-text";
-import { SpreadStage, lastOf, leftOf, rightOf, spreadOf } from "./spread-stage";
+import { SpreadStage, lastOf, leftOf, spreadOf } from "./spread-stage";
 import type { Annotation } from "@/lib/api";
 import { Spinner } from "@/components/ui";
 import { useT } from "@/i18n";
@@ -119,9 +116,6 @@ export const PdfViewer = forwardRef<PdfViewerHandle, PdfViewerProps>(function Pd
   const { t } = useT();
   const containerRef = useRef<HTMLDivElement>(null);
   const docRef = useRef<PDFDocumentProxy | null>(null);
-  const cacheRef = useRef<PageCache | null>(null);
-  /** Kesh canvas'lari shu parametrlarda chiziladi (o'zgarsa — qayta chiziladi) */
-  const specRef = useRef<{ scale: number; watermark: string | null }>({ scale: 1, watermark: null });
   const destroyRef = useRef<(() => void) | null>(null);
   const [pageCount, setPageCount] = useState(0);
   const [baseWidth, setBaseWidth] = useState(0); // scale=1 dagi sahifa kengligi (pt)
@@ -146,12 +140,7 @@ export const PdfViewer = forwardRef<PdfViewerHandle, PdfViewerProps>(function Pd
         }
         docRef.current = doc;
         destroyRef.current = destroy;
-        cacheRef.current = new PageCache(
-          (n, canvas) => paintPage(doc, n, canvas, specRef.current.scale, specRef.current.watermark),
-          () => `${specRef.current.scale}|${specRef.current.watermark ?? ""}`,
-        );
-        // O'lcham saqlangan joydagi (o'quvchi ochadigan) sahifadan — birinchi bo'laklar aynan shu sahifa uchun keladi
-        const first = await doc.getPage(Math.min(Math.max(1, initialPage), doc.numPages));
+        const first = await doc.getPage(1);
         const vp = first.getViewport({ scale: 1 });
         setBaseWidth(vp.width);
         setAspect(vp.height / vp.width);
@@ -164,8 +153,6 @@ export const PdfViewer = forwardRef<PdfViewerHandle, PdfViewerProps>(function Pd
       });
     return () => {
       cancelled = true;
-      cacheRef.current?.destroy();
-      cacheRef.current = null;
       destroyRef.current?.();
       destroyRef.current = null;
       docRef.current = null;
@@ -830,34 +817,6 @@ export const PdfViewer = forwardRef<PdfViewerHandle, PdfViewerProps>(function Pd
   // Progress'dagi sahifa hujjatdan katta bo'lsa (fayl almashtirilgan) — oxirgi sahifa
   const shownPage = Math.min(pageNo, pageCount || pageNo);
 
-  // ---- Sahifalar keshi: chizish parametrlari (bolalar effektlaridan oldin — `useLayoutEffect`)
-  useLayoutEffect(() => {
-    specRef.current = { scale, watermark: watermarkText ?? null };
-  }, [scale, watermarkText]);
-
-  // ---- Sirpanuvchi oyna: oldingi / joriy / keyingi sahifa (kitob rejimida — juftlar) xotirada tayyor turadi.
-  // Oldinga yurilsa: oldingisi tashlanadi, keyingisi yuklanadi; ochilganda yoki sakralganda: joriy → oldingi → keyingi.
-  const lastFocus = useRef<{ unit: number; mode: ViewMode; key: string } | null>(null);
-  useEffect(() => {
-    const cache = cacheRef.current;
-    if (!cache || !pageCount) return;
-    const spread = mode === "spread";
-    const unit = spread ? spreadOf(shownPage, pageCount) : shownPage;
-    const units = spread ? Math.ceil(pageCount / 2) : pageCount;
-    const key = `${scale}|${watermarkText ?? ""}`;
-    const prev = lastFocus.current;
-    const step = prev && prev.mode === mode && prev.key === key ? unit - prev.unit : 0;
-    lastFocus.current = { unit, mode, key };
-    const pagesOf = (u: number): number[] => {
-      if (u < 1 || u > units) return [];
-      if (!spread) return [u];
-      const r = rightOf(u, pageCount);
-      return r ? [leftOf(u), r] : [leftOf(u)];
-    };
-    const ahead = step === 1 ? [unit + 1, unit - 1] : [unit - 1, unit + 1];
-    cache.focus([unit, ...ahead].flatMap(pagesOf));
-  }, [shownPage, pageCount, mode, scale, watermarkText]);
-
   return (
     <div
       data-pdf-root
@@ -887,7 +846,6 @@ export const PdfViewer = forwardRef<PdfViewerHandle, PdfViewerProps>(function Pd
                   key={i + 1}
                   pageNumber={i + 1}
                   docRef={docRef}
-                  cacheRef={cacheRef}
                   scale={scale}
                   width={pageWidth}
                   height={pageHeight}
@@ -920,7 +878,6 @@ export const PdfViewer = forwardRef<PdfViewerHandle, PdfViewerProps>(function Pd
                 <PdfPage
                   pageNumber={n}
                   docRef={docRef}
-                  cacheRef={cacheRef}
                   scale={scale}
                   width={pageWidth}
                   height={pageHeight}
@@ -953,7 +910,6 @@ export const PdfViewer = forwardRef<PdfViewerHandle, PdfViewerProps>(function Pd
                 <PdfPage
                   pageNumber={n}
                   docRef={docRef}
-                  cacheRef={cacheRef}
                   scale={scale}
                   width={pageWidth}
                   height={pageHeight}
@@ -1305,7 +1261,6 @@ function PageNavButton({ side, disabled, onClick, label }: { side: "left" | "rig
 function PdfPage({
   pageNumber,
   docRef,
-  cacheRef,
   scale,
   width,
   height,
@@ -1324,7 +1279,6 @@ function PdfPage({
 }: {
   pageNumber: number;
   docRef: React.RefObject<PDFDocumentProxy | null>;
-  cacheRef: React.RefObject<PageCache | null>;
   scale: number;
   width: number;
   height: number;
@@ -1349,7 +1303,7 @@ function PdfPage({
   label: string;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
-  const canvasRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const textRef = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
   const [rendered, setRendered] = useState(false);
@@ -1370,34 +1324,43 @@ function PdfPage({
   }, []);
 
   useEffect(() => {
-    const host = canvasRef.current;
-    const textDiv = textRef.current;
     if (!visible) {
-      // Uzoq sahifalar ekrandan olinadi (canvas — kesh oynasida bo'lsa xotirada qoladi, bo'lmasa bo'shatiladi)
-      host?.replaceChildren();
-      textDiv?.replaceChildren();
+      // Uzoq sahifalar xotiradan bo'shatiladi
+      const c = canvasRef.current;
+      if (c) {
+        c.width = 0;
+        c.height = 0;
+      }
+      if (textRef.current) textRef.current.replaceChildren();
       return;
     }
     const doc = docRef.current;
-    const cache = cacheRef.current;
-    if (!doc || !cache || !host || !textDiv) return;
+    const canvas = canvasRef.current;
+    const textDiv = textRef.current;
+    if (!doc || !canvas || !textDiv) return;
 
     let cancelled = false;
+    let task: RenderTask | null = null;
     let page: PDFPageProxy | null = null;
-    cache.acquire(pageNumber);
-
-    // Keshda tayyor bo'lsa — shu zahoti (bo'sh kadrsiz) qo'yiladi; bo'lmasa navbatda (joriy sahifa birinchi) chiziladi
-    const ready = cache.peek(pageNumber);
-    if (ready) host.replaceChildren(ready);
 
     (async () => {
-      const canvas = ready ?? (await cache.ensure(pageNumber));
-      if (cancelled) return;
-      if (canvas.parentNode !== host) host.replaceChildren(canvas);
       const pdfjs = await loadPdfJs();
       page = await doc.getPage(pageNumber);
       if (cancelled) return;
       const viewport = page.getViewport({ scale });
+      const dpr = canvasRatio(viewport.width, viewport.height);
+      canvas.width = Math.floor(viewport.width * dpr);
+      canvas.height = Math.floor(viewport.height * dpr);
+      canvas.style.width = `${Math.floor(viewport.width)}px`;
+      canvas.style.height = `${Math.floor(viewport.height)}px`;
+      task = page.render({ canvas, viewport, transform: dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] : undefined });
+      await task.promise;
+      if (cancelled) return;
+      // 22.3: suv belgisi sahifa piksellariga chiziladi — ekran suratida ham qoladi,
+      // DOM'dan o'chirib tashlab bo'lmaydi
+      if (watermarkText) drawWatermark(canvas, watermarkText, dpr);
+      // 98: suv belgisi faqat shu yerda (sahifa bilan birga suriladi) — belgi e2e uchun
+      canvas.toggleAttribute("data-wm", !!watermarkText);
       textDiv.replaceChildren();
       // pdfjs-dist 6: matn qatlami o'lchamlari shu o'zgaruvchidan hisoblanadi (bo'lmasa matn canvas bilan mos kelmaydi)
       textDiv.style.setProperty("--total-scale-factor", String(viewport.scale));
@@ -1408,16 +1371,15 @@ function PdfPage({
       await textLayer.render();
       if (!cancelled) setRendered(true);
     })().catch((e: unknown) => {
-      const name = (e as { name?: string })?.name;
-      if (name !== "RenderingCancelledException" && name !== "AbortError") console.error(`[reader] page ${pageNumber}`, e);
+      if ((e as { name?: string })?.name !== "RenderingCancelledException") console.error(`[reader] page ${pageNumber}`, e);
     });
 
     return () => {
       cancelled = true;
-      cache.release(pageNumber);
+      task?.cancel();
       page?.cleanup();
     };
-  }, [visible, docRef, cacheRef, pageNumber, scale, watermarkText]);
+  }, [visible, docRef, pageNumber, scale, watermarkText]);
 
   // ---- Qidiruv natijasi: matn qatlamidan mosliklarni topib, vaqtincha bo'rttiramiz (CSS bilan so'nadi)
   useEffect(() => {
@@ -1471,8 +1433,7 @@ function PdfPage({
       aria-label={label}
       onClick={pickHighlight}
     >
-      {/* Sahifa canvas'i keshdan qo'yiladi (PageCache) — o'zi chizilmaydi */}
-      <div ref={canvasRef} className="page-canvas" />
+      <canvas ref={canvasRef} className="block" />
       {highlights && highlights.length > 0 && (
         <div className="highlightLayer pointer-events-none absolute inset-0" aria-hidden>
           {highlights.map((h) =>
@@ -1516,25 +1477,6 @@ function PdfPage({
       )}
     </div>
   );
-}
-
-/** Kesh uchun: sahifani `canvas` ga chizadi (o'lcham, piksel zichligi, suv belgisi) */
-async function paintPage(doc: PDFDocumentProxy, pageNumber: number, canvas: HTMLCanvasElement, scale: number, watermarkText: string | null) {
-  const page = await doc.getPage(pageNumber);
-  const viewport = page.getViewport({ scale });
-  const dpr = canvasRatio(viewport.width, viewport.height);
-  canvas.className = "block";
-  canvas.width = Math.floor(viewport.width * dpr);
-  canvas.height = Math.floor(viewport.height * dpr);
-  canvas.style.width = `${Math.floor(viewport.width)}px`;
-  canvas.style.height = `${Math.floor(viewport.height)}px`;
-  const task: RenderTask = page.render({ canvas, viewport, transform: dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] : undefined });
-  await task.promise;
-  // 22.3: suv belgisi sahifa piksellariga chiziladi — ekran suratida ham qoladi,
-  // DOM'dan o'chirib tashlab bo'lmaydi
-  if (watermarkText) drawWatermark(canvas, watermarkText, dpr);
-  // 98: suv belgisi faqat shu yerda (sahifa bilan birga suriladi) — belgi e2e uchun
-  canvas.toggleAttribute("data-wm", !!watermarkText);
 }
 
 /** Sahifa canvas'iga diagonal plitka ko'rinishidagi suv belgisi (22.3) */
