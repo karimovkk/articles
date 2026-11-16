@@ -173,10 +173,17 @@ const fits = await page.evaluate(() => {
 });
 check("Varaqlash: sahifa ekranga sig'adi", fits);
 await waitRendered(3);
+// Sahifalar keshi: oldingi (2) va keyingi (4) sahifa oldindan xotirada chizilgan — varaqlanganda bo'sh varaq yo'q
+const leafDrawn = (n) => page.evaluate((x) => (document.querySelector(`.flip-leaf[data-leaf="${x}"] canvas`)?.width ?? 0) > 0, n);
+await page.waitForFunction(() => [2, 4].every((x) => document.querySelector(`.flip-leaf[data-leaf="${x}"] canvas`)?.width > 0), null, { timeout: 10000 }).catch(() => {});
+check("Kesh: oldingi (2) va keyingi (4) sahifa oldindan chizilgan", (await leafDrawn(2)) && (await leafDrawn(4)));
 check("Prev/Next tugmalari bor", (await page.locator('button[aria-label="Keyingi sahifa"]').count()) === 1);
 await page.click('button[aria-label="Keyingi sahifa"]');
 await page.waitForFunction(() => document.querySelector('[data-testid="flip-stage"]')?.dataset.flipping === "1" && getComputedStyle(document.querySelector('[data-testid="flip-canvas"]')).display === "block", null, { timeout: 2000 }).then(() => check("Next: varaq animatsiyasi boshlandi (egilgan qog'oz canvas'da)", true)).catch(() => check("Next: varaq animatsiyasi boshlandi", false));
 await page.waitForFunction(() => !document.querySelector('[data-testid="flip-stage"]').dataset.flipping && [...document.querySelectorAll(".flip-leaf")].find((l) => getComputedStyle(l).visibility === "visible")?.dataset.leaf === "4", null, { timeout: 5000 });
+check("Kesh: 4-sahifa varaqlangan zahoti tayyor (bo'sh emas)", await leafDrawn(4));
+await page.waitForFunction(() => document.querySelector('.flip-leaf[data-leaf="5"] canvas')?.width > 0, null, { timeout: 10000 }).catch(() => {});
+check("Kesh: oldinga yurilgach keyingi (5) yuklandi, 2-sahifa DOM'dan chiqdi", (await leafDrawn(5)) && (await page.locator('.flip-leaf[data-leaf="2"]').count()) === 0);
 await page.keyboard.press("ArrowLeft");
 await page.waitForFunction(() => !document.querySelector('[data-testid="flip-stage"]').dataset.flipping && [...document.querySelectorAll(".flip-leaf")].find((l) => getComputedStyle(l).visibility === "visible")?.dataset.leaf === "3", null, { timeout: 5000 });
 check("Next tugma / ArrowLeft navigatsiyasi ishlaydi (animatsiya bilan)", true);

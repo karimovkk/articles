@@ -44,6 +44,16 @@ check("Kutubxona: 1/3 maqola o'qildi, umumiy % (100+50+0)/3=50", (await bodyHas(
 check("Kutubxona: sort recent/granted/title (B11) — qo'lbola Select", (await selectOptionCount(page, '[data-testid="library-sort"]')) === 3);
 await page.screenshot({ path: OUT + "50-library.png" });
 
+// ---- Karta → tavsif sahifasi; "O'qish/Davom ettirish" tugmasi → to'g'ridan-to'g'ri reader (boshlangan maqola)
+const card = page.locator('[data-testid="book-card"]', { has: page.locator(`.bcard-link[href="/books/${BOOK}"]`) });
+const ctaHref = await card.locator(".bcard-cta a").first().getAttribute("href");
+check("Karta nomi → kitob tavsifi, tugma → /reader/book (to'g'ridan-to'g'ri o'qish)", ctaHref === `/reader/book/${BOOK}`, ctaHref);
+await card.locator(".bcard-cta a").first().click();
+await page.waitForURL(`${BASE}/reader/${ART2}`, { timeout: 15000 });
+check("O'qish tugmasi: kitob sahifasisiz yarim o'qilgan 2-maqolaga ochildi", page.url() === `${BASE}/reader/${ART2}`, page.url());
+await page.goto(`${BASE}/library`);
+await page.waitForSelector("text=Test kitob", { timeout: 10000 });
+
 // ---- Kitob sahifasi
 await page.click(`a[href="/books/${BOOK}"]`);
 await page.waitForURL(`${BASE}/books/${BOOK}`);

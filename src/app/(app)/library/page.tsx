@@ -176,7 +176,7 @@ export default function LibraryPage() {
                       <span>{pct > 0 ? t("library.readPercent", { n: pct }) : t("library.notStarted")}</span>
                     </div>
                   }
-                  cta={{ href: `/books/${item.book_id}`, label: pct > 0 && pct < 100 ? t("book.continue") : t("catalog.read"), icon: <I.Play size={13} /> }}
+                  cta={{ href: `/reader/book/${item.book_id}`, label: pct > 0 && pct < 100 ? t("book.continue") : t("catalog.read"), icon: <I.Play size={13} /> }}
                 />
               );
             })}

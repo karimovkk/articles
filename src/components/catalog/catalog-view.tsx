@@ -256,9 +256,9 @@ function CatalogList({ kind }: { kind: CatalogKind }) {
                     has
                       ? inTelegram
                         ? undefined
-                        : { href: `/books/${item.book_id}`, label: t("catalog.read"), icon: <I.BookOpen size={15} /> }
+                        : { href: `/reader/book/${item.book_id}`, label: t("catalog.read"), icon: <I.BookOpen size={15} /> }
                       : free
-                        ? { href: `/catalog/${item.book_id}`, label: t("catalog.read"), icon: <I.BookOpen size={15} /> }
+                        ? { href: `/reader/book/${item.book_id}?from=catalog`, label: t("catalog.read"), icon: <I.BookOpen size={15} /> }
                         : cartOn
                           ? undefined
                           : { href: `/catalog/${item.book_id}`, label: t("catalog.buy"), icon: <I.ShoppingBag size={15} /> }
